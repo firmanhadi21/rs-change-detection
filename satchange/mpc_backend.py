@@ -423,7 +423,7 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
         with open(os.path.join(run_dir, base + ".meta.json"), "w") as mf:
             json.dump(meta, mf, indent=2)
         if do_map:
-            from mapmaker import render_map
+            from .mapmaker import render_map
             render_map(meta, os.path.join(run_dir, base + "_map"), basemap=basemap)
 
     stats = {"run_id": run_id, "scenario": scenario, "backend": "mpc",

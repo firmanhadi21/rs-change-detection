@@ -33,7 +33,7 @@ except ImportError:
     sys.exit(1)
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from sites import get_site
+from satchange.sites import get_site
 
 SITE = get_site()
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")

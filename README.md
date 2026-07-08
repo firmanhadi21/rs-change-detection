@@ -20,6 +20,29 @@ python3 detect.py -s flood --lat 27.2 --lon 68.3 \
 
 ---
 
+## Instalasi
+
+Alat inti dikemas sebagai paket Python **`satchange`** dengan perintah `satchange`
+(dan `satmap`). Dependensi berat bersifat opsional (*extras*):
+
+```bash
+pip install 'satchange[gee]'       # backend Earth Engine (butuh akun GEE)
+pip install 'satchange[mpc,maps]'  # Planetary Computer + peta (tanpa akun)
+pip install 'satchange[all]'       # semuanya
+
+satchange -s deforestation --lat -3.333 --lon 122.25 --map
+satmap output/<run-id>             # render ulang peta
+```
+
+Dari checkout sumber (repo ini) tanpa instalasi, `python3 detect.py …` tetap
+berfungsi (shim ke paket). Untuk kembangkan: `pip install -e '.[all]'`.
+Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
+
+> Contoh perintah di bawah memakai `python3 detect.py …`; setelah instal paket,
+> ganti dengan `satchange …` (argumen identik).
+
+---
+
 ## Deteksi Perubahan Multiguna — `detect.py`
 
 Satu perintah: `-s <skenario>` memilih **metode** yang tepat, lokasi lewat
@@ -240,15 +263,20 @@ Karena radar menembus awan, deret waktu tidak terputus oleh tutupan awan. Interp
 ```
 rs-change-detection/
 ├── README.md
-├── requirements.txt                 ← Dependensi Python
-├── detect.py                        ← CLI deteksi perubahan multiguna (utama)
-├── make_map.py                      ← Render peta A4 dari hasil (offline)
-├── mapmaker.py                      ← Tata letak kartografi (matplotlib)
-├── scenarios.py                     ← Registry skenario → metode
-├── indices.py                       ← Indeks spektral + komposit (NDVI/NDBI/…)
-├── sites.py                         ← Preset lokasi (Capkala, Konawe, …)
+├── pyproject.toml                   ← Paket PyPI `satchange` (build + extras)
+├── PUBLISHING.md                    ← Panduan rilis ke PyPI
+├── satchange/                       ← Paket inti (yang di-`pip install`)
+│   ├── detect.py                    #   CLI utama → perintah `satchange`
+│   ├── make_map.py                  #   Render peta → perintah `satmap`
+│   ├── mapmaker.py                  #   Tata letak kartografi (matplotlib)
+│   ├── scenarios.py                 #   Registry skenario → metode
+│   ├── indices.py                   #   Indeks spektral + komposit + Landsat
+│   ├── mpc_backend.py               #   Backend Planetary Computer (tanpa akun)
+│   ├── gee_utils.py                 #   Helper GEE: unduh, init, klip, mask
+│   └── sites.py                     #   Preset lokasi (Capkala, Konawe, …)
+├── detect.py  ·  make_map.py        ← Shim agar `python3 detect.py …` tetap jalan
+├── requirements.txt                 ← Dependensi (untuk pakai dari sumber)
 ├── run_all.py                       ← Pipeline Capkala end-to-end 1 perintah
-├── gee_utils.py                     ← Helper GEE: unduh, init, klip persegi, mask
 ├── .env.example                     ← Template kunci API (salin ke .env)
 ├── data-collection/                 ← Pengumpulan, pemrosesan & deteksi perubahan
 │   ├── 01_sentinel2_download.py     # Sentinel-2 true color via GEE (Python)

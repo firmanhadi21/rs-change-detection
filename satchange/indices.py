@@ -6,8 +6,11 @@ mask cloud per pixel (SCL) and take a median over many scenes, so the result is
 near cloud-free regardless of any single scene's cloud cover.
 """
 
-import ee
-from gee_utils import mask_s2_clouds
+try:
+    import ee  # only needed for the GEE backend
+except ImportError:
+    ee = None
+from .gee_utils import mask_s2_clouds
 
 S2 = "COPERNICUS/S2_SR_HARMONIZED"
 S1 = "COPERNICUS/S1_GRD"

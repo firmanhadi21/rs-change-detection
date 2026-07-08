@@ -12,8 +12,11 @@ detect.py downloads every product (PNG quick-look + GeoTIFF) and writes stats.
 Add a scenario by adding an entry to SCENARIOS (optionally a new run function).
 """
 
-import ee
-from indices import (
+try:
+    import ee  # only needed for the GEE backend
+except ImportError:
+    ee = None
+from .indices import (
     s2_median, l2_median, l_sr_median, INDEX_FN, SENSOR, s1, best_orbit)
 
 # Diverging palette: negative -> red, 0 -> pale, positive -> green

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "satchange"
+version = "0.1.0"
+description = "Multipurpose satellite change detection (deforestation, mining, urbanisation, floods, burns, water, urban growth) via Google Earth Engine or Microsoft Planetary Computer."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Firman Hadi", email = "firmanhadi@me.com" }]
+keywords = [
+  "remote-sensing", "change-detection", "sentinel", "landsat",
+  "earth-engine", "planetary-computer", "ndvi", "ndbi", "flood",
+  "deforestation", "gis", "geospatial",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: GIS",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+]
+dependencies = ["requests"]
+
+[project.optional-dependencies]
+# GEE backend (needs a free Earth Engine account)
+gee = ["earthengine-api"]
+# Planetary Computer backend (no account needed)
+mpc = ["numpy", "rasterio", "pystac-client", "planetary-computer", "odc-stac", "rioxarray"]
+# Value-added map rendering
+maps = ["numpy", "rasterio", "matplotlib", "contextily"]
+# Everything
+all = [
+  "earthengine-api", "numpy", "rasterio", "pystac-client",
+  "planetary-computer", "odc-stac", "rioxarray", "matplotlib", "contextily",
+]
+
+[project.urls]
+Homepage = "https://github.com/firmanhadi21/rs-change-detection"
+Documentation = "https://firmanhadi21.github.io/rs-change-detection/"
+Repository = "https://github.com/firmanhadi21/rs-change-detection"
+
+[project.scripts]
+satchange = "satchange.detect:main"
+satmap = "satchange.make_map:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["satchange"]
+
+[tool.hatch.build.targets.sdist]
+include = ["satchange", "README.md", "LICENSE", "PUBLISHING.md"]

@@ -30,8 +30,8 @@ import sys
 import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from sites import get_site
-from gee_utils import (
+from satchange.sites import get_site
+from satchange.gee_utils import (
     download_png, download_geotiff, wants_drive_export, square_aoi)
 
 try:

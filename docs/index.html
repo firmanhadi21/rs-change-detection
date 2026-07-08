@@ -196,7 +196,9 @@ cd rs-change-detection</code></pre></li>
     <li><b><span class="en">Install the Python dependencies</span><span class="id">Pasang dependensi Python</span></b>
       <pre><code>pip install -r requirements.txt</code></pre>
       <span class="note en">Pulls <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code> and <code>contextily</code>.</span>
-      <span class="note id">Menarik <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code>, dan <code>contextily</code>.</span></li>
+      <span class="note id">Menarik <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code>, dan <code>contextily</code>.</span>
+      <div class="callout tip en" style="margin-top:8px"><b>Prefer pip?</b> The core tool is the <code>satchange</code> package: <code>pip install 'satchange[gee]'</code> (or <code>[mpc,maps]</code>, or <code>[all]</code>) gives you a <code>satchange</code> command — e.g. <code>satchange -s deforestation --lat -3.333 --lon 122.25 --map</code>. From this clone, <code>python3 detect.py …</code> works the same.</div>
+      <div class="callout tip id" style="margin-top:8px"><b>Lebih suka pip?</b> Alat inti adalah paket <code>satchange</code>: <code>pip install 'satchange[gee]'</code> (atau <code>[mpc,maps]</code>, atau <code>[all]</code>) memberi perintah <code>satchange</code> — mis. <code>satchange -s deforestation --lat -3.333 --lon 122.25 --map</code>. Dari klon ini, <code>python3 detect.py …</code> juga berfungsi.</div></li>
     <li><b><span class="en">Authenticate Earth Engine (one time)</span><span class="id">Autentikasi Earth Engine (sekali)</span></b>
       <pre><code>earthengine authenticate</code></pre>
       <span class="note en">Opens a browser to link your Google account. Or drop a service-account key at <code>scripts/config/ee-geodetic.json</code> — the tools detect it automatically.</span>
