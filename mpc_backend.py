@@ -384,8 +384,8 @@ def _write_png(path, data, vis, is_rgb):
 
 
 def run_mpc(scenario, cfg, lat, lon, radius, name, params,
-            images_dir, data_dir, maps_dir, window, do_map=False, basemap="osm"):
-    """Entry point called by detect.py for --backend mpc."""
+            run_dir, run_id, window, provider, do_map=False, basemap="osm"):
+    """Entry point called by detect.py for --backend mpc. Writes to run_dir."""
     print("Backend: Microsoft Planetary Computer (no Earth Engine)")
     bbox = square_bbox(lon, lat, radius)
     method = cfg.get("method")
@@ -401,15 +401,11 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
     else:
         raise SystemExit(f"Scenario '{scenario}' not supported by the MPC backend yet.")
 
-    landsat = method == "trend" or cfg.get("index") in L8_METHODS
-    provider = "Landsat C2-L2 (USGS/NASA)" if landsat else "Copernicus Sentinel (ESA)"
-
-    os.makedirs(images_dir, exist_ok=True)
-    os.makedirs(data_dir, exist_ok=True)
+    os.makedirs(run_dir, exist_ok=True)
     for prod in result["products"]:
         base = f"{scenario}_{prod['key']}_{name}"
-        png = os.path.join(images_dir, base + ".png")
-        tif = os.path.join(data_dir, base + ".tif")
+        png = os.path.join(run_dir, base + ".png")
+        tif = os.path.join(run_dir, base + ".tif")
         print(f"Writing {prod['key']} PNG + GeoTIFF...")
         _write_png(png, prod["data"], prod["vis"], prod["is_rgb"])
         _write_tif(tif, prod["data"], prod["geobox"], prod["is_rgb"])
@@ -417,24 +413,23 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
 
         vis = dict(prod["vis"])
         meta = {"tif": tif, "scenario": scenario, "label": cfg["label"],
-                "product_key": prod["key"], "name": name,
+                "product_key": prod["key"], "name": name, "run_id": run_id,
                 "source": "Microsoft Planetary Computer", "provider": provider,
                 "lat": lat, "lon": lon, "radius_km": radius,
                 "vis": vis, "is_rgb": prod["is_rgb"], "metric": vis.get("label"),
                 "interpretation": result.get("interpretation",
                                              cfg.get("interpretation", "")),
                 "stats": result["stats"], "window": window}
-        with open(os.path.join(data_dir, base + ".meta.json"), "w") as mf:
+        with open(os.path.join(run_dir, base + ".meta.json"), "w") as mf:
             json.dump(meta, mf, indent=2)
         if do_map:
-            os.makedirs(maps_dir, exist_ok=True)
             from mapmaker import render_map
-            render_map(meta, os.path.join(maps_dir, base + "_map"), basemap=basemap)
+            render_map(meta, os.path.join(run_dir, base + "_map"), basemap=basemap)
 
-    stats = {"scenario": scenario, "backend": "mpc",
+    stats = {"run_id": run_id, "scenario": scenario, "backend": "mpc",
              "location": {"lat": lat, "lon": lon}, "radius_km": radius,
              "results": result["stats"]}
-    with open(os.path.join(data_dir, f"{scenario}_{name}_stats.json"), "w") as f:
+    with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
     print("\n=== Results ===")
     print(json.dumps(result["stats"], indent=2))

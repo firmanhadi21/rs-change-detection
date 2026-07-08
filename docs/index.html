@@ -230,10 +230,13 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
       <th><span class="en">What it is</span><span class="id">Isinya</span></th>
       <th><span class="en">Open with</span><span class="id">Buka dengan</span></th>
     </tr>
-    <tr><td><code>images/…_&lt;name&gt;.png</code></td><td><span class="en">Coloured quick-look</span><span class="id">Pratinjau berwarna</span></td><td><span class="en">Any image viewer</span><span class="id">Penampil gambar apa saja</span></td></tr>
-    <tr><td><code>data/…_&lt;name&gt;.tif</code></td><td><span class="en">Full-resolution, georeferenced GeoTIFF (EPSG:4326)</span><span class="id">GeoTIFF resolusi penuh tergeoreferensi (EPSG:4326)</span></td><td>QGIS, ArcGIS, rasterio</td></tr>
-    <tr><td><code>data/…_stats.json</code></td><td><span class="en">Statistics: % area affected, mean Δ, scene counts</span><span class="id">Statistik: % area terdampak, rerata Δ, jumlah scene</span></td><td><span class="en">Any text editor</span><span class="id">Editor teks apa saja</span></td></tr>
+    <tr><td><code>…_&lt;name&gt;.png</code></td><td><span class="en">Coloured quick-look</span><span class="id">Pratinjau berwarna</span></td><td><span class="en">Any image viewer</span><span class="id">Penampil gambar apa saja</span></td></tr>
+    <tr><td><code>…_&lt;name&gt;.tif</code></td><td><span class="en">Full-resolution, georeferenced GeoTIFF (EPSG:4326)</span><span class="id">GeoTIFF resolusi penuh tergeoreferensi (EPSG:4326)</span></td><td>QGIS, ArcGIS, rasterio</td></tr>
+    <tr><td><code>…_map.pdf</code> / <code>.png</code></td><td><span class="en">Value-added map (with <code>--map</code>)</span><span class="id">Peta value-added (dengan <code>--map</code>)</span></td><td>PDF / image viewer</td></tr>
+    <tr><td><code>stats.json</code></td><td><span class="en">Statistics: % area affected, mean Δ, scene counts</span><span class="id">Statistik: % area terdampak, rerata Δ, jumlah scene</span></td><td><span class="en">Any text editor</span><span class="id">Editor teks apa saja</span></td></tr>
   </table>
+  <div class="callout tip en"><b>Each run gets its own folder.</b> Every run writes to a uniquely-named <code>output/&lt;timestamp&gt;_&lt;scenario&gt;_&lt;name&gt;_&lt;id&gt;/</code> — PNG, GeoTIFF, stats, metadata (and maps) together, so runs never overwrite each other.</div>
+  <div class="callout tip id"><b>Tiap run punya folder sendiri.</b> Setiap run menulis ke <code>output/&lt;timestamp&gt;_&lt;skenario&gt;_&lt;nama&gt;_&lt;id&gt;/</code> yang unik — PNG, GeoTIFF, statistik, metadata (dan peta) jadi satu, sehingga antar-run tak saling menimpa.</div>
   <p class="en">For optical scenarios the change layer uses a diverging palette: <b>red = loss</b>, pale = little change, <b>green = gain</b>. The <code>stats.json</code> quantifies it — e.g. <code>pct_affected</code> is the share of the area whose change passed the threshold.</p>
   <p class="id">Untuk skenario optik, layer perubahan memakai palet divergen: <b>merah = kehilangan</b>, pucat = sedikit berubah, <b>hijau = pertambahan</b>. <code>stats.json</code> mengukurnya — mis. <code>pct_affected</code> adalah proporsi area yang perubahannya melewati ambang.</p>
   <div class="callout tip en"><b>Thresholds are a starting point, not gospel.</b> The default per-scenario thresholds (e.g. ΔNDVI &lt; −0.15) are sensible defaults. As Key &amp; Benson note for burn severity, cut-offs should ideally be calibrated with local ground truth. Treat the % figures as comparative, not absolute.</div>
@@ -288,8 +291,8 @@ python3 detect.py -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map</cod
   </figure>
   <p class="en">Already have results and just want to re-render (no Earth Engine needed)? Every run drops a <code>.meta.json</code> sidecar, so:</p>
   <p class="id">Sudah punya hasil dan ingin render ulang (tanpa Earth Engine)? Tiap run menulis sidecar <code>.meta.json</code>, jadi:</p>
-  <pre><code>python3 make_map.py deforestation_dndvi_m3p333_122p25          # by base name
-python3 make_map.py data/mining_sirad_konawe.tif --basemap gray  # or a .tif path</code></pre>
+  <pre><code>python3 make_map.py output/20260708-2226_deforestation_x_fac24e   # a run folder
+python3 make_map.py output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or one .tif</code></pre>
   <p class="en">Maps land in <code>maps/</code>. Tweak the layout in <code>mapmaker.py</code> and re-run instantly.</p>
   <p class="id">Peta tersimpan di <code>maps/</code>. Ubah tata letak di <code>mapmaker.py</code> lalu jalankan ulang seketika.</p>
 

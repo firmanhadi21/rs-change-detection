@@ -19,6 +19,9 @@ images/flood_*
 images/burn_*
 images/water_*
 
+# Per-run change-detection outputs (detect.py writes output/<run-id>/)
+output/
+
 # Generated map products (reproduce with detect.py --map / make_map.py)
 maps/
 

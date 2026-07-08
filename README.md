@@ -46,13 +46,19 @@ python3 detect.py -s burn --lat -7.5 --lon 110.4 \
     --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30
 ```
 
-**Output per run** (klip berbentuk **persegi**, bukan lingkaran):
+**Output per run** (klip **persegi**, bukan lingkaran). Setiap run menulis ke
+folder ber-ID unik **`output/<timestamp>_<skenario>_<nama>_<token>/`** berisi:
 
 | Berkas | Isi |
 |--------|-----|
-| `images/<skenario>_<produk>_<nama>.png` | Quick-look berwarna |
-| `data/<skenario>_<produk>_<nama>.tif` | GeoTIFF resolusi penuh (buka di QGIS) |
-| `data/<skenario>_<nama>_stats.json` | Statistik (mean Δ, % area terdampak, dll.) |
+| `<skenario>_<produk>_<nama>.png` | Quick-look berwarna |
+| `<skenario>_<produk>_<nama>.tif` | GeoTIFF resolusi penuh (buka di QGIS) |
+| `<skenario>_<produk>_<nama>.meta.json` | Metadata (untuk render peta ulang) |
+| `<skenario>_<produk>_<nama>_map.{pdf,png}` | Peta (bila `--map`) |
+| `stats.json` | Statistik (mean Δ, % area terdampak, dll.) |
+
+Contoh: `output/20260708-222632_deforestation_m3p333_122p25_fac24e/`.
+Folder `output/` di-*gitignore*.
 
 Setiap skenario optik memakai **median composite banyak scene** dengan masking
 awan per-piksel (SCL), jadi hasil bebas awan. Skenario radar (SIRAD/banjir)
@@ -155,12 +161,12 @@ python3 detect.py -s mining --site konawe --map --basemap gray
 Render ulang **tanpa GEE** dari hasil yang sudah ada (memakai sidecar `.meta.json`):
 
 ```bash
-python3 make_map.py deforestation_dndvi_m3p333_122p25          # basename
-python3 make_map.py data/mining_sirad_konawe.tif --basemap osm # atau path .tif
+python3 make_map.py output/20260708-222632_deforestation_x_fac24e   # 1 folder run
+python3 make_map.py output/<run>/mining_sirad_x.tif --basemap gray  # atau 1 .tif
 ```
 
-Peta tersimpan di `maps/<skenario>_<produk>_<nama>_map.{pdf,png}`.
-Tata letak & elemen kartografi ada di [`mapmaker.py`](mapmaker.py)
+Peta tersimpan di dalam folder run yang sama. Tata letak & elemen kartografi
+ada di [`mapmaker.py`](mapmaker.py)
 (butuh `matplotlib`, `rasterio`, `contextily`).
 
 ---
@@ -256,6 +262,7 @@ rs-change-detection/
 │   ├── 01_generate_tts.py           # Narasi → audio (ElevenLabs)
 │   ├── 02_assemble_video.py         # Gambar + audio → video (Python + ffmpeg)
 │   └── config/  (tidak di-git)      # Kredensial: ee-geodetic.json, elevenlabs.txt
+├── output/        (tidak di-git)    ← Hasil detect.py per-run: output/<run-id>/
 ├── images/                          ← Aset visual (slide + citra mentah)
 ├── data/                            ← Input mentah *.tif (README saja di-git)
 ├── audio/         (tidak di-git)    ← Output TTS (5 mp3)

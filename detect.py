@@ -32,7 +32,9 @@ Outputs (per run):
 import os
 import sys
 import json
+import uuid
 import argparse
+from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -48,10 +50,24 @@ try:
 except ImportError:
     sys.exit("Install earthengine-api: pip install earthengine-api")
 
-IMAGES_DIR = os.path.join(HERE, "images")
-DATA_DIR = os.path.join(HERE, "data")
-MAPS_DIR = os.path.join(HERE, "maps")
+OUTPUT_ROOT = os.path.join(HERE, "output")
 CONFIG_KEY = os.path.join(HERE, "scripts", "config", "ee-geodetic.json")
+
+
+def new_run_dir(scenario, name):
+    """Create output/<timestamp>_<scenario>_<name>_<token>/ and return it."""
+    run_id = (f"{datetime.now():%Y%m%d-%H%M%S}_{scenario}_{name}"
+              f"_{uuid.uuid4().hex[:6]}")
+    run_dir = os.path.join(OUTPUT_ROOT, run_id)
+    os.makedirs(run_dir, exist_ok=True)
+    return run_id, run_dir
+
+
+def list_outputs(run_dir):
+    """Print the run folder and everything written to it."""
+    print(f"\nAll outputs → output/{os.path.basename(run_dir)}/")
+    for f in sorted(os.listdir(run_dir)):
+        print(f"  {f}")
 
 
 def parse_period(text):
@@ -222,11 +238,15 @@ def main():
     landsat = cfg.get("method") == "trend" or cfg.get("index") in THERMAL_METHODS
     provider = "Landsat C2-L2 (USGS/NASA)" if landsat else "Copernicus Sentinel (ESA)"
 
+    run_id, run_dir = new_run_dir(args.scenario, name)
+    print(f"Output folder: output/{run_id}/\n")
+
     if args.backend == "mpc":
         from mpc_backend import run_mpc
         run_mpc(args.scenario, cfg, lat, lon, radius, name, params,
-                IMAGES_DIR, DATA_DIR, MAPS_DIR, window,
+                run_dir, run_id, window, provider,
                 do_map=args.map, basemap=args.basemap)
+        list_outputs(run_dir)
         return
 
     initialize_ee(CONFIG_KEY)
@@ -238,13 +258,10 @@ def main():
     else:
         result = cfg["run"](aoi, params)
 
-    os.makedirs(IMAGES_DIR, exist_ok=True)
-    os.makedirs(DATA_DIR, exist_ok=True)
-
     for prod in result["products"]:
         base = f"{args.scenario}_{prod['key']}_{name}"
-        png = os.path.join(IMAGES_DIR, base + ".png")
-        tif = os.path.join(DATA_DIR, base + ".tif")
+        png = os.path.join(run_dir, base + ".png")
+        tif = os.path.join(run_dir, base + ".tif")
         print(f"Downloading {prod['key']} PNG...")
         download_png(prod["thumb"], aoi, png, vis=prod["thumb_vis"])
         print(f"Downloading {prod['key']} GeoTIFF...")
@@ -257,32 +274,31 @@ def main():
             k = prod["key"]
             vis["label"] = ("Δ" + k[1:].upper()) if k.startswith("d") else k.upper()
         meta = {"tif": tif, "scenario": args.scenario, "label": cfg["label"],
-                "product_key": prod["key"], "name": name,
+                "product_key": prod["key"], "name": name, "run_id": run_id,
                 "source": "Google Earth Engine", "provider": provider,
                 "lat": lat, "lon": lon, "radius_km": radius,
                 "vis": vis, "is_rgb": is_rgb, "metric": vis.get("label"),
                 "interpretation": result.get("interpretation",
                                              cfg.get("interpretation", "")),
                 "stats": result["stats"], "window": window}
-        with open(os.path.join(DATA_DIR, base + ".meta.json"), "w") as mf:
+        with open(os.path.join(run_dir, base + ".meta.json"), "w") as mf:
             json.dump(meta, mf, indent=2)
 
         if args.map:
-            os.makedirs(MAPS_DIR, exist_ok=True)
             from mapmaker import render_map
-            render_map(meta, os.path.join(MAPS_DIR, base + "_map"),
+            render_map(meta, os.path.join(run_dir, base + "_map"),
                        basemap=args.basemap)
 
-    stats = {"scenario": args.scenario, "location": {"lat": lat, "lon": lon},
+    stats = {"run_id": run_id, "scenario": args.scenario,
+             "location": {"lat": lat, "lon": lon},
              "radius_km": radius, "results": result["stats"]}
-    stats_path = os.path.join(DATA_DIR, f"{args.scenario}_{name}_stats.json")
-    with open(stats_path, "w") as f:
+    with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
 
     print("\n=== Results ===")
     print(json.dumps(result["stats"], indent=2))
     print(f"\n{result.get('interpretation', cfg.get('interpretation', ''))}")
-    print(f"Stats: {os.path.normpath(stats_path)}")
+    list_outputs(run_dir)
 
 
 if __name__ == "__main__":
