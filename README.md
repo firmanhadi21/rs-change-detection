@@ -61,6 +61,29 @@ memilih arah orbit Sentinel-1 yang punya cakupan otomatis.
 **Menambah skenario:** tambahkan entri di [`scenarios.py`](scenarios.py)
 (indeks/metode + ambang + palet). Indeks spektral ada di [`indices.py`](indices.py).
 
+### Backend data: GEE atau Planetary Computer (tanpa akun)
+
+Sumber data dipilih lewat `--backend`:
+
+| Backend | Sumber | Perlu akun? |
+|---------|--------|-------------|
+| `gee` (default) | Google Earth Engine | Ya — akun gratis + `earthengine authenticate` |
+| `mpc` | **Microsoft Planetary Computer** (STAC) | **Tidak** — aset ditandatangani anonim |
+
+Backend `mpc` mengunduh COG Sentinel-1/2 dan memproses **lokal** dengan
+`rasterio`/`odc-stac`/`numpy` — tanpa Earth Engine. Keluaran (PNG, GeoTIFF,
+statistik) dan peta identik.
+
+```bash
+# Tanpa akun GEE — pakai Planetary Computer
+python3 detect.py -s deforestation --lat -3.333 --lon 122.25 --backend mpc --map
+python3 detect.py -s flood --lat 27.2 --lon 68.3 \
+    --pre 2022-07-01:2022-07-25 --post 2022-08-20:2022-09-10 --backend mpc
+```
+
+Dependensi backend `mpc` (sudah di `requirements.txt`):
+`pystac-client planetary-computer odc-stac rioxarray`.
+
 ---
 
 ## Produk Peta (Value-Added)

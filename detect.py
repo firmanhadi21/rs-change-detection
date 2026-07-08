@@ -141,6 +141,9 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--backend", choices=["gee", "mpc"], default="gee",
+                    help="data backend: gee (Earth Engine) or mpc "
+                         "(Microsoft Planetary Computer, no account needed)")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
     args = ap.parse_args()
 
@@ -157,15 +160,7 @@ def main():
     print(f"{cfg['label']}")
     print(f"Location: {lat}, {lon}  radius {radius} km  [{name}]\n")
 
-    initialize_ee(CONFIG_KEY)
-    aoi = square_aoi(lon, lat, radius)  # square clip (not a circle)
-
-    result = cfg["run"](aoi, params)
-
-    os.makedirs(IMAGES_DIR, exist_ok=True)
-    os.makedirs(DATA_DIR, exist_ok=True)
-
-    # temporal window label for the map subtitle
+    # temporal window label for the map subtitle (both backends)
     if params.get("pre"):
         window = f"{params['pre'][0]} → {params['post'][1]}"
     elif params.get("sirad_periods"):
@@ -173,6 +168,21 @@ def main():
         window = f"{sp[0][0]} → {sp[-1][1]}"
     else:
         window = None
+
+    if args.backend == "mpc":
+        from mpc_backend import run_mpc
+        run_mpc(args.scenario, cfg, lat, lon, radius, name, params,
+                IMAGES_DIR, DATA_DIR, MAPS_DIR, window,
+                do_map=args.map, basemap=args.basemap)
+        return
+
+    initialize_ee(CONFIG_KEY)
+    aoi = square_aoi(lon, lat, radius)  # square clip (not a circle)
+
+    result = cfg["run"](aoi, params)
+
+    os.makedirs(IMAGES_DIR, exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
 
     for prod in result["products"]:
         base = f"{args.scenario}_{prod['key']}_{name}"
@@ -191,6 +201,7 @@ def main():
             vis["label"] = ("Δ" + k[1:].upper()) if k.startswith("d") else k.upper()
         meta = {"tif": tif, "scenario": args.scenario, "label": cfg["label"],
                 "product_key": prod["key"], "name": name,
+                "source": "Google Earth Engine",
                 "lat": lat, "lon": lon, "radius_km": radius,
                 "vis": vis, "is_rgb": is_rgb, "metric": vis.get("label"),
                 "interpretation": result.get("interpretation",

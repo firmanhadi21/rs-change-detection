@@ -153,6 +153,8 @@ SCENARIOS = {
     "deforestation": {
         "label": "Deforestation — vegetation loss (Sentinel-2 NDVI)",
         "run": _optical("NDVI", "loss", -0.15, -0.30),
+        "method": "optical", "index": "NDVI", "direction": "loss",
+        "thr": -0.15, "severe": -0.30,
         "radius": 5.0, "needs": "pre_post",
         "pre": ("2023-01-01", "2023-12-31"),
         "post": ("2025-01-01", "2025-12-31"),
@@ -161,6 +163,8 @@ SCENARIOS = {
     "mining": {
         "label": "Mining — radar temporal (SIRAD) + NDVI loss (S1 + S2)",
         "run": run_mining,
+        "method": "mining", "index": "NDVI", "direction": "loss",
+        "thr": -0.15, "severe": -0.30,
         "radius": 6.0, "needs": "sirad",
         "sirad_periods": [("2024-01-01", "2024-12-31"),
                           ("2025-01-01", "2025-12-31"),
@@ -170,6 +174,8 @@ SCENARIOS = {
     "urbanization": {
         "label": "Urbanisation — built-up gain (Sentinel-2 NDBI)",
         "run": _optical("NDBI", "gain", 0.10, 0.20, vmax=0.5),
+        "method": "optical", "index": "NDBI", "direction": "gain",
+        "thr": 0.10, "severe": 0.20,
         "radius": 8.0, "needs": "pre_post",
         "pre": ("2020-01-01", "2020-12-31"),
         "post": ("2025-01-01", "2025-12-31"),
@@ -178,18 +184,23 @@ SCENARIOS = {
     "flood": {
         "label": "Flood — SAR water extent, event vs baseline (Sentinel-1 VV)",
         "run": run_flood,
+        "method": "flood", "water_thr": -16.0,
         "radius": 15.0, "needs": "pre_post_required",
         "interpretation": "Biru = area tergenang saat kejadian banjir.",
     },
     "burn": {
         "label": "Burn severity — dNBR (Sentinel-2)",
         "run": _optical("NBR", "loss", -0.10, -0.27),
+        "method": "optical", "index": "NBR", "direction": "loss",
+        "thr": -0.10, "severe": -0.27,
         "radius": 10.0, "needs": "pre_post_required",
         "interpretation": "Merah = area terbakar (severity tinggi).",
     },
     "water": {
         "label": "Surface-water change (Sentinel-2 NDWI)",
         "run": _optical("NDWI", "gain", 0.10, 0.25),
+        "method": "optical", "index": "NDWI", "direction": "gain",
+        "thr": 0.10, "severe": 0.25,
         "radius": 10.0, "needs": "pre_post",
         "pre": ("2023-01-01", "2023-12-31"),
         "post": ("2025-01-01", "2025-12-31"),

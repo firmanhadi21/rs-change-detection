@@ -1,18 +1,23 @@
 # Python dependencies for the Capkala PETI investigation pipeline.
 # Install: pip install -r requirements.txt
 
-# Satellite data & geospatial processing (runs in Google Earth Engine)
-earthengine-api        # GEE Python API — Sentinel-2 download & SIRAD
-rasterio               # Read PlanetScope GeoTIFFs (NDVI change detection)
-numpy                  # NDVI array math
-Pillow                 # Write NDVI change-map PNG
+# Core geospatial processing
+rasterio               # Read/write GeoTIFFs
+numpy                  # Array math
+Pillow                 # PNG output
+requests               # HTTP downloads
 
-# Data collection
-requests               # GEE thumbnail download + Copernicus API fallback
+# Backend A — Google Earth Engine (detect.py --backend gee, the default)
+earthengine-api        # GEE Python API
+
+# Backend B — Microsoft Planetary Computer (detect.py --backend mpc, no account)
+pystac-client          # Query the Planetary Computer STAC API
+planetary-computer     # Sign asset URLs (anonymous)
+odc-stac               # Load STAC items into xarray
+rioxarray              # xarray <-> raster helpers
 
 # Map products (detect.py --map, make_map.py)
 matplotlib             # Map layout / rendering
-rasterio               # Read result GeoTIFFs (also used by PlanetScope NDVI)
 contextily             # OpenStreetMap basemap tiles
 
 # Text-to-speech (video narration)

@@ -202,6 +202,8 @@ cd rs-change-detection</code></pre></li>
       <span class="note en">Should print the six available scenarios.</span>
       <span class="note id">Harusnya menampilkan enam skenario.</span></li>
   </ol>
+  <div class="callout tip en"><b>No Google Earth Engine account?</b> Use the <b>Microsoft Planetary Computer</b> backend — no account needed. Add <code>--backend mpc</code> to any command; it downloads Sentinel-1/2 Cloud-Optimized GeoTIFFs and processes them locally with <code>rasterio</code>/<code>odc-stac</code>. Install its extras (already in <code>requirements.txt</code>): <code>pip install pystac-client planetary-computer odc-stac rioxarray</code>. Outputs and maps are identical.</div>
+  <div class="callout tip id"><b>Tak punya akun Google Earth Engine?</b> Pakai backend <b>Microsoft Planetary Computer</b> — tanpa akun. Tambahkan <code>--backend mpc</code> pada perintah apa pun; ia mengunduh COG Sentinel-1/2 dan memprosesnya lokal dengan <code>rasterio</code>/<code>odc-stac</code>. Pasang dependensinya (sudah di <code>requirements.txt</code>): <code>pip install pystac-client planetary-computer odc-stac rioxarray</code>. Keluaran dan peta identik.</div>
 
   <h2 id="first">4 · <span class="en">Your first detection</span><span class="id">Deteksi pertama Anda</span></h2>
   <p class="en">Let's map vegetation loss around a coordinate. Pick any <code>lat</code>/<code>lon</code> (decimal degrees; south and west are negative).</p>

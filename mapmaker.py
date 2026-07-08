@@ -16,16 +16,11 @@ Dependencies: matplotlib, rasterio, contextily (OSM tiles need internet).
 import os
 from datetime import datetime
 
-# A stale external PROJ database (e.g. from an OTB install exporting PROJ_LIB)
-# can shadow the modern PROJ bundled with pyproj/rasterio and break tile
-# reprojection. Clear it and point PROJ at pyproj's own data before geo imports.
+# Remove a stale external PROJ override (e.g. an OTB install exporting PROJ_LIB)
+# so rasterio and pyproj each use their OWN bundled PROJ. Do NOT set a shared
+# PROJ_DATA — rasterio's PROJ (v6+) can't read pyproj's older database layout.
 os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
-try:
-    import pyproj
-    os.environ["PROJ_DATA"] = pyproj.datadir.get_data_dir()
-except Exception:  # noqa: BLE001
-    pass
 
 import numpy as np
 import matplotlib
@@ -255,8 +250,9 @@ def render_map(meta, out_base, basemap="osm"):
 
     # --- footer ---
     date = datetime.now().strftime("%Y-%m-%d")
+    source = meta.get("source", "Google Earth Engine")
     fig.text(0.045, 0.03,
-             "Data: Copernicus Sentinel (ESA) via Google Earth Engine  ·  "
+             f"Data: Copernicus Sentinel (ESA) via {source}  ·  "
              f"Basemap: {'OpenStreetMap' if basemap!='none' else 'none'}  ·  "
              f"CRS EPSG:4326  ·  Dibuat {date}",
              fontsize=7, color="#555")
