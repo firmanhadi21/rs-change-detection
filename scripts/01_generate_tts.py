@@ -3,7 +3,10 @@
 
 Requirements:
     pip install elevenlabs
-    ELEVENLABS_API_KEY in ~/.hermes/.env
+    ELEVENLABS_API_KEY set via (checked in order):
+      1. environment variable ELEVENLABS_API_KEY
+      2. a `.env` file in the repository root
+      3. ~/.hermes/.env
 
 Input:  narration/capkala_narration_v4.txt
 Output: audio/scene_00.mp3 ... scene_04.mp3
@@ -11,18 +14,35 @@ Output: audio/scene_00.mp3 ... scene_04.mp3
 
 import os, subprocess, re
 
-# Read API key
-key = None
-env_path = os.path.expanduser("~/.hermes/.env")
-if os.path.exists(env_path):
-    with open(env_path) as f:
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _key_from_env_file(path):
+    """Return ELEVENLABS_API_KEY from a KEY=value .env file, or None."""
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
         for line in f:
-            m = re.match(r'^ELEVENLABS_API_KEY\s*=\s*(.+)', line.strip())
+            m = re.match(r'^\s*ELEVENLABS_API_KEY\s*=\s*(.+)', line)
             if m:
-                key = m.group(1).strip().strip('"').strip("'")
-                break
+                return m.group(1).strip().strip('"').strip("'")
+    return None
+
+
+# Resolve API key: env var → repo .env → ~/.hermes/.env
+key = (
+    os.environ.get("ELEVENLABS_API_KEY")
+    or _key_from_env_file(os.path.join(REPO_ROOT, ".env"))
+    or _key_from_env_file(os.path.expanduser("~/.hermes/.env"))
+)
 if not key:
-    raise RuntimeError("ELEVENLABS_API_KEY not found in ~/.hermes/.env")
+    raise RuntimeError(
+        "ELEVENLABS_API_KEY not found.\n"
+        "Set it one of these ways:\n"
+        "  export ELEVENLABS_API_KEY=your_key_here      # environment variable\n"
+        "  echo 'ELEVENLABS_API_KEY=your_key_here' > .env   # repo root .env file\n"
+        "Get a key at https://elevenlabs.io/"
+    )
 
 from elevenlabs.client import ElevenLabs
 client = ElevenLabs(api_key=key)

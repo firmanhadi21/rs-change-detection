@@ -1,3 +1,10 @@
+# Secrets
+.env
+
+# Raw satellite inputs (large / licensed) — keep the folder's README
+data/*
+!data/README.md
+
 # Large binary outputs (regenerate with scripts)
 audio/
 scenes/
@@ -8,3 +15,6 @@ scenes/
 /tmp/
 *.pyc
 __pycache__/
+
+# macOS
+.DS_Store

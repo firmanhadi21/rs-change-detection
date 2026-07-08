@@ -117,7 +117,7 @@ def download_via_gee():
     # Search Sentinel-2
     collection = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
         .filterBounds(aoi)
-        .filterDate(DATE, DATE.replace("19", "20"))
+        .filterDate(DATE, ee.Date(DATE).advance(1, "day"))
         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 5))
         .sort("CLOUDY_PIXEL_PERCENTAGE"))
     

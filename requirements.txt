@@ -1,17 +1,17 @@
 # Python dependencies for the Capkala PETI investigation pipeline.
 # Install: pip install -r requirements.txt
 
-# Satellite data & geospatial processing
-earthengine-api        # Google Earth Engine (Sentinel-2 download, SIRAD)
+# Satellite data & geospatial processing (runs in Google Earth Engine)
+earthengine-api        # GEE Python API — Sentinel-2 download & SIRAD
 rasterio               # Read PlanetScope GeoTIFFs (NDVI change detection)
 numpy                  # NDVI array math
 Pillow                 # Write NDVI change-map PNG
 
 # Data collection
-requests               # Copernicus Data Space API (Sentinel-2 fallback)
+requests               # GEE thumbnail download + Copernicus API fallback
 
 # Text-to-speech (video narration)
 elevenlabs             # ElevenLabs TTS (Bian voice)
 
-# Note: video assembly (scripts/02_assemble_video.sh) additionally requires
+# Note: video assembly (scripts/02_assemble_video.py) additionally requires
 # ffmpeg + ffprobe installed as system binaries (e.g. `brew install ffmpeg`).

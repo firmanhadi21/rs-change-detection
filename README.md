@@ -41,15 +41,15 @@ Detail langkah verifikasi: [`data-collection/04_legal_verification.md`](data-col
 DATA COLLECTION                    NARRATION → TTS → VIDEO
 ─────────────────                  ───────────────────────
 01_sentinel2_download.py  ─┐
-02_sirad_gee.js           ─┤       capkala_narration_v4.txt
+02_sirad_gee.py           ─┤       capkala_narration_v4.txt
 03_planetscope_ndvi.py    ─┼──►    01_generate_tts.py  ──►  audio/*.mp3
-04_legal_verification.md  ─┘       02_assemble_video.sh ──►  capkala_investigation.mp4
+04_legal_verification.md  ─┘       02_assemble_video.py ──►  capkala_investigation.mp4
         (citra + bukti)                  (5 scene → video final)
 ```
 
 ### SIRAD — teknik inti
 
-**SIRAD** (*Sentinel-1 RGB Anomaly Detection*) menumpuk backscatter radar VH rata-rata dari tiga periode ke dalam satu citra RGB (± 139 citra Sentinel-1 GRD):
+**SIRAD** (*Sentinel-1 RGB Anomaly Detection*) menumpuk backscatter radar VH rata-rata dari tiga periode ke dalam satu citra RGB (± 139 citra Sentinel-1 GRD). **Seluruh pemrosesan berjalan di Google Earth Engine melalui Python** (`earthengine-api`) — tanpa Code Editor — dan hasilnya diunduh otomatis ke `images/sirad_raw.png`:
 
 - **Merah** = 2024
 - **Hijau** = 2025
@@ -72,24 +72,26 @@ Karena radar menembus awan, deret waktu tidak terputus oleh tutupan awan. Interp
 ```
 rs-change-detection/
 ├── README.md
+├── requirements.txt                 ← Dependensi Python
+├── .env.example                     ← Template kunci API (salin ke .env)
 ├── data-collection/                 ← Pengumpulan & pemrosesan data
-│   ├── 01_sentinel2_download.py     # Sentinel-2 via GEE / Copernicus
-│   ├── 02_sirad_gee.js              # SIRAD — deret waktu Sentinel-1 (GEE)
+│   ├── 01_sentinel2_download.py     # Sentinel-2 via GEE (Python) / Copernicus
+│   ├── 02_sirad_gee.py              # SIRAD — Sentinel-1 di GEE (Python)
 │   ├── 03_planetscope_ndvi.py       # NDVI change detection PlanetScope
 │   └── 04_legal_verification.md     # Verifikasi BHUMI & MODI
 ├── narration/
 │   └── capkala_narration_v4.txt     # Naskah 5 scene (Bahasa Indonesia)
 ├── scripts/
 │   ├── 01_generate_tts.py           # Narasi → audio (ElevenLabs)
-│   └── 02_assemble_video.sh         # Gambar + audio → video (ffmpeg)
+│   └── 02_assemble_video.py         # Gambar + audio → video (Python + ffmpeg)
 ├── images/                          ← Aset visual (slide + citra mentah)
-├── data/          (tidak di-git)    ← Input mentah: *.tif satelit
+├── data/                            ← Input mentah *.tif (README saja di-git)
 ├── audio/         (tidak di-git)    ← Output TTS (5 mp3)
 ├── scenes/        (tidak di-git)    ← Output per-scene
 └── capkala_investigation.mp4  (tidak di-git)  ← Video final
 ```
 
-`audio/`, `scenes/`, dan `*.mp4` di-*gitignore* karena bisa dibuat ulang dari skrip.
+Seluruh pipeline **murni Python** (pemrosesan citra berjalan di Google Earth Engine via `earthengine-api`; perakitan video memakai `ffmpeg` sebagai mesin render). `audio/`, `scenes/`, `*.mp4`, dan input `.tif` di-*gitignore* karena bisa dibuat ulang / berlisensi.
 
 ---
 
@@ -97,17 +99,29 @@ rs-change-detection/
 
 | Kebutuhan | Untuk |
 |-----------|-------|
-| Python 3.11+ | Skrip pemrosesan |
-| ffmpeg + ffprobe | Perakitan video |
-| Akun Google Earth Engine | Sentinel-2 & SIRAD |
-| `ELEVENLABS_API_KEY` di `~/.hermes/.env` | TTS |
+| Python 3.11+ | Semua skrip |
+| `ffmpeg` + `ffprobe` di PATH | Perakitan video (mesin render) |
+| Akun Google Earth Engine (`earthengine authenticate`) | Sentinel-2 & SIRAD |
+| `ELEVENLABS_API_KEY` (env var atau `.env`) | TTS |
 | Citra PlanetScope (`data/planetscope_pre.tif`, `post.tif`) | NDVI |
 
 ```bash
-pip install earthengine-api rasterio Pillow elevenlabs requests numpy
+# 1. Dependensi Python
+pip install -r requirements.txt
+
+# 2. ffmpeg (mesin render video)
+brew install ffmpeg            # macOS  ·  Debian/Ubuntu: sudo apt install ffmpeg
+
+# 3. Autentikasi Google Earth Engine (sekali saja)
+earthengine authenticate
+
+# 4. Kunci API — salin template lalu isi
+cp .env.example .env           # isi ELEVENLABS_API_KEY di dalamnya
 ```
 
-> **Catatan:** Direktori `data/` (input `.tif` mentah) tidak disertakan — Anda perlu mengunduh/menyediakan citranya sendiri. Skrip membuat direktori `data/` otomatis dan memberi petunjuk jika file belum ada.
+Kunci ElevenLabs dibaca berurutan dari: variabel lingkungan `ELEVENLABS_API_KEY` → `.env` di root repo → `~/.hermes/.env`.
+
+> **Catatan:** Direktori `data/` (input `.tif` mentah) tidak di-git — lihat [`data/README.md`](data/README.md) untuk file yang diperlukan. Citra PlanetScope bersifat komersial; data lain gratis/terbuka.
 
 ---
 
@@ -119,18 +133,17 @@ Semua slide dan citra sudah tersedia di `images/`. Cukup buat audio lalu rakit v
 
 ```bash
 python3 scripts/01_generate_tts.py     # narasi → audio/scene_00..04.mp3
-bash    scripts/02_assemble_video.sh   # → capkala_investigation.mp4
+python3 scripts/02_assemble_video.py   # → capkala_investigation.mp4
 ```
 
 ### Opsi B — Reproduksi penuh dari data mentah
 
 ```bash
-# 1. Sentinel-2 true color
+# 1. Sentinel-2 true color (GEE via Python)
 python3 data-collection/01_sentinel2_download.py
 
-# 2. SIRAD — buka di GEE Code Editor
-#    Salin data-collection/02_sirad_gee.js → https://code.earthengine.google.com/
-#    Run → Export ke Drive → simpan ke images/sirad_raw.png
+# 2. SIRAD — berjalan di GEE via Python; hasil → images/sirad_raw.png otomatis
+python3 data-collection/02_sirad_gee.py
 
 # 3. PlanetScope NDVI (letakkan planetscope_pre.tif & post.tif di data/)
 python3 data-collection/03_planetscope_ndvi.py
@@ -141,7 +154,7 @@ python3 data-collection/03_planetscope_ndvi.py
 
 # 5. Rakit video
 python3 scripts/01_generate_tts.py
-bash    scripts/02_assemble_video.sh
+python3 scripts/02_assemble_video.py
 ```
 
 ---
