@@ -2,10 +2,12 @@
 """
 Download Sentinel-2 true color image for Capkala mining zone.
 
-Uses Copernicus Data Space Ecosystem API (free, no authentication for basic downloads).
-Alternatively can use Google Earth Engine (see 02_sirad_gee.js for GEE setup).
+Uses Google Earth Engine (Python API) by default, with a Copernicus Data Space
+fallback. Set --site NAME (or SITE env) to target a different location.
 
-Output: data/sentinel2_capkala.tif
+Output (per site, e.g. konawe):
+    images/sentinel2_<site>.png       # true-color quick-look
+    data/sentinel2_<site>.tif         # full-resolution GeoTIFF (open in QGIS)
 """
 
 import os, sys, json, requests
@@ -13,6 +15,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from sites import get_site
+from gee_utils import download_png, download_geotiff
 
 # === Configuration (site-parameterised: --site NAME or SITE env) ===
 SITE = get_site()
@@ -155,27 +158,18 @@ def download_via_gee():
         "gamma": 1.4
     }
     
-    # Download a true-color thumbnail straight into images/
-    url = image.getThumbURL({
-        "region": aoi,
-        "dimensions": "1920x1920",
-        "bands": ["B4", "B3", "B2"],
-        "min": 0,
-        "max": 3000,
-        "gamma": 1.4,
-        "format": "png"
-    })
+    tc_vis = {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000, "gamma": 1.4}
+    truecolor = image.select(["B4", "B3", "B2"])
 
-    resp = requests.get(url, stream=True)
-    resp.raise_for_status()
-    os.makedirs(os.path.dirname(IMG_OUT), exist_ok=True)
-    with open(IMG_OUT, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=8192):
-            f.write(chunk)
-    print(f"Saved: {os.path.normpath(IMG_OUT)}")
-    print("For full-resolution GeoTIFF, use GEE Export.image.toDrive().")
+    # 1) True-color quick-look PNG -> images/
+    print("Downloading true-color quick-look PNG...")
+    download_png(image, aoi, IMG_OUT, vis=tc_vis)
 
-    return url
+    # 2) Full-resolution georeferenced GeoTIFF -> data/
+    print("Downloading full-resolution GeoTIFF...")
+    download_geotiff(truecolor, aoi, OUTPUT, scale=10)
+
+    return IMG_OUT
 
 
 if __name__ == "__main__":

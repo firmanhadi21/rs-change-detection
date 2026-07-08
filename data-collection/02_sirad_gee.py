@@ -15,12 +15,14 @@ Setup (one time):
     pip install earthengine-api requests
     earthengine authenticate          # opens a browser to link your GEE account
 
-Output:
-    images/sirad_raw.png              # downloaded thumbnail (for video assembly)
-    plus an optional Drive export task (full-resolution GeoTIFF/PNG)
+Output (per site, e.g. konawe):
+    images/sirad_<site>.png           # RGB quick-look thumbnail
+    data/sirad_<site>.tif             # full-resolution GeoTIFF (open in QGIS)
+    optionally a Drive export task with --drive
 
 Run:
-    python3 data-collection/02_sirad_gee.py
+    python3 data-collection/02_sirad_gee.py --site konawe
+    python3 data-collection/02_sirad_gee.py --site konawe --drive   # + Drive
 """
 
 import os
@@ -29,6 +31,7 @@ import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from sites import get_site
+from gee_utils import download_png, download_geotiff, wants_drive_export
 
 try:
     import ee
@@ -45,6 +48,7 @@ VIS = {"bands": ["R_2024", "G_2025", "B_2026"], "min": -25, "max": -5, "gamma": 
 
 HERE = os.path.dirname(__file__)
 IMAGES_DIR = os.path.join(HERE, "..", "images")
+DATA_DIR = os.path.join(HERE, "..", "data")
 CONFIG_KEY = os.path.join(HERE, "..", "scripts", "config", "ee-geodetic.json")
 
 
@@ -145,39 +149,32 @@ def main():
         for band_name, (start, end) in periods.items()
     ]
     sirad = ee.Image.cat(bands)
+    out_tif = os.path.join(DATA_DIR, f"sirad_{site['key']}.tif")
 
-    # --- Download a thumbnail straight into images/ for the video pipeline ---
-    print("Fetching SIRAD thumbnail from GEE...")
-    url = sirad.getThumbURL({
-        "region": aoi,
-        "dimensions": "1920x1920",
-        "bands": VIS["bands"],
-        "min": VIS["min"],
-        "max": VIS["max"],
-        "gamma": VIS["gamma"],
-        "format": "png",
-    })
-    resp = requests.get(url, stream=True)
-    resp.raise_for_status()
-    os.makedirs(os.path.dirname(out_png), exist_ok=True)
-    with open(out_png, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=8192):
-            f.write(chunk)
-    print(f"Saved: {os.path.normpath(out_png)}")
+    # 1) RGB quick-look thumbnail -> images/
+    print("Downloading SIRAD quick-look PNG...")
+    vis = {"bands": VIS["bands"], "min": VIS["min"],
+           "max": VIS["max"], "gamma": VIS["gamma"]}
+    download_png(sirad, aoi, out_png, vis=vis)
 
-    # --- Optional: full-resolution export to Google Drive ---
-    task = ee.batch.Export.image.toDrive(
-        image=sirad.visualize(**VIS),
-        description=f"SIRAD_{site['key']}_2024_2026",
-        folder="GEE_Exports",
-        fileNamePrefix=f"sirad_{site['key']}",
-        region=aoi,
-        scale=10,
-        crs="EPSG:4326",
-        maxPixels=int(1e9),
-    )
-    task.start()
-    print(f"Started Drive export task id={task.id} (folder: GEE_Exports)")
+    # 2) Full-resolution georeferenced GeoTIFF (visualised RGB) -> data/
+    print("Downloading full-resolution GeoTIFF...")
+    download_geotiff(sirad.visualize(**VIS), aoi, out_tif, scale=10)
+
+    # 3) Optional: also export full-res to Google Drive with --drive
+    if wants_drive_export():
+        task = ee.batch.Export.image.toDrive(
+            image=sirad.visualize(**VIS),
+            description=f"SIRAD_{site['key']}_2024_2026",
+            folder="GEE_Exports",
+            fileNamePrefix=f"sirad_{site['key']}",
+            region=aoi,
+            scale=10,
+            crs="EPSG:4326",
+            maxPixels=int(1e9),
+        )
+        task.start()
+        print(f"Started Drive export task id={task.id} (folder: GEE_Exports)")
 
     print("\n=== Interpretation ===")
     print("White/Gray = activity in all periods (ongoing)")

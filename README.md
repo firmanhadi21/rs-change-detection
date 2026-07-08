@@ -173,13 +173,27 @@ Pipeline pengumpulan data **tidak terikat ke Capkala**. Pilih lokasi dengan
 
 ```bash
 # Contoh: jalankan untuk Konawe (tambang nikel, Sulawesi Tenggara)
-python3 data-collection/02_sirad_gee.py       --site konawe   # → images/sirad_konawe.png
-python3 data-collection/01_sentinel2_download.py --site konawe # → images/sentinel2_konawe.png
-python3 data-collection/03_planetscope_ndvi.py --site konawe   # butuh data/planetscope_konawe_*.tif
+python3 data-collection/02_sirad_gee.py         --site konawe
+python3 data-collection/01_sentinel2_download.py --site konawe
+python3 data-collection/03_planetscope_ndvi.py  --site konawe   # butuh data/planetscope_konawe_*.tif
 ```
 
-Output diberi nama per-situs (`sirad_konawe.png`, `sentinel2_konawe.png`, …) agar
-hasil antar-lokasi tidak saling menimpa.
+### Mengunduh hasil
+
+Setiap skrip GEE mengunduh **dua** berkas langsung ke disk (per-situs, tanpa
+lewat Google Drive):
+
+| Berkas | Isi | Untuk |
+|--------|-----|-------|
+| `images/sirad_<situs>.png`, `images/sentinel2_<situs>.png` | Quick-look RGB (1920 px) | Pratinjau cepat |
+| `data/sirad_<situs>.tif`, `data/sentinel2_<situs>.tif` | **GeoTIFF resolusi penuh, tergeoreferensi** | Buka di QGIS / rasterio |
+
+Nama per-situs mencegah hasil antar-lokasi saling menimpa. Untuk ekspor
+resolusi penuh ke Google Drive (opsional), tambahkan flag `--drive`:
+
+```bash
+python3 data-collection/02_sirad_gee.py --site konawe --drive
+```
 
 **Menambah lokasi baru:** salin satu entri di `sites.py`, ubah `lat`/`lon`/
 `radius_km` dan tanggal periode. SIRAD otomatis memilih arah orbit Sentinel-1
