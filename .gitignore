@@ -44,3 +44,6 @@ build/
 dist/
 *.egg-info/
 .eggs/
+
+# API docs are generated in CI (pdoc) and deployed by the docs workflow
+docs/api/

@@ -1,0 +1,60 @@
+name: Deploy docs (tutorial + API) to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "satchange/**"
+      - "docs/**"
+      - "pyproject.toml"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; let a newer push supersede an in-flight run.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install satchange + pdoc
+        # [maps] pulls the deps needed to import every module for introspection
+        # (numpy, rasterio, matplotlib, contextily); ee/odc/pystac are lazy.
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[maps]" pdoc
+
+      - name: Generate API reference
+        run: pdoc satchange -o docs/api
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact (whole docs/ = tutorial + api)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
