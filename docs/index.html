@@ -130,7 +130,7 @@
   <h2 id="overview">1 · <span class="en">What you'll build</span><span class="id">Yang akan Anda buat</span></h2>
   <p class="en">By the end you'll run a single command like this…</p>
   <p class="id">Di akhir tutorial, Anda menjalankan satu perintah seperti ini…</p>
-  <pre><code>python3 detect.py -s deforestation --lat -3.333 --lon 122.25 --radius 6 --map</code></pre>
+  <pre><code>satchange -s deforestation --lat -3.333 --lon 122.25 --radius 6 --map</code></pre>
   <p class="en">…and get three things for your chosen area:</p>
   <p class="id">…dan mendapat tiga berkas untuk area pilihan Anda:</p>
   <ul class="en">
@@ -188,34 +188,30 @@
   <p class="id">Skenario optik tak pernah bergantung pada satu citra. Untuk tiap periode, alat menyusun <b>median composite bebas awan</b> dari banyak scene Sentinel-2: tiap scene di-mask per-piksel memakai band Scene Classification (SCL), lalu diambil mediannya. Hasilnya praktis bebas awan bahkan di wilayah berawan. Pengunduh Sentinel-2 mandiri juga mengutamakan satu scene dengan awan ≤10%, dan beralih ke composite bila tak ada.</p>
 
   <h2 id="setup">3 · <span class="en">Setup</span><span class="id">Persiapan</span></h2>
-  <p class="en">You need <b>Python 3.11+</b>, <b>git</b>, and a <b>free Google Earth Engine account</b> (<a href="https://earthengine.google.com/signup/">sign up</a>; approval is usually quick). The optional documentary-video pipeline additionally needs <code>ffmpeg</code> and an ElevenLabs key — ignore those for change detection.</p>
-  <p class="id">Anda memerlukan <b>Python 3.11+</b>, <b>git</b>, dan <b>akun Google Earth Engine gratis</b> (<a href="https://earthengine.google.com/signup/">daftar</a>; persetujuan biasanya cepat). Pipeline video dokumenter (opsional) juga butuh <code>ffmpeg</code> dan kunci ElevenLabs — abaikan itu untuk deteksi perubahan.</p>
+  <p class="en">You need <b>Python 3.11+</b>. The Earth Engine backend needs a <b>free Google Earth Engine account</b> (<a href="https://earthengine.google.com/signup/">sign up</a>); the Planetary Computer backend needs <b>no account at all</b>.</p>
+  <p class="id">Anda memerlukan <b>Python 3.11+</b>. Backend Earth Engine butuh <b>akun Google Earth Engine gratis</b> (<a href="https://earthengine.google.com/signup/">daftar</a>); backend Planetary Computer <b>tanpa akun sama sekali</b>.</p>
   <ol class="steps">
-    <li><b><span class="en">Clone the repository</span><span class="id">Klon repositori</span></b>
-      <pre><code>git clone https://github.com/firmanhadi21/rs-change-detection.git
-cd rs-change-detection</code></pre></li>
-    <li><b><span class="en">Install the Python dependencies</span><span class="id">Pasang dependensi Python</span></b>
-      <pre><code>pip install -r requirements.txt</code></pre>
-      <span class="note en">Pulls <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code> and <code>contextily</code>.</span>
-      <span class="note id">Menarik <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code>, dan <code>contextily</code>.</span>
-      <div class="callout tip en" style="margin-top:8px"><b>Prefer pip?</b> The core tool is the <code>satchange</code> package: <code>pip install 'satchange[gee]'</code> (or <code>[mpc,maps]</code>, or <code>[all]</code>) gives you a <code>satchange</code> command — e.g. <code>satchange -s deforestation --lat -3.333 --lon 122.25 --map</code>. From this clone, <code>python3 detect.py …</code> works the same.</div>
-      <div class="callout tip id" style="margin-top:8px"><b>Lebih suka pip?</b> Alat inti adalah paket <code>satchange</code>: <code>pip install 'satchange[gee]'</code> (atau <code>[mpc,maps]</code>, atau <code>[all]</code>) memberi perintah <code>satchange</code> — mis. <code>satchange -s deforestation --lat -3.333 --lon 122.25 --map</code>. Dari klon ini, <code>python3 detect.py …</code> juga berfungsi.</div></li>
-    <li><b><span class="en">Authenticate Earth Engine (one time)</span><span class="id">Autentikasi Earth Engine (sekali)</span></b>
+    <li><b><span class="en">Install the package</span><span class="id">Pasang paket</span></b>
+      <pre><code>pip install 'satchange[all]'          # everything
+# or leaner:  pip install 'satchange[gee]'  ·  pip install 'satchange[mpc,maps]'</code></pre>
+      <span class="note en">Gives you the <code>satchange</code> and <code>satmap</code> commands. To work from source instead: <code>git clone https://github.com/firmanhadi21/rs-change-detection &amp;&amp; cd rs-change-detection &amp;&amp; pip install -e '.[all]'</code> — then <code>python3 detect.py …</code> works identically.</span>
+      <span class="note id">Memberi perintah <code>satchange</code> dan <code>satmap</code>. Untuk memakai dari sumber: <code>git clone https://github.com/firmanhadi21/rs-change-detection &amp;&amp; cd rs-change-detection &amp;&amp; pip install -e '.[all]'</code> — lalu <code>python3 detect.py …</code> berfungsi sama.</span></li>
+    <li><b><span class="en">Authenticate Earth Engine (GEE backend only)</span><span class="id">Autentikasi Earth Engine (backend GEE saja)</span></b>
       <pre><code>earthengine authenticate</code></pre>
-      <span class="note en">Opens a browser to link your Google account. Or drop a service-account key at <code>scripts/config/ee-geodetic.json</code> — the tools detect it automatically.</span>
-      <span class="note id">Membuka browser untuk menautkan akun Google. Atau taruh kunci service account di <code>scripts/config/ee-geodetic.json</code> — alat mendeteksinya otomatis.</span></li>
+      <span class="note en">Opens a browser to link your Google account, or place a service-account key at <code>./scripts/config/ee-geodetic.json</code>. Skip this entirely if you use <code>--backend mpc</code>.</span>
+      <span class="note id">Membuka browser untuk menautkan akun Google, atau taruh kunci service account di <code>./scripts/config/ee-geodetic.json</code>. Lewati bila memakai <code>--backend mpc</code>.</span></li>
     <li><b><span class="en">Check it's working</span><span class="id">Cek berjalan</span></b>
-      <pre><code>python3 detect.py --list</code></pre>
+      <pre><code>satchange --list</code></pre>
       <span class="note en">Should print the six available scenarios.</span>
       <span class="note id">Harusnya menampilkan enam skenario.</span></li>
   </ol>
-  <div class="callout tip en"><b>No Google Earth Engine account?</b> Use the <b>Microsoft Planetary Computer</b> backend — no account needed. Add <code>--backend mpc</code> to any command; it downloads Sentinel-1/2 Cloud-Optimized GeoTIFFs and processes them locally with <code>rasterio</code>/<code>odc-stac</code>. Install its extras (already in <code>requirements.txt</code>): <code>pip install pystac-client planetary-computer odc-stac rioxarray</code>. Outputs and maps are identical.</div>
-  <div class="callout tip id"><b>Tak punya akun Google Earth Engine?</b> Pakai backend <b>Microsoft Planetary Computer</b> — tanpa akun. Tambahkan <code>--backend mpc</code> pada perintah apa pun; ia mengunduh COG Sentinel-1/2 dan memprosesnya lokal dengan <code>rasterio</code>/<code>odc-stac</code>. Pasang dependensinya (sudah di <code>requirements.txt</code>): <code>pip install pystac-client planetary-computer odc-stac rioxarray</code>. Keluaran dan peta identik.</div>
+  <div class="callout tip en"><b>No Google Earth Engine account?</b> Add <code>--backend mpc</code> to any command — <b>Microsoft Planetary Computer</b> streams Sentinel-1/2 &amp; Landsat Cloud-Optimized GeoTIFFs and processes them locally (comes with <code>satchange[mpc]</code>). Outputs and maps are identical.</div>
+  <div class="callout tip id"><b>Tak punya akun Google Earth Engine?</b> Tambahkan <code>--backend mpc</code> pada perintah apa pun — <b>Microsoft Planetary Computer</b> mengalirkan COG Sentinel-1/2 &amp; Landsat dan memprosesnya lokal (termasuk di <code>satchange[mpc]</code>). Keluaran dan peta identik.</div>
 
   <h2 id="first">4 · <span class="en">Your first detection</span><span class="id">Deteksi pertama Anda</span></h2>
   <p class="en">Let's map vegetation loss around a coordinate. Pick any <code>lat</code>/<code>lon</code> (decimal degrees; south and west are negative).</p>
   <p class="id">Mari petakan kehilangan vegetasi di sekitar koordinat. Pilih <code>lat</code>/<code>lon</code> apa saja (derajat desimal; selatan dan barat negatif).</p>
-  <pre><code>python3 detect.py -s deforestation --lat -3.333 --lon 122.25 --radius 6</code></pre>
+  <pre><code>satchange -s deforestation --lat -3.333 --lon 122.25 --radius 6</code></pre>
   <p class="en">The tool builds a square area of interest (half-side = <code>radius</code> km), makes a cloud-free Sentinel-2 NDVI composite for a baseline year and a recent year, subtracts them, and downloads the result. You'll see something like:</p>
   <p class="id">Alat membangun area minat persegi (setengah-sisi = <code>radius</code> km), membuat composite NDVI Sentinel-2 bebas awan untuk tahun dasar dan tahun terkini, menguranginya, lalu mengunduh hasilnya. Anda akan melihat kira-kira:</p>
   <pre><code>=== Change detection: deforestation ===
@@ -247,38 +243,38 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
   <div class="callout tip id"><b>Ambang adalah titik awal, bukan patokan mutlak.</b> Ambang default tiap skenario (mis. ΔNDVI &lt; −0.15) adalah nilai wajar. Seperti dicatat Key &amp; Benson untuk severity kebakaran, ambang idealnya dikalibrasi dengan data lapangan lokal. Anggap angka % sebagai perbandingan, bukan mutlak.</div>
 
   <h2 id="scenarios">6 · <span class="en">Every scenario</span><span class="id">Setiap skenario</span></h2>
-  <p class="en">List them any time with <code>python3 detect.py --list</code>. Commands:</p>
-  <p class="id">Lihat daftarnya kapan saja dengan <code>python3 detect.py --list</code>. Perintah:</p>
+  <p class="en">List them any time with <code>satchange --list</code>. Commands:</p>
+  <p class="id">Lihat daftarnya kapan saja dengan <code>satchange --list</code>. Perintah:</p>
   <pre><code># Deforestation / vegetation loss (default baseline vs recent year)
-python3 detect.py -s deforestation --lat -3.333 --lon 122.25
+satchange -s deforestation --lat -3.333 --lon 122.25
 
 # Mining — radar temporal (SIRAD) + NDVI loss, two products
-python3 detect.py -s mining --lat -3.333 --lon 122.25
+satchange -s mining --lat -3.333 --lon 122.25
 
 # Urbanisation — built-up (NDBI) gain
-python3 detect.py -s urbanization --lat -6.2 --lon 106.8 --radius 12
+satchange -s urbanization --lat -6.2 --lon 106.8 --radius 12
 
 # Surface-water change (NDWI)
-python3 detect.py -s water --lat -0.5 --lon 117.1
+satchange -s water --lat -0.5 --lon 117.1
 
 # Flood — needs an explicit baseline and event window
-python3 detect.py -s flood --lat 27.2 --lon 68.3 \
+satchange -s flood --lat 27.2 --lon 68.3 \
     --pre 2022-07-01:2022-07-25 --post 2022-08-20:2022-09-10
 
 # Burn severity — needs pre-fire and post-fire windows
-python3 detect.py -s burn --lat -7.5 --lon 110.4 \
+satchange -s burn --lat -7.5 --lon 110.4 \
     --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30
 
 # Urban growth timing across 3 epochs (Landsat; default 2010/2015/2020)
-python3 detect.py -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map</code></pre>
+satchange -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map</code></pre>
   <div class="callout en"><b>Flood and burn require dates.</b> They compare a specific <i>event</i> to a <i>baseline</i>, so pass <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Other scenarios have default windows you can still override.</div>
   <div class="callout id"><b>Banjir dan kebakaran wajib tanggal.</b> Keduanya membandingkan <i>kejadian</i> tertentu dengan <i>baseline</i>, jadi berikan <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Skenario lain punya jendela default yang tetap bisa diubah.</div>
 
   <div class="callout tip en"><b>Alternative methods (e.g. urbanisation).</b> Optical scenarios aren't tied to one index — swap with <code>--method</code>. Sentinel-2 built-up: <code>NDBI</code> (default), <code>UI</code>, <code>BU</code> (=NDBI−NDVI), <code>IBI</code>. Thermal built-up <code>NDISI</code>, <code>EBBI</code> <b>auto-switch to Landsat 8/9</b> (they need a thermal band Sentinel-2 lacks). Each method has its own default thresholds — tune with <code>--thr</code>/<code>--severe</code>.</div>
   <div class="callout tip id"><b>Metode alternatif (mis. urbanisasi).</b> Skenario optik tak terikat satu indeks — ganti dengan <code>--method</code>. Built-up Sentinel-2: <code>NDBI</code> (default), <code>UI</code>, <code>BU</code> (=NDBI−NDVI), <code>IBI</code>. Indeks termal <code>NDISI</code>, <code>EBBI</code> <b>otomatis beralih ke Landsat 8/9</b> (butuh band termal yang tak ada di Sentinel-2). Tiap metode punya ambang default — setel dengan <code>--thr</code>/<code>--severe</code>.</div>
 
-  <div class="callout en"><b>Three (or more) dates / historical years.</b> Sentinel-2 only starts ~2015 — it can't see 2010. For multi-year growth use <code>-s urban-trend</code>, which runs on <b>Landsat</b> (archive back to 1984) and maps NDBI at three epochs to R/G/B in one image (white = built the whole time, blue = newest growth): <code>python3 detect.py -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
-  <div class="callout id"><b>Tiga (atau lebih) tanggal / tahun historis.</b> Sentinel-2 baru ada sejak ~2015 — tak bisa melihat 2010. Untuk pertumbuhan multi-tahun pakai <code>-s urban-trend</code> yang berbasis <b>Landsat</b> (arsip sejak 1984) dan memetakan NDBI tiga epoch ke R/G/B dalam satu citra (putih = terbangun terus, biru = paling baru): <code>python3 detect.py -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
+  <div class="callout en"><b>Three (or more) dates / historical years.</b> Sentinel-2 only starts ~2015 — it can't see 2010. For multi-year growth use <code>-s urban-trend</code>, which runs on <b>Landsat</b> (archive back to 1984) and maps NDBI at three epochs to R/G/B in one image (white = built the whole time, blue = newest growth): <code>satchange -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
+  <div class="callout id"><b>Tiga (atau lebih) tanggal / tahun historis.</b> Sentinel-2 baru ada sejak ~2015 — tak bisa melihat 2010. Untuk pertumbuhan multi-tahun pakai <code>-s urban-trend</code> yang berbasis <b>Landsat</b> (arsip sejak 1984) dan memetakan NDBI tiga epoch ke R/G/B dalam satu citra (putih = terbangun terus, biru = paling baru): <code>satchange -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
 
   <figure>
     <img src="assets/example-urban-trend.png" alt="Example urban-trend map, Cikarang 2010/2015/2020">
@@ -288,15 +284,15 @@ python3 detect.py -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map</cod
   <h2 id="maps">7 · <span class="en">Make a map product</span><span class="id">Membuat produk peta</span></h2>
   <p class="en">Add <code>--map</code> to any run to render an <b>A4-landscape map sheet</b> (PDF + PNG) per product: OpenStreetMap basemap, the change layer, title, legend, a statistics panel, a location inset, coordinate grid, scale bar and north arrow.</p>
   <p class="id">Tambahkan <code>--map</code> pada run apa pun untuk membuat <b>lembar peta A4 landscape</b> (PDF + PNG) per produk: basemap OpenStreetMap, layer perubahan, judul, legenda, panel statistik, inset lokasi, grid koordinat, skala, dan panah utara.</p>
-  <pre><code>python3 detect.py -s mining --lat -3.333 --lon 122.25 --map</code></pre>
+  <pre><code>satchange -s mining --lat -3.333 --lon 122.25 --map</code></pre>
   <figure>
     <img src="assets/example-mining-sirad.png" alt="Example mining SIRAD map">
     <figcaption><span class="en">A SIRAD radar-temporal map. Each colour is one period; <b>blue = new activity</b> only in the most recent period — a strong signal of fresh land clearing.</span><span class="id">Peta radar-temporal SIRAD. Tiap warna satu periode; <b>biru = aktivitas baru</b> hanya pada periode terkini — sinyal kuat pembukaan lahan baru.</span></figcaption>
   </figure>
   <p class="en">Already have results and just want to re-render (no Earth Engine needed)? Every run drops a <code>.meta.json</code> sidecar, so:</p>
   <p class="id">Sudah punya hasil dan ingin render ulang (tanpa Earth Engine)? Tiap run menulis sidecar <code>.meta.json</code>, jadi:</p>
-  <pre><code>python3 make_map.py output/20260708-2226_deforestation_x_fac24e   # a run folder
-python3 make_map.py output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or one .tif</code></pre>
+  <pre><code>satmap output/20260708-2226_deforestation_x_fac24e   # a run folder
+satmap output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or one .tif</code></pre>
   <p class="en">Maps land in <code>maps/</code>. Tweak the layout in <code>mapmaker.py</code> and re-run instantly.</p>
   <p class="id">Peta tersimpan di <code>maps/</code>. Ubah tata letak di <code>mapmaker.py</code> lalu jalankan ulang seketika.</p>
 
@@ -319,7 +315,7 @@ python3 make_map.py output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or o
     "ndvi_post": ("2026-01-01","2026-06-30"),
   },
 }</code></pre>
-  <pre><code>python3 detect.py -s deforestation --site my_area --map</code></pre>
+  <pre><code>satchange -s deforestation --site my_area --map</code></pre>
   <h3><span class="en">Add a brand-new scenario</span><span class="id">Tambah skenario baru</span></h3>
   <p class="en">Most scenarios are one dictionary entry in <code>scenarios.py</code>. To add, say, a moisture-change scenario using NDWI on a custom threshold you only add a registry entry — the generic optical-change engine does the rest:</p>
   <p class="id">Kebanyakan skenario hanya satu entri dictionary di <code>scenarios.py</code>. Untuk menambah, misalnya, skenario perubahan kelembapan memakai NDWI dengan ambang khusus, cukup tambahkan satu entri — mesin perubahan optik generik menangani sisanya:</p>
