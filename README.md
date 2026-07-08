@@ -93,6 +93,29 @@ python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method EBBI --backe
 Indeks termal peka pada kondisi akuisisi (suhu permukaan berbeda antar-tanggal),
 jadi kalibrasi ambang untuk area Anda.
 
+### Perubahan multi-tahun (mis. 2010 · 2015 · 2020)
+
+**Penting:** Sentinel-2 baru tersedia sejak ~2015/2016 — **tidak bisa** melihat
+2010. Untuk analisis historis pakai skenario **`urban-trend`** yang berbasis
+**Landsat** (arsip sejak 1984, otomatis memakai Landsat 5/7/8/9) dan memetakan
+**timing** pertumbuhan built-up pada 3 epoch sekaligus sebagai citra RGB
+(epoch-1 = Merah, epoch-2 = Hijau, epoch-3 = Biru):
+
+```bash
+python3 detect.py -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map
+# epoch kustom (default 2010/2015/2020):
+python3 detect.py -s urban-trend --lat -6.30 --lon 107.15 \
+    --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31
+```
+
+Interpretasi: **putih** = terbangun di semua epoch (kota lama), **biru** =
+tumbuh hanya di epoch terakhir (paling baru), **cyan** = sejak epoch ke-2.
+Statistik: % built-up tiap epoch + % built-up baru. Jalan juga di `--backend mpc`.
+Contoh (Cikarang/Bekasi): built-up 10% (2010) → 23% (2020), 15% baru.
+
+> Untuk perbandingan **dua** tanggal saja, jalankan skenario optik/termal biasa
+> dengan `--pre`/`--post` (mis. `--method NDISI` untuk memakai band termal Landsat).
+
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
 Sumber data dipilih lewat `--backend`:

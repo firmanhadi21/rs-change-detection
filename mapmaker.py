@@ -144,7 +144,13 @@ def _stats_lines(meta):
             out.append(f"Scene pre/post: {res['scenes_pre']}/{res['scenes_post']}")
         return out
 
-    if "pct_flooded" in s:  # flood
+    if "pct_new_builtup" in s:  # urban-trend
+        lines += [f"Metode: {s.get('method', 'NDBI trend')}",
+                  f"Built-up epoch-1: {s['pct_builtup_first']:.1f}%",
+                  f"Built-up epoch-3: {s['pct_builtup_last']:.1f}%",
+                  f"Built-up baru: {s['pct_new_builtup']:.1f}%",
+                  f"Scene/epoch: {s.get('scenes_per_epoch', '-')}"]
+    elif "pct_flooded" in s:  # flood
         lines += [f"Metode: {s.get('method','SAR')}",
                   f"Tergenang: {s['pct_flooded']:.1f}%",
                   f"Air permanen: {s.get('pct_permanent_water',0):.1f}%",
@@ -251,8 +257,9 @@ def render_map(meta, out_base, basemap="osm"):
     # --- footer ---
     date = datetime.now().strftime("%Y-%m-%d")
     source = meta.get("source", "Google Earth Engine")
+    provider = meta.get("provider", "Copernicus Sentinel (ESA)")
     fig.text(0.045, 0.03,
-             f"Data: Copernicus Sentinel (ESA) via {source}  ·  "
+             f"Data: {provider} via {source}  ·  "
              f"Basemap: {'OpenStreetMap' if basemap!='none' else 'none'}  ·  "
              f"CRS EPSG:4326  ·  Dibuat {date}",
              fontsize=7, color="#555")

@@ -116,6 +116,17 @@ def build_params(scenario, args):
         p["sirad_periods"] = cfg["sirad_periods"]
         return p
 
+    if needs == "epochs":
+        if args.epochs:
+            windows = [parse_period(w) for w in args.epochs.split(",")]
+        else:
+            windows = cfg["epochs"]
+        if len(windows) != 3:
+            raise SystemExit("--epochs needs exactly 3 windows: W1,W2,W3 "
+                             "(each START:END, e.g. 2010-01-01:2010-12-31)")
+        p["epochs"] = windows
+        return p
+
     # pre/post windows (optical + flood)
     pre = parse_period(args.pre) if args.pre else cfg.get("pre")
     post = parse_period(args.post) if args.post else cfg.get("post")
@@ -164,6 +175,8 @@ def main():
     ap.add_argument("-r", "--radius", type=float, help="AOI radius in km")
     ap.add_argument("--pre", help="baseline window START:END")
     ap.add_argument("--post", help="recent/event window START:END")
+    ap.add_argument("--epochs", help="urban-trend: three windows W1,W2,W3 "
+                    "(each START:END), e.g. 2010-01-01:2010-12-31,...")
     ap.add_argument("-n", "--name", help="output label (default from coords)")
     ap.add_argument("--map", action="store_true",
                     help="also render an A4 map layout (PDF + PNG) per product")
@@ -200,8 +213,14 @@ def main():
     elif params.get("sirad_periods"):
         sp = params["sirad_periods"]
         window = f"{sp[0][0]} → {sp[-1][1]}"
+    elif params.get("epochs"):
+        ep = params["epochs"]
+        window = " · ".join(w[0][:4] for w in ep)
     else:
         window = None
+
+    landsat = cfg.get("method") == "trend" or cfg.get("index") in THERMAL_METHODS
+    provider = "Landsat C2-L2 (USGS/NASA)" if landsat else "Copernicus Sentinel (ESA)"
 
     if args.backend == "mpc":
         from mpc_backend import run_mpc
@@ -239,7 +258,7 @@ def main():
             vis["label"] = ("Δ" + k[1:].upper()) if k.startswith("d") else k.upper()
         meta = {"tif": tif, "scenario": args.scenario, "label": cfg["label"],
                 "product_key": prod["key"], "name": name,
-                "source": "Google Earth Engine",
+                "source": "Google Earth Engine", "provider": provider,
                 "lat": lat, "lon": lon, "radius_km": radius,
                 "vis": vis, "is_rgb": is_rgb, "metric": vis.get("label"),
                 "interpretation": result.get("interpretation",

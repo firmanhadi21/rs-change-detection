@@ -110,6 +110,33 @@ def l2_median(aoi, start, end, cloud_max=60):
     return col.median(), col.size().getInfo()
 
 
+def _prep_l_sr(img, bands):
+    """Scale a Landsat C2-L2 scene to surface reflectance (no thermal), masked."""
+    qa = img.select("QA_PIXEL")
+    clear = qa.bitwiseAnd((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4)).eq(0)
+    opt = img.select(bands).multiply(0.0000275).add(-0.2)
+    return opt.rename(["GREEN", "RED", "NIR", "SWIR1", "SWIR2"]).updateMask(clear)
+
+
+def l_sr_median(aoi, start, end, cloud_max=60):
+    """Median Landsat 5/7/8/9 surface-reflectance composite (archive back to 1984).
+
+    Uniform band naming across sensors so historical epochs (e.g. 2010) work.
+    """
+    tm = (ee.ImageCollection("LANDSAT/LT05/C02/T1_L2")
+          .merge(ee.ImageCollection("LANDSAT/LE07/C02/T1_L2"))
+          .filterBounds(aoi).filterDate(start, end)
+          .filter(ee.Filter.lt("CLOUD_COVER", cloud_max))
+          .map(lambda i: _prep_l_sr(i, ["SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B7"])))
+    oli = (ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+           .merge(ee.ImageCollection("LANDSAT/LC09/C02/T1_L2"))
+           .filterBounds(aoi).filterDate(start, end)
+           .filter(ee.Filter.lt("CLOUD_COVER", cloud_max))
+           .map(lambda i: _prep_l_sr(i, ["SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7"])))
+    col = tm.merge(oli)
+    return col.median(), col.size().getInfo()
+
+
 def _norm01(band, lo, hi):
     return band.subtract(lo).divide(hi - lo).clamp(0, 1)
 

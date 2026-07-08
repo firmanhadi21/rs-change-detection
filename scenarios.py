@@ -13,7 +13,8 @@ Add a scenario by adding an entry to SCENARIOS (optionally a new run function).
 """
 
 import ee
-from indices import s2_median, l2_median, INDEX_FN, SENSOR, s1, best_orbit
+from indices import (
+    s2_median, l2_median, l_sr_median, INDEX_FN, SENSOR, s1, best_orbit)
 
 # Diverging palette: negative -> red, 0 -> pale, positive -> green
 DIVERGING = ["a50026", "d73027", "fee08b", "ffffbf", "d9ef8b", "1a9850", "006837"]
@@ -115,6 +116,44 @@ def run_mining(aoi, p):
     return res
 
 
+def run_urban_trend(aoi, p, bu_thr=0.0):
+    """Multi-epoch built-up timing: NDBI (Landsat) at 3 epochs -> R/G/B.
+
+    New built-up appears blue (last epoch only), older growth cyan, always-built
+    white. Uses Landsat so historical epochs (e.g. 2010) are covered.
+    """
+    epochs = p["epochs"]  # list of 3 (start, end)
+    ndbis, counts = [], []
+    for (start, end) in epochs:
+        img, n = l_sr_median(aoi, start, end)
+        ndbis.append(img.normalizedDifference(["SWIR1", "NIR"]))  # NDBI
+        counts.append(n)
+    if min(counts) == 0:
+        raise SystemExit(f"No Landsat scenes in one epoch: {counts}. "
+                         "Adjust --epochs windows.")
+
+    def norm(x):  # NDBI [-0.2, 0.4] -> [0, 1] for display
+        return x.subtract(-0.2).divide(0.6).clamp(0, 1)
+
+    labels = ["R", "G", "B"]
+    rgb = ee.Image.cat([norm(ndbis[0]), norm(ndbis[1]), norm(ndbis[2])]) \
+        .rename(labels).clip(aoi)
+    vis = {"bands": labels, "min": 0, "max": 1}
+
+    bu_first, bu_last = ndbis[0].gt(bu_thr), ndbis[-1].gt(bu_thr)
+    new = bu_last.And(bu_first.Not())
+    stats = {"method": "NDBI trend (Landsat)",
+             "epochs": [list(e) for e in epochs], "scenes_per_epoch": counts,
+             "pct_builtup_first": _pct(bu_first, aoi),
+             "pct_builtup_last": _pct(bu_last, aoi),
+             "pct_new_builtup": _pct(new, aoi)}
+    product = {"key": "trend", "thumb": rgb, "thumb_vis": vis,
+               "tif": rgb.visualize(**vis), "scale": 30}
+    return {"products": [product], "stats": stats,
+            "interpretation": ("R/G/B = NDBI epoch-1/2/3. Biru = built-up baru di "
+                               "epoch terakhir; cyan = lebih lama; putih = selalu terbangun.")}
+
+
 def run_flood(aoi, p, water_thr=-16.0):
     """Flood: Sentinel-1 VV water extent, event vs baseline.
 
@@ -182,6 +221,16 @@ SCENARIOS = {
         "pre": ("2020-01-01", "2020-12-31"),
         "post": ("2025-01-01", "2025-12-31"),
         "interpretation": "Hijau = indeks terbangun naik (urbanisasi baru).",
+    },
+    "urban-trend": {
+        "label": "Urban growth timing — NDBI over 3 epochs (Landsat)",
+        "run": run_urban_trend,
+        "method": "trend",
+        "radius": 10.0, "needs": "epochs",
+        "epochs": [("2010-01-01", "2010-12-31"),
+                   ("2015-01-01", "2015-12-31"),
+                   ("2020-01-01", "2020-12-31")],
+        "interpretation": "R/G/B = 2010/2015/2020; biru = pertumbuhan terbaru.",
     },
     "flood": {
         "label": "Flood — SAR water extent, event vs baseline (Sentinel-1 VV)",

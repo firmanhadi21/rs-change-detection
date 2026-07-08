@@ -160,6 +160,68 @@ def _landsat_median(bbox, start, end, geobox=None):
     return out, len(items), ds.odc.geobox
 
 
+def _l_sr_median(bbox, start, end, geobox=None):
+    """Median Landsat 5/7/8/9 surface reflectance (uniform bands, no thermal)."""
+    import odc.stac
+    import xarray as xr
+    cat = _catalog()
+    items = list(cat.search(collections=["landsat-c2-l2"], bbox=bbox,
+                 datetime=f"{start}/{end}",
+                 query={"eo:cloud_cover": {"lt": CLOUD_MAX}}).items())
+    if not items:
+        return None, 0, geobox
+    bands = ["green", "red", "nir08", "swir16", "swir22", "qa_pixel"]
+    load_kw = dict(bands=bands, groupby="solar_day",
+                   chunks={"x": 2048, "y": 2048}, resampling="bilinear")
+    if geobox is not None:
+        ds = odc.stac.load(items, geobox=geobox, **load_kw)
+    else:
+        ds = odc.stac.load(items, bbox=bbox, crs="EPSG:4326",
+                           resolution=L_RES, **load_kw)
+    qa = ds["qa_pixel"].astype("uint16")
+    bad = (qa & ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4))) != 0
+    m = ds.where(~bad).median(dim="time").compute()
+    out = xr.Dataset({
+        "GREEN": m["green"] * 0.0000275 - 0.2,
+        "RED": m["red"] * 0.0000275 - 0.2,
+        "NIR": m["nir08"] * 0.0000275 - 0.2,
+        "SWIR1": m["swir16"] * 0.0000275 - 0.2,
+        "SWIR2": m["swir22"] * 0.0000275 - 0.2,
+    })
+    return out, len(items), ds.odc.geobox
+
+
+def run_urban_trend(bbox, params, bu_thr=0.0):
+    """NDBI at 3 epochs (Landsat) -> R/G/B timing composite."""
+    epochs = params["epochs"]
+    ndbis, counts, gbox = [], [], None
+    for (start, end) in epochs:
+        ds, n, gb = _l_sr_median(bbox, start, end, geobox=gbox)
+        if ds is None:
+            raise SystemExit(f"No Landsat scenes for epoch {start}..{end} (MPC).")
+        gbox = gbox or gb
+        ndbis.append(_nd(_b(ds, "SWIR1"), _b(ds, "NIR")))
+        counts.append(n)
+
+    def norm(x):  # NDBI [-0.2,0.4] -> [0,255]
+        return (np.clip((np.nan_to_num(x, nan=-0.2) + 0.2) / 0.6, 0, 1) * 255).astype("uint8")
+
+    rgb = np.stack([norm(ndbis[0]), norm(ndbis[1]), norm(ndbis[2])])
+    valid = np.isfinite(ndbis[0]) & np.isfinite(ndbis[-1])
+    bu_first, bu_last = ndbis[0] > bu_thr, ndbis[-1] > bu_thr
+    new = bu_last & (~bu_first) & valid
+    n = max(int(valid.sum()), 1)
+    stats = {"method": "NDBI trend (Landsat, MPC)",
+             "epochs": [list(e) for e in epochs], "scenes_per_epoch": counts,
+             "pct_builtup_first": 100.0 * int((bu_first & valid).sum()) / n,
+             "pct_builtup_last": 100.0 * int((bu_last & valid).sum()) / n,
+             "pct_new_builtup": 100.0 * int(new.sum()) / n}
+    product = {"key": "trend", "data": rgb, "geobox": gbox,
+               "vis": {"bands": ["R", "G", "B"]}, "is_rgb": True}
+    return {"products": [product], "stats": stats,
+            "interpretation": "R/G/B = NDBI epoch-1/2/3. Biru = built-up baru; putih = selalu terbangun."}
+
+
 def run_optical(bbox, params, index, direction, thr, severe, vmax=0.6):
     if index in L8_METHODS:  # thermal indices -> Landsat
         pre, n_pre, gbox = _landsat_median(bbox, *params["pre"])
@@ -334,8 +396,13 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
         result = run_flood(bbox, params, cfg.get("water_thr", -16.0))
     elif method == "mining":
         result = run_mining(bbox, params)
+    elif method == "trend":
+        result = run_urban_trend(bbox, params)
     else:
         raise SystemExit(f"Scenario '{scenario}' not supported by the MPC backend yet.")
+
+    landsat = method == "trend" or cfg.get("index") in L8_METHODS
+    provider = "Landsat C2-L2 (USGS/NASA)" if landsat else "Copernicus Sentinel (ESA)"
 
     os.makedirs(images_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
@@ -351,7 +418,7 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
         vis = dict(prod["vis"])
         meta = {"tif": tif, "scenario": scenario, "label": cfg["label"],
                 "product_key": prod["key"], "name": name,
-                "source": "Microsoft Planetary Computer",
+                "source": "Microsoft Planetary Computer", "provider": provider,
                 "lat": lat, "lon": lon, "radius_km": radius,
                 "vis": vis, "is_rgb": prod["is_rgb"], "metric": vis.get("label"),
                 "interpretation": result.get("interpretation",
