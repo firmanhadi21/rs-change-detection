@@ -39,7 +39,8 @@ sys.path.insert(0, HERE)
 
 from gee_utils import (  # noqa: E402
     download_png, download_geotiff, initialize_ee, square_aoi)
-from scenarios import SCENARIOS  # noqa: E402
+from scenarios import SCENARIOS, run_optical_change  # noqa: E402
+from indices import INDEX_FN, BUILTUP_METHODS, METHOD_DEFAULTS  # noqa: E402
 
 try:
     import ee
@@ -81,6 +82,8 @@ def print_scenarios():
     print("Available scenarios (-s):\n")
     for key, cfg in SCENARIOS.items():
         print(f"  {key:<14} {cfg['label']}")
+    print(f"\nBuilt-up methods for urbanization (--method): {', '.join(BUILTUP_METHODS)}")
+    print("  (NDISI/EBBI need a thermal band — Landsat — so they are not on Sentinel-2)")
     print("\nLocation: --lat LAT --lon LON  |  -l 'lat,lon'  |  --site NAME")
 
 
@@ -123,6 +126,29 @@ def build_params(scenario, args):
     return p
 
 
+def apply_overrides(cfg, args):
+    """Return a cfg copy with --method/--thr/--severe applied (optical only)."""
+    cfg = dict(cfg)
+    if cfg.get("method") != "optical":
+        if args.method:
+            print(f"(--method ignored — '{args.scenario}' is not index-based)")
+        return cfg
+    if args.method:
+        m = args.method.upper()
+        if m not in INDEX_FN:
+            raise SystemExit(f"Unknown --method '{args.method}'. "
+                             f"Options: {', '.join(sorted(INDEX_FN))}")
+        direction, thr, severe, vmax = METHOD_DEFAULTS[m]
+        cfg.update(index=m, direction=direction, thr=thr, severe=severe, vmax=vmax,
+                   label=f"{args.scenario.capitalize()} — {m} change (Sentinel-2)")
+    cfg.setdefault("vmax", METHOD_DEFAULTS.get(cfg["index"], (None, 0, 0, 0.6))[3])
+    if args.thr is not None:
+        cfg["thr"] = args.thr
+    if args.severe is not None:
+        cfg["severe"] = args.severe
+    return cfg
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Multipurpose satellite change detection.",
@@ -144,6 +170,10 @@ def main():
     ap.add_argument("--backend", choices=["gee", "mpc"], default="gee",
                     help="data backend: gee (Earth Engine) or mpc "
                          "(Microsoft Planetary Computer, no account needed)")
+    ap.add_argument("--method", help="override the index for optical scenarios "
+                    "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
+    ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
+    ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
     args = ap.parse_args()
 
@@ -155,6 +185,8 @@ def main():
     lat, lon, site_radius, name = resolve_location(args)
     radius = args.radius or site_radius or cfg["radius"]
     params = build_params(args.scenario, args)
+
+    cfg = apply_overrides(cfg, args)
 
     print(f"=== Change detection: {args.scenario} ===")
     print(f"{cfg['label']}")
@@ -179,7 +211,11 @@ def main():
     initialize_ee(CONFIG_KEY)
     aoi = square_aoi(lon, lat, radius)  # square clip (not a circle)
 
-    result = cfg["run"](aoi, params)
+    if cfg.get("method") == "optical":
+        result = run_optical_change(aoi, params, cfg["index"], cfg["direction"],
+                                    cfg["thr"], cfg["severe"], cfg.get("vmax", 0.6))
+    else:
+        result = cfg["run"](aoi, params)
 
     os.makedirs(IMAGES_DIR, exist_ok=True)
     os.makedirs(DATA_DIR, exist_ok=True)

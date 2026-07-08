@@ -26,9 +26,44 @@ import rasterio
 
 STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
 DIVERGING = ["#a50026", "#d73027", "#fee08b", "#ffffbf", "#d9ef8b", "#1a9850", "#006837"]
-INDEX_BANDS = {  # (a, b) so index = (a-b)/(a+b), matching the GEE definitions
-    "NDVI": ("B08", "B04"), "NDBI": ("B11", "B08"),
-    "NDWI": ("B03", "B08"), "NBR": ("B08", "B12"),
+
+# Bands to load per index, and the numpy formula (mirrors indices.py for GEE).
+INDEX_LOAD = {
+    "NDVI": ["B08", "B04"], "NDBI": ["B11", "B08"],
+    "NDWI": ["B03", "B08"], "NBR": ["B08", "B12"],
+    "UI": ["B12", "B08"], "BU": ["B11", "B08", "B04"],
+    "IBI": ["B11", "B08", "B04", "B03"],
+}
+
+
+def _b(ds, name):
+    return ds[name].astype("float32").values
+
+
+def _nd(a, b):
+    return (a - b) / (a + b)
+
+
+def _savi_np(ds, L=0.5):
+    nir, red = _b(ds, "B08") / 10000.0, _b(ds, "B04") / 10000.0
+    return (1 + L) * (nir - red) / (nir + red + L)
+
+
+def _ix_ibi(ds):
+    nd = _nd(_b(ds, "B11"), _b(ds, "B08"))                       # NDBI
+    x = (_savi_np(ds) + _nd(_b(ds, "B03"), _b(ds, "B11"))) / 2.0  # (SAVI+MNDWI)/2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.clip((nd - x) / (nd + x), -1, 1)  # clamp unstable ratio
+
+
+INDEX_NP = {
+    "NDVI": lambda ds: _nd(_b(ds, "B08"), _b(ds, "B04")),
+    "NDBI": lambda ds: _nd(_b(ds, "B11"), _b(ds, "B08")),
+    "NDWI": lambda ds: _nd(_b(ds, "B03"), _b(ds, "B08")),
+    "NBR": lambda ds: _nd(_b(ds, "B08"), _b(ds, "B12")),
+    "UI": lambda ds: _nd(_b(ds, "B12"), _b(ds, "B08")),
+    "BU": lambda ds: _nd(_b(ds, "B11"), _b(ds, "B08")) - _nd(_b(ds, "B08"), _b(ds, "B04")),
+    "IBI": _ix_ibi,
 }
 S2_RES = 0.0001   # ~11 m in degrees (EPSG:4326)
 S1_RES = 0.0002   # ~22 m
@@ -72,21 +107,17 @@ def _s2_median(bbox, start, end, bands, geobox=None):
     return med.compute(), len(items), ds.odc.geobox
 
 
-def _index(ds, name):
-    a, b = INDEX_BANDS[name]
-    fa, fb = ds[a].astype("float32"), ds[b].astype("float32")
-    return ((fa - fb) / (fa + fb)).values  # 2-D numpy (y, x)
-
-
-def run_optical(bbox, params, index, direction, thr, severe):
-    pre, n_pre, gbox = _s2_median(bbox, *params["pre"], INDEX_BANDS[index])
+def run_optical(bbox, params, index, direction, thr, severe, vmax=0.6):
+    bands = INDEX_LOAD[index]
+    pre, n_pre, gbox = _s2_median(bbox, *params["pre"], bands)
     if pre is None:
         raise SystemExit("No Sentinel-2 scenes in the pre window (MPC).")
-    post, n_post, _ = _s2_median(bbox, *params["post"], INDEX_BANDS[index], geobox=gbox)
+    post, n_post, _ = _s2_median(bbox, *params["post"], bands, geobox=gbox)
     if post is None:
         raise SystemExit("No Sentinel-2 scenes in the post window (MPC).")
 
-    delta = _index(post, index) - _index(pre, index)
+    fn = INDEX_NP[index]
+    delta = fn(post) - fn(pre)
     valid = np.isfinite(delta)
     if direction == "loss":
         aff, sev = (delta < thr) & valid, (delta < severe) & valid
@@ -98,7 +129,7 @@ def run_optical(bbox, params, index, direction, thr, severe):
              "pct_affected": 100.0 * int(aff.sum()) / n,
              ("pct_severe" if direction == "loss" else "pct_strong"): 100.0 * int(sev.sum()) / n,
              "threshold": thr, "scenes_pre": n_pre, "scenes_post": n_post}
-    vis = {"min": -0.6, "max": 0.6, "palette": DIVERGING, "label": "d" + index}
+    vis = {"min": -vmax, "max": vmax, "palette": DIVERGING, "label": "d" + index}
     product = {"key": "d" + index.lower(), "data": delta, "geobox": gbox,
                "vis": vis, "is_rgb": False}
     return {"products": [product], "stats": stats}
@@ -237,7 +268,7 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
     method = cfg.get("method")
     if method == "optical":
         result = run_optical(bbox, params, cfg["index"], cfg["direction"],
-                             cfg["thr"], cfg["severe"])
+                             cfg["thr"], cfg["severe"], cfg.get("vmax", 0.6))
     elif method == "flood":
         result = run_flood(bbox, params, cfg.get("water_thr", -16.0))
     elif method == "mining":

@@ -44,7 +44,46 @@ def nbr(img):   # burn
     return img.normalizedDifference(["B8", "B12"]).rename("NBR")
 
 
-INDEX_FN = {"NDVI": ndvi, "NDBI": ndbi, "NDWI": ndwi, "NBR": nbr}
+# --- Alternative built-up indices (all computable on Sentinel-2) ---
+def ui(img):    # Urban Index — (SWIR2-NIR)/(SWIR2+NIR)
+    return img.normalizedDifference(["B12", "B8"]).rename("UI")
+
+
+def _savi(img, L=0.5):  # Soil-Adjusted Vegetation Index (reflectance-scaled)
+    nir = img.select("B8").divide(10000)
+    red = img.select("B4").divide(10000)
+    return nir.subtract(red).multiply(1 + L).divide(nir.add(red).add(L))
+
+
+def bu(img):    # Built-Up index = NDBI - NDVI (Kawamura 1996)
+    return ndbi(img).subtract(ndvi(img)).rename("BU")
+
+
+def ibi(img):   # Index-Based Built-up Index (Xu 2008)
+    nd = img.normalizedDifference(["B11", "B8"])            # NDBI
+    mndwi = img.normalizedDifference(["B3", "B11"])         # water
+    x = _savi(img).add(mndwi).divide(2)
+    # The ratio form is unstable where the denominator crosses zero; clamp it.
+    return nd.subtract(x).divide(nd.add(x)).clamp(-1, 1).rename("IBI")
+
+
+INDEX_FN = {"NDVI": ndvi, "NDBI": ndbi, "NDWI": ndwi, "NBR": nbr,
+            "UI": ui, "BU": bu, "IBI": ibi}
+# Interchangeable built-up methods for the urbanization scenario (Sentinel-2).
+# NDISI/EBBI need a thermal band (Landsat), so they are NOT listed here.
+BUILTUP_METHODS = ["NDBI", "UI", "BU", "IBI"]
+
+# Per-method change-detection defaults: (direction, affected_thr, severe_thr, vmax).
+# Different indices have different ranges, so each needs its own thresholds.
+METHOD_DEFAULTS = {
+    "NDVI": ("loss", -0.15, -0.30, 0.6),
+    "NDBI": ("gain", 0.10, 0.20, 0.5),
+    "UI":   ("gain", 0.08, 0.18, 0.5),
+    "BU":   ("gain", 0.10, 0.25, 0.8),
+    "IBI":  ("gain", 0.10, 0.25, 1.0),
+    "NDWI": ("gain", 0.10, 0.25, 0.6),
+    "NBR":  ("loss", -0.10, -0.27, 0.6),
+}
 
 
 # --- Sentinel-1 SAR helpers ---

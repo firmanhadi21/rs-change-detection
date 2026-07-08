@@ -61,6 +61,28 @@ memilih arah orbit Sentinel-1 yang punya cakupan otomatis.
 **Menambah skenario:** tambahkan entri di [`scenarios.py`](scenarios.py)
 (indeks/metode + ambang + palet). Indeks spektral ada di [`indices.py`](indices.py).
 
+### Metode alternatif per skenario (`--method`)
+
+Skenario optik tidak terikat pada satu indeks. Ganti metode dengan `--method`
+(berlaku di kedua backend):
+
+```bash
+python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method IBI
+python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method UI --backend mpc
+python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method NDBI --thr 0.12
+```
+
+Metode built-up untuk **urbanisasi** (semua Sentinel-2): **NDBI** (default),
+**UI** (Urban Index), **BU** (=NDBI−NDVI), **IBI** (Xu 2008). Tiap metode punya
+ambang default sendiri (lihat `METHOD_DEFAULTS` di `indices.py`); sesuaikan lewat
+`--thr`/`--severe`. NDBI/UI/BU paling stabil untuk deteksi *perubahan*; IBI
+di-*clamp* ke [−1,1] karena bentuk rasionya labil.
+
+> **NDISI & EBBI butuh band termal (TIR)** yang **tidak ada di Sentinel-2** —
+> perlu Landsat 8/9 (band 10) atau ASTER. Belum didukung; bisa ditambahkan
+> dengan loader koleksi Landsat + indeks termal di `indices.py` (GEE) dan
+> `mpc_backend.py` (MPC, koleksi `landsat-c2-l2`).
+
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
 Sumber data dipilih lewat `--backend`:
