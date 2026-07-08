@@ -15,7 +15,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from sites import get_site
-from gee_utils import download_png, download_geotiff, mask_s2_clouds
+from gee_utils import download_png, download_geotiff, mask_s2_clouds, square_aoi
 
 # === Configuration (site-parameterised: --site NAME or SITE env) ===
 SITE = get_site()
@@ -125,8 +125,8 @@ def download_via_gee():
     else:
         ee.Initialize()
     
-    # Define AOI
-    aoi = ee.Geometry.Point(AOI["lon"], AOI["lat"]).buffer(AOI["radius_km"] * 1000)
+    # Define AOI (square clip, not a circle)
+    aoi = square_aoi(AOI["lon"], AOI["lat"], AOI["radius_km"])
 
     # Search a window around DATE. Prefer the single cleanest scene at
     # <= MAX_CLOUD% cloud; if none qualifies, fall back to a cloud-masked

@@ -1,15 +1,71 @@
-# Investigasi PETI Capkala
+# Satellite Change Detection (multiguna)
 
-**Investigasi penginderaan jauh atas tambang emas ilegal (PETI — Penambangan Emas Tanpa Izin) di Capkala, Bengkayang, Kalimantan Barat.**
+**Alat deteksi perubahan berbasis penginderaan jauh untuk berbagai skenario** —
+deforestasi, tambang, urbanisasi, banjir, kebakaran, dan perubahan air — berjalan
+di Google Earth Engine (Python). Pilih skenario + koordinat, hasil ter-unduh
+sebagai PNG, GeoTIFF tergeoreferensi, dan statistik.
 
-Repositori ini berisi pipeline lengkap dan *reproducible* — dari pengumpulan citra satelit multi-sensor, deteksi perubahan, verifikasi legal, hingga produksi video dokumenter berdurasi 4 menit.
+Studi kasus unggulan repо ini: **investigasi tambang emas ilegal (PETI) di Capkala**,
+Kalimantan Barat — lengkap sampai video dokumenter (lihat bagian bawah).
 
-> **Format:** MP4 1920×1080, stereo · **Durasi:** 4 menit 6 detik · **Narator:** Bian (ElevenLabs, Bahasa Indonesia)
-> **Publikasi:** Thread X — [@jalmiburung](https://x.com/jalmiburung)
+```bash
+python3 detect.py --list                                        # daftar skenario
+python3 detect.py -s deforestation --lat -3.333 --lon 122.25    # deteksi deforestasi
+python3 detect.py -s flood --lat 27.2 --lon 68.3 \
+    --pre 2022-07-01:2022-07-25 --post 2022-08-20:2022-09-10     # pemetaan banjir
+```
 
 ---
 
-## Temuan Utama
+## Deteksi Perubahan Multiguna — `detect.py`
+
+Satu perintah: `-s <skenario>` memilih **metode** yang tepat, lokasi lewat
+`--lat/--lon`, `-l 'lat,lon'`, atau `--site NAMA`.
+
+| Skenario | Metode | Sensor |
+|----------|--------|--------|
+| `deforestation` | Kehilangan NDVI (ΔNDVI < ambang) | Sentinel-2 |
+| `mining` | SIRAD radar temporal **+** kehilangan NDVI | Sentinel-1 + S2 |
+| `urbanization` | Kenaikan NDBI (indeks terbangun) | Sentinel-2 |
+| `flood` | Luas genangan SAR (event vs baseline) | Sentinel-1 VV |
+| `burn` | dNBR (severity kebakaran) | Sentinel-2 |
+| `water` | Perubahan NDWI (air permukaan) | Sentinel-2 |
+
+```bash
+# Sintaks umum
+python3 detect.py -s <skenario> --lat <LAT> --lon <LON> [--radius KM] \
+    [--pre START:END] [--post START:END] [-n NAMA]
+
+# Contoh
+python3 detect.py -s mining --site konawe               # pakai preset sites.py
+python3 detect.py -s urbanization --lat -6.2 --lon 106.8 --radius 12
+python3 detect.py -s burn --lat -7.5 --lon 110.4 \
+    --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30
+```
+
+**Output per run** (klip berbentuk **persegi**, bukan lingkaran):
+
+| Berkas | Isi |
+|--------|-----|
+| `images/<skenario>_<produk>_<nama>.png` | Quick-look berwarna |
+| `data/<skenario>_<produk>_<nama>.tif` | GeoTIFF resolusi penuh (buka di QGIS) |
+| `data/<skenario>_<nama>_stats.json` | Statistik (mean Δ, % area terdampak, dll.) |
+
+Setiap skenario optik memakai **median composite banyak scene** dengan masking
+awan per-piksel (SCL), jadi hasil bebas awan. Skenario radar (SIRAD/banjir)
+memilih arah orbit Sentinel-1 yang punya cakupan otomatis.
+
+**Menambah skenario:** tambahkan entri di [`scenarios.py`](scenarios.py)
+(indeks/metode + ambang + palet). Indeks spektral ada di [`indices.py`](indices.py).
+
+---
+
+## Studi Kasus: Investigasi PETI Capkala
+
+> **Video:** MP4 1920×1080, 4 menit 6 detik · Narator Bian (ElevenLabs) ·
+> Thread X — [@jalmiburung](https://x.com/jalmiburung)
+
+### Temuan Utama
 
 Empat sumber data independen menunjuk pada kesimpulan yang sama: tambang beroperasi **tanpa izin, di atas tanah tanpa hak.**
 
@@ -74,9 +130,12 @@ Karena radar menembus awan, deret waktu tidak terputus oleh tutupan awan. Interp
 rs-change-detection/
 ├── README.md
 ├── requirements.txt                 ← Dependensi Python
-├── sites.py                         ← Definisi lokasi (Capkala, Konawe, …)
-├── run_all.py                       ← Jalankan pipeline end-to-end 1 perintah
-├── gee_utils.py                     ← Helper unduh GEE (PNG/GeoTIFF) + init
+├── detect.py                        ← CLI deteksi perubahan multiguna (utama)
+├── scenarios.py                     ← Registry skenario → metode
+├── indices.py                       ← Indeks spektral + komposit (NDVI/NDBI/…)
+├── sites.py                         ← Preset lokasi (Capkala, Konawe, …)
+├── run_all.py                       ← Pipeline Capkala end-to-end 1 perintah
+├── gee_utils.py                     ← Helper GEE: unduh, init, klip persegi, mask
 ├── .env.example                     ← Template kunci API (salin ke .env)
 ├── data-collection/                 ← Pengumpulan, pemrosesan & deteksi perubahan
 │   ├── 01_sentinel2_download.py     # Sentinel-2 true color via GEE (Python)

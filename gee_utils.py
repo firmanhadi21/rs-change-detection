@@ -63,6 +63,16 @@ def wants_drive_export(argv=None):
     return "--drive" in argv
 
 
+def square_aoi(lon, lat, radius_km):
+    """Square AOI centred on (lon, lat), half-side = radius_km.
+
+    Side length = 2 * radius_km (the square that circumscribes the old circle),
+    axis-aligned in lon/lat. Use instead of Point.buffer() (a circle).
+    """
+    import ee
+    return ee.Geometry.Point([lon, lat]).buffer(radius_km * 1000).bounds()
+
+
 def mask_s2_clouds(img):
     """Mask cloud / shadow / cirrus / snow using Sentinel-2 SCL band.
 

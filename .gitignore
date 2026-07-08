@@ -10,6 +10,14 @@ scripts/config/*.txt
 data/*
 !data/README.md
 
+# Generated change-detection result images (reproduce with detect.py)
+images/deforestation_*
+images/mining_*
+images/urbanization_*
+images/flood_*
+images/burn_*
+images/water_*
+
 # Large binary outputs (regenerate with scripts)
 audio/
 scenes/

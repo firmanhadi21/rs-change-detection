@@ -28,7 +28,8 @@ import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from sites import get_site
-from gee_utils import download_png, download_geotiff, initialize_ee, mask_s2_clouds
+from gee_utils import (
+    download_png, download_geotiff, initialize_ee, mask_s2_clouds, square_aoi)
 
 try:
     import ee
@@ -75,9 +76,7 @@ def main():
 
     initialize_ee(CONFIG_KEY)
 
-    aoi = ee.Geometry.Point([site["lon"], site["lat"]]).buffer(
-        int(site["radius_km"] * 1000)
-    )
+    aoi = square_aoi(site["lon"], site["lat"], site["radius_km"])  # square clip
     pre_dates = site["ndvi_pre"]
     post_dates = site["ndvi_post"]
 
