@@ -10,6 +10,11 @@ Pillow                 # Write NDVI change-map PNG
 # Data collection
 requests               # GEE thumbnail download + Copernicus API fallback
 
+# Map products (detect.py --map, make_map.py)
+matplotlib             # Map layout / rendering
+rasterio               # Read result GeoTIFFs (also used by PlanetScope NDVI)
+contextily             # OpenStreetMap basemap tiles
+
 # Text-to-speech (video narration)
 elevenlabs             # ElevenLabs TTS (Bian voice)
 

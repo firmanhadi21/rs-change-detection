@@ -18,6 +18,9 @@ images/flood_*
 images/burn_*
 images/water_*
 
+# Generated map products (reproduce with detect.py --map / make_map.py)
+maps/
+
 # Large binary outputs (regenerate with scripts)
 audio/
 scenes/

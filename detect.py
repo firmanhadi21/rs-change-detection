@@ -48,6 +48,7 @@ except ImportError:
 
 IMAGES_DIR = os.path.join(HERE, "images")
 DATA_DIR = os.path.join(HERE, "data")
+MAPS_DIR = os.path.join(HERE, "maps")
 CONFIG_KEY = os.path.join(HERE, "scripts", "config", "ee-geodetic.json")
 
 
@@ -136,6 +137,10 @@ def main():
     ap.add_argument("--pre", help="baseline window START:END")
     ap.add_argument("--post", help="recent/event window START:END")
     ap.add_argument("-n", "--name", help="output label (default from coords)")
+    ap.add_argument("--map", action="store_true",
+                    help="also render an A4 map layout (PDF + PNG) per product")
+    ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
+                    help="map basemap (default osm)")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
     args = ap.parse_args()
 
@@ -159,6 +164,16 @@ def main():
 
     os.makedirs(IMAGES_DIR, exist_ok=True)
     os.makedirs(DATA_DIR, exist_ok=True)
+
+    # temporal window label for the map subtitle
+    if params.get("pre"):
+        window = f"{params['pre'][0]} → {params['post'][1]}"
+    elif params.get("sirad_periods"):
+        sp = params["sirad_periods"]
+        window = f"{sp[0][0]} → {sp[-1][1]}"
+    else:
+        window = None
+
     for prod in result["products"]:
         base = f"{args.scenario}_{prod['key']}_{name}"
         png = os.path.join(IMAGES_DIR, base + ".png")
@@ -167,6 +182,28 @@ def main():
         download_png(prod["thumb"], aoi, png, vis=prod["thumb_vis"])
         print(f"Downloading {prod['key']} GeoTIFF...")
         download_geotiff(prod["tif"], aoi, tif, scale=prod.get("scale", 10))
+
+        # sidecar meta so make_map.py can re-render offline (no GEE needed)
+        is_rgb = "bands" in prod["thumb_vis"]
+        vis = dict(prod["thumb_vis"])
+        if not is_rgb and "label" not in vis:
+            k = prod["key"]
+            vis["label"] = ("Δ" + k[1:].upper()) if k.startswith("d") else k.upper()
+        meta = {"tif": tif, "scenario": args.scenario, "label": cfg["label"],
+                "product_key": prod["key"], "name": name,
+                "lat": lat, "lon": lon, "radius_km": radius,
+                "vis": vis, "is_rgb": is_rgb, "metric": vis.get("label"),
+                "interpretation": result.get("interpretation",
+                                             cfg.get("interpretation", "")),
+                "stats": result["stats"], "window": window}
+        with open(os.path.join(DATA_DIR, base + ".meta.json"), "w") as mf:
+            json.dump(meta, mf, indent=2)
+
+        if args.map:
+            os.makedirs(MAPS_DIR, exist_ok=True)
+            from mapmaker import render_map
+            render_map(meta, os.path.join(MAPS_DIR, base + "_map"),
+                       basemap=args.basemap)
 
     stats = {"scenario": args.scenario, "location": {"lat": lat, "lon": lon},
              "radius_km": radius, "results": result["stats"]}

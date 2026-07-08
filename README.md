@@ -60,6 +60,30 @@ memilih arah orbit Sentinel-1 yang punya cakupan otomatis.
 
 ---
 
+## Produk Peta (Value-Added)
+
+Tambahkan `--map` untuk menghasilkan **peta jadi berukuran A4 landscape** (PDF +
+PNG) per produk: basemap OpenStreetMap + layer perubahan, judul, legenda,
+panel statistik, inset lokasi, grid koordinat, skala, panah utara, dan footer sumber.
+
+```bash
+python3 detect.py -s deforestation --lat -3.333 --lon 122.25 --map
+python3 detect.py -s mining --site konawe --map --basemap gray
+```
+
+Render ulang **tanpa GEE** dari hasil yang sudah ada (memakai sidecar `.meta.json`):
+
+```bash
+python3 make_map.py deforestation_dndvi_m3p333_122p25          # basename
+python3 make_map.py data/mining_sirad_konawe.tif --basemap osm # atau path .tif
+```
+
+Peta tersimpan di `maps/<skenario>_<produk>_<nama>_map.{pdf,png}`.
+Tata letak & elemen kartografi ada di [`mapmaker.py`](mapmaker.py)
+(butuh `matplotlib`, `rasterio`, `contextily`).
+
+---
+
 ## Studi Kasus: Investigasi PETI Capkala
 
 > **Video:** MP4 1920×1080, 4 menit 6 detik · Narator Bian (ElevenLabs) ·
@@ -131,6 +155,8 @@ rs-change-detection/
 ├── README.md
 ├── requirements.txt                 ← Dependensi Python
 ├── detect.py                        ← CLI deteksi perubahan multiguna (utama)
+├── make_map.py                      ← Render peta A4 dari hasil (offline)
+├── mapmaker.py                      ← Tata letak kartografi (matplotlib)
 ├── scenarios.py                     ← Registry skenario → metode
 ├── indices.py                       ← Indeks spektral + komposit (NDVI/NDBI/…)
 ├── sites.py                         ← Preset lokasi (Capkala, Konawe, …)
