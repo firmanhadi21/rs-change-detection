@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "satchange"
 version = "0.1.0"
 description = "Multipurpose satellite change detection (deforestation, mining, urbanisation, floods, burns, water, urban growth) via Google Earth Engine or Microsoft Planetary Computer."
-readme = "README.md"
+readme = "PYPI_README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Firman Hadi", email = "firmanhadi@me.com" }]
@@ -53,4 +53,4 @@ satmap = "satchange.make_map:main"
 packages = ["satchange"]
 
 [tool.hatch.build.targets.sdist]
-include = ["satchange", "README.md", "LICENSE", "PUBLISHING.md"]
+include = ["satchange", "PYPI_README.md", "README.md", "LICENSE", "PUBLISHING.md"]
