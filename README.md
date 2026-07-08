@@ -8,6 +8,9 @@ sebagai PNG, GeoTIFF tergeoreferensi, dan statistik.
 Studi kasus unggulan repо ini: **investigasi tambang emas ilegal (PETI) di Capkala**,
 Kalimantan Barat — lengkap sampai video dokumenter (lihat bagian bawah).
 
+> 📚 **Tutorial hands-on (GitHub Pages):** https://firmanhadi21.github.io/rs-change-detection/
+> — panduan langkah demi langkah agar siapa pun bisa memakai & menyesuaikan alat ini.
+
 ```bash
 python3 detect.py --list                                        # daftar skenario
 python3 detect.py -s deforestation --lat -3.333 --lon 122.25    # deteksi deforestasi
