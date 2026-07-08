@@ -47,8 +47,10 @@ OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 
 def _cmap(palette):
-    return LinearSegmentedColormap.from_list(
-        "scenario", ["#" + c.lstrip("#") for c in palette])
+    cols = ["#" + c.lstrip("#") for c in palette]
+    if len(cols) == 1:  # a single-colour palette (e.g. flood) must span 0->1
+        cols = cols * 2
+    return LinearSegmentedColormap.from_list("scenario", cols)
 
 
 def _fmt_lon(x, _=None):
