@@ -9,7 +9,7 @@ Studi kasus unggulan repо ini: **investigasi tambang emas ilegal (PETI) di Capk
 Kalimantan Barat — lengkap sampai video dokumenter (lihat bagian bawah).
 
 > 📚 **Tutorial hands-on (GitHub Pages):** https://firmanhadi21.github.io/rs-change-detection/
-> — panduan langkah demi langkah agar siapa pun bisa memakai & menyesuaikan alat ini.
+> — panduan langkah demi langkah (dwibahasa 🇮🇩/🇬🇧, ada tombol EN/ID) agar siapa pun bisa memakai & menyesuaikan alat ini.
 
 ```bash
 python3 detect.py --list                                        # daftar skenario

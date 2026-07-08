@@ -4,13 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Satellite Change Detection — Hands-On Tutorial</title>
-<meta name="description" content="Learn to map deforestation, mining, urbanisation, floods, burns and water change from free satellite data using Google Earth Engine and Python — then make print-ready maps.">
+<meta name="description" content="Learn to map deforestation, mining, urbanisation, floods, burns and water change from free satellite data using Google Earth Engine and Python — then make print-ready maps. English & Bahasa Indonesia.">
 <style>
   :root{
     --bg:#ffffff; --fg:#1a1d21; --muted:#5b6570; --line:#e5e8ec;
     --accent:#1a7f4b; --accent2:#0b5cad; --code-bg:#f6f8fa; --code-fg:#24292f;
-    --card:#f9fafb; --warn-bg:#fff8e6; --warn-line:#e9c46a;
-    --sidebar:#f7f9fb;
+    --card:#f9fafb; --warn-bg:#fff8e6; --warn-line:#e9c46a; --sidebar:#f7f9fb;
   }
   @media (prefers-color-scheme:dark){
     :root{
@@ -27,35 +26,28 @@
   a{color:var(--accent2);text-decoration:none}
   a:hover{text-decoration:underline}
   .wrap{display:grid;grid-template-columns:260px 1fr;max-width:1200px;margin:0 auto}
-  /* sidebar */
   nav.side{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;
-    padding:28px 18px;border-right:1px solid var(--line);background:var(--sidebar)}
-  nav.side h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;
-    color:var(--muted);margin:22px 0 8px}
+    padding:24px 18px;border-right:1px solid var(--line);background:var(--sidebar)}
+  nav.side h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 8px}
   nav.side a{display:block;color:var(--fg);padding:4px 8px;border-radius:6px;font-size:14.5px}
   nav.side a:hover{background:var(--card);text-decoration:none}
   nav.side .brand{font-weight:700;font-size:16px;margin-bottom:4px}
   nav.side .brand span{color:var(--accent)}
-  /* content */
   main{padding:36px 42px;min-width:0;max-width:820px}
   h1{font-size:34px;line-height:1.15;margin:.2em 0 .3em}
   h2{font-size:25px;margin:1.8em 0 .5em;padding-top:.4em;border-top:1px solid var(--line)}
   h3{font-size:19px;margin:1.5em 0 .4em}
-  p,li{color:var(--fg)}
   .lede{font-size:18.5px;color:var(--muted)}
-  code{background:var(--code-bg);color:var(--code-fg);padding:.15em .4em;
-    border-radius:5px;font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;
-    padding:14px 16px;overflow-x:auto}
+  code{background:var(--code-bg);color:var(--code-fg);padding:.15em .4em;border-radius:5px;
+    font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto}
   pre code{background:none;padding:0;color:var(--code-fg);font-size:13px}
   table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;display:block;overflow-x:auto}
   th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
   th{background:var(--card)}
   .badges{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
-  .badge{font-size:12.5px;color:var(--muted);border:1px solid var(--line);
-    background:var(--card);border-radius:999px;padding:3px 11px}
-  .callout{border:1px solid var(--warn-line);background:var(--warn-bg);
-    border-radius:10px;padding:12px 16px;margin:1.2em 0;font-size:14.5px}
+  .badge{font-size:12.5px;color:var(--muted);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 11px}
+  .callout{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:10px;padding:12px 16px;margin:1.2em 0;font-size:14.5px}
   .callout.tip{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
   .note{color:var(--muted);font-size:14px}
   figure{margin:1.4em 0}
@@ -63,14 +55,16 @@
   figcaption{color:var(--muted);font-size:13.5px;margin-top:6px;text-align:center}
   .steps{counter-reset:step;list-style:none;padding-left:0}
   .steps>li{counter-increment:step;position:relative;padding:2px 0 2px 42px;margin:14px 0}
-  .steps>li::before{content:counter(step);position:absolute;left:0;top:0;
-    width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;
-    display:grid;place-items:center;font-weight:700;font-size:14px}
-  .pill{display:inline-block;font-size:12px;font-weight:600;border-radius:6px;
-    padding:1px 7px;margin-right:6px;background:var(--card);border:1px solid var(--line)}
+  .steps>li::before{content:counter(step);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
   footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0;color:var(--muted);font-size:13.5px}
-  .kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;
-    padding:1px 6px;font:12px ui-monospace,monospace;background:var(--card)}
+  /* language toggle */
+  html.lang-en .id, html.lang-id .en{display:none}
+  .langtoggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:12px 0 2px}
+  .langtoggle button{border:0;background:transparent;color:var(--fg);padding:5px 14px;
+    font:600 13px inherit;cursor:pointer}
+  html.lang-en .langtoggle button[data-lang="en"],
+  html.lang-id .langtoggle button[data-lang="id"]{background:var(--accent);color:#fff}
   @media (max-width:860px){
     .wrap{grid-template-columns:1fr}
     nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line)}
@@ -78,112 +72,171 @@
     h1{font-size:28px}
   }
 </style>
+<script>
+  /* set language before render: saved choice → browser language → English */
+  (function(){
+    var saved; try{saved=localStorage.getItem('lang')}catch(e){}
+    var lang = saved || (((navigator.language||'en').toLowerCase().indexOf('id')===0)?'id':'en');
+    document.documentElement.classList.add('lang-'+lang);
+    document.documentElement.setAttribute('lang',lang);
+  })();
+</script>
 </head>
 <body>
 <div class="wrap">
 <nav class="side">
   <div class="brand"><span>◺</span> Change Detection</div>
-  <div class="note">Hands-on tutorial</div>
-  <h2>Start here</h2>
-  <a href="#overview">1 · What you'll build</a>
-  <a href="#science">2 · How it works</a>
-  <a href="#setup">3 · Setup</a>
-  <a href="#first">4 · Your first run</a>
-  <a href="#outputs">5 · Reading the outputs</a>
-  <h2>Go further</h2>
-  <a href="#scenarios">6 · Every scenario</a>
-  <a href="#maps">7 · Make a map</a>
-  <a href="#adapt">8 · Your own area</a>
-  <a href="#reproduce">9 · Reproducibility</a>
-  <a href="#trouble">10 · Troubleshooting</a>
-  <a href="#reading">11 · Further reading</a>
-  <h2>Links</h2>
-  <a href="https://github.com/firmanhadi21/rs-change-detection">Source on GitHub ↗</a>
+  <div class="note"><span class="en">Hands-on tutorial</span><span class="id">Tutorial praktis</span></div>
+  <div class="langtoggle" role="group" aria-label="Language">
+    <button data-lang="en" type="button">EN</button>
+    <button data-lang="id" type="button">ID</button>
+  </div>
+  <h2><span class="en">Start here</span><span class="id">Mulai di sini</span></h2>
+  <a href="#overview">1 · <span class="en">What you'll build</span><span class="id">Yang akan dibuat</span></a>
+  <a href="#science">2 · <span class="en">How it works</span><span class="id">Cara kerja</span></a>
+  <a href="#setup">3 · <span class="en">Setup</span><span class="id">Persiapan</span></a>
+  <a href="#first">4 · <span class="en">Your first run</span><span class="id">Run pertama</span></a>
+  <a href="#outputs">5 · <span class="en">Reading the outputs</span><span class="id">Membaca keluaran</span></a>
+  <h2><span class="en">Go further</span><span class="id">Lanjutan</span></h2>
+  <a href="#scenarios">6 · <span class="en">Every scenario</span><span class="id">Setiap skenario</span></a>
+  <a href="#maps">7 · <span class="en">Make a map</span><span class="id">Membuat peta</span></a>
+  <a href="#adapt">8 · <span class="en">Your own area</span><span class="id">Area Anda</span></a>
+  <a href="#reproduce">9 · <span class="en">Reproducibility</span><span class="id">Reproduksibilitas</span></a>
+  <a href="#trouble">10 · <span class="en">Troubleshooting</span><span class="id">Pemecahan masalah</span></a>
+  <a href="#reading">11 · <span class="en">Further reading</span><span class="id">Bacaan lanjut</span></a>
+  <h2><span class="en">Links</span><span class="id">Tautan</span></h2>
+  <a href="https://github.com/firmanhadi21/rs-change-detection"><span class="en">Source on GitHub ↗</span><span class="id">Sumber di GitHub ↗</span></a>
 </nav>
 
 <main>
   <h1>Satellite Change Detection</h1>
-  <p class="lede">A hands-on tutorial. Map <b>deforestation, mining, urbanisation, floods, burns and surface-water change</b> anywhere on Earth from free satellite data — then export georeferenced GeoTIFFs and print-ready maps. All in Python, powered by Google Earth Engine.</p>
+  <p class="lede en">A hands-on tutorial. Map <b>deforestation, mining, urbanisation, floods, burns and surface-water change</b> anywhere on Earth from free satellite data — then export georeferenced GeoTIFFs and print-ready maps. All in Python, powered by Google Earth Engine.</p>
+  <p class="lede id">Tutorial praktis. Petakan <b>deforestasi, tambang, urbanisasi, banjir, kebakaran, dan perubahan air permukaan</b> di mana saja dari data satelit gratis — lalu ekspor GeoTIFF tergeoreferensi dan peta siap cetak. Semua dengan Python, ditenagai Google Earth Engine.</p>
   <div class="badges">
     <span class="badge">Python 3.11+</span>
     <span class="badge">Google Earth Engine</span>
     <span class="badge">Sentinel-1 &amp; Sentinel-2</span>
-    <span class="badge">Free &amp; open data</span>
-    <span class="badge">MIT licensed</span>
+    <span class="badge"><span class="en">Free &amp; open data</span><span class="id">Data gratis &amp; terbuka</span></span>
+    <span class="badge">MIT</span>
   </div>
 
   <figure>
     <img src="assets/example-deforestation.png" alt="Example deforestation change map">
-    <figcaption>A finished product: a deforestation map (Sentinel-2 NDVI change) generated by one command. Red = vegetation loss.</figcaption>
+    <figcaption><span class="en">A finished product: a deforestation map (Sentinel-2 NDVI change) from one command. Red = vegetation loss.</span><span class="id">Produk jadi: peta deforestasi (perubahan NDVI Sentinel-2) dari satu perintah. Merah = kehilangan vegetasi.</span></figcaption>
   </figure>
 
-  <h2 id="overview">1 · What you'll build</h2>
-  <p>By the end you'll run a single command like this…</p>
+  <h2 id="overview">1 · <span class="en">What you'll build</span><span class="id">Yang akan Anda buat</span></h2>
+  <p class="en">By the end you'll run a single command like this…</p>
+  <p class="id">Di akhir tutorial, Anda menjalankan satu perintah seperti ini…</p>
   <pre><code>python3 detect.py -s deforestation --lat -3.333 --lon 122.25 --radius 6 --map</code></pre>
-  <p>…and get three things for your chosen area:</p>
-  <ul>
+  <p class="en">…and get three things for your chosen area:</p>
+  <p class="id">…dan mendapat tiga berkas untuk area pilihan Anda:</p>
+  <ul class="en">
     <li>a <b>quick-look PNG</b> of the change,</li>
     <li>a <b>full-resolution, georeferenced GeoTIFF</b> you can open in QGIS/ArcGIS, and</li>
     <li>a <b>value-added map</b> (A4 PDF + PNG) with legend, scale bar, statistics and a location inset.</li>
   </ul>
-  <p>You pick a <b>scenario</b> (what kind of change) and a <b>location</b> (a coordinate). The tool selects the right remote-sensing method automatically. No prior GIS coding required.</p>
+  <ul class="id">
+    <li><b>PNG pratinjau</b> perubahan,</li>
+    <li><b>GeoTIFF resolusi penuh tergeoreferensi</b> yang bisa dibuka di QGIS/ArcGIS, dan</li>
+    <li><b>peta value-added</b> (A4 PDF + PNG) dengan legenda, skala, statistik, dan inset lokasi.</li>
+  </ul>
+  <p class="en">You pick a <b>scenario</b> (what kind of change) and a <b>location</b> (a coordinate). The tool selects the right remote-sensing method automatically. No prior GIS coding required.</p>
+  <p class="id">Anda memilih <b>skenario</b> (jenis perubahan) dan <b>lokasi</b> (koordinat). Alat memilih metode penginderaan jauh yang tepat secara otomatis. Tanpa perlu pengalaman pemrograman GIS.</p>
 
-  <h2 id="science">2 · How it works (the science)</h2>
-  <p>“Change detection” compares the landscape at two (or more) points in time and highlights what changed. Different phenomena leave different <i>spectral</i> or <i>radar</i> fingerprints, so each scenario uses a purpose-built index or method:</p>
+  <h2 id="science">2 · <span class="en">How it works (the science)</span><span class="id">Cara kerjanya (sainsnya)</span></h2>
+  <p class="en">“Change detection” compares the landscape at two (or more) points in time and highlights what changed. Different phenomena leave different <i>spectral</i> or <i>radar</i> fingerprints, so each scenario uses a purpose-built index or method:</p>
+  <p class="id">“Deteksi perubahan” membandingkan bentang lahan pada dua (atau lebih) titik waktu dan menonjolkan apa yang berubah. Fenomena berbeda meninggalkan sidik jari <i>spektral</i> atau <i>radar</i> yang berbeda, sehingga tiap skenario memakai indeks atau metode khusus:</p>
 
   <table>
-    <tr><th>Scenario</th><th>Method &amp; formula</th><th>Sensor</th><th>Basis</th></tr>
-    <tr><td><b>deforestation</b></td><td>ΔNDVI &lt; 0. NDVI = (NIR−Red)/(NIR+Red) = (B8−B4)/(B8+B4). Vegetation loss drops NDVI.</td><td>Sentinel-2</td><td>NDVI, Rouse et&nbsp;al. 1973; Tucker 1979</td></tr>
-    <tr><td><b>urbanization</b></td><td>ΔNDBI &gt; 0. NDBI = (SWIR−NIR)/(SWIR+NIR) = (B11−B8)/(B11+B8). Built-up surfaces reflect more SWIR.</td><td>Sentinel-2</td><td><a href="https://www.tandfonline.com/doi/abs/10.1080/01431160304987">Zha, Gao &amp; Ni 2003</a></td></tr>
-    <tr><td><b>burn</b></td><td>dNBR. NBR = (NIR−SWIR2)/(NIR+SWIR2) = (B8−B12)/(B8+B12); burns lower NBR.</td><td>Sentinel-2</td><td><a href="https://www.fs.usda.gov/rm/pubs_series/rmrs/gtr/rmrs_gtr164/rmrs_gtr164_13_land_assess.pdf">Key &amp; Benson 2006</a></td></tr>
-    <tr><td><b>water</b></td><td>ΔNDWI. NDWI = (Green−NIR)/(Green+NIR) = (B3−B8)/(B3+B8).</td><td>Sentinel-2</td><td>McFeeters 1996</td></tr>
-    <tr><td><b>flood</b></td><td>SAR water: smooth water gives low VV backscatter. Flood = water in event window but not in baseline.</td><td>Sentinel-1</td><td><a href="https://un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping">UN-SPIDER Recommended Practice</a></td></tr>
-    <tr><td><b>mining</b></td><td>SIRAD: mean VH backscatter of 3 periods → an R/G/B image (new activity = blue). Plus ΔNDVI loss.</td><td>Sentinel-1 + S2</td><td>Multi-temporal SAR compositing</td></tr>
+    <tr>
+      <th><span class="en">Scenario</span><span class="id">Skenario</span></th>
+      <th><span class="en">Method &amp; formula</span><span class="id">Metode &amp; rumus</span></th>
+      <th>Sensor</th>
+      <th><span class="en">Basis</span><span class="id">Dasar</span></th>
+    </tr>
+    <tr><td><b>deforestation</b></td>
+      <td>ΔNDVI &lt; 0. NDVI = (NIR−Red)/(NIR+Red) = (B8−B4)/(B8+B4). <span class="en">Vegetation loss lowers NDVI.</span><span class="id">Kehilangan vegetasi menurunkan NDVI.</span></td>
+      <td>Sentinel-2</td><td>NDVI (Rouse 1973; Tucker 1979)</td></tr>
+    <tr><td><b>urbanization</b></td>
+      <td>ΔNDBI &gt; 0. NDBI = (SWIR−NIR)/(SWIR+NIR) = (B11−B8)/(B11+B8). <span class="en">Built-up reflects more SWIR.</span><span class="id">Permukaan terbangun memantulkan lebih banyak SWIR.</span></td>
+      <td>Sentinel-2</td><td><a href="https://www.tandfonline.com/doi/abs/10.1080/01431160304987">Zha et&nbsp;al. 2003</a></td></tr>
+    <tr><td><b>burn</b></td>
+      <td>dNBR. NBR = (NIR−SWIR2)/(NIR+SWIR2) = (B8−B12)/(B8+B12). <span class="en">Burns lower NBR.</span><span class="id">Kebakaran menurunkan NBR.</span></td>
+      <td>Sentinel-2</td><td><a href="https://www.fs.usda.gov/rm/pubs_series/rmrs/gtr/rmrs_gtr164/rmrs_gtr164_13_land_assess.pdf">Key &amp; Benson 2006</a></td></tr>
+    <tr><td><b>water</b></td>
+      <td>ΔNDWI. NDWI = (Green−NIR)/(Green+NIR) = (B3−B8)/(B3+B8).</td>
+      <td>Sentinel-2</td><td>McFeeters 1996</td></tr>
+    <tr><td><b>flood</b></td>
+      <td><span class="en">SAR water: smooth water gives low VV backscatter. Flood = water in the event window but not the baseline.</span><span class="id">Air SAR: air halus memberi backscatter VV rendah. Banjir = air pada jendela kejadian tetapi tidak pada baseline.</span></td>
+      <td>Sentinel-1</td><td><a href="https://un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping">UN-SPIDER</a></td></tr>
+    <tr><td><b>mining</b></td>
+      <td><span class="en">SIRAD: mean VH backscatter of 3 periods → an R/G/B image (new activity = blue). Plus ΔNDVI loss.</span><span class="id">SIRAD: rerata backscatter VH 3 periode → citra R/G/B (aktivitas baru = biru). Plus kehilangan ΔNDVI.</span></td>
+      <td>Sentinel-1 + S2</td><td><span class="en">Multi-temporal SAR</span><span class="id">SAR multi-temporal</span></td></tr>
   </table>
 
-  <div class="callout tip"><b>Why radar for floods and mining?</b> Optical sensors can't see through clouds — a serious problem during floods and in the wet tropics. Sentinel-1 radar penetrates cloud and works day or night, so it captures change when optical imagery is blind. VH polarisation is most sensitive to land-surface change; VV best separates smooth open water.</div>
+  <div class="callout tip en"><b>Why radar for floods and mining?</b> Optical sensors can't see through clouds — a serious problem during floods and in the wet tropics. Sentinel-1 radar penetrates cloud and works day or night, so it captures change when optical imagery is blind. VH polarisation is most sensitive to land-surface change; VV best separates smooth open water.</div>
+  <div class="callout tip id"><b>Mengapa radar untuk banjir dan tambang?</b> Sensor optik tak bisa menembus awan — masalah serius saat banjir dan di tropis basah. Radar Sentinel-1 menembus awan dan bekerja siang-malam, sehingga menangkap perubahan ketika citra optik buta. Polarisasi VH paling peka pada perubahan permukaan; VV paling baik memisahkan air terbuka.</div>
 
-  <h3>Two ways clouds are handled</h3>
-  <p>Optical scenarios never rely on a single image. For each period the tool builds a <b>cloud-masked median composite</b> of many Sentinel-2 scenes: every scene is masked pixel-by-pixel using the Scene Classification (SCL) band, then the median is taken. The result is effectively cloud-free even in cloudy regions. The standalone Sentinel-2 downloader additionally prefers a single scene with ≤10% cloud, falling back to the composite when none exists.</p>
+  <h3><span class="en">How clouds are handled</span><span class="id">Cara menangani awan</span></h3>
+  <p class="en">Optical scenarios never rely on a single image. For each period the tool builds a <b>cloud-masked median composite</b> of many Sentinel-2 scenes: every scene is masked pixel-by-pixel using the Scene Classification (SCL) band, then the median is taken. The result is effectively cloud-free even in cloudy regions. The standalone Sentinel-2 downloader additionally prefers a single scene with ≤10% cloud, falling back to the composite when none exists.</p>
+  <p class="id">Skenario optik tak pernah bergantung pada satu citra. Untuk tiap periode, alat menyusun <b>median composite bebas awan</b> dari banyak scene Sentinel-2: tiap scene di-mask per-piksel memakai band Scene Classification (SCL), lalu diambil mediannya. Hasilnya praktis bebas awan bahkan di wilayah berawan. Pengunduh Sentinel-2 mandiri juga mengutamakan satu scene dengan awan ≤10%, dan beralih ke composite bila tak ada.</p>
 
-  <h2 id="setup">3 · Setup</h2>
-  <p>You need <b>Python 3.11+</b>, <b>git</b>, and a <b>free Google Earth Engine account</b> (<a href="https://earthengine.google.com/signup/">sign up</a>; approval is usually quick). The optional documentary-video pipeline additionally needs <code>ffmpeg</code> and an ElevenLabs key — you can ignore those for change detection.</p>
+  <h2 id="setup">3 · <span class="en">Setup</span><span class="id">Persiapan</span></h2>
+  <p class="en">You need <b>Python 3.11+</b>, <b>git</b>, and a <b>free Google Earth Engine account</b> (<a href="https://earthengine.google.com/signup/">sign up</a>; approval is usually quick). The optional documentary-video pipeline additionally needs <code>ffmpeg</code> and an ElevenLabs key — ignore those for change detection.</p>
+  <p class="id">Anda memerlukan <b>Python 3.11+</b>, <b>git</b>, dan <b>akun Google Earth Engine gratis</b> (<a href="https://earthengine.google.com/signup/">daftar</a>; persetujuan biasanya cepat). Pipeline video dokumenter (opsional) juga butuh <code>ffmpeg</code> dan kunci ElevenLabs — abaikan itu untuk deteksi perubahan.</p>
   <ol class="steps">
-    <li><b>Clone the repository</b><pre><code>git clone https://github.com/firmanhadi21/rs-change-detection.git
+    <li><b><span class="en">Clone the repository</span><span class="id">Klon repositori</span></b>
+      <pre><code>git clone https://github.com/firmanhadi21/rs-change-detection.git
 cd rs-change-detection</code></pre></li>
-    <li><b>Install the Python dependencies</b><pre><code>pip install -r requirements.txt</code></pre>
-      <span class="note">This pulls <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code> and <code>contextily</code> (for maps).</span></li>
-    <li><b>Authenticate Earth Engine</b> (one time)<pre><code>earthengine authenticate</code></pre>
-      <span class="note">Opens a browser to link your Google account. Alternatively drop a service-account key at <code>scripts/config/ee-geodetic.json</code> — the tools detect it automatically.</span></li>
-    <li><b>Check it's working</b><pre><code>python3 detect.py --list</code></pre>
-      <span class="note">Should print the six available scenarios.</span></li>
+    <li><b><span class="en">Install the Python dependencies</span><span class="id">Pasang dependensi Python</span></b>
+      <pre><code>pip install -r requirements.txt</code></pre>
+      <span class="note en">Pulls <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code> and <code>contextily</code>.</span>
+      <span class="note id">Menarik <code>earthengine-api</code>, <code>rasterio</code>, <code>numpy</code>, <code>matplotlib</code>, dan <code>contextily</code>.</span></li>
+    <li><b><span class="en">Authenticate Earth Engine (one time)</span><span class="id">Autentikasi Earth Engine (sekali)</span></b>
+      <pre><code>earthengine authenticate</code></pre>
+      <span class="note en">Opens a browser to link your Google account. Or drop a service-account key at <code>scripts/config/ee-geodetic.json</code> — the tools detect it automatically.</span>
+      <span class="note id">Membuka browser untuk menautkan akun Google. Atau taruh kunci service account di <code>scripts/config/ee-geodetic.json</code> — alat mendeteksinya otomatis.</span></li>
+    <li><b><span class="en">Check it's working</span><span class="id">Cek berjalan</span></b>
+      <pre><code>python3 detect.py --list</code></pre>
+      <span class="note en">Should print the six available scenarios.</span>
+      <span class="note id">Harusnya menampilkan enam skenario.</span></li>
   </ol>
 
-  <h2 id="first">4 · Your first detection</h2>
-  <p>Let's map vegetation loss around a coordinate. Pick any <code>lat</code>/<code>lon</code> (decimal degrees; south and west are negative).</p>
+  <h2 id="first">4 · <span class="en">Your first detection</span><span class="id">Deteksi pertama Anda</span></h2>
+  <p class="en">Let's map vegetation loss around a coordinate. Pick any <code>lat</code>/<code>lon</code> (decimal degrees; south and west are negative).</p>
+  <p class="id">Mari petakan kehilangan vegetasi di sekitar koordinat. Pilih <code>lat</code>/<code>lon</code> apa saja (derajat desimal; selatan dan barat negatif).</p>
   <pre><code>python3 detect.py -s deforestation --lat -3.333 --lon 122.25 --radius 6</code></pre>
-  <p>What happens: the tool builds a square area of interest (half-side = <code>radius</code> km), makes a cloud-free Sentinel-2 NDVI composite for a baseline year and a recent year, subtracts them, and downloads the result. You'll see something like:</p>
+  <p class="en">The tool builds a square area of interest (half-side = <code>radius</code> km), makes a cloud-free Sentinel-2 NDVI composite for a baseline year and a recent year, subtracts them, and downloads the result. You'll see something like:</p>
+  <p class="id">Alat membangun area minat persegi (setengah-sisi = <code>radius</code> km), membuat composite NDVI Sentinel-2 bebas awan untuk tahun dasar dan tahun terkini, menguranginya, lalu mengunduh hasilnya. Anda akan melihat kira-kira:</p>
   <pre><code>=== Change detection: deforestation ===
 Location: -3.333, 122.25  radius 6.0 km  [m3p333_122p25]
-GEE: service account …
-Downloading dndvi PNG...   Saved: images/deforestation_dndvi_m3p333_122p25.png
+Downloading dndvi PNG...    Saved: images/deforestation_dndvi_m3p333_122p25.png
 Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
 === Results ===
   "pct_affected": 6.3, "pct_severe": 2.7, "scenes_pre": 30, "scenes_post": 25 …</code></pre>
-  <div class="callout"><b>Negative latitude tip.</b> A leading <code>-</code> can confuse the shell's argument parser if you use <code>-l</code>. Either use <code>--lat/--lon</code> (shown above) or attach the value with <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
+  <div class="callout en"><b>Negative-latitude tip.</b> A leading <code>-</code> can confuse the shell if you use <code>-l</code>. Either use <code>--lat/--lon</code> (above) or attach the value with <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
+  <div class="callout id"><b>Tips lintang negatif.</b> Tanda <code>-</code> di depan bisa membingungkan shell bila memakai <code>-l</code>. Gunakan <code>--lat/--lon</code> (di atas) atau sambungkan nilai dengan <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
 
-  <h2 id="outputs">5 · Reading the outputs</h2>
+  <h2 id="outputs">5 · <span class="en">Reading the outputs</span><span class="id">Membaca keluaran</span></h2>
   <table>
-    <tr><th>File</th><th>What it is</th><th>Open with</th></tr>
-    <tr><td><code>images/&lt;scenario&gt;_&lt;product&gt;_&lt;name&gt;.png</code></td><td>Coloured quick-look</td><td>Any image viewer</td></tr>
-    <tr><td><code>data/&lt;…&gt;.tif</code></td><td>Full-resolution, georeferenced GeoTIFF (EPSG:4326)</td><td>QGIS, ArcGIS, rasterio</td></tr>
-    <tr><td><code>data/&lt;scenario&gt;_&lt;name&gt;_stats.json</code></td><td>Statistics: % area affected, mean Δ, scene counts</td><td>Any text editor</td></tr>
+    <tr>
+      <th><span class="en">File</span><span class="id">Berkas</span></th>
+      <th><span class="en">What it is</span><span class="id">Isinya</span></th>
+      <th><span class="en">Open with</span><span class="id">Buka dengan</span></th>
+    </tr>
+    <tr><td><code>images/…_&lt;name&gt;.png</code></td><td><span class="en">Coloured quick-look</span><span class="id">Pratinjau berwarna</span></td><td><span class="en">Any image viewer</span><span class="id">Penampil gambar apa saja</span></td></tr>
+    <tr><td><code>data/…_&lt;name&gt;.tif</code></td><td><span class="en">Full-resolution, georeferenced GeoTIFF (EPSG:4326)</span><span class="id">GeoTIFF resolusi penuh tergeoreferensi (EPSG:4326)</span></td><td>QGIS, ArcGIS, rasterio</td></tr>
+    <tr><td><code>data/…_stats.json</code></td><td><span class="en">Statistics: % area affected, mean Δ, scene counts</span><span class="id">Statistik: % area terdampak, rerata Δ, jumlah scene</span></td><td><span class="en">Any text editor</span><span class="id">Editor teks apa saja</span></td></tr>
   </table>
-  <p>For optical scenarios the change layer is a diverging palette: <b>red = loss</b>, pale = little change, <b>green = gain</b>. The <code>stats.json</code> quantifies it — e.g. <code>pct_affected</code> is the share of the area whose change passed the threshold.</p>
-  <div class="callout tip"><b>Thresholds are a starting point, not gospel.</b> The default per-scenario thresholds (e.g. ΔNDVI &lt; −0.15) are sensible defaults. As Key &amp; Benson note for burn severity, cut-offs should ideally be calibrated with local ground truth. Treat the % figures as comparative, not absolute.</div>
+  <p class="en">For optical scenarios the change layer uses a diverging palette: <b>red = loss</b>, pale = little change, <b>green = gain</b>. The <code>stats.json</code> quantifies it — e.g. <code>pct_affected</code> is the share of the area whose change passed the threshold.</p>
+  <p class="id">Untuk skenario optik, layer perubahan memakai palet divergen: <b>merah = kehilangan</b>, pucat = sedikit berubah, <b>hijau = pertambahan</b>. <code>stats.json</code> mengukurnya — mis. <code>pct_affected</code> adalah proporsi area yang perubahannya melewati ambang.</p>
+  <div class="callout tip en"><b>Thresholds are a starting point, not gospel.</b> The default per-scenario thresholds (e.g. ΔNDVI &lt; −0.15) are sensible defaults. As Key &amp; Benson note for burn severity, cut-offs should ideally be calibrated with local ground truth. Treat the % figures as comparative, not absolute.</div>
+  <div class="callout tip id"><b>Ambang adalah titik awal, bukan patokan mutlak.</b> Ambang default tiap skenario (mis. ΔNDVI &lt; −0.15) adalah nilai wajar. Seperti dicatat Key &amp; Benson untuk severity kebakaran, ambang idealnya dikalibrasi dengan data lapangan lokal. Anggap angka % sebagai perbandingan, bukan mutlak.</div>
 
-  <h2 id="scenarios">6 · Every scenario</h2>
-  <p>List them any time with <code>python3 detect.py --list</code>. Commands:</p>
+  <h2 id="scenarios">6 · <span class="en">Every scenario</span><span class="id">Setiap skenario</span></h2>
+  <p class="en">List them any time with <code>python3 detect.py --list</code>. Commands:</p>
+  <p class="id">Lihat daftarnya kapan saja dengan <code>python3 detect.py --list</code>. Perintah:</p>
   <pre><code># Deforestation / vegetation loss (default baseline vs recent year)
 python3 detect.py -s deforestation --lat -3.333 --lon 122.25
 
@@ -203,25 +256,31 @@ python3 detect.py -s flood --lat 27.2 --lon 68.3 \
 # Burn severity — needs pre-fire and post-fire windows
 python3 detect.py -s burn --lat -7.5 --lon 110.4 \
     --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30</code></pre>
-  <div class="callout"><b>Flood and burn require dates.</b> They compare a specific <i>event</i> to a <i>baseline</i>, so you must pass <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). The other scenarios have sensible default windows you can still override.</div>
+  <div class="callout en"><b>Flood and burn require dates.</b> They compare a specific <i>event</i> to a <i>baseline</i>, so pass <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Other scenarios have default windows you can still override.</div>
+  <div class="callout id"><b>Banjir dan kebakaran wajib tanggal.</b> Keduanya membandingkan <i>kejadian</i> tertentu dengan <i>baseline</i>, jadi berikan <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Skenario lain punya jendela default yang tetap bisa diubah.</div>
 
-  <h2 id="maps">7 · Make a map product</h2>
-  <p>Add <code>--map</code> to any run to render an <b>A4-landscape map sheet</b> (PDF + PNG) per product: OpenStreetMap basemap, the change layer, title, legend, a statistics panel, a location inset, coordinate grid, scale bar and north arrow.</p>
+  <h2 id="maps">7 · <span class="en">Make a map product</span><span class="id">Membuat produk peta</span></h2>
+  <p class="en">Add <code>--map</code> to any run to render an <b>A4-landscape map sheet</b> (PDF + PNG) per product: OpenStreetMap basemap, the change layer, title, legend, a statistics panel, a location inset, coordinate grid, scale bar and north arrow.</p>
+  <p class="id">Tambahkan <code>--map</code> pada run apa pun untuk membuat <b>lembar peta A4 landscape</b> (PDF + PNG) per produk: basemap OpenStreetMap, layer perubahan, judul, legenda, panel statistik, inset lokasi, grid koordinat, skala, dan panah utara.</p>
   <pre><code>python3 detect.py -s mining --lat -3.333 --lon 122.25 --map</code></pre>
   <figure>
     <img src="assets/example-mining-sirad.png" alt="Example mining SIRAD map">
-    <figcaption>A SIRAD radar-temporal map. Each colour is one time period; <b>blue = new activity</b> only in the most recent period — a strong signal of fresh land clearing.</figcaption>
+    <figcaption><span class="en">A SIRAD radar-temporal map. Each colour is one period; <b>blue = new activity</b> only in the most recent period — a strong signal of fresh land clearing.</span><span class="id">Peta radar-temporal SIRAD. Tiap warna satu periode; <b>biru = aktivitas baru</b> hanya pada periode terkini — sinyal kuat pembukaan lahan baru.</span></figcaption>
   </figure>
-  <p>Already have results and just want to re-render (no Earth Engine needed)? Every run drops a <code>.meta.json</code> sidecar, so:</p>
+  <p class="en">Already have results and just want to re-render (no Earth Engine needed)? Every run drops a <code>.meta.json</code> sidecar, so:</p>
+  <p class="id">Sudah punya hasil dan ingin render ulang (tanpa Earth Engine)? Tiap run menulis sidecar <code>.meta.json</code>, jadi:</p>
   <pre><code>python3 make_map.py deforestation_dndvi_m3p333_122p25          # by base name
 python3 make_map.py data/mining_sirad_konawe.tif --basemap gray  # or a .tif path</code></pre>
-  <p>Maps land in <code>maps/</code>. Tweak the layout in <code>mapmaker.py</code> and re-run instantly.</p>
+  <p class="en">Maps land in <code>maps/</code>. Tweak the layout in <code>mapmaker.py</code> and re-run instantly.</p>
+  <p class="id">Peta tersimpan di <code>maps/</code>. Ubah tata letak di <code>mapmaker.py</code> lalu jalankan ulang seketika.</p>
 
-  <h2 id="adapt">8 · Adapt it to your own area</h2>
-  <h3>Pick a location</h3>
-  <p>Find coordinates by right-clicking a spot in Google Maps (it copies <code>lat, lon</code>), or from OpenStreetMap. Choose a <code>--radius</code> to match the feature: a few km for a single mine or town, 10–20 km for a flood plain or a fire.</p>
-  <h3>Save a named preset</h3>
-  <p>Add reusable places to <code>sites.py</code> and call them with <code>--site</code>:</p>
+  <h2 id="adapt">8 · <span class="en">Adapt it to your own area</span><span class="id">Menyesuaikan untuk area Anda</span></h2>
+  <h3><span class="en">Pick a location</span><span class="id">Pilih lokasi</span></h3>
+  <p class="en">Find coordinates by right-clicking a spot in Google Maps (it copies <code>lat, lon</code>), or from OpenStreetMap. Choose a <code>--radius</code> to match the feature: a few km for a single mine or town, 10–20 km for a flood plain or a fire.</p>
+  <p class="id">Cari koordinat dengan klik kanan di Google Maps (menyalin <code>lat, lon</code>), atau dari OpenStreetMap. Pilih <code>--radius</code> sesuai objek: beberapa km untuk satu tambang atau kota, 10–20 km untuk dataran banjir atau kebakaran.</p>
+  <h3><span class="en">Save a named preset</span><span class="id">Simpan preset bernama</span></h3>
+  <p class="en">Add reusable places to <code>sites.py</code> and call them with <code>--site</code>:</p>
+  <p class="id">Tambahkan lokasi yang sering dipakai ke <code>sites.py</code> dan panggil dengan <code>--site</code>:</p>
   <pre><code>SITES = {
   "my_area": {
     "label": "My study area",
@@ -235,8 +294,9 @@ python3 make_map.py data/mining_sirad_konawe.tif --basemap gray  # or a .tif pat
   },
 }</code></pre>
   <pre><code>python3 detect.py -s deforestation --site my_area --map</code></pre>
-  <h3>Add a brand-new scenario</h3>
-  <p>Most scenarios are one dictionary entry in <code>scenarios.py</code>. To add, say, a moisture-change scenario using NDWI on a custom threshold you only add a registry entry — the generic optical-change engine does the rest:</p>
+  <h3><span class="en">Add a brand-new scenario</span><span class="id">Tambah skenario baru</span></h3>
+  <p class="en">Most scenarios are one dictionary entry in <code>scenarios.py</code>. To add, say, a moisture-change scenario using NDWI on a custom threshold you only add a registry entry — the generic optical-change engine does the rest:</p>
+  <p class="id">Kebanyakan skenario hanya satu entri dictionary di <code>scenarios.py</code>. Untuk menambah, misalnya, skenario perubahan kelembapan memakai NDWI dengan ambang khusus, cukup tambahkan satu entri — mesin perubahan optik generik menangani sisanya:</p>
   <pre><code>"moisture": {
     "label": "Moisture change (NDWI)",
     "run": _optical("NDWI", "gain", 0.08, 0.20),  # index, direction, thresholds
@@ -245,42 +305,60 @@ python3 make_map.py data/mining_sirad_konawe.tif --basemap gray  # or a .tif pat
     "post": ("2025-01-01","2025-12-31"),
     "interpretation": "Greener = wetter.",
 },</code></pre>
-  <p>New spectral indices go in <code>indices.py</code> (a one-line normalised difference). Radar or bespoke methods get a small <code>run_*</code> function in <code>scenarios.py</code>.</p>
+  <p class="en">New spectral indices go in <code>indices.py</code> (a one-line normalised difference). Radar or bespoke methods get a small <code>run_*</code> function in <code>scenarios.py</code>.</p>
+  <p class="id">Indeks spektral baru masuk ke <code>indices.py</code> (satu baris normalized difference). Metode radar atau khusus memakai fungsi <code>run_*</code> kecil di <code>scenarios.py</code>.</p>
 
-  <h2 id="reproduce">9 · Reproducibility &amp; data</h2>
-  <ul>
+  <h2 id="reproduce">9 · <span class="en">Reproducibility &amp; data</span><span class="id">Reproduksibilitas &amp; data</span></h2>
+  <ul class="en">
     <li><b>Data:</b> Copernicus <b>Sentinel-1</b> (radar) and <b>Sentinel-2</b> (optical), free and open, courtesy ESA, processed in <a href="https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED">Google Earth Engine</a>.</li>
     <li><b>AOI:</b> a <b>square</b> centred on your coordinate (half-side = radius), axis-aligned in EPSG:4326.</li>
-    <li><b>Orbit auto-selection:</b> for radar scenarios the tool checks both ascending and descending orbits and uses whichever has imagery in every period — coverage varies by location and year.</li>
+    <li><b>Orbit auto-selection:</b> radar scenarios check both ascending and descending orbits and use whichever has imagery in every period.</li>
     <li><b>Outputs</b> are regenerable, so results and maps are git-ignored; only code and this tutorial are versioned.</li>
   </ul>
+  <ul class="id">
+    <li><b>Data:</b> Copernicus <b>Sentinel-1</b> (radar) dan <b>Sentinel-2</b> (optik), gratis dan terbuka, dari ESA, diproses di <a href="https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED">Google Earth Engine</a>.</li>
+    <li><b>AOI:</b> <b>persegi</b> berpusat di koordinat Anda (setengah-sisi = radius), sejajar sumbu di EPSG:4326.</li>
+    <li><b>Pemilihan orbit otomatis:</b> skenario radar memeriksa orbit ascending dan descending lalu memakai yang punya citra di tiap periode.</li>
+    <li><b>Keluaran</b> bisa dibuat ulang, jadi hasil dan peta di-git-ignore; hanya kode dan tutorial ini yang diversikan.</li>
+  </ul>
 
-  <h2 id="trouble">10 · Troubleshooting</h2>
+  <h2 id="trouble">10 · <span class="en">Troubleshooting</span><span class="id">Pemecahan masalah</span></h2>
   <table>
-    <tr><th>Symptom</th><th>Fix</th></tr>
-    <tr><td><code>No Sentinel-2 scenes in pre/post window</code></td><td>Widen your <code>--pre/--post</code> dates or increase <code>--radius</code>. Very cloudy tropics may need a longer window.</td></tr>
-    <tr><td><code>No orbit covers all periods</code> (radar)</td><td>Enlarge the radius or shift the period dates; Sentinel-1 coverage is sparse in some years/areas.</td></tr>
-    <tr><td>Earth Engine auth errors</td><td>Re-run <code>earthengine authenticate</code>, or place a valid service-account key at <code>scripts/config/ee-geodetic.json</code>.</td></tr>
-    <tr><td>Map basemap missing / <code>EPSG code unknown</code></td><td>A stale external PROJ database (e.g. from an OTB install) is shadowing PROJ. The tool already clears <code>PROJ_LIB</code>; if it persists, <code>unset PROJ_LIB</code> in your shell.</td></tr>
-    <tr><td>Direct GeoTIFF download refused</td><td>Very large AOIs exceed Earth Engine's direct-download limit — reduce <code>--radius</code>, or use the <code>--drive</code> flag to export to Google Drive.</td></tr>
+    <tr><th><span class="en">Symptom</span><span class="id">Gejala</span></th><th><span class="en">Fix</span><span class="id">Solusi</span></th></tr>
+    <tr><td><code>No Sentinel-2 scenes in pre/post window</code></td><td><span class="en">Widen your <code>--pre/--post</code> dates or increase <code>--radius</code>. Very cloudy tropics may need a longer window.</span><span class="id">Perlebar tanggal <code>--pre/--post</code> atau perbesar <code>--radius</code>. Tropis sangat berawan mungkin butuh jendela lebih panjang.</span></td></tr>
+    <tr><td><code>No orbit covers all periods</code></td><td><span class="en">Enlarge the radius or shift the period dates; Sentinel-1 coverage is sparse in some years/areas.</span><span class="id">Perbesar radius atau geser tanggal periode; cakupan Sentinel-1 jarang di sebagian tahun/area.</span></td></tr>
+    <tr><td><span class="en">Earth Engine auth errors</span><span class="id">Galat autentikasi Earth Engine</span></td><td><span class="en">Re-run <code>earthengine authenticate</code>, or place a valid service-account key at <code>scripts/config/ee-geodetic.json</code>.</span><span class="id">Jalankan ulang <code>earthengine authenticate</code>, atau taruh kunci service account valid di <code>scripts/config/ee-geodetic.json</code>.</span></td></tr>
+    <tr><td><span class="en">Basemap missing / </span><span class="id">Basemap hilang / </span><code>EPSG code unknown</code></td><td><span class="en">A stale external PROJ database (e.g. from an OTB install) is shadowing PROJ. The tool clears <code>PROJ_LIB</code>; if it persists, <code>unset PROJ_LIB</code>.</span><span class="id">Basis data PROJ eksternal usang (mis. dari OTB) menutupi PROJ. Alat menghapus <code>PROJ_LIB</code>; bila masih, jalankan <code>unset PROJ_LIB</code>.</span></td></tr>
+    <tr><td><span class="en">Direct GeoTIFF download refused</span><span class="id">Unduhan GeoTIFF langsung ditolak</span></td><td><span class="en">Very large AOIs exceed Earth Engine's limit — reduce <code>--radius</code>, or use <code>--drive</code> to export to Google Drive.</span><span class="id">AOI sangat besar melewati batas Earth Engine — kecilkan <code>--radius</code>, atau pakai <code>--drive</code> untuk ekspor ke Google Drive.</span></td></tr>
   </table>
 
-  <h2 id="reading">11 · Further reading</h2>
+  <h2 id="reading">11 · <span class="en">Further reading</span><span class="id">Bacaan lanjut</span></h2>
   <ul>
     <li>Zha, Gao &amp; Ni (2003). <a href="https://www.tandfonline.com/doi/abs/10.1080/01431160304987">Use of NDBI in automatically mapping urban areas from TM imagery</a>. <i>Int. J. Remote Sensing</i> 24(3).</li>
     <li>Key &amp; Benson (2006). <a href="https://www.fs.usda.gov/rm/pubs_series/rmrs/gtr/rmrs_gtr164/rmrs_gtr164_13_land_assess.pdf">Landscape Assessment: the Normalized Burn Ratio (NBR/dNBR)</a>. USDA Forest Service, FIREMON.</li>
     <li>UN-SPIDER. <a href="https://un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping">Recommended Practice: Flood Mapping with Sentinel-1 SAR in Google Earth Engine</a>.</li>
     <li>UN-SPIDER. <a href="https://un-spider.org/advisory-support/recommended-practices/recommended-practice-burn-severity/in-detail/normalized-burn-ratio">Normalized Burn Ratio — in detail</a>.</li>
     <li>Earth Lab. <a href="https://earthdatascience.org/courses/earth-analytics/multispectral-remote-sensing-modis/normalized-burn-index-dNBR/">Work with the Differenced Normalized Burn Index (dNBR)</a>.</li>
-    <li>Google Earth Engine. <a href="https://developers.google.com/earth-engine/guides/sentinel1">Sentinel-1 SAR guide</a> · <a href="https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED">Sentinel-2 SR Harmonized dataset</a>.</li>
+    <li>Google Earth Engine. <a href="https://developers.google.com/earth-engine/guides/sentinel1">Sentinel-1 SAR guide</a> · <a href="https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED">Sentinel-2 SR Harmonized</a>.</li>
   </ul>
 
   <footer>
-    Built on the <a href="https://github.com/firmanhadi21/rs-change-detection">rs-change-detection</a> toolkit · MIT licensed ·
-    Data: Copernicus Sentinel (ESA) via Google Earth Engine · Basemap © OpenStreetMap contributors.
-    <br>Flagship case study: an investigation of illegal gold mining (PETI) in Capkala, West Kalimantan.
+    <span class="en">Built on the <a href="https://github.com/firmanhadi21/rs-change-detection">rs-change-detection</a> toolkit · MIT licensed · Data: Copernicus Sentinel (ESA) via Google Earth Engine · Basemap © OpenStreetMap contributors.<br>Flagship case study: an investigation of illegal gold mining (PETI) in Capkala, West Kalimantan.</span>
+    <span class="id">Dibangun di atas toolkit <a href="https://github.com/firmanhadi21/rs-change-detection">rs-change-detection</a> · Lisensi MIT · Data: Copernicus Sentinel (ESA) via Google Earth Engine · Basemap © kontributor OpenStreetMap.<br>Studi kasus unggulan: investigasi tambang emas ilegal (PETI) di Capkala, Kalimantan Barat.</span>
   </footer>
 </main>
 </div>
+<script>
+  function setLang(l){
+    var h=document.documentElement;
+    h.classList.remove('lang-en','lang-id');
+    h.classList.add('lang-'+l);
+    h.setAttribute('lang',l);
+    try{localStorage.setItem('lang',l)}catch(e){}
+  }
+  document.querySelectorAll('.langtoggle button').forEach(function(b){
+    b.addEventListener('click',function(){setLang(b.getAttribute('data-lang'));});
+  });
+</script>
 </body>
 </html>
