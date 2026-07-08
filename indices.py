@@ -86,6 +86,62 @@ METHOD_DEFAULTS = {
 }
 
 
+# --- Landsat 8/9 Collection-2 Level-2 (adds a thermal band for NDISI/EBBI) ---
+L8_COL, L9_COL = "LANDSAT/LC08/C02/T1_L2", "LANDSAT/LC09/C02/T1_L2"
+
+
+def _l2_prep(img):
+    """Scale a Landsat C2-L2 scene to reflectance + °C and mask clouds."""
+    qa = img.select("QA_PIXEL")
+    clear = qa.bitwiseAnd((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4)).eq(0)
+    opt = (img.select(["SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7"])
+           .multiply(0.0000275).add(-0.2))
+    tir = img.select("ST_B10").multiply(0.00341802).add(149.0).subtract(273.15)
+    return (opt.addBands(tir)
+               .rename(["GREEN", "RED", "NIR", "SWIR1", "SWIR2", "TIR"])
+               .updateMask(clear))
+
+
+def l2_median(aoi, start, end, cloud_max=60):
+    """Cloud-masked median Landsat 8/9 composite. Returns (image, scene_count)."""
+    col = (ee.ImageCollection(L8_COL).merge(ee.ImageCollection(L9_COL))
+           .filterBounds(aoi).filterDate(start, end)
+           .filter(ee.Filter.lt("CLOUD_COVER", cloud_max)).map(_l2_prep))
+    return col.median(), col.size().getInfo()
+
+
+def _norm01(band, lo, hi):
+    return band.subtract(lo).divide(hi - lo).clamp(0, 1)
+
+
+def ndisi(img):   # Normalized Difference Impervious Surface Index (Xu 2010)
+    tir = _norm01(img.select("TIR"), 0, 50)                 # °C -> [0,1]
+    nir = img.select("NIR").clamp(0, 1)
+    swir1 = img.select("SWIR1").clamp(0, 1)
+    mndwi = img.normalizedDifference(["GREEN", "SWIR1"]).add(1).divide(2)  # ->[0,1]
+    x = mndwi.add(nir).add(swir1).divide(3)
+    return tir.subtract(x).divide(tir.add(x)).clamp(-1, 1).rename("NDISI")
+
+
+def ebbi(img):    # Enhanced Built-up & Bareness Index (As-syakur 2012), x100
+    swir1, nir, tir = img.select("SWIR1"), img.select("NIR"), img.select("TIR")
+    denom = swir1.add(tir).max(1e-6).sqrt().multiply(10)
+    return swir1.subtract(nir).divide(denom).multiply(100).rename("EBBI")
+
+
+INDEX_FN.update({"NDISI": ndisi, "EBBI": ebbi})
+
+# Which sensor each index needs. Thermal indices require Landsat (not Sentinel-2).
+SENSOR = {k: "S2" for k in ("NDVI", "NDBI", "NDWI", "NBR", "UI", "BU", "IBI")}
+SENSOR.update({"NDISI": "L8", "EBBI": "L8"})
+THERMAL_METHODS = ["NDISI", "EBBI"]  # Landsat-only built-up/impervious methods
+
+METHOD_DEFAULTS.update({
+    "NDISI": ("gain", 0.05, 0.12, 0.5),
+    "EBBI": ("gain", 0.10, 0.25, 1.0),
+})
+
+
 # --- Sentinel-1 SAR helpers ---
 def s1(aoi, start, end, orbit, pol):
     """Sentinel-1 IW collection for one polarisation and orbit direction."""

@@ -56,6 +56,22 @@ def _ix_ibi(ds):
         return np.clip((nd - x) / (nd + x), -1, 1)  # clamp unstable ratio
 
 
+def _ix_ndisi(ds):  # Landsat bands GREEN/NIR/SWIR1/TIR (°C)
+    tir = np.clip(_b(ds, "TIR") / 50.0, 0, 1)       # °C -> [0,1]
+    nir = np.clip(_b(ds, "NIR"), 0, 1)
+    swir1 = np.clip(_b(ds, "SWIR1"), 0, 1)
+    mndwi = (_nd(_b(ds, "GREEN"), _b(ds, "SWIR1")) + 1) / 2.0
+    x = (mndwi + nir + swir1) / 3.0
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.clip((tir - x) / (tir + x), -1, 1)
+
+
+def _ix_ebbi(ds):   # As-syakur 2012, x100
+    swir1, nir, tir = _b(ds, "SWIR1"), _b(ds, "NIR"), _b(ds, "TIR")
+    denom = 10.0 * np.sqrt(np.clip(swir1 + tir, 1e-6, None))
+    return (swir1 - nir) / denom * 100.0
+
+
 INDEX_NP = {
     "NDVI": lambda ds: _nd(_b(ds, "B08"), _b(ds, "B04")),
     "NDBI": lambda ds: _nd(_b(ds, "B11"), _b(ds, "B08")),
@@ -64,11 +80,15 @@ INDEX_NP = {
     "UI": lambda ds: _nd(_b(ds, "B12"), _b(ds, "B08")),
     "BU": lambda ds: _nd(_b(ds, "B11"), _b(ds, "B08")) - _nd(_b(ds, "B08"), _b(ds, "B04")),
     "IBI": _ix_ibi,
+    "NDISI": _ix_ndisi,
+    "EBBI": _ix_ebbi,
 }
 S2_RES = 0.0001   # ~11 m in degrees (EPSG:4326)
 S1_RES = 0.0002   # ~22 m
+L_RES = 0.0003    # ~30 m (Landsat)
 CLOUD_MAX = 60
 SCL_BAD = [3, 8, 9, 10, 11]  # shadow, cloud med/high, cirrus, snow
+L8_METHODS = ("NDISI", "EBBI")  # thermal indices — need Landsat, not Sentinel-2
 
 
 def _catalog():
@@ -107,14 +127,55 @@ def _s2_median(bbox, start, end, bands, geobox=None):
     return med.compute(), len(items), ds.odc.geobox
 
 
+def _landsat_median(bbox, start, end, geobox=None):
+    """Cloud-masked median Landsat 8/9 composite -> reflectance + °C (TIR)."""
+    import odc.stac
+    import xarray as xr
+    cat = _catalog()
+    items = [it for it in cat.search(
+        collections=["landsat-c2-l2"], bbox=bbox, datetime=f"{start}/{end}",
+        query={"eo:cloud_cover": {"lt": CLOUD_MAX}}).items()
+        if it.properties.get("platform") in ("landsat-8", "landsat-9")]
+    if not items:
+        return None, 0, geobox
+    bands = ["green", "red", "nir08", "swir16", "swir22", "lwir11", "qa_pixel"]
+    load_kw = dict(bands=bands, groupby="solar_day",
+                   chunks={"x": 2048, "y": 2048}, resampling="bilinear")
+    if geobox is not None:
+        ds = odc.stac.load(items, geobox=geobox, **load_kw)
+    else:
+        ds = odc.stac.load(items, bbox=bbox, crs="EPSG:4326",
+                           resolution=L_RES, **load_kw)
+    qa = ds["qa_pixel"].astype("uint16")
+    bad = (qa & ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4))) != 0
+    m = ds.where(~bad).median(dim="time").compute()
+    out = xr.Dataset({  # scale C2-L2 to surface reflectance and °C
+        "GREEN": m["green"] * 0.0000275 - 0.2,
+        "RED": m["red"] * 0.0000275 - 0.2,
+        "NIR": m["nir08"] * 0.0000275 - 0.2,
+        "SWIR1": m["swir16"] * 0.0000275 - 0.2,
+        "SWIR2": m["swir22"] * 0.0000275 - 0.2,
+        "TIR": m["lwir11"] * 0.00341802 + 149.0 - 273.15,
+    })
+    return out, len(items), ds.odc.geobox
+
+
 def run_optical(bbox, params, index, direction, thr, severe, vmax=0.6):
-    bands = INDEX_LOAD[index]
-    pre, n_pre, gbox = _s2_median(bbox, *params["pre"], bands)
-    if pre is None:
-        raise SystemExit("No Sentinel-2 scenes in the pre window (MPC).")
-    post, n_post, _ = _s2_median(bbox, *params["post"], bands, geobox=gbox)
-    if post is None:
-        raise SystemExit("No Sentinel-2 scenes in the post window (MPC).")
+    if index in L8_METHODS:  # thermal indices -> Landsat
+        pre, n_pre, gbox = _landsat_median(bbox, *params["pre"])
+        if pre is None:
+            raise SystemExit("No Landsat scenes in the pre window (MPC).")
+        post, n_post, _ = _landsat_median(bbox, *params["post"], geobox=gbox)
+        if post is None:
+            raise SystemExit("No Landsat scenes in the post window (MPC).")
+    else:
+        bands = INDEX_LOAD[index]
+        pre, n_pre, gbox = _s2_median(bbox, *params["pre"], bands)
+        if pre is None:
+            raise SystemExit("No Sentinel-2 scenes in the pre window (MPC).")
+        post, n_post, _ = _s2_median(bbox, *params["post"], bands, geobox=gbox)
+        if post is None:
+            raise SystemExit("No Sentinel-2 scenes in the post window (MPC).")
 
     fn = INDEX_NP[index]
     delta = fn(post) - fn(pre)

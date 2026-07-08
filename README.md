@@ -72,16 +72,26 @@ python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method UI --backend
 python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method NDBI --thr 0.12
 ```
 
-Metode built-up untuk **urbanisasi** (semua Sentinel-2): **NDBI** (default),
-**UI** (Urban Index), **BU** (=NDBI−NDVI), **IBI** (Xu 2008). Tiap metode punya
-ambang default sendiri (lihat `METHOD_DEFAULTS` di `indices.py`); sesuaikan lewat
-`--thr`/`--severe`. NDBI/UI/BU paling stabil untuk deteksi *perubahan*; IBI
-di-*clamp* ke [−1,1] karena bentuk rasionya labil.
+Metode built-up untuk **urbanisasi**:
 
-> **NDISI & EBBI butuh band termal (TIR)** yang **tidak ada di Sentinel-2** —
-> perlu Landsat 8/9 (band 10) atau ASTER. Belum didukung; bisa ditambahkan
-> dengan loader koleksi Landsat + indeks termal di `indices.py` (GEE) dan
-> `mpc_backend.py` (MPC, koleksi `landsat-c2-l2`).
+| Metode | Sensor | Catatan |
+|--------|--------|---------|
+| `NDBI` (default), `UI`, `BU` (=NDBI−NDVI), `IBI` | Sentinel-2 | IBI di-*clamp* ke [−1,1] |
+| `NDISI`, `EBBI` | **Landsat 8/9** (pakai band termal) | otomatis beralih ke Landsat |
+
+Tiap metode punya ambang default sendiri (`METHOD_DEFAULTS` di `indices.py`);
+sesuaikan lewat `--thr`/`--severe`.
+
+```bash
+# Indeks termal — otomatis memakai Landsat 8/9 (juga jalan di --backend mpc)
+python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method NDISI
+python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method EBBI --backend mpc
+```
+
+**NDISI/EBBI** butuh band termal (TIR), jadi memuat **Landsat C2‑L2**
+(`LANDSAT/LC08|LC09/C02/T1_L2` di GEE; `landsat-c2-l2` di MPC) — resolusi 30 m.
+Indeks termal peka pada kondisi akuisisi (suhu permukaan berbeda antar-tanggal),
+jadi kalibrasi ambang untuk area Anda.
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 

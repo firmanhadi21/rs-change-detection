@@ -13,7 +13,7 @@ Add a scenario by adding an entry to SCENARIOS (optionally a new run function).
 """
 
 import ee
-from indices import s2_median, INDEX_FN, s1, best_orbit
+from indices import s2_median, l2_median, INDEX_FN, SENSOR, s1, best_orbit
 
 # Diverging palette: negative -> red, 0 -> pale, positive -> green
 DIVERGING = ["a50026", "d73027", "fee08b", "ffffbf", "d9ef8b", "1a9850", "006837"]
@@ -45,11 +45,13 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6)
     pixels above thr (e.g. NDBI/NDWI rise).
     """
     fn = INDEX_FN[index_name]
-    pre_img, n_pre = s2_median(aoi, *p["pre"])
-    post_img, n_post = s2_median(aoi, *p["post"])
+    loader = l2_median if SENSOR.get(index_name) == "L8" else s2_median
+    sensor = "Landsat" if SENSOR.get(index_name) == "L8" else "Sentinel-2"
+    pre_img, n_pre = loader(aoi, *p["pre"])
+    post_img, n_post = loader(aoi, *p["post"])
     if n_pre == 0 or n_post == 0:
         raise SystemExit(
-            f"No Sentinel-2 scenes in {'pre' if n_pre == 0 else 'post'} window "
+            f"No {sensor} scenes in {'pre' if n_pre == 0 else 'post'} window "
             f"for this AOI — adjust --pre/--post dates."
         )
     delta = fn(post_img).subtract(fn(pre_img)).rename("d" + index_name).clip(aoi)

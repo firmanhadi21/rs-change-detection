@@ -40,7 +40,8 @@ sys.path.insert(0, HERE)
 from gee_utils import (  # noqa: E402
     download_png, download_geotiff, initialize_ee, square_aoi)
 from scenarios import SCENARIOS, run_optical_change  # noqa: E402
-from indices import INDEX_FN, BUILTUP_METHODS, METHOD_DEFAULTS  # noqa: E402
+from indices import (  # noqa: E402
+    INDEX_FN, BUILTUP_METHODS, THERMAL_METHODS, METHOD_DEFAULTS)
 
 try:
     import ee
@@ -82,8 +83,8 @@ def print_scenarios():
     print("Available scenarios (-s):\n")
     for key, cfg in SCENARIOS.items():
         print(f"  {key:<14} {cfg['label']}")
-    print(f"\nBuilt-up methods for urbanization (--method): {', '.join(BUILTUP_METHODS)}")
-    print("  (NDISI/EBBI need a thermal band — Landsat — so they are not on Sentinel-2)")
+    print(f"\nBuilt-up methods (--method) · Sentinel-2: {', '.join(BUILTUP_METHODS)}")
+    print(f"                            · Landsat (thermal, auto): {', '.join(THERMAL_METHODS)}")
     print("\nLocation: --lat LAT --lon LON  |  -l 'lat,lon'  |  --site NAME")
 
 
@@ -139,8 +140,9 @@ def apply_overrides(cfg, args):
             raise SystemExit(f"Unknown --method '{args.method}'. "
                              f"Options: {', '.join(sorted(INDEX_FN))}")
         direction, thr, severe, vmax = METHOD_DEFAULTS[m]
+        sensor = "Landsat" if m in THERMAL_METHODS else "Sentinel-2"
         cfg.update(index=m, direction=direction, thr=thr, severe=severe, vmax=vmax,
-                   label=f"{args.scenario.capitalize()} — {m} change (Sentinel-2)")
+                   label=f"{args.scenario.capitalize()} — {m} change ({sensor})")
     cfg.setdefault("vmax", METHOD_DEFAULTS.get(cfg["index"], (None, 0, 0, 0.6))[3])
     if args.thr is not None:
         cfg["thr"] = args.thr
