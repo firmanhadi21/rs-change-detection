@@ -25,6 +25,10 @@ Run:
 
 import os
 import sys
+import json
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from sites import get_site
 
 try:
     import ee
@@ -36,64 +40,110 @@ try:
 except ImportError:
     sys.exit("Install requests: pip install requests")
 
-# === Configuration ===
-LON, LAT = 109.0836, 0.6784
-RADIUS_METERS = 1500  # 1.5 km
-
-PERIODS = {
-    "R_2024": ("2024-01-01", "2024-12-31"),
-    "G_2025": ("2025-01-01", "2025-12-31"),
-    "B_2026": ("2026-03-01", "2026-06-30"),  # post-arrest
-}
-
+# Fixed R/G/B visualisation (the period labels are the band names)
 VIS = {"bands": ["R_2024", "G_2025", "B_2026"], "min": -25, "max": -5, "gamma": 1.0}
 
-OUT_PNG = os.path.join(os.path.dirname(__file__), "..", "images", "sirad_raw.png")
+HERE = os.path.dirname(__file__)
+IMAGES_DIR = os.path.join(HERE, "..", "images")
+CONFIG_KEY = os.path.join(HERE, "..", "scripts", "config", "ee-geodetic.json")
 
 
 def initialize():
-    """Initialise Earth Engine, using a service-account key if present."""
-    key_path = os.path.expanduser("~/.config/earthengine/ee-geodetic.json")
-    if os.path.exists(key_path):
-        creds = ee.ServiceAccountCredentials(email=None, key_file=key_path)
-        ee.Initialize(creds)
-    else:
-        # Falls back to credentials from `earthengine authenticate`.
-        ee.Initialize()
+    """Initialise Earth Engine with a service-account key if one is present."""
+    candidates = [
+        CONFIG_KEY,
+        os.path.expanduser("~/.config/earthengine/ee-geodetic.json"),
+    ]
+    for key_path in candidates:
+        if os.path.exists(key_path):
+            with open(key_path) as f:
+                email = json.load(f).get("client_email")
+            creds = ee.ServiceAccountCredentials(email, key_file=key_path)
+            ee.Initialize(creds)
+            print(f"GEE: service account {email}")
+            return
+    # Falls back to credentials from `earthengine authenticate`.
+    ee.Initialize()
+    print("GEE: user credentials (earthengine authenticate)")
 
 
-def mean_vh(start, end, geometry):
-    """Mean VH backscatter (dB) over a period, clipped to the AOI."""
-    collection = (
+ORBITS = ("ASCENDING", "DESCENDING")
+
+
+def vh_collection(start, end, geometry, orbit):
+    """Sentinel-1 IW VH collection for a period and orbit direction."""
+    return (
         ee.ImageCollection("COPERNICUS/S1_GRD")
         .filterBounds(geometry)
         .filterDate(start, end)
         .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
         .filter(ee.Filter.eq("instrumentMode", "IW"))
-        .filter(ee.Filter.eq("orbitProperties_pass", "ASCENDING"))
+        .filter(ee.Filter.eq("orbitProperties_pass", orbit))
         .select("VH")
-        .map(lambda img: img.clip(geometry))
     )
-    count = collection.size().getInfo()
-    print(f"  {start} .. {end}: {count} images")
-    return collection.mean().rename("VH_mean"), count
+
+
+def select_orbit(periods, geometry, forced=None):
+    """Pick the orbit direction that has imagery in *every* period.
+
+    Sentinel-1 ascending/descending coverage varies by location and year, so a
+    hardcoded orbit that works at one site can leave a period empty at another.
+    """
+    orbits = [forced] if forced else ORBITS
+    best = None  # (all_periods_covered, total_images, orbit, counts)
+    for orbit in orbits:
+        counts = {
+            band: vh_collection(s, e, geometry, orbit).size().getInfo()
+            for band, (s, e) in periods.items()
+        }
+        total = sum(counts.values())
+        covered = all(c > 0 for c in counts.values())
+        print(f"  {orbit}: {counts} (total {total})")
+        cand = (covered, total, orbit, counts)
+        if best is None or cand[:2] > best[:2]:
+            best = cand
+
+    covered, total, orbit, counts = best
+    if not covered:
+        raise SystemExit(
+            f"No single orbit covers all periods for this AOI (counts: {counts}).\n"
+            "Try a larger radius_km, adjust the period dates in sites.py, or "
+            "check Sentinel-1 coverage for the area."
+        )
+    print(f"  → using {orbit} orbit\n")
+    return orbit
+
+
+def mean_vh(start, end, geometry, orbit):
+    """Mean VH backscatter (dB) over a period, clipped to the AOI."""
+    collection = vh_collection(start, end, geometry, orbit).map(
+        lambda img: img.clip(geometry)
+    )
+    return collection.mean().rename("VH_mean")
 
 
 def main():
+    site = get_site()
+    out_png = os.path.join(IMAGES_DIR, f"sirad_{site['key']}.png")
+
     print("=== SIRAD (Sentinel-1 RGB Anomaly Detection) ===")
-    print(f"AOI: {LAT}N, {LON}E, radius {RADIUS_METERS} m\n")
+    print(f"Site: {site['label']} [{site['key']}]")
+    print(f"AOI: {site['lat']}, {site['lon']}, radius {site['radius_km']} km\n")
 
     initialize()
 
-    aoi = ee.Geometry.Point([LON, LAT]).buffer(RADIUS_METERS)
+    aoi = ee.Geometry.Point([site["lon"], site["lat"]]).buffer(
+        int(site["radius_km"] * 1000)
+    )
+    periods = site["sirad_periods"]
 
-    bands, total = [], 0
-    for band_name, (start, end) in PERIODS.items():
-        img, count = mean_vh(start, end, aoi)
-        bands.append(img.rename(band_name))
-        total += count
-    print(f"  total: {total} Sentinel-1 images\n")
+    print("Checking Sentinel-1 coverage per orbit...")
+    orbit = select_orbit(periods, aoi, forced=site.get("orbit"))
 
+    bands = [
+        mean_vh(start, end, aoi, orbit).rename(band_name)
+        for band_name, (start, end) in periods.items()
+    ]
     sirad = ee.Image.cat(bands)
 
     # --- Download a thumbnail straight into images/ for the video pipeline ---
@@ -109,18 +159,18 @@ def main():
     })
     resp = requests.get(url, stream=True)
     resp.raise_for_status()
-    os.makedirs(os.path.dirname(OUT_PNG), exist_ok=True)
-    with open(OUT_PNG, "wb") as f:
+    os.makedirs(os.path.dirname(out_png), exist_ok=True)
+    with open(out_png, "wb") as f:
         for chunk in resp.iter_content(chunk_size=8192):
             f.write(chunk)
-    print(f"Saved: {os.path.normpath(OUT_PNG)}")
+    print(f"Saved: {os.path.normpath(out_png)}")
 
     # --- Optional: full-resolution export to Google Drive ---
     task = ee.batch.Export.image.toDrive(
         image=sirad.visualize(**VIS),
-        description="SIRAD_Capkala_2024_2026",
+        description=f"SIRAD_{site['key']}_2024_2026",
         folder="GEE_Exports",
-        fileNamePrefix="sirad_capkala",
+        fileNamePrefix=f"sirad_{site['key']}",
         region=aoi,
         scale=10,
         crs="EPSG:4326",

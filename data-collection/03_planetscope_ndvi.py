@@ -32,11 +32,23 @@ except ImportError:
     print("Install Pillow: pip install Pillow")
     sys.exit(1)
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from sites import get_site
+
+SITE = get_site()
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-PRE_PATH = os.path.join(DATA_DIR, "planetscope_pre.tif")
-POST_PATH = os.path.join(DATA_DIR, "planetscope_post.tif")
+# Site-parameterised filenames (fall back to the generic names if present).
+def _pick(*names):
+    for n in names:
+        p = os.path.join(DATA_DIR, n)
+        if os.path.exists(p):
+            return p
+    return os.path.join(DATA_DIR, names[0])
+
+PRE_PATH = _pick(f"planetscope_{SITE['key']}_pre.tif", "planetscope_pre.tif")
+POST_PATH = _pick(f"planetscope_{SITE['key']}_post.tif", "planetscope_post.tif")
 
 # === NDVI Computation ===
 def compute_ndvi(nir_band, red_band):
@@ -143,7 +155,7 @@ def main():
     print(f"Severe loss   (>0.15 loss): {stats['percent_severe']:.1f}%")
     
     # Save stats
-    stats_path = os.path.join(DATA_DIR, "planetscope_stats.json")
+    stats_path = os.path.join(DATA_DIR, f"planetscope_{SITE['key']}_stats.json")
     with open(stats_path, "w") as f:
         json.dump(stats, f, indent=2)
     print(f"\nStats saved: {stats_path}")
@@ -169,7 +181,7 @@ def main():
     rgb[~mask] = [30, 30, 30]
     
     img = Image.fromarray(rgb)
-    png_path = os.path.join(DATA_DIR, "planetscope_ndvi_change.png")
+    png_path = os.path.join(DATA_DIR, f"planetscope_{SITE['key']}_ndvi_change.png")
     img.save(png_path)
     print(f"Visualization saved: {png_path}")
     

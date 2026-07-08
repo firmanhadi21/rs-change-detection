@@ -6,7 +6,8 @@ Requirements:
     ELEVENLABS_API_KEY set via (checked in order):
       1. environment variable ELEVENLABS_API_KEY
       2. a `.env` file in the repository root
-      3. ~/.hermes/.env
+      3. scripts/config/elevenlabs.txt  (raw key on the first line)
+      4. ~/.hermes/.env
 
 Input:  narration/capkala_narration_v4.txt
 Output: audio/scene_00.mp3 ... scene_04.mp3
@@ -14,7 +15,9 @@ Output: audio/scene_00.mp3 ... scene_04.mp3
 
 import os, subprocess, re
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(HERE, ".."))
+CONFIG_KEY_FILE = os.path.join(HERE, "config", "elevenlabs.txt")
 
 
 def _key_from_env_file(path):
@@ -29,18 +32,35 @@ def _key_from_env_file(path):
     return None
 
 
-# Resolve API key: env var → repo .env → ~/.hermes/.env
+def _key_from_raw_file(path):
+    """Return the key from a plain-text file (raw key or KEY=value)."""
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                line = line.split("=", 1)[1]
+            return line.strip().strip('"').strip("'")
+    return None
+
+
+# Resolve API key: env var → repo .env → scripts/config → ~/.hermes/.env
 key = (
     os.environ.get("ELEVENLABS_API_KEY")
     or _key_from_env_file(os.path.join(REPO_ROOT, ".env"))
+    or _key_from_raw_file(CONFIG_KEY_FILE)
     or _key_from_env_file(os.path.expanduser("~/.hermes/.env"))
 )
 if not key:
     raise RuntimeError(
         "ELEVENLABS_API_KEY not found.\n"
         "Set it one of these ways:\n"
-        "  export ELEVENLABS_API_KEY=your_key_here      # environment variable\n"
+        "  export ELEVENLABS_API_KEY=your_key_here          # environment variable\n"
         "  echo 'ELEVENLABS_API_KEY=your_key_here' > .env   # repo root .env file\n"
+        "  echo 'your_key_here' > scripts/config/elevenlabs.txt\n"
         "Get a key at https://elevenlabs.io/"
     )
 

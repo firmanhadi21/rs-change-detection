@@ -1,5 +1,10 @@
-# Secrets
+# Secrets / credentials
 .env
+scripts/config/elevenlabs.txt
+scripts/config/ee-geodetic.json
+scripts/config/*.json
+scripts/config/*.txt
+*-service-account*.json
 
 # Raw satellite inputs (large / licensed) — keep the folder's README
 data/*

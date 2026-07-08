@@ -73,6 +73,7 @@ Karena radar menembus awan, deret waktu tidak terputus oleh tutupan awan. Interp
 rs-change-detection/
 ├── README.md
 ├── requirements.txt                 ← Dependensi Python
+├── sites.py                         ← Definisi lokasi (Capkala, Konawe, …)
 ├── .env.example                     ← Template kunci API (salin ke .env)
 ├── data-collection/                 ← Pengumpulan & pemrosesan data
 │   ├── 01_sentinel2_download.py     # Sentinel-2 via GEE (Python) / Copernicus
@@ -83,7 +84,8 @@ rs-change-detection/
 │   └── capkala_narration_v4.txt     # Naskah 5 scene (Bahasa Indonesia)
 ├── scripts/
 │   ├── 01_generate_tts.py           # Narasi → audio (ElevenLabs)
-│   └── 02_assemble_video.py         # Gambar + audio → video (Python + ffmpeg)
+│   ├── 02_assemble_video.py         # Gambar + audio → video (Python + ffmpeg)
+│   └── config/  (tidak di-git)      # Kredensial: ee-geodetic.json, elevenlabs.txt
 ├── images/                          ← Aset visual (slide + citra mentah)
 ├── data/                            ← Input mentah *.tif (README saja di-git)
 ├── audio/         (tidak di-git)    ← Output TTS (5 mp3)
@@ -119,7 +121,11 @@ earthengine authenticate
 cp .env.example .env           # isi ELEVENLABS_API_KEY di dalamnya
 ```
 
-Kunci ElevenLabs dibaca berurutan dari: variabel lingkungan `ELEVENLABS_API_KEY` → `.env` di root repo → `~/.hermes/.env`.
+**Kredensial** dibaca dari beberapa lokasi (berurutan):
+- **ElevenLabs**: env `ELEVENLABS_API_KEY` → `.env` root → `scripts/config/elevenlabs.txt` → `~/.hermes/.env`
+- **Earth Engine**: `scripts/config/ee-geodetic.json` (service account) → `~/.config/earthengine/ee-geodetic.json` → `earthengine authenticate`
+
+Letakkan kunci di folder `scripts/config/` agar tidak perlu variabel lingkungan (folder ini di-*gitignore*).
 
 > **Catatan:** Direktori `data/` (input `.tif` mentah) tidak di-git — lihat [`data/README.md`](data/README.md) untuk file yang diperlukan. Citra PlanetScope bersifat komersial; data lain gratis/terbuka.
 
@@ -156,6 +162,30 @@ python3 data-collection/03_planetscope_ndvi.py
 python3 scripts/01_generate_tts.py
 python3 scripts/02_assemble_video.py
 ```
+
+---
+
+## Lokasi Lain (Multi-Situs)
+
+Pipeline pengumpulan data **tidak terikat ke Capkala**. Pilih lokasi dengan
+`--site <nama>` atau variabel lingkungan `SITE`. Lokasi didefinisikan di
+[`sites.py`](sites.py) (AOI + periode). Sudah tersedia: `capkala`, `konawe`.
+
+```bash
+# Contoh: jalankan untuk Konawe (tambang nikel, Sulawesi Tenggara)
+python3 data-collection/02_sirad_gee.py       --site konawe   # → images/sirad_konawe.png
+python3 data-collection/01_sentinel2_download.py --site konawe # → images/sentinel2_konawe.png
+python3 data-collection/03_planetscope_ndvi.py --site konawe   # butuh data/planetscope_konawe_*.tif
+```
+
+Output diberi nama per-situs (`sirad_konawe.png`, `sentinel2_konawe.png`, …) agar
+hasil antar-lokasi tidak saling menimpa.
+
+**Menambah lokasi baru:** salin satu entri di `sites.py`, ubah `lat`/`lon`/
+`radius_km` dan tanggal periode. SIRAD otomatis memilih arah orbit Sentinel-1
+(ASCENDING/DESCENDING) yang punya cakupan di setiap periode, dan Sentinel-2
+mencari citra paling minim awan dalam jendela ±30 hari — jadi lokasi baru
+langsung menghasilkan citra tanpa penyetelan manual.
 
 ---
 

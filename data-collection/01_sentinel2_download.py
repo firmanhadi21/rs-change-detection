@@ -8,17 +8,26 @@ Alternatively can use Google Earth Engine (see 02_sirad_gee.js for GEE setup).
 Output: data/sentinel2_capkala.tif
 """
 
-import os, sys, requests
+import os, sys, json, requests
 from datetime import datetime
 
-# === Configuration ===
-AOI = {
-    "lat": 0.6784,
-    "lon": 109.0836,
-    "radius_km": 1.5
-}
-DATE = "2026-06-19"  # Cloud cover <1%
-OUTPUT = os.path.join(os.path.dirname(__file__), "..", "data", "sentinel2_capkala.tif")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from sites import get_site
+
+# === Configuration (site-parameterised: --site NAME or SITE env) ===
+SITE = get_site()
+AOI = {"lat": SITE["lat"], "lon": SITE["lon"], "radius_km": SITE["radius_km"]}
+DATE = SITE["sentinel2_date"]
+WINDOW_DAYS = 30  # ± search window around DATE when the exact date is empty/cloudy
+OUTPUT = os.path.join(
+    os.path.dirname(__file__), "..", "data", f"sentinel2_{SITE['key']}.tif"
+)
+IMG_OUT = os.path.join(
+    os.path.dirname(__file__), "..", "images", f"sentinel2_{SITE['key']}.png"
+)
+CONFIG_KEY = os.path.join(
+    os.path.dirname(__file__), "..", "scripts", "config", "ee-geodetic.json"
+)
 
 os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
 
@@ -101,30 +110,41 @@ def download_via_gee():
         print("Install earthengine-api: pip install earthengine-api")
         return
     
-    # Authenticate with service account
-    key_path = os.path.expanduser("~/.config/earthengine/ee-geodetic.json")
-    if os.path.exists(key_path):
-        credentials = ee.ServiceAccountCredentials(
-            email=None, key_file=key_path
-        )
-        ee.Initialize(credentials)
+    # Authenticate with a service-account key if available
+    for key_path in (CONFIG_KEY,
+                     os.path.expanduser("~/.config/earthengine/ee-geodetic.json")):
+        if os.path.exists(key_path):
+            with open(key_path) as kf:
+                email = json.load(kf).get("client_email")
+            ee.Initialize(ee.ServiceAccountCredentials(email, key_file=key_path))
+            break
     else:
         ee.Initialize()
     
     # Define AOI
     aoi = ee.Geometry.Point(AOI["lon"], AOI["lat"]).buffer(AOI["radius_km"] * 1000)
-    
-    # Search Sentinel-2
-    collection = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-        .filterBounds(aoi)
-        .filterDate(DATE, ee.Date(DATE).advance(1, "day"))
-        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 5))
-        .sort("CLOUDY_PIXEL_PERCENTAGE"))
-    
-    image = collection.first()
-    
+
+    # Search Sentinel-2 within a window around DATE, least-cloudy first.
+    # (An exact single date is often empty or cloudy at an arbitrary site, so
+    #  widen the window and relax the cloud threshold until something is found.)
+    start = ee.Date(DATE).advance(-WINDOW_DAYS, "day")
+    end = ee.Date(DATE).advance(WINDOW_DAYS, "day")
+    image, count = None, 0
+    for cloud_max in (5, 20, 60):
+        collection = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            .filterBounds(aoi)
+            .filterDate(start, end)
+            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", cloud_max))
+            .sort("CLOUDY_PIXEL_PERCENTAGE"))
+        count = collection.size().getInfo()  # server-side emptiness check
+        if count > 0:
+            image = collection.first()
+            print(f"Found {count} scene(s) within ±{WINDOW_DAYS}d, cloud <{cloud_max}%")
+            break
+
     if image is None:
-        print("No Sentinel-2 image found for this date/AOI.")
+        print(f"No Sentinel-2 scene found within ±{WINDOW_DAYS} days of {DATE} "
+              f"(cloud <60%) for this AOI. Widen WINDOW_DAYS or change the date.")
         return
     
     # True color visualization (R, G, B)
@@ -135,7 +155,7 @@ def download_via_gee():
         "gamma": 1.4
     }
     
-    # Export to Drive or download directly
+    # Download a true-color thumbnail straight into images/
     url = image.getThumbURL({
         "region": aoi,
         "dimensions": "1920x1920",
@@ -145,10 +165,16 @@ def download_via_gee():
         "gamma": 1.4,
         "format": "png"
     })
-    
-    print(f"GEE thumbnail URL: {url}")
-    print("For full-resolution download, use GEE Export.image.toDrive()")
-    
+
+    resp = requests.get(url, stream=True)
+    resp.raise_for_status()
+    os.makedirs(os.path.dirname(IMG_OUT), exist_ok=True)
+    with open(IMG_OUT, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=8192):
+            f.write(chunk)
+    print(f"Saved: {os.path.normpath(IMG_OUT)}")
+    print("For full-resolution GeoTIFF, use GEE Export.image.toDrive().")
+
     return url
 
 
