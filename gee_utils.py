@@ -61,3 +61,39 @@ def wants_drive_export(argv=None):
     """True if the user passed --drive (opt-in full-res Drive export)."""
     argv = sys.argv if argv is None else argv
     return "--drive" in argv
+
+
+def mask_s2_clouds(img):
+    """Mask cloud / shadow / cirrus / snow using Sentinel-2 SCL band.
+
+    Applied per pixel so a median of many scenes yields a near cloud-free
+    composite even when individual scenes are partly cloudy.
+    """
+    scl = img.select("SCL")
+    keep = (scl.neq(3)       # cloud shadow
+            .And(scl.neq(8))    # cloud medium probability
+            .And(scl.neq(9))    # cloud high probability
+            .And(scl.neq(10))   # thin cirrus
+            .And(scl.neq(11)))  # snow / ice
+    return img.updateMask(keep)
+
+
+def initialize_ee(config_key=None):
+    """Initialise Earth Engine with a service-account key if one is present."""
+    import json
+    import ee
+
+    candidates = [
+        p for p in (config_key,
+                    os.path.expanduser("~/.config/earthengine/ee-geodetic.json"))
+        if p
+    ]
+    for key_path in candidates:
+        if os.path.exists(key_path):
+            with open(key_path) as f:
+                email = json.load(f).get("client_email")
+            ee.Initialize(ee.ServiceAccountCredentials(email, key_file=key_path))
+            print(f"GEE: service account {email}")
+            return
+    ee.Initialize()  # falls back to `earthengine authenticate`
+    print("GEE: user credentials (earthengine authenticate)")

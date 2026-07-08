@@ -24,6 +24,9 @@ SITES = {
             "G_2025": ("2025-01-01", "2025-12-31"),
             "B_2026": ("2026-03-01", "2026-06-30"),  # post police raid
         },
+        # Sentinel-2 NDVI change detection: baseline vs recent window
+        "ndvi_pre": ("2023-01-01", "2023-12-31"),
+        "ndvi_post": ("2026-01-01", "2026-06-30"),
     },
     "konawe": {
         # Approximate centroid of the documented Mandiodo / Molawe illegal
@@ -39,6 +42,8 @@ SITES = {
             "G_2025": ("2025-01-01", "2025-12-31"),
             "B_2026": ("2026-03-01", "2026-06-30"),
         },
+        "ndvi_pre": ("2023-01-01", "2023-12-31"),
+        "ndvi_post": ("2026-01-01", "2026-06-30"),
     },
 }
 

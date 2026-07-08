@@ -15,13 +15,14 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from sites import get_site
-from gee_utils import download_png, download_geotiff
+from gee_utils import download_png, download_geotiff, mask_s2_clouds
 
 # === Configuration (site-parameterised: --site NAME or SITE env) ===
 SITE = get_site()
 AOI = {"lat": SITE["lat"], "lon": SITE["lon"], "radius_km": SITE["radius_km"]}
 DATE = SITE["sentinel2_date"]
-WINDOW_DAYS = 30  # ± search window around DATE when the exact date is empty/cloudy
+WINDOW_DAYS = 45  # ± search window around DATE when the exact date is empty/cloudy
+MAX_CLOUD = 10    # hard cap on scene cloud cover (%)
 OUTPUT = os.path.join(
     os.path.dirname(__file__), "..", "data", f"sentinel2_{SITE['key']}.tif"
 )
@@ -127,28 +128,36 @@ def download_via_gee():
     # Define AOI
     aoi = ee.Geometry.Point(AOI["lon"], AOI["lat"]).buffer(AOI["radius_km"] * 1000)
 
-    # Search Sentinel-2 within a window around DATE, least-cloudy first.
-    # (An exact single date is often empty or cloudy at an arbitrary site, so
-    #  widen the window and relax the cloud threshold until something is found.)
+    # Search a window around DATE. Prefer the single cleanest scene at
+    # <= MAX_CLOUD% cloud; if none qualifies, fall back to a cloud-masked
+    # median of many scenes to reduce cloud cover.
     start = ee.Date(DATE).advance(-WINDOW_DAYS, "day")
     end = ee.Date(DATE).advance(WINDOW_DAYS, "day")
-    image, count = None, 0
-    for cloud_max in (5, 20, 60):
-        collection = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-            .filterBounds(aoi)
-            .filterDate(start, end)
-            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", cloud_max))
-            .sort("CLOUDY_PIXEL_PERCENTAGE"))
-        count = collection.size().getInfo()  # server-side emptiness check
-        if count > 0:
-            image = collection.first()
-            print(f"Found {count} scene(s) within ±{WINDOW_DAYS}d, cloud <{cloud_max}%")
-            break
+    window = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+              .filterBounds(aoi)
+              .filterDate(start, end))
 
-    if image is None:
-        print(f"No Sentinel-2 scene found within ±{WINDOW_DAYS} days of {DATE} "
-              f"(cloud <60%) for this AOI. Widen WINDOW_DAYS or change the date.")
-        return
+    clear = (window.filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", MAX_CLOUD))
+                   .sort("CLOUDY_PIXEL_PERCENTAGE"))
+    n_clear = clear.size().getInfo()
+
+    if n_clear > 0:
+        image = clear.first()
+        cloud = image.get("CLOUDY_PIXEL_PERCENTAGE").getInfo()
+        print(f"Using cleanest single scene: {cloud:.1f}% cloud "
+              f"({n_clear} scene(s) <= {MAX_CLOUD}%)")
+    else:
+        composite_src = (window
+            .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", 80))
+            .map(mask_s2_clouds))
+        n = composite_src.size().getInfo()
+        if n == 0:
+            print(f"No Sentinel-2 scenes within ±{WINDOW_DAYS} days of {DATE} "
+                  f"for this AOI. Widen WINDOW_DAYS or change the date.")
+            return
+        print(f"No single scene <= {MAX_CLOUD}% cloud; compositing {n} "
+              f"cloud-masked scenes (median) to reduce cloud.")
+        image = composite_src.median()
     
     # True color visualization (R, G, B)
     vis_params = {

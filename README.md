@@ -41,10 +41,11 @@ Detail langkah verifikasi: [`data-collection/04_legal_verification.md`](data-col
 DATA COLLECTION                    NARRATION → TTS → VIDEO
 ─────────────────                  ───────────────────────
 01_sentinel2_download.py  ─┐
-02_sirad_gee.py           ─┤       capkala_narration_v4.txt
-03_planetscope_ndvi.py    ─┼──►    01_generate_tts.py  ──►  audio/*.mp3
-04_legal_verification.md  ─┘       02_assemble_video.py ──►  capkala_investigation.mp4
-        (citra + bukti)                  (5 scene → video final)
+02_sirad_gee.py (radar)   ─┤       capkala_narration_v4.txt
+03_ndvi_change_gee.py     ─┼──►    01_generate_tts.py  ──►  audio/*.mp3
+03_planetscope_ndvi.py    ─┤       02_assemble_video.py ──►  capkala_investigation.mp4
+04_legal_verification.md  ─┘             (5 scene → video final)
+   (citra + deteksi perubahan)
 ```
 
 ### SIRAD — teknik inti
@@ -74,11 +75,14 @@ rs-change-detection/
 ├── README.md
 ├── requirements.txt                 ← Dependensi Python
 ├── sites.py                         ← Definisi lokasi (Capkala, Konawe, …)
+├── run_all.py                       ← Jalankan pipeline end-to-end 1 perintah
+├── gee_utils.py                     ← Helper unduh GEE (PNG/GeoTIFF) + init
 ├── .env.example                     ← Template kunci API (salin ke .env)
-├── data-collection/                 ← Pengumpulan & pemrosesan data
-│   ├── 01_sentinel2_download.py     # Sentinel-2 via GEE (Python) / Copernicus
-│   ├── 02_sirad_gee.py              # SIRAD — Sentinel-1 di GEE (Python)
-│   ├── 03_planetscope_ndvi.py       # NDVI change detection PlanetScope
+├── data-collection/                 ← Pengumpulan, pemrosesan & deteksi perubahan
+│   ├── 01_sentinel2_download.py     # Sentinel-2 true color via GEE (Python)
+│   ├── 02_sirad_gee.py              # SIRAD — deteksi perubahan radar Sentinel-1
+│   ├── 03_ndvi_change_gee.py        # Deteksi perubahan NDVI Sentinel-2 (gratis)
+│   ├── 03_planetscope_ndvi.py       # Deteksi perubahan NDVI PlanetScope (3 m, komersial)
 │   └── 04_legal_verification.md     # Verifikasi BHUMI & MODI
 ├── narration/
 │   └── capkala_narration_v4.txt     # Naskah 5 scene (Bahasa Indonesia)
@@ -128,6 +132,41 @@ cp .env.example .env           # isi ELEVENLABS_API_KEY di dalamnya
 Letakkan kunci di folder `scripts/config/` agar tidak perlu variabel lingkungan (folder ini di-*gitignore*).
 
 > **Catatan:** Direktori `data/` (input `.tif` mentah) tidak di-git — lihat [`data/README.md`](data/README.md) untuk file yang diperlukan. Citra PlanetScope bersifat komersial; data lain gratis/terbuka.
+
+---
+
+## Jalankan End-to-End (satu perintah)
+
+`run_all.py` menjalankan seluruh pipeline analisis + **deteksi perubahan** untuk
+satu lokasi, berurutan: Sentinel-2 → SIRAD (radar) → NDVI change (Sentinel-2) →
+NDVI PlanetScope (opsional, dilewati bila tak ada data komersial).
+
+```bash
+python3 run_all.py --site konawe          # semua langkah untuk Konawe
+python3 run_all.py --site capkala         # untuk Capkala (default)
+python3 run_all.py --site konawe --drive  # + ekspor resolusi penuh ke Drive
+```
+
+Hasil (per-situs) langsung ter-unduh ke disk:
+
+| Berkas | Isi |
+|--------|-----|
+| `images/sentinel2_<situs>.png` · `data/sentinel2_<situs>.tif` | True color |
+| `images/sirad_<situs>.png` · `data/sirad_<situs>.tif` | Perubahan radar (SIRAD) |
+| `images/ndvi_change_<situs>.png` · `data/ndvi_change_<situs>.tif` | **Peta perubahan NDVI** (merah = kehilangan vegetasi) |
+| `data/ndvi_<situs>_stats.json` | Statistik: mean ΔNDVI, % area terdampak/berat |
+
+**Deteksi perubahan** tersedia dua cara: **SIRAD** (radar temporal, menembus awan)
+dan **NDVI change Sentinel-2** (`03_ndvi_change_gee.py`, gratis, membandingkan
+median NDVI periode dasar vs terkini). Versi 3 m PlanetScope (`03_planetscope_ndvi.py`)
+opsional dan butuh citra komersial.
+
+> **Awan Sentinel-2:** skrip mengambil satu scene dengan tutupan awan **≤ 10%**;
+> bila tidak ada, ia otomatis menyusun *median composite* dari banyak scene yang
+> sudah di-mask awan (SCL) untuk menekan awan. Deteksi perubahan NDVI selalu
+> memakai median banyak scene.
+
+Untuk menjalankan per-langkah (bukan sekaligus), lihat di bawah.
 
 ---
 
