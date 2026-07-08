@@ -265,7 +265,7 @@ def main():
         print(f"Downloading {prod['key']} PNG...")
         download_png(prod["thumb"], aoi, png, vis=prod["thumb_vis"])
         print(f"Downloading {prod['key']} GeoTIFF...")
-        download_geotiff(prod["tif"], aoi, tif, scale=prod.get("scale", 10))
+        tif_ok = download_geotiff(prod["tif"], aoi, tif, scale=prod.get("scale", 10))
 
         # sidecar meta so make_map.py can re-render offline (no GEE needed)
         is_rgb = "bands" in prod["thumb_vis"]
@@ -284,10 +284,12 @@ def main():
         with open(os.path.join(run_dir, base + ".meta.json"), "w") as mf:
             json.dump(meta, mf, indent=2)
 
-        if args.map:
+        if args.map and tif_ok:
             from mapmaker import render_map
             render_map(meta, os.path.join(run_dir, base + "_map"),
                        basemap=args.basemap)
+        elif args.map:
+            print("  (map skipped — GeoTIFF unavailable for this product)")
 
     stats = {"run_id": run_id, "scenario": args.scenario,
              "location": {"lat": lat, "lon": lon},

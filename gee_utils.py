@@ -34,27 +34,35 @@ def download_png(image, region, out_path, dimensions="1920x1920", vis=None):
     return out_path
 
 
-def download_geotiff(image, region, out_path, scale=10):
+def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16):
     """Download a full-resolution single-file GeoTIFF.
 
-    Returns the path on success, or None if GEE refuses (usually because the
-    AOI is too large for a direct download — use a Drive export instead).
+    Earth Engine's direct download has a per-request size/compute limit, so a
+    large AOI can 400. Retry at progressively coarser scale until it fits.
+    Returns the path on success, or None if it fails even coarsened.
     """
-    try:
-        url = image.getDownloadURL({
-            "region": region,
-            "scale": scale,
-            "format": "GEO_TIFF",
-            "filePerBand": False,
-        })
-    except Exception as e:  # noqa: BLE001 — surface GEE's message, keep going
-        print(f"NOTE: direct GeoTIFF download unavailable ({e}).")
-        print("      AOI may be too large — use --drive for a Drive export.")
-        return None
-    _fetch(url, out_path)
-    size_mb = os.path.getsize(out_path) / 1e6
-    print(f"Saved: {os.path.normpath(out_path)} ({size_mb:.1f} MB GeoTIFF)")
-    return out_path
+    s, mult = scale, 1
+    last_err = None
+    while mult <= max_scale_mult:
+        try:
+            url = image.getDownloadURL({
+                "region": region, "scale": s,
+                "format": "GEO_TIFF", "filePerBand": False,
+            })
+            _fetch(url, out_path)  # the pixel fetch can also fail for large AOIs
+            size_mb = os.path.getsize(out_path) / 1e6
+            note = f" (coarsened to {s:.0f} m to fit)" if s != scale else ""
+            print(f"Saved: {os.path.normpath(out_path)} ({size_mb:.1f} MB GeoTIFF){note}")
+            return out_path
+        except Exception as e:  # noqa: BLE001 — retry coarser
+            last_err = e
+            mult *= 2
+            s = scale * mult
+    print(f"NOTE: GeoTIFF download failed even at {scale * max_scale_mult:.0f} m "
+          f"({last_err}).")
+    print("      Reduce --radius, or add --drive to export the full-res GeoTIFF "
+          "to Google Drive.")
+    return None
 
 
 def wants_drive_export(argv=None):
