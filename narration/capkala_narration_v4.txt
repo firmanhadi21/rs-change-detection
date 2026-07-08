@@ -1,0 +1,73 @@
+## SCENE 1: PENDAHULUAN (35s)
+Hutan Indonesia hilang ratusan ribu hektar setiap tahun.
+Tambang ilegal menjamur. Sungai tercemar merkuri.
+Kita tidak bisa mengirim inspektur ke setiap sudut Kalimantan.
+Solusinya ada di langit. Satelit.
+Video ini menunjukkan bagaimana kami membuktikan satu kasus tambang ilegal.
+Dari nol. Sampai bukti tidak terbantahkan.
+Menggunakan data yang sepenuhnya gratis dan terbuka.
+
+## SCENE 2: CITRA SENTINEL-2 (40s)
+Inilah yang dilihat Sentinel-2.
+Satelit optik Badan Antariksa Eropa. Gratis. Resolusi sepuluh meter.
+Setiap lima hari, satelit ini memotret seluruh permukaan Bumi.
+Citra ini diambil 19 Juni 2026. Tutupan awan hanya satu persen.
+Zona Tambang Utara, Capkala, Kalimantan Barat.
+Bercak putih adalah tanah terbuka.
+Kolam toska adalah bekas galian. Terisi air dan limbah merkuri.
+Tidak ada tanggul perimeter. Tidak ada kolam pengendapan.
+Hanya jalan tanah tak berstruktur.
+Ini bukan tambang legal. Ini PETI. Pertambangan Tanpa Izin.
+
+## SCENE 3: ANALISIS SPASIAL (40s)
+Tapi citra satelit saja tidak cukup.
+Kita perlu analisis spasial. Menggabungkan banyak sumber data.
+Google Earth Engine memproses data satelit langsung di cloud.
+NDVI untuk mengukur kesehatan vegetasi.
+SIRAD untuk deteksi perubahan dari radar.
+Kemudian data kadaster. BHUMI. Siapa pemilik tanah ini?
+Data perizinan. MODI. Apakah ada izin tambang di sini?
+Data tata ruang. Apakah wilayah ini untuk tambang?
+Gabungan semua data ini mengubah citra menjadi bukti hukum.
+
+## SCENE 4: METODOLOGI (95s)
+Langkah pertama. Google Earth Engine dan Sentinel-2.
+Pilih citra dengan awan di bawah sepuluh persen. Hasilnya visual yang jernih.
+
+Langkah kedua. SIRAD.
+Seratus tiga puluh sembilan citra Sentinel-1 radar.
+RGB tiga periode. Merah dua ribu dua puluh empat. Hijau dua ribu dua puluh lima.
+Biru Maret sampai Juni dua ribu dua puluh enam.
+Biru muncul setelah penangkapan polisi. Tambang tidak berhenti.
+
+Langkah ketiga. PlanetScope resolusi tiga meter.
+NDVI sebelum dan sesudah.
+Dari nol koma delapan enam dua menjadi nol koma tujuh sembilan tiga.
+Dua puluh empat koma tujuh persen area kehilangan vegetasi.
+Sembilan koma dua persen kehilangan parah.
+
+Langkah keempat. Verifikasi legal.
+Kami mengakses BHUMI, sistem kadaster resmi Kementerian ATR BPN.
+Hasilnya: satu bidang seluas delapan puluh tiga hektar.
+TIPE HAK: kosong. NIB: kosong.
+Tidak ada Hak Milik. Tidak ada HGU. Tidak ada HPL. Tidak ada HGB.
+Kosong. Nol. Tidak ada pemilik sah.
+MODI. Tidak ada izin pertambangan.
+WPR belum disetujui. RDTR belum rampung.
+
+Langkah kelima. Publikasi temuan.
+Thread di X dengan enam gambar dan sembilan tweet.
+Semua data terbuka. Semua metodologi replikabel.
+
+## SCENE 5: KESIMPULAN (35s)
+Inilah kekuatan data terbuka.
+Sentinel gratis. Google Earth Engine gratis.
+BHUMI bisa diakses publik. MODI bisa diakses publik.
+Wartawan bisa. Peneliti bisa. Mahasiswa bisa. Aktivis bisa.
+Tidak perlu izin khusus. Tidak perlu anggaran besar.
+Yang dibutuhkan hanya rasa ingin tahu.
+Dan kemauan untuk mencari kebenaran.
+Satelit tidak bisa menangkap pelaku.
+Tapi satelit menunjukkan di mana. Berapa luas. Sejak kapan.
+Datanya terbuka. Metodologinya replikabel.
+Sisanya: penegakan hukum.

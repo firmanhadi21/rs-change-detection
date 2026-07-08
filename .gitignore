@@ -1,0 +1,10 @@
+# Large binary outputs (regenerate with scripts)
+audio/
+scenes/
+*.mp4
+*.mp3
+
+# Temp files
+/tmp/
+*.pyc
+__pycache__/
