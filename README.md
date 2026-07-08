@@ -126,7 +126,7 @@ jadi kalibrasi ambang untuk area Anda.
 
 **Penting:** Sentinel-2 baru tersedia sejak ~2015/2016 — **tidak bisa** melihat
 2010. Untuk analisis historis pakai skenario **`urban-trend`** yang berbasis
-**Landsat** (arsip sejak 1984, otomatis memakai Landsat 5/7/8/9) dan memetakan
+**Landsat** (arsip sejak 1984, memakai Landsat 5/8/9 — L7 dilewati karena SLC-off) dan memetakan
 **timing** pertumbuhan built-up pada 3 epoch sekaligus sebagai citra RGB
 (epoch-1 = Merah, epoch-2 = Hijau, epoch-3 = Biru):
 

@@ -122,12 +122,13 @@ def _prep_l_sr(img, bands):
 
 
 def l_sr_median(aoi, start, end, cloud_max=60):
-    """Median Landsat 5/7/8/9 surface-reflectance composite (archive back to 1984).
+    """Median Landsat surface-reflectance composite (archive back to 1984).
 
+    Uses Landsat 5 (TM) and 8/9 (OLI); Landsat 7 is EXCLUDED because its
+    Scan Line Corrector failed in 2003 (SLC-off gaps stripe every scene).
     Uniform band naming across sensors so historical epochs (e.g. 2010) work.
     """
-    tm = (ee.ImageCollection("LANDSAT/LT05/C02/T1_L2")
-          .merge(ee.ImageCollection("LANDSAT/LE07/C02/T1_L2"))
+    tm = (ee.ImageCollection("LANDSAT/LT05/C02/T1_L2")  # L5 TM (no SLC-off; ends 2011)
           .filterBounds(aoi).filterDate(start, end)
           .filter(ee.Filter.lt("CLOUD_COVER", cloud_max))
           .map(lambda i: _prep_l_sr(i, ["SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B7"])))

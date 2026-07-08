@@ -165,9 +165,11 @@ def _l_sr_median(bbox, start, end, geobox=None):
     import odc.stac
     import xarray as xr
     cat = _catalog()
-    items = list(cat.search(collections=["landsat-c2-l2"], bbox=bbox,
-                 datetime=f"{start}/{end}",
-                 query={"eo:cloud_cover": {"lt": CLOUD_MAX}}).items())
+    # Exclude Landsat 7 (SLC-off gaps since 2003 stripe every scene).
+    items = [it for it in cat.search(collections=["landsat-c2-l2"], bbox=bbox,
+             datetime=f"{start}/{end}",
+             query={"eo:cloud_cover": {"lt": CLOUD_MAX}}).items()
+             if it.properties.get("platform") != "landsat-7"]
     if not items:
         return None, 0, geobox
     bands = ["green", "red", "nir08", "swir16", "swir22", "qa_pixel"]
