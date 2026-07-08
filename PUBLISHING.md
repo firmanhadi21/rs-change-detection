@@ -56,6 +56,18 @@ satchange -s deforestation --lat -3.333 --lon 122.25 --map
 2. Rebuild (`rm -rf dist && python -m build`) and re-upload.
 3. Tag the release: `git tag v0.1.0 && git push --tags`.
 
+## Regenerating the API docs
+
+The API reference under `docs/api/` is generated from the docstrings with
+[pdoc](https://pdoc.dev) and served by GitHub Pages at `…/rs-change-detection/api/`.
+Rebuild it after changing public functions/docstrings:
+
+```bash
+pip install pdoc
+pdoc satchange -o docs/api      # needs the package importable (pip install -e .)
+git add docs/api && git commit -m "docs: regenerate API reference"
+```
+
 ## Notes
 
 - **Extras** keep the install lean: core is tiny (`requests`); `gee`, `mpc`,
