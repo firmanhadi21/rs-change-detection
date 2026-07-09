@@ -23,6 +23,9 @@ Output (per site, e.g. konawe):
 Run:
     python3 data-collection/02_sirad_gee.py --site konawe
     python3 data-collection/02_sirad_gee.py --site konawe --drive   # + Drive
+    # override the three R/G/B periods:
+    python3 data-collection/02_sirad_gee.py --site konawe \
+        --epochs 2024-01-01:2024-12-31,2025-01-01:2025-12-31,2026-01-01:2026-06-30
 """
 
 import os
@@ -127,6 +130,30 @@ def mean_vh(start, end, geometry, orbit):
     return collection.mean().rename("VH_mean")
 
 
+def get_epochs(argv=None):
+    """Parse --epochs W1,W2,W3 (each START:END) into 3 (start, end) tuples, or None."""
+    argv = sys.argv if argv is None else argv
+    text = None
+    for i, a in enumerate(argv):
+        if a == "--epochs" and i + 1 < len(argv):
+            text = argv[i + 1]
+        elif a.startswith("--epochs="):
+            text = a.split("=", 1)[1]
+    if not text:
+        return None
+    windows = []
+    for w in text.split(","):
+        try:
+            start, end = w.split(":")
+        except ValueError:
+            sys.exit("--epochs windows must be START:END "
+                     "(e.g. 2024-01-01:2024-12-31)")
+        windows.append((start.strip(), end.strip()))
+    if len(windows) != 3:
+        sys.exit("--epochs needs exactly 3 windows: W1,W2,W3 (SIRAD R/G/B)")
+    return windows
+
+
 def main():
     site = get_site()
     out_png = os.path.join(IMAGES_DIR, f"sirad_{site['key']}.png")
@@ -138,7 +165,16 @@ def main():
     initialize()
 
     aoi = square_aoi(site["lon"], site["lat"], site["radius_km"])  # square clip
-    periods = site["sirad_periods"]
+
+    # SIRAD periods: --epochs W1,W2,W3 overrides the site's default (R/G/B).
+    epochs = get_epochs()
+    if epochs:
+        periods = {"R": epochs[0], "G": epochs[1], "B": epochs[2]}
+        print(f"Custom SIRAD periods (R/G/B): {epochs}")
+    else:
+        periods = site["sirad_periods"]
+    vis = {"bands": list(periods.keys()), "min": VIS["min"],
+           "max": VIS["max"], "gamma": VIS["gamma"]}
 
     print("Checking Sentinel-1 coverage per orbit...")
     orbit = select_orbit(periods, aoi, forced=site.get("orbit"))
@@ -152,18 +188,16 @@ def main():
 
     # 1) RGB quick-look thumbnail -> images/
     print("Downloading SIRAD quick-look PNG...")
-    vis = {"bands": VIS["bands"], "min": VIS["min"],
-           "max": VIS["max"], "gamma": VIS["gamma"]}
     download_png(sirad, aoi, out_png, vis=vis)
 
     # 2) Full-resolution georeferenced GeoTIFF (visualised RGB) -> data/
     print("Downloading full-resolution GeoTIFF...")
-    download_geotiff(sirad.visualize(**VIS), aoi, out_tif, scale=10)
+    download_geotiff(sirad.visualize(**vis), aoi, out_tif, scale=10)
 
     # 3) Optional: also export full-res to Google Drive with --drive
     if wants_drive_export():
         task = ee.batch.Export.image.toDrive(
-            image=sirad.visualize(**VIS),
+            image=sirad.visualize(**vis),
             description=f"SIRAD_{site['key']}_2024_2026",
             folder="GEE_Exports",
             fileNamePrefix=f"sirad_{site['key']}",
@@ -175,12 +209,14 @@ def main():
         task.start()
         print(f"Started Drive export task id={task.id} (folder: GEE_Exports)")
 
+    p1, p2, p3 = (f"{s}..{e}" for (s, e) in periods.values())
     print("\n=== Interpretation ===")
+    print(f"  R = period 1 ({p1}),  G = period 2 ({p2}),  B = period 3 ({p3})")
     print("White/Gray = activity in all periods (ongoing)")
-    print("Red        = 2024 only (stopped)")
-    print("Yellow     = 2024 + 2025 (no 2026)")
-    print("Cyan       = 2025 + 2026 (newer)")
-    print("Blue       = 2026 ONLY (post-arrest — KEY EVIDENCE)")
+    print("Red        = period 1 only (stopped)")
+    print("Yellow     = periods 1 + 2 (not 3)")
+    print("Cyan       = periods 2 + 3 (newer)")
+    print("Blue       = period 3 ONLY (new activity — KEY EVIDENCE)")
 
 
 if __name__ == "__main__":

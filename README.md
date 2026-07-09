@@ -442,6 +442,14 @@ resolusi penuh ke Google Drive (opsional), tambahkan flag `--drive`:
 python3 data-collection/02_sirad_gee.py --site konawe --drive
 ```
 
+Untuk mengganti tiga periode SIRAD (kanal R/G/B) tanpa mengubah `sites.py`,
+pakai `--epochs` (sama seperti `satchange -s mining`):
+
+```bash
+python3 data-collection/02_sirad_gee.py --site konawe \
+    --epochs 2024-01-01:2024-12-31,2025-01-01:2025-12-31,2026-01-01:2026-06-30
+```
+
 **Menambah lokasi baru:** salin satu entri di `sites.py`, ubah `lat`/`lon`/
 `radius_km` dan tanggal periode. SIRAD otomatis memilih arah orbit Sentinel-1
 (ASCENDING/DESCENDING) yang punya cakupan di setiap periode, dan Sentinel-2
