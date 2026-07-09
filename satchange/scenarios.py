@@ -177,18 +177,20 @@ def run_flood(aoi, p, water_thr=-16.0):
     pre_water = pre.lt(water_thr)
     post_water = post.lt(water_thr)
 
-    # Exclude permanent water AND the ocean (ESA WorldCover class 80 = water),
-    # so sea-surface roughness changes aren't mistaken for flooding.
-    land = ee.ImageCollection("ESA/WorldCover/v200").first().select("Map").neq(80)
-    flood = post_water.And(pre_water.Not()).And(land)
+    # Land mask: SRTM is void over the OPEN SEA, so this drops the ocean while
+    # KEEPING coastal ponds and low-lying land. Permanent water (ponds, rivers)
+    # is still excluded from "new flood" by the baseline (pre_water), so we don't
+    # need to erase it — that would also erase genuine flooding around the ponds.
+    land = ee.Image("USGS/SRTMGL1_003").mask()
+    flood = post_water.And(pre_water.Not()).updateMask(land)
     # Drop isolated speckle: keep only clusters of >= 8 connected flood pixels.
     keep = flood.selfMask().connectedPixelCount(50, True).unmask(0).gte(8)
     flood = flood.multiply(keep).rename("flood")
 
-    stats = {"method": "SAR water (VV), permanent-water & ocean masked",
+    stats = {"method": "SAR water (VV), ocean masked (SRTM), ponds kept",
              "orbit": orbit, "water_threshold_db": water_thr,
-             "pct_flooded": _pct(flood.updateMask(land), aoi),
-             "pct_permanent_water": _pct(pre_water.Or(land.Not()), aoi),
+             "pct_flooded": _pct(flood, aoi),
+             "pct_permanent_water": _pct(pre_water.updateMask(land), aoi),
              "scenes_pre": counts[0], "scenes_post": counts[1]}
     product = {"key": "flood", "thumb": flood.selfMask(),
                "thumb_vis": {"palette": ["00b3ff"], "min": 0, "max": 1},

@@ -301,7 +301,12 @@ def _best_orbit(bbox, periods, pol):
 
 
 def _worldcover_land(bbox, geobox):
-    """Boolean land mask (True = not permanent water/ocean) from ESA WorldCover."""
+    """Land mask that removes the OPEN OCEAN but keeps coastal ponds.
+
+    ESA WorldCover class 80 = water (ocean + ponds + rivers). The ocean is the
+    water region connected to the AOI border; interior ponds are kept so genuine
+    flooding around them isn't erased (permanent ponds are handled by ~pre_water).
+    """
     import odc.stac
     cat = _catalog()
     items = list(cat.search(collections=["esa-worldcover"], bbox=bbox).items())
@@ -312,7 +317,17 @@ def _worldcover_land(bbox, geobox):
     m = ds["map"]
     if "time" in m.dims:
         m = m.isel(time=-1)  # latest WorldCover epoch
-    return m.compute().values != 80  # class 80 = permanent water bodies (incl. ocean)
+    water = m.compute().values == 80
+    try:
+        from scipy import ndimage
+    except ImportError:
+        return ~water  # fallback: mask all water
+    labels, _n = ndimage.label(water)
+    border = (set(labels[0, :]) | set(labels[-1, :])
+              | set(labels[:, 0]) | set(labels[:, -1]))
+    border.discard(0)
+    ocean = np.isin(labels, list(border))  # water touching the AOI edge = sea
+    return ~ocean  # True = land + interior ponds
 
 
 def _despeckle(mask, min_size=8):
