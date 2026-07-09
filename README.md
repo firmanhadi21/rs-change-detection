@@ -1,5 +1,12 @@
 # Satellite Change Detection (multiguna)
 
+[![PyPI](https://img.shields.io/pypi/v/satchange.svg)](https://pypi.org/project/satchange/)
+[![Python](https://img.shields.io/pypi/pyversions/satchange.svg)](https://pypi.org/project/satchange/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-tutorial-blue.svg)](https://firmanhadi21.github.io/rs-change-detection/)
+
+Instalasi: `pip install 'satchange[all]'` — perintah `satchange` & `satmap`.
+
 **Alat deteksi perubahan berbasis penginderaan jauh untuk berbagai skenario** —
 deforestasi, tambang, urbanisasi, banjir, kebakaran, dan perubahan air — berjalan
 di Google Earth Engine (Python). Pilih skenario + koordinat, hasil ter-unduh
