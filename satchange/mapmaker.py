@@ -151,9 +151,10 @@ def _stats_lines(meta):
                   f"Built-up baru: {s['pct_new_builtup']:.1f}%",
                   f"Scene/epoch: {s.get('scenes_per_epoch', '-')}"]
     elif "pct_flooded" in s:  # flood
+        masked = s.get("pct_permanent_water", s.get("pct_water_masked", 0))
         lines += [f"Metode: {s.get('method','SAR')}",
                   f"Tergenang: {s['pct_flooded']:.1f}%",
-                  f"Air permanen: {s.get('pct_permanent_water',0):.1f}%",
+                  f"Air/laut di-mask: {masked:.1f}%",
                   f"Orbit: {s.get('orbit','-')}",
                   f"Scene pre/post: {s.get('scenes_pre','-')}/{s.get('scenes_post','-')}"]
     elif "sirad" in s and "ndvi" in s:  # mining (2 products)
