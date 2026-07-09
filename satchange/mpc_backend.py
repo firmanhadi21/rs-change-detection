@@ -364,7 +364,7 @@ def run_flood(bbox, params, water_thr=-16.0):
     flood = _despeckle(flood, min_size=8)
 
     land_area = max(int((land & finite).sum()), 1)
-    stats = {"method": "SAR water (VV, MPC), permanent-water & ocean masked",
+    stats = {"method": "SAR water (VV, MPC), ocean masked, ponds kept",
              "orbit": orbit, "water_threshold_db": water_thr,
              "pct_flooded": 100.0 * int(flood.sum()) / land_area,
              "pct_water_masked": 100.0 * int((~land & finite).sum()) / max(int(finite.sum()), 1),
