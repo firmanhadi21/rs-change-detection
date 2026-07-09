@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "satchange: Multipurpose satellite change detection"
+abstract: >-
+  Pure-Python toolkit for satellite change detection — deforestation, mining,
+  urbanisation, floods, burns, surface-water change and multi-epoch urban growth
+  — from free Sentinel-1/2 and Landsat data via Google Earth Engine or Microsoft
+  Planetary Computer (no account needed). Produces georeferenced GeoTIFFs,
+  quick-look PNGs, statistics, and print-ready maps.
+type: software
+authors:
+  - given-names: Firman
+    family-names: Hadi
+    email: firmanhadi21@lecturer.undip.ac.id
+    affiliation: "Universitas Diponegoro"
+repository-code: "https://github.com/firmanhadi21/rs-change-detection"
+url: "https://firmanhadi21.github.io/rs-change-detection/"
+license: MIT
+version: "0.1.1"
+date-released: "2026-07-09"
+keywords:
+  - remote sensing
+  - change detection
+  - Sentinel-1
+  - Sentinel-2
+  - Landsat
+  - Google Earth Engine
+  - Planetary Computer
+  - NDVI
+  - flood mapping
+  - deforestation
+  - GIS
+  - geospatial
