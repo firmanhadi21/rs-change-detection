@@ -167,23 +167,34 @@ def run_flood(aoi, p, water_thr=-16.0):
     orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
     if not covered:
         raise SystemExit(f"No Sentinel-1 orbit covers both windows: {counts}")
-    pre = s1(aoi, *p["pre"], orbit, "VV").mean().clip(aoi)
-    post = s1(aoi, *p["post"], orbit, "VV").mean().clip(aoi)
+
+    # Mean VV per window, smoothed to suppress SAR speckle before thresholding.
+    def prep(win):
+        img = s1(aoi, *win, orbit, "VV").mean().clip(aoi)
+        return img.focal_median(50, "circle", "meters")
+
+    pre, post = prep(p["pre"]), prep(p["post"])
     pre_water = pre.lt(water_thr)
     post_water = post.lt(water_thr)
-    flood = post_water.And(pre_water.Not()).rename("flood")
 
-    stats = {"method": "SAR water (VV)", "orbit": orbit,
-             "water_threshold_db": water_thr,
-             "pct_flooded": _pct(flood, aoi),
-             "pct_permanent_water": _pct(pre_water, aoi),
+    # Exclude permanent water AND the ocean (ESA WorldCover class 80 = water),
+    # so sea-surface roughness changes aren't mistaken for flooding.
+    land = ee.ImageCollection("ESA/WorldCover/v200").first().select("Map").neq(80)
+    flood = post_water.And(pre_water.Not()).And(land)
+    # Drop isolated speckle: keep only clusters of >= 8 connected flood pixels.
+    keep = flood.selfMask().connectedPixelCount(50, True).unmask(0).gte(8)
+    flood = flood.multiply(keep).rename("flood")
+
+    stats = {"method": "SAR water (VV), permanent-water & ocean masked",
+             "orbit": orbit, "water_threshold_db": water_thr,
+             "pct_flooded": _pct(flood.updateMask(land), aoi),
+             "pct_permanent_water": _pct(pre_water.Or(land.Not()), aoi),
              "scenes_pre": counts[0], "scenes_post": counts[1]}
-    thumb_vis = {"min": 0, "max": 1, "palette": ["000000", "00b3ff"]}
     product = {"key": "flood", "thumb": flood.selfMask(),
                "thumb_vis": {"palette": ["00b3ff"], "min": 0, "max": 1},
-               "tif": flood.toByte(), "scale": 10}
+               "tif": flood.selfMask().toByte(), "scale": 10}
     return {"products": [product], "stats": stats,
-            "interpretation": "Biru = area tergenang saat kejadian (bukan air permanen)."}
+            "interpretation": "Biru = area tergenang saat kejadian (air permanen & laut di-mask)."}
 
 
 # ----------------------------- registry -----------------------------

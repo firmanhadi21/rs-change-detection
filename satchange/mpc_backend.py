@@ -300,6 +300,35 @@ def _best_orbit(bbox, periods, pol):
     return orbit, covered, counts
 
 
+def _worldcover_land(bbox, geobox):
+    """Boolean land mask (True = not permanent water/ocean) from ESA WorldCover."""
+    import odc.stac
+    cat = _catalog()
+    items = list(cat.search(collections=["esa-worldcover"], bbox=bbox).items())
+    if not items:
+        return None
+    ds = odc.stac.load(items, bands=["map"], geobox=geobox, resampling="nearest",
+                       chunks={"x": 2048, "y": 2048})
+    m = ds["map"]
+    if "time" in m.dims:
+        m = m.isel(time=-1)  # latest WorldCover epoch
+    return m.compute().values != 80  # class 80 = permanent water bodies (incl. ocean)
+
+
+def _despeckle(mask, min_size=8):
+    """Drop connected flood clusters smaller than min_size pixels (if scipy present)."""
+    try:
+        from scipy import ndimage
+    except ImportError:
+        return mask
+    labels, n = ndimage.label(mask)
+    if n == 0:
+        return mask
+    sizes = ndimage.sum(mask, labels, range(1, n + 1))
+    keep = set(i + 1 for i, s in enumerate(sizes) if s >= min_size)
+    return np.isin(labels, list(keep))
+
+
 def run_flood(bbox, params, water_thr=-16.0):
     periods = [params["pre"], params["post"]]
     orbit, covered, counts = _best_orbit(bbox, periods, "vv")
@@ -307,21 +336,30 @@ def run_flood(bbox, params, water_thr=-16.0):
         raise SystemExit(f"No Sentinel-1 orbit covers both windows (MPC): {counts}")
     pre, _n, gbox = _s1_mean_db(bbox, *params["pre"], "vv", orbit)
     post, _n2, _ = _s1_mean_db(bbox, *params["post"], "vv", orbit, geobox=gbox)
+    finite = np.isfinite(post) & np.isfinite(pre)
     pre_water = pre < water_thr
     post_water = post < water_thr
-    flood = post_water & (~pre_water) & np.isfinite(post) & np.isfinite(pre)
-    n = max(int(np.isfinite(post).sum()), 1)
-    stats = {"method": "SAR water (VV, MPC)", "orbit": orbit,
-             "water_threshold_db": water_thr,
-             "pct_flooded": 100.0 * int(flood.sum()) / n,
-             "pct_permanent_water": 100.0 * int((pre_water & np.isfinite(pre)).sum()) / n,
+
+    # Mask permanent water + ocean (ESA WorldCover) so sea roughness changes
+    # aren't counted as flood; then drop isolated speckle clusters.
+    land = _worldcover_land(bbox, gbox)
+    if land is None:
+        land = np.ones_like(finite, dtype=bool)
+    flood = post_water & (~pre_water) & finite & land
+    flood = _despeckle(flood, min_size=8)
+
+    land_area = max(int((land & finite).sum()), 1)
+    stats = {"method": "SAR water (VV, MPC), permanent-water & ocean masked",
+             "orbit": orbit, "water_threshold_db": water_thr,
+             "pct_flooded": 100.0 * int(flood.sum()) / land_area,
+             "pct_water_masked": 100.0 * int((~land & finite).sum()) / max(int(finite.sum()), 1),
              "scenes_pre": counts[0], "scenes_post": counts[1]}
     arr = np.where(flood, 1.0, np.nan)
     product = {"key": "flood", "data": arr, "geobox": gbox,
                "vis": {"min": 0, "max": 1, "palette": ["#00b3ff"], "label": "flood"},
                "is_rgb": False}
     return {"products": [product], "stats": stats,
-            "interpretation": "Biru = area tergenang saat kejadian (bukan air permanen)."}
+            "interpretation": "Biru = area tergenang saat kejadian (air permanen & laut di-mask)."}
 
 
 def run_mining(bbox, params):
