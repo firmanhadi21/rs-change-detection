@@ -67,7 +67,14 @@ python3 detect.py -s mining --site konawe               # pakai preset sites.py
 python3 detect.py -s urbanization --lat -6.2 --lon 106.8 --radius 12
 python3 detect.py -s burn --lat -7.5 --lon 110.4 \
     --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30
+
+# Mining/SIRAD: atur sendiri 3 periode (R/G/B) dengan --epochs
+python3 detect.py -s mining --site konawe \
+    --epochs 2024-01-01:2024-12-31,2025-01-01:2025-12-31,2026-01-01:2026-06-30
 ```
+
+> `--epochs W1,W2,W3` menetapkan tiga periode untuk **mining/SIRAD** (kanal R/G/B)
+> maupun **urban-trend** (epoch). Tanpa itu, dipakai periode default dari skenario.
 
 **Output per run** (klip **persegi**, bukan lingkaran). Setiap run menulis ke
 folder ber-ID unik **`output/<timestamp>_<skenario>_<nama>_<token>/`** berisi:

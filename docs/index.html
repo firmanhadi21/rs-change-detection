@@ -250,6 +250,9 @@ satchange -s deforestation --lat -3.333 --lon 122.25
 
 # Mining — radar temporal (SIRAD) + NDVI loss, two products
 satchange -s mining --lat -3.333 --lon 122.25
+#   set the 3 SIRAD periods (R/G/B) yourself with --epochs:
+satchange -s mining --lat -3.333 --lon 122.25 \
+    --epochs 2024-01-01:2024-06-30,2024-07-01:2024-12-31,2025-01-01:2025-06-30
 
 # Urbanisation — built-up (NDBI) gain
 satchange -s urbanization --lat -6.2 --lon 106.8 --radius 12

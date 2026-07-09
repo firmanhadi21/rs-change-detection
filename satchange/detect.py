@@ -121,19 +121,16 @@ def build_params(scenario, args):
     needs = cfg.get("needs")
     p = {}
 
-    if needs == "sirad":
-        p["sirad_periods"] = cfg["sirad_periods"]
-        return p
-
-    if needs == "epochs":
-        if args.epochs:
-            windows = [parse_period(w) for w in args.epochs.split(",")]
-        else:
-            windows = cfg["epochs"]
+    if needs in ("sirad", "epochs"):
+        # Both take exactly 3 date windows (R/G/B). --epochs overrides the
+        # scenario default; SIRAD stores them as sirad_periods, urban-trend as epochs.
+        default = cfg["sirad_periods"] if needs == "sirad" else cfg["epochs"]
+        windows = ([parse_period(w) for w in args.epochs.split(",")]
+                   if args.epochs else default)
         if len(windows) != 3:
             raise SystemExit("--epochs needs exactly 3 windows: W1,W2,W3 "
-                             "(each START:END, e.g. 2010-01-01:2010-12-31)")
-        p["epochs"] = windows
+                             "(each START:END, e.g. 2024-01-01:2024-12-31)")
+        p["sirad_periods" if needs == "sirad" else "epochs"] = windows
         return p
 
     # pre/post windows (optical + flood)
@@ -246,8 +243,9 @@ def main():
     ap.add_argument("-r", "--radius", type=float, help="AOI radius in km")
     ap.add_argument("--pre", help="baseline window START:END")
     ap.add_argument("--post", help="recent/event window START:END")
-    ap.add_argument("--epochs", help="urban-trend: three windows W1,W2,W3 "
-                    "(each START:END), e.g. 2010-01-01:2010-12-31,...")
+    ap.add_argument("--epochs", help="three date windows W1,W2,W3 (each "
+                    "START:END) for urban-trend epochs OR mining SIRAD periods "
+                    "(R/G/B), e.g. 2024-01-01:2024-12-31,2025-...,2026-...")
     ap.add_argument("-n", "--name", help="output label (default from coords)")
     ap.add_argument("--map", action="store_true",
                     help="also render an A4 map layout (PDF + PNG) per product")
