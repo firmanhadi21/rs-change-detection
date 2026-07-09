@@ -9,7 +9,8 @@ description = "Multipurpose satellite change detection (deforestation, mining, u
 readme = "PYPI_README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Firman Hadi", email = "firmanhadi@me.com" }]
+authors = [{ name = "Firman Hadi", email = "firmanhadi21@lecturer.undip.ac.id" }]
+maintainers = [{ name = "Firman Hadi", email = "firmanhadi21@lecturer.undip.ac.id" }]
 keywords = [
   "remote-sensing", "change-detection", "sentinel", "landsat",
   "earth-engine", "planetary-computer", "ndvi", "ndbi", "flood",
