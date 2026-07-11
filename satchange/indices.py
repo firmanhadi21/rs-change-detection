@@ -185,6 +185,16 @@ def s1(aoi, start, end, orbit, pol):
             .select(pol))
 
 
+def s1_relorbits(coll):
+    """Distinct relative-orbit (track) numbers in a Sentinel-1 collection."""
+    return coll.aggregate_array("relativeOrbitNumber_start")
+
+
+def s1_latest(coll):
+    """The most recent single scene in a Sentinel-1 collection."""
+    return ee.Image(coll.sort("system:time_start", False).first())
+
+
 def best_orbit(aoi, periods, pol="VH", forced=None):
     """Pick the orbit direction (ASC/DESC) that has imagery in every period.
 

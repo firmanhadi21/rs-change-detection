@@ -17,7 +17,8 @@ try:
 except ImportError:
     ee = None
 from .indices import (
-    s2_median, l2_median, l_sr_median, INDEX_FN, SENSOR, s1, best_orbit)
+    s2_median, l2_median, l_sr_median, INDEX_FN, SENSOR, s1, best_orbit,
+    s1_relorbits, s1_latest)
 
 # Diverging palette: negative -> red, 0 -> pale, positive -> green
 DIVERGING = ["a50026", "d73027", "fee08b", "ffffbf", "d9ef8b", "1a9850", "006837"]
@@ -160,20 +161,43 @@ def run_urban_trend(aoi, p, bu_thr=0.0):
 def run_flood(aoi, p, water_thr=-16.0):
     """Flood: Sentinel-1 VV water extent, event vs baseline.
 
-    Water = smooth surface = low VV backscatter. Flood = water present in the
-    event window but not in the baseline window.
+    Standard S1 rapid-flood method: ONE pre scene and ONE post scene (not a
+    window mean). Both are taken from the SAME relative orbit (track) so the
+    viewing geometry is identical, and each is the most recent pass in its
+    window. Water = smooth surface = low VV backscatter; flood = water in the
+    post scene but not the pre scene.
     """
     periods = [p["pre"], p["post"]]
     orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
     if not covered:
         raise SystemExit(f"No Sentinel-1 orbit covers both windows: {counts}")
 
-    # Mean VV per window, smoothed to suppress SAR speckle before thresholding.
-    def prep(win):
-        img = s1(aoi, *win, orbit, "VV").mean().clip(aoi)
-        return img.focal_median(50, "circle", "meters")
+    pre_coll = s1(aoi, *p["pre"], orbit, "VV")
+    post_coll = s1(aoi, *p["post"], orbit, "VV")
 
-    pre, post = prep(p["pre"]), prep(p["post"])
+    # Match the SAME relative orbit across pre & post so geometry is identical.
+    # Of the tracks present in both windows, pick the one whose post pass is the
+    # most recent (closest to the event). Falls back to "mixed" if none overlap.
+    pre_ro = set(s1_relorbits(pre_coll).getInfo())
+    post_ro = post_coll.aggregate_array("relativeOrbitNumber_start").getInfo()
+    post_t = post_coll.aggregate_array("system:time_start").getInfo()
+    common = [(t, ro) for ro, t in zip(post_ro, post_t) if ro in pre_ro]
+    rel = None
+    if common:
+        rel = max(common)[1]
+        pre_coll = pre_coll.filter(ee.Filter.eq("relativeOrbitNumber_start", rel))
+        post_coll = post_coll.filter(ee.Filter.eq("relativeOrbitNumber_start", rel))
+
+    # Single latest scene per window, smoothed to suppress SAR speckle.
+    pre_img = s1_latest(pre_coll)
+    post_img = s1_latest(post_coll)
+    date_pre = pre_img.date().format("YYYY-MM-dd").getInfo()
+    date_post = post_img.date().format("YYYY-MM-dd").getInfo()
+
+    def prep(img):
+        return img.clip(aoi).focal_median(50, "circle", "meters")
+
+    pre, post = prep(pre_img), prep(post_img)
     pre_water = pre.lt(water_thr)
     post_water = post.lt(water_thr)
 
@@ -187,8 +211,10 @@ def run_flood(aoi, p, water_thr=-16.0):
     keep = flood.selfMask().connectedPixelCount(50, True).unmask(0).gte(8)
     flood = flood.multiply(keep).rename("flood")
 
-    stats = {"method": "SAR water (VV), ocean masked (SRTM), ponds kept",
-             "orbit": orbit, "water_threshold_db": water_thr,
+    stats = {"method": "SAR water (VV), single-scene pre/post, ocean masked (SRTM), ponds kept",
+             "orbit": orbit, "relative_orbit": rel if rel is not None else "mixed",
+             "date_pre": date_pre, "date_post": date_post,
+             "water_threshold_db": water_thr,
              "pct_flooded": _pct(flood, aoi),
              "pct_permanent_water": _pct(pre_water.updateMask(land), aoi),
              "scenes_pre": counts[0], "scenes_post": counts[1]}

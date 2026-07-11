@@ -155,8 +155,11 @@ def _stats_lines(meta):
         lines += [f"Metode: {s.get('method','SAR')}",
                   f"Tergenang: {s['pct_flooded']:.1f}%",
                   f"Air/laut di-mask: {masked:.1f}%",
-                  f"Orbit: {s.get('orbit','-')}",
-                  f"Scene pre/post: {s.get('scenes_pre','-')}/{s.get('scenes_post','-')}"]
+                  f"Orbit: {s.get('orbit','-')} (track {s.get('relative_orbit','-')})"]
+        if s.get("date_pre"):
+            lines.append(f"Citra pra/pasca: {s['date_pre']} → {s['date_post']}")
+        else:
+            lines.append(f"Scene pre/post: {s.get('scenes_pre','-')}/{s.get('scenes_post','-')}")
     elif "sirad" in s and "ndvi" in s:  # mining (2 products)
         lines += [f"SIRAD orbit: {s['sirad'].get('orbit','-')}",
                   f"Citra/periode: {s['sirad'].get('images_per_period','-')}"]
