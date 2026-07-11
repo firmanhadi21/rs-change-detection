@@ -5,23 +5,25 @@ Pick a SCENARIO and a LOCATION; the scenario selects the remote-sensing method
 (NDVI/NDBI/NDWI/NBR change, SIRAD radar, or SAR flood water). Results download
 straight to disk as a PNG quick-look, a georeferenced GeoTIFF, and a stats JSON.
 
-Examples
+Examples (installed CLI — after `pip install satchange`)
 --------
     # List available scenarios
-    python3 detect.py --list
+    satchange --list
 
     # Deforestation around a coordinate (radius 6 km)
-    python3 detect.py -s deforestation --lat -3.333 --lon 122.25 -r 6
+    satchange -s deforestation --lat -3.333 --lon 122.25 -r 6
 
     # Same, coordinate as "lat,lon" (quote/`=` because lat is negative)
-    python3 detect.py -s mining -l=-3.333,122.25
+    satchange -s mining -l=-3.333,122.25
 
     # Flood: baseline window vs event window (both required)
-    python3 detect.py -s flood --lat 24.9 --lon 67.9 \
+    satchange -s flood --lat 24.9 --lon 67.9 \
         --pre 2022-06-01:2022-06-30 --post 2022-08-15:2022-09-05
 
     # Use a named preset from sites.py instead of a coordinate
-    python3 detect.py -s mining --site konawe
+    satchange -s mining --site konawe
+
+    # From a source checkout (no install), swap `satchange` for `python3 detect.py`.
 
 Outputs (per run):
     images/<scenario>_<product>_<name>.png     quick-look
