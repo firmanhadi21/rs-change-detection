@@ -168,12 +168,7 @@ def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
         start_drive_export(builtup_epochs.toByte(), aoi, f"{name}_builtup_epochs",
                            folder=drive_folder, scale=100)
 
-    _render_all(stats, run_dir, epochs_tif, GHSL_YEARS,
-                os.path.join(run_dir, "first_built_decade.tif"))
-    try:
-        _render_roads(run_dir, stats["name"])
-    except Exception as e:  # noqa: BLE001 — roads are optional context
-        print(f"  (OSM road overlay skipped: {e})")
+    _render_extras_gee(run_dir, stats, epochs_tif)
     _write_stats(stats, run_dir, run_id, "gee")
 
 
@@ -384,6 +379,23 @@ def _render_all(stats, run_dir, epochs_tif, years, first_built_tif):
            f"Built-up extent by decade (GHSL) — {stats['name']}", run_dir, areas)
 
 
+def _render_extras_gee(run_dir, stats, epochs_tif):
+    """All GEE-run rendering: charts, decade map, panel, roads, infographic.
+
+    Roads and the infographic are optional (network / missing layers) — a failure
+    in either is logged, not fatal.
+    """
+    _render_all(stats, run_dir, epochs_tif, GHSL_YEARS,
+                os.path.join(run_dir, "first_built_decade.tif"))
+    optional = (("OSM road overlay", lambda: _render_roads(run_dir, stats["name"])),
+                ("infographic", lambda: _render_infographic(run_dir, stats)))
+    for label, fn in optional:
+        try:
+            fn()
+        except Exception as e:  # noqa: BLE001 — optional extras never break a run
+            print(f"  ({label} skipped: {e})")
+
+
 def _render_mpc(stats, run_dir, extent, masks, years, veg_loss):
     _render_charts(stats, run_dir)
     _panel(masks, years, extent,
@@ -498,6 +510,101 @@ def _render_roads(run_dir, name):
     fig.tight_layout(); fig.savefig(out); plt.close(fig)
     total = sum(len(v) for v in roads.values())
     print(f"Road overlay: first_built_decade_roads.png ({total} OSM ways)")
+
+
+def _render_infographic(run_dir, stats):
+    """Compose a one-page poster PNG from a run's layers + headline numbers.
+
+    Reproducible and offline: reads the already-rendered PNGs (decade map, panel,
+    trend charts) and stats.json. GEE-only (needs the GHSL built-up numbers).
+    """
+    if not stats.get("ghsl"):
+        return
+    plt = _plt()
+    from matplotlib.patches import FancyBboxPatch
+
+    def imread(fn):
+        p = os.path.join(run_dir, fn)
+        return plt.imread(p) if os.path.exists(p) else None
+
+    hero = imread("first_built_decade_roads.png")
+    if hero is None:
+        hero = imread("first_built_decade_map.png")
+    panel = imread("builtup_panel.png")
+    bu_chart = imread("builtup_trend.png")
+    veg_chart = imread("vegetation_trend.png")
+
+    g = stats["ghsl"]
+    yrs = sorted(int(y) for y in g)
+    y0, y1 = yrs[0], yrs[-1]
+    bu0, bu1 = g[str(y0)]["builtup_km2"], g[str(y1)]["builtup_km2"]
+    growth = (bu1 - bu0) / bu0 * 100.0 if bu0 else 0.0
+    uc = stats.get("urban_conversion_GHSL", {})
+    ls = stats.get("landsat", {})
+    vt = stats.get("vegetation_loss_TM", {})
+    name = str(stats.get("name", "")).replace("_", " ").title()
+
+    RED, PURPLE, GREEN, GRAY, INK = "#a50f15", "#7a0177", "#1a7a3a", "#555", "#222"
+    fig = plt.figure(figsize=(13, 18), dpi=150)
+    fig.patch.set_facecolor("white")
+
+    fig.text(0.5, 0.972, f"{name}: Urban Growth {y0}–{y1}", ha="center",
+             va="center", fontsize=27, fontweight="bold", color=INK)
+    loc = stats.get("location", {})
+    fig.text(0.5, 0.949, f"Built-up expansion & vegetation loss  ·  GHSL + Landsat  ·  "
+             f"{loc.get('lat')}, {loc.get('lon')}  ·  {stats.get('radius_km')} km radius",
+             ha="center", va="center", fontsize=12, color=GRAY)
+
+    def card(rect, big, label, color):
+        ax = fig.add_axes(rect); ax.axis("off")
+        ax.add_patch(FancyBboxPatch((0.02, 0.06), 0.96, 0.88,
+                     boxstyle="round,pad=0.02,rounding_size=0.06",
+                     transform=ax.transAxes, facecolor=color, alpha=0.10,
+                     edgecolor=color, linewidth=1.6))
+        ax.text(0.5, 0.60, big, ha="center", va="center", fontsize=19,
+                fontweight="bold", color=color, transform=ax.transAxes)
+        ax.text(0.5, 0.24, label, ha="center", va="center", fontsize=9.5,
+                color="#333", transform=ax.transAxes)
+
+    cy, ch, cw, gap = 0.86, 0.065, 0.225, 0.02
+    xs = 0.035
+    card([xs, cy, cw, ch], f"{bu0:.0f} → {bu1:.0f} km²", f"Built-up area ({y0}→{y1})", RED)
+    card([xs + (cw + gap), cy, cw, ch], f"+{growth:.0f}%", "Built-up growth", RED)
+    card([xs + 2 * (cw + gap), cy, cw, ch],
+         f"+{uc.get('new_builtup_km2', 0):.0f} km²", "New urban 1990→2025", PURPLE)
+    if "1990" in ls and "2010" in ls:
+        card([xs + 3 * (cw + gap), cy, cw, ch],
+             f"{ls['1990']['vegetation_pct']:.0f}% → {ls['2010']['vegetation_pct']:.0f}%",
+             "Vegetation 1990→2010 (TM)", GREEN)
+
+    def place(img, rect, title=None):
+        ax = fig.add_axes(rect); ax.axis("off")
+        if img is not None:
+            ax.imshow(img)
+        if title:
+            ax.set_title(title, fontsize=11, fontweight="bold", color=INK, pad=4)
+
+    place(hero, [0.035, 0.475, 0.60, 0.37])
+    place(bu_chart, [0.655, 0.665, 0.32, 0.175])
+    place(veg_chart, [0.655, 0.475, 0.32, 0.175])
+    place(panel, [0.035, 0.085, 0.93, 0.36])
+
+    fig.text(0.035, 0.045,
+             "Data: EU JRC GHSL GHS-BUILT-S (built-up)  ·  Landsat 5 TM + 8/9 OLI, USGS "
+             "(NDBI/NDVI)  ·  OSM roads via Overpass.",
+             fontsize=8.5, color=GRAY)
+    fig.text(0.035, 0.030,
+             "Note: Landsat TM & OLI NDVI are not comparable across the 2011–2013 sensor "
+             "break (vegetation loss uses TM-only 1990–2010).",
+             fontsize=8.5, color=GRAY)
+    fig.text(0.035, 0.015,
+             "OSM roads show today's network (mapping ≠ construction; OSM starts 2004).  "
+             "Generated with satchange.",
+             fontsize=8.5, color=GRAY)
+
+    out = os.path.join(run_dir, "infographic.png")
+    fig.savefig(out, facecolor="white"); plt.close(fig)
+    print(f"Infographic: infographic.png")
 
 
 def _write_stats(stats, run_dir, run_id, backend):
