@@ -83,9 +83,11 @@ def _mean(img, aoi, scale):
     return vals[0] if vals else None
 
 
-def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key):
-    from .gee_utils import (initialize_ee, square_aoi, download_png, download_geotiff)
-    initialize_ee(config_key)
+def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
+             do_drive=False, drive_folder="satchange"):
+    from .gee_utils import (initialize_ee, square_aoi, download_png,
+                            download_geotiff, start_drive_export)
+    initialize_ee(prefer_user=True) if do_drive else initialize_ee(config_key)
     aoi = square_aoi(lon, lat, radius)
     aoi_km2 = (2 * radius) ** 2
     stats = {"name": name, "backend": "gee", "source": "GHSL GHS-BUILT-S + Landsat",
@@ -157,9 +159,14 @@ def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key):
         print(f"Downloading {key}...")
         download_png(img, aoi, os.path.join(run_dir, key + ".png"), vis=vis)
         download_geotiff(img, aoi, os.path.join(run_dir, key + ".tif"), scale=scale)
+        if do_drive:
+            start_drive_export(img, aoi, f"{name}_{key}", folder=drive_folder, scale=scale)
     print("Downloading builtup_epochs (panel source)...")
     epochs_tif = os.path.join(run_dir, "builtup_epochs.tif")
     download_geotiff(builtup_epochs.toByte(), aoi, epochs_tif, scale=100)
+    if do_drive:
+        start_drive_export(builtup_epochs.toByte(), aoi, f"{name}_builtup_epochs",
+                           folder=drive_folder, scale=100)
 
     _render_all(stats, run_dir, epochs_tif, GHSL_YEARS,
                 os.path.join(run_dir, "first_built_decade.tif"))
@@ -500,9 +507,13 @@ def _write_stats(stats, run_dir, run_id, backend):
     print(f"\nAll outputs -> output/{os.path.basename(run_dir)}/")
 
 
-def run(backend, lat, lon, radius, name, run_dir, run_id, do_map=False, config_key=None):
+def run(backend, lat, lon, radius, name, run_dir, run_id, do_map=False,
+        config_key=None, do_drive=False, drive_folder="satchange"):
     """Entry point called by detect.py for the urban-history scenario."""
     if backend == "mpc":
+        if do_drive:
+            print("  (--drive ignored: MPC writes GeoTIFFs locally, no EE export)")
         _run_mpc(lat, lon, radius, name, run_dir, run_id, do_map)
     else:
-        _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key)
+        _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
+                 do_drive, drive_folder)

@@ -327,7 +327,8 @@ def main():
     if cfg.get("method") == "urban-history":
         from . import urban_history
         urban_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                          do_map=args.map, config_key=(args.ee_key or CONFIG_KEY))
+                          do_map=args.map, config_key=(args.ee_key or CONFIG_KEY),
+                          do_drive=args.drive, drive_folder=args.drive_folder)
         list_outputs(run_dir)
         return
 
