@@ -163,6 +163,10 @@ def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key):
 
     _render_all(stats, run_dir, epochs_tif, GHSL_YEARS,
                 os.path.join(run_dir, "first_built_decade.tif"))
+    try:
+        _render_roads(run_dir, stats["name"])
+    except Exception as e:  # noqa: BLE001 — roads are optional context
+        print(f"  (OSM road overlay skipped: {e})")
     _write_stats(stats, run_dir, run_id, "gee")
 
 
@@ -389,6 +393,104 @@ def _render_mpc(stats, run_dir, extent, masks, years, veg_loss):
                      fontsize=12, fontweight="bold")
         fig.tight_layout()
         fig.savefig(os.path.join(run_dir, "vegetation_loss_map.png")); plt.close(fig)
+
+
+def _fetch_osm_roads(bbox):
+    """Current OSM major roads via Overpass. bbox = (w, s, e, n).
+
+    Returns {"major": [...], "primary": [...], "secondary": [...]} where each is
+    a list of (lons, lats) polylines, or None if Overpass is unavailable.
+    """
+    import urllib.request
+    import urllib.parse
+    import json as _json
+    w, s, e, n = bbox
+    q = ('[out:json][timeout:180];('
+         f'way["highway"~"^(motorway|trunk|primary|secondary)(_link)?$"]({s},{w},{n},{e});'
+         ');out geom;')
+    j = None
+    for endpoint in ("https://overpass-api.de/api/interpreter",
+                     "https://overpass.kumi.systems/api/interpreter"):
+        try:
+            data = urllib.parse.urlencode({"data": q}).encode()
+            with urllib.request.urlopen(urllib.request.Request(endpoint, data=data),
+                                        timeout=210) as r:
+                j = _json.load(r)
+            break
+        except Exception:  # noqa: BLE001 — try the next mirror
+            j = None
+    if not j:
+        return None
+    out = {"major": [], "primary": [], "secondary": []}
+    for el in j.get("elements", []):
+        if el.get("type") != "way" or "geometry" not in el:
+            continue
+        hw = el.get("tags", {}).get("highway", "")
+        lons = [p["lon"] for p in el["geometry"]]
+        lats = [p["lat"] for p in el["geometry"]]
+        if hw.startswith(("motorway", "trunk")):
+            out["major"].append((lons, lats))
+        elif hw.startswith("primary"):
+            out["primary"].append((lons, lats))
+        else:
+            out["secondary"].append((lons, lats))
+    return out
+
+
+def _render_roads(run_dir, name):
+    """Overlay today's OSM road skeleton on the first-built-decade map.
+
+    Honest pairing: OSM records when a road was MAPPED (data starts 2004, and
+    Indonesia only became well-mapped after ~2015), so we show only the CURRENT
+    network as spatial context for the decadal built-up growth — never as a
+    road-construction timeline.
+    """
+    tif = os.path.join(run_dir, "first_built_decade.tif")
+    if not os.path.exists(tif):
+        return
+    import numpy as np
+    import rasterio
+    with rasterio.open(tif) as src:
+        arr = src.read(1, masked=True)
+        b = src.bounds
+    extent = [b.left, b.right, b.bottom, b.top]
+    roads = _fetch_osm_roads((b.left, b.bottom, b.right, b.top))
+    if not roads:
+        print("  (OSM road overlay skipped: Overpass unavailable)")
+        return
+
+    plt = _plt()
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+    cmap = ListedColormap(["#" + c for c in DECADE_PALETTE])
+    norm = BoundaryNorm([0.5, 1.5, 2.5, 3.5, 4.5, 5.5], cmap.N)
+    fig, ax = plt.subplots(figsize=(9, 9), dpi=150)
+    ax.set_xlim(extent[0], extent[1]); ax.set_ylim(extent[2], extent[3])
+    _basemap(ax)
+    ax.imshow(np.ma.filled(arr.astype(float), np.nan), extent=extent, origin="upper",
+              cmap=cmap, norm=norm, alpha=0.72, zorder=3, interpolation="nearest")
+    for lons, lats in roads["secondary"]:
+        ax.plot(lons, lats, color="#333", lw=0.3, alpha=0.5, zorder=4)
+    for lons, lats in roads["primary"]:
+        ax.plot(lons, lats, color="#1a1a1a", lw=0.7, alpha=0.75, zorder=5)
+    for lons, lats in roads["major"]:
+        ax.plot(lons, lats, color="#000", lw=1.5, alpha=0.9, zorder=6)
+    ax.set_title(f"First built-up decade + current OSM road skeleton — {name}",
+                 fontsize=12, fontweight="bold")
+    ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
+    handles = [Patch(facecolor="#" + c, label=l)
+               for c, l in zip(DECADE_PALETTE, DECADE_LABELS)]
+    handles += [Line2D([0], [0], color="#000", lw=1.5, label="motorway/toll/trunk"),
+                Line2D([0], [0], color="#1a1a1a", lw=0.7, label="primary"),
+                Line2D([0], [0], color="#333", lw=0.3, label="secondary")]
+    ax.legend(handles=handles, loc="lower right", fontsize=6.5, framealpha=0.9,
+              title="Built decade  ·  roads (today)")
+    ax.grid(True, ls=":", color="#888", alpha=0.4)
+    out = os.path.join(run_dir, "first_built_decade_roads.png")
+    fig.tight_layout(); fig.savefig(out); plt.close(fig)
+    total = sum(len(v) for v in roads.values())
+    print(f"Road overlay: first_built_decade_roads.png ({total} OSM ways)")
 
 
 def _write_stats(stats, run_dir, run_id, backend):
