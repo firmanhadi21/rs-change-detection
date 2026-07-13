@@ -341,6 +341,13 @@ SCENARIOS = {
                    ("2020-01-01", "2020-12-31")],
         "interpretation": "R/G/B = 2010/2015/2020; biru = pertumbuhan terbaru.",
     },
+    "urban-history": {
+        "label": "Urban history — built-up by decade since 1980 (GHSL + Landsat)",
+        "method": "urban-history",
+        "radius": 45.0, "needs": "none",
+        "interpretation": ("Peta dekade pertama terbangun + panel per dekade + "
+                           "grafik luas terbangun & penurunan vegetasi."),
+    },
     "flood": {
         "label": "Flood — SAR water extent, event vs baseline (Sentinel-1 VV)",
         "run": run_flood,

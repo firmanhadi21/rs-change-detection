@@ -187,6 +187,9 @@
     <tr><td><b>urban-trend</b></td>
       <td><span class="en">NDBI at 3 epochs → R/G/B timing composite. Blue = newest growth, white = built all epochs.</span><span class="id">NDBI di 3 epoch → komposit waktu R/G/B. Biru = pertumbuhan terbaru, putih = terbangun sepanjang waktu.</span></td>
       <td>Landsat 5, 8/9</td><td><span class="en">Multi-epoch NDBI (archive to 1984; L7 skipped — SLC-off)</span><span class="id">NDBI multi-epoch (arsip sejak 1984; L7 dilewati — SLC-off)</span></td></tr>
+    <tr><td><b>urban-history</b></td>
+      <td><span class="en"><b>Built-up expansion & vegetation loss by decade since 1980.</b> Combines <b>GHSL GHS-BUILT-S</b> (authoritative built-up surface, 1980-2025) with Landsat NDBI/NDVI. Produces a <b>"first built-up decade" map</b> (city sprawl ring by ring), a decadal panel, built-up &amp; vegetation trend charts, and a full-span vegetation-to-urban conversion map. Landsat TM/OLI are kept separate (not comparable across the 2011→2013 break). GHSL is GEE-only; on MPC it runs Landsat-only. Roads aren't a target at 30&nbsp;m.</span><span class="id"><b>Perluasan terbangun &amp; kehilangan vegetasi per dekade sejak 1980.</b> Menggabungkan <b>GHSL GHS-BUILT-S</b> (permukaan terbangun otoritatif, 1980-2025) dengan NDBI/NDVI Landsat. Menghasilkan <b>peta "dekade pertama terbangun"</b> (kota meluas cincin demi cincin), panel per dekade, grafik tren terbangun &amp; vegetasi, serta peta konversi vegetasi→urban rentang penuh. TM/OLI Landsat dipisah (tak sebanding pada 2011→2013). GHSL hanya di GEE; di MPC berjalan Landsat-saja. Jalan bukan target pada 30&nbsp;m.</span></td>
+      <td>GHSL + Landsat</td><td><a href="https://ghsl.jrc.ec.europa.eu/">EU JRC GHSL</a></td></tr>
   </table>
 
   <div class="callout tip en"><b>Why radar for floods and mining?</b> Optical sensors can't see through clouds — a serious problem during floods and in the wet tropics. Sentinel-1 radar penetrates cloud and works day or night, so it captures change when optical imagery is blind. VH polarisation is most sensitive to land-surface change; VV best separates smooth open water.</div>
@@ -282,7 +285,10 @@ satchange -s burn --lat -7.5 --lon 110.4 \
     --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30
 
 # Urban growth timing across 3 epochs (Landsat; default 2010/2015/2020)
-satchange -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map</code></pre>
+satchange -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map
+
+# Urban history: built-up by decade since 1980 (GHSL + Landsat), whole metro
+satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek</code></pre>
   <div class="callout en"><b>Flood and burn require dates.</b> They compare a specific <i>event</i> to a <i>baseline</i>, so pass <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Other scenarios have default windows you can still override. <b>For flood, each window is a search range, not a composite</b> — the tool picks a single Sentinel-1 scene from each (the most recent pass, same relative orbit). Keep windows tight (≈2–4 weeks) so each holds a pass but doesn't reach far from the event; place <code>--post</code> to end on/after the flood peak, since it takes the latest pass in the window.</div>
   <div class="callout id"><b>Banjir dan kebakaran wajib tanggal.</b> Keduanya membandingkan <i>kejadian</i> tertentu dengan <i>baseline</i>, jadi berikan <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Skenario lain punya jendela default yang tetap bisa diubah. <b>Untuk banjir, tiap jendela adalah rentang pencarian, bukan komposit</b> — alat memilih satu citra Sentinel-1 dari masing-masing (lintasan terbaru, orbit relatif sama). Buat jendela sempit (≈2–4 minggu) agar tiap jendela berisi satu lintasan namun tidak jauh dari kejadian; atur <code>--post</code> berakhir pada/setelah puncak banjir, karena diambil lintasan terbaru dalam jendela.</div>
 

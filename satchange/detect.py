@@ -24,6 +24,9 @@ Examples (installed CLI — after `pip install satchange`)
     satchange -s disturbance --lat 1.9983 --lon 99.4235 \
         --pre 2025-11-01:2025-11-11 --post 2025-11-26:2025-11-29
 
+    # Urban history: built-up by decade since 1980 (GHSL + Landsat), a metro area
+    satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
+
     # Use a named preset from sites.py instead of a coordinate
     satchange -s mining --site konawe
 
@@ -126,6 +129,9 @@ def build_params(scenario, args):
     cfg = SCENARIOS[scenario]
     needs = cfg.get("needs")
     p = {}
+
+    if needs == "none":  # scenario uses fixed internal windows (e.g. urban-history)
+        return p
 
     if needs in ("sirad", "epochs"):
         # Both take exactly 3 date windows (R/G/B). --epochs overrides the
@@ -299,6 +305,13 @@ def main():
 
     run_id, run_dir = new_run_dir(args.scenario, name)
     print(f"Output folder: output/{run_id}/\n")
+
+    if cfg.get("method") == "urban-history":
+        from . import urban_history
+        urban_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                          do_map=args.map, config_key=CONFIG_KEY)
+        list_outputs(run_dir)
+        return
 
     if args.backend == "mpc":
         from .mpc_backend import run_mpc
