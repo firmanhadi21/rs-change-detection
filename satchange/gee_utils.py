@@ -65,6 +65,27 @@ def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16):
     return None
 
 
+def start_drive_export(image, region, description, folder="satchange",
+                       scale=10, crs="EPSG:4326"):
+    """Start an async full-resolution GeoTIFF export to Google Drive.
+
+    Returns the ee.batch.Task. The file appears in Drive/<folder>/ once the task
+    finishes (monitor in the EE Code Editor 'Tasks' tab or Drive). Needs personal
+    Google auth — see initialize_ee(prefer_user=True).
+    """
+    import re
+    import ee
+    desc = re.sub(r"[^A-Za-z0-9._-]", "_", description)[:100]
+    task = ee.batch.Export.image.toDrive(
+        image=image, description=desc, folder=folder, fileNamePrefix=desc,
+        region=region, scale=scale, crs=crs, maxPixels=int(1e13),
+        fileFormat="GeoTIFF")
+    task.start()
+    print(f"  Drive export started: '{desc}' → Drive/{folder}/ (task {task.id}); "
+          "monitor in the EE Tasks tab.")
+    return task
+
+
 def wants_drive_export(argv=None):
     """True if the user passed --drive (opt-in full-res Drive export)."""
     argv = sys.argv if argv is None else argv
@@ -96,7 +117,7 @@ def mask_s2_clouds(img):
     return img.updateMask(keep)
 
 
-def initialize_ee(config_key=None):
+def initialize_ee(config_key=None, prefer_user=False):
     """Initialise Earth Engine with a service-account key if one is present.
 
     Looks for a key JSON in priority order:
@@ -104,9 +125,25 @@ def initialize_ee(config_key=None):
       2. $SATCHANGE_EE_KEY  (works from any directory — best for pip installs)
       3. ~/.config/earthengine/ee-geodetic.json  (global fallback)
     Falls back to user credentials (`earthengine authenticate`) if none exist.
+
+    `prefer_user=True` skips service-account keys and uses personal credentials —
+    required for Drive exports (a service account writes to its OWN Drive, which
+    you can't browse), so `--drive` initialises this way.
     """
     import json
     import ee
+
+    if prefer_user:
+        try:
+            ee.Initialize()
+            print("GEE: user credentials (personal Google account)")
+            return
+        except Exception:  # noqa: BLE001
+            raise SystemExit(
+                "Drive export needs your PERSONAL Google account, but Earth Engine "
+                "isn't authenticated for it.\nRun:  earthengine authenticate\n"
+                "then retry with --drive. (A service-account key exports to the "
+                "service account's own Drive, which you can't access.)")
 
     candidates = [
         p for p in (config_key,

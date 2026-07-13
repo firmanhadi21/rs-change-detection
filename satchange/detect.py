@@ -180,7 +180,8 @@ def apply_overrides(cfg, args):
     return cfg
 
 
-def _write_gee_product(prod, aoi, run_dir, common, do_map, basemap):
+def _write_gee_product(prod, aoi, run_dir, common, do_map, basemap,
+                       do_drive=False, drive_folder="satchange"):
     """Download one GEE product (png + tif), write its meta, optionally its map."""
     base = f"{common['scenario']}_{prod['key']}_{common['name']}"
     png = os.path.join(run_dir, base + ".png")
@@ -189,6 +190,10 @@ def _write_gee_product(prod, aoi, run_dir, common, do_map, basemap):
     download_png(prod["thumb"], aoi, png, vis=prod["thumb_vis"])
     print(f"Downloading {prod['key']} GeoTIFF...")
     tif_ok = download_geotiff(prod["tif"], aoi, tif, scale=prod.get("scale", 10))
+    if do_drive:  # async full-resolution export to the user's Google Drive
+        from .gee_utils import start_drive_export
+        start_drive_export(prod["tif"], aoi, base, folder=drive_folder,
+                           scale=prod.get("scale", 10))
 
     is_rgb = "bands" in prod["thumb_vis"]
     vis = dict(prod["thumb_vis"])
@@ -214,7 +219,10 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
     except ImportError:
         sys.exit("The GEE backend needs earthengine-api: "
                  "pip install 'satchange[gee]'  (or use --backend mpc)")
-    initialize_ee(getattr(args, "ee_key", None) or CONFIG_KEY)
+    if getattr(args, "drive", False):
+        initialize_ee(prefer_user=True)  # Drive export needs personal auth
+    else:
+        initialize_ee(getattr(args, "ee_key", None) or CONFIG_KEY)
     aoi = square_aoi(lon, lat, radius)  # square clip (not a circle)
 
     if cfg.get("method") == "optical":
@@ -230,7 +238,9 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
                                            cfg.get("interpretation", "")),
               "stats": result["stats"]}
     for prod in result["products"]:
-        _write_gee_product(prod, aoi, run_dir, common, args.map, args.basemap)
+        _write_gee_product(prod, aoi, run_dir, common, args.map, args.basemap,
+                           do_drive=getattr(args, "drive", False),
+                           drive_folder=getattr(args, "drive_folder", "satchange"))
 
     stats = {"run_id": run_id, "scenario": args.scenario,
              "location": {"lat": lat, "lon": lon},
@@ -268,6 +278,12 @@ def main():
                          "(Microsoft Planetary Computer, no account needed)")
     ap.add_argument("--ee-key", help="path to a GEE service-account key JSON "
                     "(overrides $SATCHANGE_EE_KEY and the default locations)")
+    ap.add_argument("--drive", action="store_true",
+                    help="also export each full-resolution GeoTIFF to Google "
+                         "Drive (async; needs PERSONAL google auth, not the "
+                         "service-account key). Good for very large AOIs.")
+    ap.add_argument("--drive-folder", default="satchange",
+                    help="Drive folder for --drive exports (default: satchange)")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
