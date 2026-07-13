@@ -360,17 +360,14 @@ def _despeckle(mask, min_size=8):
     return np.isin(labels, list(keep))
 
 
-def run_flood(bbox, params, water_thr=-16.0):
-    periods = [params["pre"], params["post"]]
-    orbit, covered, counts = _best_orbit(bbox, periods, "vv")
-    if not covered:
-        raise SystemExit(f"No Sentinel-1 orbit covers both windows (MPC): {counts}")
+def _s1_single_pair(bbox, pre_win, post_win, orbit):
+    """Pick ONE pre + ONE post Sentinel-1 STAC item, same relative orbit.
 
-    # Standard S1 rapid-flood method: ONE pre scene, ONE post scene, both from
-    # the SAME relative orbit (track) so geometry matches; each the most recent
-    # pass in its window.
-    pre_items = _s1_items(bbox, *params["pre"], orbit)
-    post_items = _s1_items(bbox, *params["post"], orbit)
+    Each is the most recent pass in its window; both are forced to the same
+    track when one is present in both windows. Returns (pre_item, post_item, rel).
+    """
+    pre_items = _s1_items(bbox, *pre_win, orbit)
+    post_items = _s1_items(bbox, *post_win, orbit)
 
     def _ro(it):
         return it.properties.get("sat:relative_orbit")
@@ -382,9 +379,19 @@ def run_flood(bbox, params, water_thr=-16.0):
         rel = _ro(max(common, key=lambda it: it.datetime))
         pre_items = [it for it in pre_items if _ro(it) == rel]
         post_items = [it for it in post_items if _ro(it) == rel]
-
     pre_item = max(pre_items, key=lambda it: it.datetime)
     post_item = max(post_items, key=lambda it: it.datetime)
+    return pre_item, post_item, rel
+
+
+def run_flood(bbox, params, water_thr=-16.0):
+    periods = [params["pre"], params["post"]]
+    orbit, covered, counts = _best_orbit(bbox, periods, "vv")
+    if not covered:
+        raise SystemExit(f"No Sentinel-1 orbit covers both windows (MPC): {counts}")
+
+    # Standard S1 rapid-flood method: ONE pre scene, ONE post scene, same track.
+    pre_item, post_item, rel = _s1_single_pair(bbox, params["pre"], params["post"], orbit)
     date_pre = pre_item.datetime.strftime("%Y-%m-%d")
     date_post = post_item.datetime.strftime("%Y-%m-%d")
     pre, gbox = _s1_item_db(pre_item, "vv", bbox)
@@ -443,6 +450,73 @@ def run_mining(bbox, params):
             "interpretation": "SIRAD biru = ekspansi baru; peta NDVI merah = hilangnya vegetasi."}
 
 
+def _slope_deg(bbox, geobox):
+    """Terrain slope in degrees over the geobox (Copernicus DEM GLO-30).
+
+    Returns a 2-D array matching the geobox, or None if the DEM is unavailable.
+    """
+    import odc.stac
+    cat = _catalog()
+    try:
+        items = list(cat.search(collections=["cop-dem-glo-30"], bbox=bbox).items())
+        if not items:
+            return None
+        ds = odc.stac.load(items, geobox=geobox, bands=["data"], resampling="bilinear")
+        da = ds["data"]
+        elev = (da.mean(dim="time") if "time" in da.dims else da).compute().values.astype("float32")
+    except Exception:  # noqa: BLE001 — DEM is optional; degrade gracefully
+        return None
+    lat = (bbox[1] + bbox[3]) / 2.0
+    res_y = abs(geobox.affine.e) * 111320.0
+    res_x = abs(geobox.affine.a) * 111320.0 * math.cos(math.radians(lat))
+    dzdy, dzdx = np.gradient(elev, res_y, res_x)
+    return np.degrees(np.arctan(np.hypot(dzdx, dzdy)))
+
+
+def run_disturbance(bbox, params, drop_thr=-3.0, severe_thr=-6.0, steep_deg=15.0):
+    """Disturbance / impact mapping via Sentinel-1 VH change (see GEE twin)."""
+    periods = [params["pre"], params["post"]]
+    orbit, covered, counts = _best_orbit(bbox, periods, "vh")
+    if not covered:
+        raise SystemExit(f"No Sentinel-1 orbit covers both windows (MPC): {counts}")
+
+    pre_item, post_item, rel = _s1_single_pair(bbox, params["pre"], params["post"], orbit)
+    date_pre = pre_item.datetime.strftime("%Y-%m-%d")
+    date_post = post_item.datetime.strftime("%Y-%m-%d")
+    pre, gbox = _s1_item_db(pre_item, "vh", bbox)
+    post, _g = _s1_item_db(post_item, "vh", bbox, geobox=gbox)
+
+    dvh = post - pre
+    valid = np.isfinite(dvh)
+    moderate = _despeckle((dvh < drop_thr) & valid, min_size=8)
+    severe = (dvh < severe_thr) & moderate
+
+    slope = _slope_deg(bbox, gbox)
+    steep = (slope > steep_deg) if (slope is not None and slope.shape == moderate.shape) else None
+
+    n = max(int(valid.sum()), 1)
+    def pct(m):
+        return 100.0 * int(m.sum()) / n
+
+    stats = {"method": "SAR VH-drop disturbance (MPC, single-scene, slope-attributed)",
+             "orbit": orbit, "relative_orbit": rel if rel is not None else "mixed",
+             "date_pre": date_pre, "date_post": date_post,
+             "vh_drop_db": drop_thr, "severe_db": severe_thr, "steep_deg": steep_deg,
+             "mean_dVH_db": float(np.nanmean(dvh)),
+             "pct_disturbed": pct(moderate),
+             "pct_severe": pct(severe),
+             "pct_landslide_like": pct(moderate & steep) if steep is not None else None,
+             "pct_sediment_flat": pct(moderate & (~steep)) if steep is not None else None,
+             "scenes_pre": counts[0], "scenes_post": counts[1]}
+    graded = np.where(severe, 2.0, np.where(moderate, 1.0, np.nan))
+    product = {"key": "disturbance", "data": graded, "geobox": gbox,
+               "vis": {"min": 1, "max": 2, "palette": ["#fdae61", "#d7191c"],
+                       "label": "disturbance"}, "is_rgb": False}
+    return {"products": [product], "stats": stats,
+            "interpretation": ("Oranye/merah = penurunan VH (permukaan hilang). "
+                               "Lereng curam ≈ longsor; dataran ≈ endapan/genangan.")}
+
+
 # --------------------------- output writing ---------------------------
 def _write_tif(path, data, geobox, is_rgb):
     transform = geobox.affine
@@ -489,6 +563,8 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
                              cfg["thr"], cfg["severe"], cfg.get("vmax", 0.6))
     elif method == "flood":
         result = run_flood(bbox, params, cfg.get("water_thr", -16.0))
+    elif method == "disturbance":
+        result = run_disturbance(bbox, params)
     elif method == "mining":
         result = run_mining(bbox, params)
     elif method == "trend":

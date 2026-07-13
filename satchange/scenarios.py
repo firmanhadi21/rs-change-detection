@@ -158,26 +158,18 @@ def run_urban_trend(aoi, p, bu_thr=0.0):
                                "epoch terakhir; cyan = lebih lama; putih = selalu terbangun.")}
 
 
-def run_flood(aoi, p, water_thr=-16.0):
-    """Flood: Sentinel-1 VV water extent, event vs baseline.
+def _s1_single_pair(aoi, pre_win, post_win, orbit, pol):
+    """Pick ONE pre and ONE post Sentinel-1 scene for change detection.
 
-    Standard S1 rapid-flood method: ONE pre scene and ONE post scene (not a
-    window mean). Both are taken from the SAME relative orbit (track) so the
-    viewing geometry is identical, and each is the most recent pass in its
-    window. Water = smooth surface = low VV backscatter; flood = water in the
-    post scene but not the pre scene.
+    Each is the most recent pass in its window, and both are forced to the SAME
+    relative orbit (track) so the viewing geometry is identical. Of the tracks
+    present in both windows, the one whose post pass is most recent is chosen;
+    if none overlap, the scenes may differ in track ("mixed").
+
+    Returns (pre_img, post_img, rel_orbit_or_None, date_pre, date_post).
     """
-    periods = [p["pre"], p["post"]]
-    orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
-    if not covered:
-        raise SystemExit(f"No Sentinel-1 orbit covers both windows: {counts}")
-
-    pre_coll = s1(aoi, *p["pre"], orbit, "VV")
-    post_coll = s1(aoi, *p["post"], orbit, "VV")
-
-    # Match the SAME relative orbit across pre & post so geometry is identical.
-    # Of the tracks present in both windows, pick the one whose post pass is the
-    # most recent (closest to the event). Falls back to "mixed" if none overlap.
+    pre_coll = s1(aoi, *pre_win, orbit, pol)
+    post_coll = s1(aoi, *post_win, orbit, pol)
     pre_ro = set(s1_relorbits(pre_coll).getInfo())
     post_ro = post_coll.aggregate_array("relativeOrbitNumber_start").getInfo()
     post_t = post_coll.aggregate_array("system:time_start").getInfo()
@@ -187,14 +179,30 @@ def run_flood(aoi, p, water_thr=-16.0):
         rel = max(common)[1]
         pre_coll = pre_coll.filter(ee.Filter.eq("relativeOrbitNumber_start", rel))
         post_coll = post_coll.filter(ee.Filter.eq("relativeOrbitNumber_start", rel))
-
-    # Single latest scene per window, smoothed to suppress SAR speckle.
     pre_img = s1_latest(pre_coll)
     post_img = s1_latest(post_coll)
     date_pre = pre_img.date().format("YYYY-MM-dd").getInfo()
     date_post = post_img.date().format("YYYY-MM-dd").getInfo()
+    return pre_img, post_img, rel, date_pre, date_post
 
-    def prep(img):
+
+def run_flood(aoi, p, water_thr=-16.0):
+    """Flood: Sentinel-1 VV water extent, event vs baseline.
+
+    Standard S1 rapid-flood method: ONE pre scene and ONE post scene (not a
+    window mean), same relative orbit, each the most recent pass in its window.
+    Water = smooth surface = low VV backscatter; flood = water in the post scene
+    but not the pre scene.
+    """
+    periods = [p["pre"], p["post"]]
+    orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
+    if not covered:
+        raise SystemExit(f"No Sentinel-1 orbit covers both windows: {counts}")
+
+    pre_img, post_img, rel, date_pre, date_post = _s1_single_pair(
+        aoi, p["pre"], p["post"], orbit, "VV")
+
+    def prep(img):  # smooth to suppress SAR speckle before thresholding
         return img.clip(aoi).focal_median(50, "circle", "meters")
 
     pre, post = prep(pre_img), prep(post_img)
@@ -223,6 +231,65 @@ def run_flood(aoi, p, water_thr=-16.0):
                "tif": flood.selfMask().toByte(), "scale": 10}
     return {"products": [product], "stats": stats,
             "interpretation": "Biru = area tergenang saat kejadian (air permanen & laut di-mask)."}
+
+
+def run_disturbance(aoi, p, drop_thr=-3.0, severe_thr=-6.0, steep_deg=15.0):
+    """Disturbance / impact mapping via Sentinel-1 VH change (cloud-proof).
+
+    For terrain where open-water detection fails (forested hills, flash floods,
+    landslides), the impact signal is a LOSS of vegetation/structure — which
+    drops VH backscatter. Uses ONE pre and ONE post scene (same relative orbit)
+    and flags where VH fell by more than `drop_thr` dB (severe below `severe_thr`).
+    SRTM slope attributes steep drops as landslide-like vs flat drops as
+    sediment/inundation-like. Works when the `flood` scenario shows nothing.
+    """
+    periods = [p["pre"], p["post"]]
+    orbit, covered, counts = best_orbit(aoi, periods, pol="VH")
+    if not covered:
+        raise SystemExit(f"No Sentinel-1 orbit covers both windows: {counts}")
+
+    pre_img, post_img, rel, date_pre, date_post = _s1_single_pair(
+        aoi, p["pre"], p["post"], orbit, "VH")
+
+    def prep(img):  # smooth to suppress SAR speckle before differencing
+        return img.clip(aoi).focal_median(50, "circle", "meters")
+
+    pre, post = prep(pre_img), prep(post_img)
+    dvh = post.subtract(pre).rename("dVH")
+
+    moderate = dvh.lt(drop_thr)
+    severe = dvh.lt(severe_thr)
+    # Drop isolated speckle: keep only clusters of >= 8 connected pixels.
+    keep = moderate.selfMask().connectedPixelCount(50, True).unmask(0).gte(8)
+    moderate = moderate.multiply(keep)
+    severe = severe.multiply(keep)
+
+    # Graded product: 1 = moderate VH drop, 2 = severe VH drop.
+    graded = moderate.add(severe).selfMask().rename("disturbance")
+
+    # Slope-based attribution of the disturbed pixels.
+    slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
+    steep = slope.gt(steep_deg)
+    landslide = moderate.And(steep)      # steep + VH drop -> likely landslide/scar
+    flat = moderate.And(steep.Not())     # flat + VH drop  -> likely sediment/inundation
+
+    stats = {"method": "SAR VH-drop disturbance (single-scene, slope-attributed)",
+             "orbit": orbit, "relative_orbit": rel if rel is not None else "mixed",
+             "date_pre": date_pre, "date_post": date_post,
+             "vh_drop_db": drop_thr, "severe_db": severe_thr, "steep_deg": steep_deg,
+             "mean_dVH_db": _mean(dvh, aoi),
+             "pct_disturbed": _pct(moderate, aoi),
+             "pct_severe": _pct(severe, aoi),
+             "pct_landslide_like": _pct(landslide, aoi),
+             "pct_sediment_flat": _pct(flat, aoi),
+             "scenes_pre": counts[0], "scenes_post": counts[1]}
+    vis = {"palette": ["fdae61", "d7191c"], "min": 1, "max": 2}
+    product = {"key": "disturbance", "thumb": graded, "thumb_vis": vis,
+               "tif": graded.toByte(), "scale": 10}
+    return {"products": [product], "stats": stats,
+            "interpretation": ("Oranye/merah = penurunan backscatter VH (vegetasi/"
+                               "permukaan hilang). Di lereng curam ≈ longsor; di "
+                               "dataran ≈ endapan/genangan.")}
 
 
 # ----------------------------- registry -----------------------------
@@ -280,6 +347,14 @@ SCENARIOS = {
         "method": "flood", "water_thr": -16.0,
         "radius": 15.0, "needs": "pre_post_required",
         "interpretation": "Biru = area tergenang saat kejadian banjir.",
+    },
+    "disturbance": {
+        "label": "Disturbance — flood/landslide impact via SAR VH change (Sentinel-1)",
+        "run": run_disturbance,
+        "method": "disturbance",
+        "radius": 15.0, "needs": "pre_post_required",
+        "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
+                           "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
     "burn": {
         "label": "Burn severity — dNBR (Sentinel-2)",

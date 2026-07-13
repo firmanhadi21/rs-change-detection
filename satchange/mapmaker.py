@@ -160,6 +160,16 @@ def _stats_lines(meta):
             lines.append(f"Citra pra/pasca: {s['date_pre']} → {s['date_post']}")
         else:
             lines.append(f"Scene pre/post: {s.get('scenes_pre','-')}/{s.get('scenes_post','-')}")
+    elif "pct_disturbed" in s:  # disturbance (SAR VH change)
+        lines += [f"Metode: {s.get('method','SAR VH')}",
+                  f"Terganggu: {s['pct_disturbed']:.1f}%",
+                  f"  (berat): {s.get('pct_severe', 0):.1f}%"]
+        if s.get("pct_landslide_like") is not None:
+            lines += [f"Mirip longsor (lereng): {s['pct_landslide_like']:.1f}%",
+                      f"Mirip endapan (datar): {s['pct_sediment_flat']:.1f}%"]
+        lines.append(f"Orbit: {s.get('orbit','-')} (track {s.get('relative_orbit','-')})")
+        if s.get("date_pre"):
+            lines.append(f"Citra pra/pasca: {s['date_pre']} → {s['date_post']}")
     elif "sirad" in s and "ndvi" in s:  # mining (2 products)
         lines += [f"SIRAD orbit: {s['sirad'].get('orbit','-')}",
                   f"Citra/periode: {s['sirad'].get('images_per_period','-')}"]

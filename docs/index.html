@@ -178,6 +178,9 @@
     <tr><td><b>flood</b></td>
       <td><span class="en">SAR water: smooth water gives low VV backscatter. Uses <b>one pre scene and one post scene</b> from the same relative orbit (the latest pass in each window) — the standard S1 method, not a window average. Flood = water in the post scene but not the pre scene. Permanent water &amp; the ocean are masked (ESA WorldCover). The two acquisition dates are reported in the stats and on the map.</span><span class="id">Air SAR: air halus memberi backscatter VV rendah. Memakai <b>satu citra pra dan satu citra pasca</b> dari orbit relatif yang sama (lintasan terbaru di tiap jendela) — metode S1 baku, bukan rata-rata jendela. Banjir = air pada citra pasca tetapi tidak pada citra pra. Air permanen &amp; laut di-mask (ESA WorldCover). Kedua tanggal akuisisi ditampilkan di statistik dan peta.</span></td>
       <td>Sentinel-1</td><td><a href="https://un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping">UN-SPIDER</a></td></tr>
+    <tr><td><b>disturbance</b></td>
+      <td><span class="en"><b>Impact mapping where water detection fails</b> — forested hills, flash floods, landslides. Vegetation/structure removed → VH backscatter <b>drops</b>. Uses one pre + one post scene (same relative orbit); flags where VH fell &gt;3&nbsp;dB (severe &gt;6&nbsp;dB). SRTM slope attributes steep drops as <b>landslide-like</b> vs flat drops as <b>sediment/inundation-like</b>. Use this when <code>flood</code> shows nothing over terrain.</span><span class="id"><b>Pemetaan dampak saat deteksi air gagal</b> — perbukitan berhutan, banjir bandang, longsor. Vegetasi/struktur hilang → backscatter VH <b>turun</b>. Memakai satu citra pra + satu pasca (orbit relatif sama); menandai VH turun &gt;3&nbsp;dB (berat &gt;6&nbsp;dB). Lereng SRTM mengklasifikasi penurunan di lereng curam sebagai <b>mirip longsor</b> vs di dataran sebagai <b>mirip endapan/genangan</b>. Pakai ini saat <code>flood</code> tak menampilkan apa pun di medan bergunung.</span></td>
+      <td>Sentinel-1</td><td><span class="en">SAR VH change + slope</span><span class="id">Perubahan VH SAR + lereng</span></td></tr>
     <tr><td><b>mining</b></td>
       <td><span class="en">SIRAD: mean VH backscatter of 3 periods → an R/G/B image (new activity = blue). Plus ΔNDVI loss.</span><span class="id">SIRAD: rerata backscatter VH 3 periode → citra R/G/B (aktivitas baru = biru). Plus kehilangan ΔNDVI.</span></td>
       <td>Sentinel-1 + S2</td><td><span class="en">Multi-temporal SAR</span><span class="id">SAR multi-temporal</span></td></tr>
@@ -269,6 +272,10 @@ satchange -s water --lat -0.5 --lon 117.1
 # Flood — needs an explicit baseline and event window
 satchange -s flood --lat 27.2 --lon 68.3 \
     --pre 2022-07-01:2022-07-25 --post 2022-08-20:2022-09-10
+
+# Disturbance — flood/landslide impact in terrain, when flood shows nothing
+satchange -s disturbance --lat 1.9983 --lon 99.4235 --radius 15 \
+    --pre 2025-11-01:2025-11-11 --post 2025-11-26:2025-11-29 --map
 
 # Burn severity — needs pre-fire and post-fire windows
 satchange -s burn --lat -7.5 --lon 110.4 \

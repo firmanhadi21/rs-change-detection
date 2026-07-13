@@ -46,7 +46,7 @@ def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16):
     while mult <= max_scale_mult:
         try:
             url = image.getDownloadURL({
-                "region": region, "scale": s,
+                "region": region, "scale": s, "crs": "EPSG:4326",
                 "format": "GEO_TIFF", "filePerBand": False,
             })
             _fetch(url, out_path)  # the pixel fetch can also fail for large AOIs

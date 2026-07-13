@@ -20,6 +20,10 @@ Examples (installed CLI — after `pip install satchange`)
     satchange -s flood --lat 24.9 --lon 67.9 \
         --pre 2022-06-01:2022-06-30 --post 2022-08-15:2022-09-05
 
+    # Disturbance (flood/landslide impact in terrain, when flood shows nothing)
+    satchange -s disturbance --lat 1.9983 --lon 99.4235 \
+        --pre 2025-11-01:2025-11-11 --post 2025-11-26:2025-11-29
+
     # Use a named preset from sites.py instead of a coordinate
     satchange -s mining --site konawe
 
