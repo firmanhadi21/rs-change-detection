@@ -62,6 +62,29 @@ def _ghsl(year):
     return ee.Image(f"JRC/GHSL/P2023A/GHS_BUILT_S/{year}").select("built_surface")
 
 
+def find_hotspot(aoi, box_km=6.0):
+    """Locate the ~box_km grid cell with the MOST new built-up land (GHSL 1990->2025).
+
+    This is the free, wide-area step of the hybrid workflow: it auto-picks where to
+    point a small, quota-cheap PlanetScope close-up. Returns
+    {lat, lon, bbox=[w,s,e,n], new_builtup_km2, box_km}.
+    """
+    new_built = _ghsl(2025).subtract(_ghsl(1990)).max(0).unmask(0).rename("sum")
+    grid = aoi.coveringGrid(ee.Projection("EPSG:4326"), box_km * 1000)
+    scored = (new_built.reduceRegions(grid, ee.Reducer.sum(), 100)
+              .filter(ee.Filter.notNull(["sum"])).sort("sum", False))
+    top = ee.Feature(scored.first())
+    c = top.geometry().centroid(1).coordinates().getInfo()
+    b = top.geometry().bounds().coordinates().getInfo()[0]
+    xs = [p[0] for p in b]
+    ys = [p[1] for p in b]
+    km2 = ee.Number(top.get("sum")).divide(1e6).getInfo()
+    return {"lat": round(c[1], 5), "lon": round(c[0], 5),
+            "bbox": [round(min(xs), 5), round(min(ys), 5),
+                     round(max(xs), 5), round(max(ys), 5)],
+            "new_builtup_km2": round(km2, 2), "box_km": box_km}
+
+
 def _sum_km2(built_surface_m2, aoi):
     v = built_surface_m2.reduceRegion(
         reducer=ee.Reducer.sum(), geometry=aoi, scale=100,
@@ -84,7 +107,7 @@ def _mean(img, aoi, scale):
 
 
 def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
-             do_drive=False, drive_folder="satchange"):
+             do_drive=False, drive_folder="satchange", planet=None):
     from .gee_utils import (initialize_ee, square_aoi, download_png,
                             download_geotiff, start_drive_export)
     initialize_ee(prefer_user=True) if do_drive else initialize_ee(config_key)
@@ -169,6 +192,8 @@ def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
                            folder=drive_folder, scale=100)
 
     _render_extras_gee(run_dir, stats, epochs_tif)
+    if planet:
+        _run_planet(aoi, stats, run_dir, name, planet)
     _write_stats(stats, run_dir, run_id, "gee")
 
 
@@ -377,6 +402,22 @@ def _render_all(stats, run_dir, epochs_tif, years, first_built_tif):
     areas = {y: stats["ghsl"][str(y)]["builtup_km2"] for y in years}
     _panel([bands[i] for i in range(len(years))], years, extent,
            f"Built-up extent by decade (GHSL) — {stats['name']}", run_dir, areas)
+
+
+def _run_planet(aoi, stats, run_dir, name, planet):
+    """Hybrid: locate the most-changed hotspot (GHSL) and run a PlanetScope close-up."""
+    hs = find_hotspot(aoi, planet.get("hotspot_km", 6.0))
+    print(f"\nHotspot (most new built-up, GHSL 1990->2025): {hs['lat']}, {hs['lon']}"
+          f"  ({hs['new_builtup_km2']} km² in a {hs['box_km']:.0f} km cell)")
+    stats["hotspot"] = hs
+    try:
+        from . import planet_backend
+        stats["planet"] = planet_backend.run_closeup(
+            hs["bbox"], hs, planet.get("pre", "2018-07"), planet.get("post", "2025-07"),
+            run_dir, name, key=planet.get("key"), confirm=planet.get("confirm", False))
+    except Exception as e:  # noqa: BLE001 — Planet is optional
+        print(f"  (Planet close-up skipped: {e})")
+        stats["planet"] = {"error": str(e)}
 
 
 def _render_extras_gee(run_dir, stats, epochs_tif):
@@ -616,12 +657,18 @@ def _write_stats(stats, run_dir, run_id, backend):
 
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, do_map=False,
-        config_key=None, do_drive=False, drive_folder="satchange"):
-    """Entry point called by detect.py for the urban-history scenario."""
+        config_key=None, do_drive=False, drive_folder="satchange", planet=None):
+    """Entry point called by detect.py for the urban-history scenario.
+
+    `planet` (dict) enables the hybrid PlanetScope close-up on the GEE backend:
+    {key, pre, post, hotspot_km, confirm}.
+    """
     if backend == "mpc":
         if do_drive:
             print("  (--drive ignored: MPC writes GeoTIFFs locally, no EE export)")
+        if planet:
+            print("  (--planet ignored: the hotspot step needs GHSL via --backend gee)")
         _run_mpc(lat, lon, radius, name, run_dir, run_id, do_map)
     else:
         _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
-                 do_drive, drive_folder)
+                 do_drive, drive_folder, planet)

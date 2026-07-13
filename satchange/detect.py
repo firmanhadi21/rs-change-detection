@@ -284,6 +284,17 @@ def main():
                          "service-account key). Good for very large AOIs.")
     ap.add_argument("--drive-folder", default="satchange",
                     help="Drive folder for --drive exports (default: satchange)")
+    ap.add_argument("--planet", action="store_true",
+                    help="urban-history hybrid: auto-locate the most-changed hotspot "
+                         "and add a PlanetScope ~3 m close-up (needs $PLANET_API_KEY). "
+                         "Dry-run (search + quota) unless --planet-confirm.")
+    ap.add_argument("--planet-confirm", action="store_true",
+                    help="actually order & download the PlanetScope scenes (spends quota)")
+    ap.add_argument("--planet-key", help="PlanetScope API key (else $PLANET_API_KEY)")
+    ap.add_argument("--planet-pre", default="2018-07", help="Planet pre month YYYY-MM")
+    ap.add_argument("--planet-post", default="2025-07", help="Planet post month YYYY-MM")
+    ap.add_argument("--hotspot-km", type=float, default=6.0,
+                    help="hotspot cell size in km (fits one PlanetScope scene; default 6)")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
@@ -326,9 +337,15 @@ def main():
 
     if cfg.get("method") == "urban-history":
         from . import urban_history
+        planet_opts = None
+        if args.planet:
+            planet_opts = {"key": args.planet_key, "pre": args.planet_pre,
+                           "post": args.planet_post, "hotspot_km": args.hotspot_km,
+                           "confirm": args.planet_confirm}
         urban_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                           do_map=args.map, config_key=(args.ee_key or CONFIG_KEY),
-                          do_drive=args.drive, drive_folder=args.drive_folder)
+                          do_drive=args.drive, drive_folder=args.drive_folder,
+                          planet=planet_opts)
         list_outputs(run_dir)
         return
 
