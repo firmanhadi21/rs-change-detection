@@ -97,12 +97,20 @@ def mask_s2_clouds(img):
 
 
 def initialize_ee(config_key=None):
-    """Initialise Earth Engine with a service-account key if one is present."""
+    """Initialise Earth Engine with a service-account key if one is present.
+
+    Looks for a key JSON in priority order:
+      1. `config_key` (e.g. the CLI --ee-key, or <cwd>/scripts/config/…)
+      2. $SATCHANGE_EE_KEY  (works from any directory — best for pip installs)
+      3. ~/.config/earthengine/ee-geodetic.json  (global fallback)
+    Falls back to user credentials (`earthengine authenticate`) if none exist.
+    """
     import json
     import ee
 
     candidates = [
         p for p in (config_key,
+                    os.environ.get("SATCHANGE_EE_KEY"),
                     os.path.expanduser("~/.config/earthengine/ee-geodetic.json"))
         if p
     ]
@@ -111,7 +119,16 @@ def initialize_ee(config_key=None):
             with open(key_path) as f:
                 email = json.load(f).get("client_email")
             ee.Initialize(ee.ServiceAccountCredentials(email, key_file=key_path))
-            print(f"GEE: service account {email}")
+            print(f"GEE: service account {email}  [{key_path}]")
             return
-    ee.Initialize()  # falls back to `earthengine authenticate`
-    print("GEE: user credentials (earthengine authenticate)")
+    try:
+        ee.Initialize()  # user credentials from `earthengine authenticate`
+        print("GEE: user credentials (earthengine authenticate)")
+    except Exception:  # noqa: BLE001 — give an actionable message, not a stack trace
+        raise SystemExit(
+            "Earth Engine is not authenticated and no service-account key was found.\n"
+            "Point satchange at your key JSON in one of these ways:\n"
+            "  satchange ... --ee-key /path/to/ee-geodetic.json\n"
+            "  export SATCHANGE_EE_KEY=/path/to/ee-geodetic.json   (any directory)\n"
+            "  cp /path/to/ee-geodetic.json ~/.config/earthengine/ee-geodetic.json\n"
+            "or run `earthengine authenticate` for personal user credentials.")

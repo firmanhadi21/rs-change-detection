@@ -214,7 +214,7 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
     except ImportError:
         sys.exit("The GEE backend needs earthengine-api: "
                  "pip install 'satchange[gee]'  (or use --backend mpc)")
-    initialize_ee(CONFIG_KEY)
+    initialize_ee(getattr(args, "ee_key", None) or CONFIG_KEY)
     aoi = square_aoi(lon, lat, radius)  # square clip (not a circle)
 
     if cfg.get("method") == "optical":
@@ -266,6 +266,8 @@ def main():
     ap.add_argument("--backend", choices=["gee", "mpc"], default="gee",
                     help="data backend: gee (Earth Engine) or mpc "
                          "(Microsoft Planetary Computer, no account needed)")
+    ap.add_argument("--ee-key", help="path to a GEE service-account key JSON "
+                    "(overrides $SATCHANGE_EE_KEY and the default locations)")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
@@ -309,7 +311,7 @@ def main():
     if cfg.get("method") == "urban-history":
         from . import urban_history
         urban_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                          do_map=args.map, config_key=CONFIG_KEY)
+                          do_map=args.map, config_key=(args.ee_key or CONFIG_KEY))
         list_outputs(run_dir)
         return
 
