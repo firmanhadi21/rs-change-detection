@@ -602,9 +602,10 @@ def _render_infographic(run_dir, stats):
              "Generated with satchange.",
              fontsize=8.5, color=GRAY)
 
-    out = os.path.join(run_dir, "infographic.png")
-    fig.savefig(out, facecolor="white"); plt.close(fig)
-    print(f"Infographic: infographic.png")
+    fig.savefig(os.path.join(run_dir, "infographic.png"), facecolor="white")
+    fig.savefig(os.path.join(run_dir, "infographic.pdf"), facecolor="white")
+    plt.close(fig)
+    print("Infographic: infographic.png, infographic.pdf (one page)")
 
 
 def _write_stats(stats, run_dir, run_id, backend):
