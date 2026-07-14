@@ -245,14 +245,21 @@ def _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m
 # ================= optical (Sentinel-2 MNDWI, sub-pixel shoreline) =================
 # Our own MIT implementation of the published MNDWI + Otsu + marching-squares method
 # (Vos et al. 2019) — NOT CoastSat code (which is GPL). Cloud-limited but sub-pixel.
-def _mndwi_tif(aoi, win, run_dir, tag, scale):
-    from .indices import s2_median
+def _mndwi_tif(aoi, win, run_dir, tag, scale, sensor):
+    """MNDWI (Green,SWIR1) composite downloaded as a GeoTIFF. sensor: 's2' or 'landsat'."""
     from .gee_utils import download_geotiff
-    img, n = s2_median(aoi, *win)
+    if sensor == "landsat":
+        from .indices import l_sr_median          # L5 TM + L8/9 OLI, archive to 1984
+        img, n = l_sr_median(aoi, *win)
+        bands = ["GREEN", "SWIR1"]
+    else:
+        from .indices import s2_median
+        img, n = s2_median(aoi, *win)
+        bands = ["B3", "B11"]
     if n == 0:
-        raise SystemExit(f"No Sentinel-2 scenes in {win[0]}..{win[1]} for this AOI "
-                         "(optical). Widen the window or use --coast-method sar.")
-    mndwi = img.normalizedDifference(["B3", "B11"]).rename("MNDWI").clip(aoi)  # Green,SWIR1
+        raise SystemExit(f"No {sensor} scenes in {win[0]}..{win[1]} for this AOI. "
+                         "Widen the window or change --coast-method.")
+    mndwi = img.normalizedDifference(bands).rename("MNDWI").clip(aoi)
     path = os.path.join(run_dir, f"mndwi_{tag}.tif")
     download_geotiff(mndwi, aoi, path, scale=scale)
     return path, n
@@ -345,7 +352,7 @@ def _write_mask_tif(path, mask, tr, crs):
         d.write(arr)
 
 
-def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post):
+def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post, sensor, label):
     try:
         import skimage  # noqa: F401
     except ImportError:
@@ -354,7 +361,7 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post):
     band_px = max(int((smooth_m or 30) / scale), 2)
     midlat = (bbox[1] + bbox[3]) / 2.0
 
-    post_tif, n_post = _mndwi_tif(aoi, post, run_dir, "post" if pre else "now", scale)
+    post_tif, n_post = _mndwi_tif(aoi, post, run_dir, "post" if pre else "now", scale, sensor)
     arr, valid, tr, crs = _read_band(post_tif)
     sea_post, thr = _otsu_sea(arr, valid, smooth_px)
     _write_mask_tif(os.path.join(run_dir, "sea_mask.tif"), sea_post, tr, crs)
@@ -366,7 +373,7 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post):
     px = _px_km2(tr, midlat)
 
     if pre:
-        pre_tif, n_pre = _mndwi_tif(aoi, pre, run_dir, "pre", scale)
+        pre_tif, n_pre = _mndwi_tif(aoi, pre, run_dir, "pre", scale, sensor)
         parr, pvalid, ptr, _ = _read_band(pre_tif)
         if parr.shape != arr.shape:
             raise SystemExit("optical pre/post grids differ; try equal --pre/--post windows.")
@@ -378,9 +385,9 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post):
         ero_ha, acc_ha = int(ero.sum()) * px * 100.0, int(acc.sum()) * px * 100.0
         _render_map(run_dir, name, bbox, lines,
                     [("erosion", "erosion.tif", "#d62728"), ("accretion", "accretion.tif", "#2ca02c")],
-                    f"Shoreline change (S2 MNDWI ~sub-pixel) — {name}  ·  "
+                    f"Shoreline change ({label} MNDWI ~sub-pixel) — {name}  ·  "
                     f"erosion {ero_ha:.0f} ha, accretion {acc_ha:.0f} ha")
-        return {"mode": "change", "method": "optical", "pre": list(pre), "post": list(post),
+        return {"mode": "change", "method": sensor, "pre": list(pre), "post": list(post),
                 "coastline_length_km_post": length_km, "erosion_ha": round(ero_ha, 1),
                 "accretion_ha": round(acc_ha, 1), "net_land_change_ha": round(acc_ha - ero_ha, 1),
                 "scenes_pre": n_pre, "scenes_post": n_post}
@@ -388,8 +395,8 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post):
     sea_km2 = int(sea_post.sum()) * px
     aoi_km2 = (bbox[2] - bbox[0]) * 111.32 * math.cos(math.radians(midlat)) * (bbox[3] - bbox[1]) * 110.57
     _render_map(run_dir, name, bbox, lines, [],
-                f"Coastline (S2 MNDWI ~sub-pixel) — {name}  ·  {length_km:.1f} km")
-    return {"mode": "single", "method": "optical", "window": list(post),
+                f"Coastline ({label} MNDWI ~sub-pixel) — {name}  ·  {length_km:.1f} km")
+    return {"mode": "single", "method": sensor, "window": list(post),
             "coastline_length_km": length_km, "sea_area_km2": round(sea_km2, 2),
             "land_area_km2": round(max(aoi_km2 - sea_km2, 0), 2), "scenes": n_post}
 
@@ -413,9 +420,12 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     scale = 10
     post = post or DEFAULT_WIN
 
-    if method == "optical":
-        print(f"Optical (Sentinel-2 MNDWI sub-pixel); smoothing {smooth_m} m")
-        stats = _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post)
+    if method in ("optical", "landsat"):
+        sensor = "landsat" if method == "landsat" else "s2"
+        osc = 30 if method == "landsat" else 10          # Landsat 30 m, S2 10 m
+        label = "Landsat" if method == "landsat" else "Sentinel-2"
+        print(f"Optical ({label} MNDWI sub-pixel, {osc} m); smoothing {smooth_m} m")
+        stats = _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label)
     else:
         from .indices import best_orbit
         periods = [pre, post] if pre else [post]

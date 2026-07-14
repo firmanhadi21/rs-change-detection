@@ -344,9 +344,10 @@ def main():
     ap.add_argument("--coast-smooth", type=int, default=150,
                     help="coastline: open-sea smoothing in metres — strips tambak/pond "
                          "fingers for a clean mainland shoreline (default 150; 0 = raw edge)")
-    ap.add_argument("--coast-method", choices=["sar", "optical"], default="sar",
-                    help="coastline sensor: sar (Sentinel-1, cloud-proof) or optical "
-                         "(Sentinel-2 MNDWI sub-pixel, sharper but cloud-limited)")
+    ap.add_argument("--coast-method", choices=["sar", "optical", "landsat"], default="sar",
+                    help="coastline sensor: sar (Sentinel-1, cloud-proof), optical "
+                         "(Sentinel-2 MNDWI sub-pixel, 10 m, 2015+), or landsat "
+                         "(MNDWI sub-pixel, 30 m, archive to 1984 — long-period change)")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
