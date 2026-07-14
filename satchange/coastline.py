@@ -40,6 +40,16 @@ def _vv_water(aoi, win, orbit, thr):
     return water.focal_max(60, "circle", "meters").focal_min(60, "circle", "meters")
 
 
+def _open_sea(mask, m):
+    """Morphological opening (erode→dilate) of the WATER mask: removes water features
+    narrower than ~2*m — tambak/pond fingers and thin channels — so they disconnect
+    from the sea and get dropped, leaving the open-sea mainland shoreline. m in metres;
+    0 = no smoothing. Applied BEFORE sea isolation so we still vectorise only once."""
+    if not m:
+        return mask
+    return mask.focal_min(m, "circle", "meters").focal_max(m, "circle", "meters")
+
+
 def _sea(water, aoi, scale):
     """Keep only water connected to the AOI edge (the sea). Returns (sea_fc, sea_img)."""
     polys = water.selfMask().reduceToVectors(
@@ -184,9 +194,9 @@ def _download(img, aoi, run_dir, key, vis, scale):
     download_geotiff(img, aoi, os.path.join(run_dir, key + ".tif"), scale=scale)
 
 
-def _run_single(aoi, bbox, orbit, win, run_dir, name, scale, thr):
-    from .gee_utils import download_png, download_geotiff
-    sea_fc, sea_img = _sea(_vv_water(aoi, win, orbit, thr), aoi, scale)
+def _run_single(aoi, bbox, orbit, win, run_dir, name, scale, thr, smooth_m):
+    water = _open_sea(_vv_water(aoi, win, orbit, thr), smooth_m)
+    sea_fc, sea_img = _sea(water, aoi, scale)
     _download(sea_img.selfMask(), aoi, run_dir, "sea_mask",
               {"min": 0, "max": 1, "palette": ["1f6fb2"]}, scale)
     length_km, lines = _extract_coastline(sea_fc, aoi, bbox, run_dir, "")
@@ -208,9 +218,9 @@ def _declutter(mask):
     return mask.And(keep)
 
 
-def _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr):
-    _, sea_pre = _sea(_vv_water(aoi, pre, orbit, thr), aoi, scale)
-    sea_post_fc, sea_post = _sea(_vv_water(aoi, post, orbit, thr), aoi, scale)
+def _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m):
+    _, sea_pre = _sea(_open_sea(_vv_water(aoi, pre, orbit, thr), smooth_m), aoi, scale)
+    sea_post_fc, sea_post = _sea(_open_sea(_vv_water(aoi, post, orbit, thr), smooth_m), aoi, scale)
     ero = _declutter(sea_post.And(sea_pre.Not()))
     acc = _declutter(sea_pre.And(sea_post.Not()))
     _download(ero.selfMask().clip(aoi).rename("erosion"), aoi, run_dir, "erosion",
@@ -233,8 +243,12 @@ def _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr):
 
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
-        pre=None, post=None, thr=VV_WATER_THR):
-    """Entry point called by detect.py for the coastline scenario (GEE only)."""
+        pre=None, post=None, thr=VV_WATER_THR, smooth_m=150):
+    """Entry point called by detect.py for the coastline scenario (GEE only).
+
+    `smooth_m` (metres) morphologically opens the sea to strip tambak/pond fingers
+    and narrow inlets, yielding the open-sea mainland shoreline (0 = raw water edge).
+    """
     if backend == "mpc":
         raise SystemExit("coastline currently needs --backend gee (SAR + vector via GEE).")
     from .gee_utils import initialize_ee, square_aoi
@@ -253,14 +267,15 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         raise SystemExit(f"No Sentinel-1 orbit covers all windows: {counts}")
     print(f"Sentinel-1 VV, orbit {orbit}, scenes {counts}")
 
+    print(f"Sea smoothing (open-sea): {smooth_m} m" if smooth_m else "Sea smoothing: off (raw water edge)")
     if pre:
         print(f"Shoreline CHANGE: {pre[0]}..{pre[1]}  →  {post[0]}..{post[1]}")
-        stats = _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr)
+        stats = _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m)
     else:
         print(f"Coastline (single date): {post[0]}..{post[1]}")
-        stats = _run_single(aoi, bbox, orbit, post, run_dir, name, scale, thr)
+        stats = _run_single(aoi, bbox, orbit, post, run_dir, name, scale, thr, smooth_m)
 
-    stats.update({"run_id": run_id, "scenario": "coastline",
+    stats.update({"run_id": run_id, "scenario": "coastline", "smooth_m": smooth_m,
                   "location": {"lat": lat, "lon": lon}, "radius_km": radius})
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
