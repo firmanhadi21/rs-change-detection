@@ -37,6 +37,10 @@ Examples (installed CLI — after `pip install satchange`)
     satchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
         --pre 2016-01-01:2016-12-31 --post 2025-01-01:2025-12-31
 
+    # Periodical time-series: sub-pixel shoreline per epoch (Landsat, back to 1984)
+    satchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
+        --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31
+
     # Use a named preset from sites.py instead of a coordinate
     satchange -s mining --site konawe
 
