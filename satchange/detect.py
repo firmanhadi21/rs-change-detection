@@ -30,6 +30,13 @@ Examples (installed CLI — after `pip install satchange`)
     # Urban history: built-up by decade since 1980 (GHSL + Landsat), a metro area
     satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
 
+    # Coastline (SAR): sea boundary for one date (raster + coastline.geojson)
+    satchange -s coastline --lat -6.95 --lon 110.45 --radius 8
+
+    # Shoreline change: erosion (land->sea) & accretion (sea->land) between 2 dates
+    satchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
+        --pre 2016-01-01:2016-12-31 --post 2025-01-01:2025-12-31
+
     # Use a named preset from sites.py instead of a coordinate
     satchange -s mining --site konawe
 
