@@ -34,7 +34,7 @@ gee = ["earthengine-api"]
 # Planetary Computer backend (no account needed)
 mpc = ["numpy", "rasterio", "pystac-client", "planetary-computer", "odc-stac", "rioxarray"]
 # Value-added map rendering
-maps = ["numpy", "rasterio", "matplotlib", "contextily"]
+maps = ["numpy", "rasterio", "matplotlib", "contextily", "scipy", "scikit-image"]
 # Everything
 all = [
   "earthengine-api", "numpy", "rasterio", "pystac-client",

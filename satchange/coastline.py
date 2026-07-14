@@ -242,15 +242,168 @@ def _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m
     return stats
 
 
+# ================= optical (Sentinel-2 MNDWI, sub-pixel shoreline) =================
+# Our own MIT implementation of the published MNDWI + Otsu + marching-squares method
+# (Vos et al. 2019) — NOT CoastSat code (which is GPL). Cloud-limited but sub-pixel.
+def _mndwi_tif(aoi, win, run_dir, tag, scale):
+    from .indices import s2_median
+    from .gee_utils import download_geotiff
+    img, n = s2_median(aoi, *win)
+    if n == 0:
+        raise SystemExit(f"No Sentinel-2 scenes in {win[0]}..{win[1]} for this AOI "
+                         "(optical). Widen the window or use --coast-method sar.")
+    mndwi = img.normalizedDifference(["B3", "B11"]).rename("MNDWI").clip(aoi)  # Green,SWIR1
+    path = os.path.join(run_dir, f"mndwi_{tag}.tif")
+    download_geotiff(mndwi, aoi, path, scale=scale)
+    return path, n
+
+
+def _read_band(tif):
+    import numpy as np
+    import rasterio
+    with rasterio.open(tif) as src:
+        arr = src.read(1).astype("float32")
+        nod, tr, crs = src.nodata, src.transform, src.crs
+    valid = np.isfinite(arr)
+    if nod is not None:
+        valid &= arr != nod
+    return arr, valid, tr, crs
+
+
+def _px_km2(tr, midlat):
+    return abs(tr.a) * 111.32 * math.cos(math.radians(midlat)) * abs(tr.e) * 110.57
+
+
+def _declutter_np(mask, min_size=25):
+    import numpy as np
+    from scipy import ndimage
+    lbl, n = ndimage.label(mask)
+    if n == 0:
+        return mask
+    sizes = ndimage.sum(mask, lbl, range(1, n + 1))
+    keep = [i + 1 for i, s in enumerate(sizes) if s >= min_size]
+    return np.isin(lbl, keep)
+
+
+def _otsu_sea(arr, valid, smooth_px):
+    """Otsu-threshold MNDWI → water → border-connected sea (opened by smooth_px)."""
+    import numpy as np
+    from skimage import filters, morphology
+    from scipy import ndimage
+    thr = float(filters.threshold_otsu(arr[valid]))
+    water = (arr > thr) & valid
+    lbl, _ = ndimage.label(water)
+    border = set(lbl[0]) | set(lbl[-1]) | set(lbl[:, 0]) | set(lbl[:, -1])
+    border.discard(0)
+    sea = np.isin(lbl, list(border))
+    if smooth_px:
+        sea = ndimage.binary_opening(sea, structure=morphology.disk(smooth_px))
+    return sea, thr
+
+
+def _subpixel_coast(arr, valid, thr, sea, tr, band_px, min_len_km=0.4):
+    """Marching-squares sub-pixel contour of MNDWI at the Otsu level, kept to the coast band."""
+    import numpy as np
+    import rasterio
+    from skimage import measure
+    from scipy import ndimage
+    edge = ndimage.binary_dilation(sea) & ~ndimage.binary_erosion(sea)
+    band = ndimage.binary_dilation(edge, iterations=max(int(band_px), 2))
+    filled = np.where(valid, arr, thr)
+    H, W = arr.shape
+    lines = []
+    for c in measure.find_contours(filled, thr):
+        xs, ys = rasterio.transform.xy(tr, c[:, 0], c[:, 1])
+        rr = np.clip(np.round(c[:, 0]).astype(int), 0, H - 1)
+        cc = np.clip(np.round(c[:, 1]).astype(int), 0, W - 1)
+        inband = band[rr, cc]
+        seg = []
+        for k in range(len(xs)):
+            if inband[k]:
+                seg.append([xs[k], ys[k]])
+            else:
+                if len(seg) >= 2:
+                    lines.append(seg)
+                seg = []
+        if len(seg) >= 2:
+            lines.append(seg)
+    kept, total = [], 0.0
+    for ln in lines:
+        L = sum(_haversine_km(ln[i], ln[i + 1]) for i in range(len(ln) - 1))
+        if L >= min_len_km:
+            kept.append(ln)
+            total += L
+    return kept, round(total, 2)
+
+
+def _write_mask_tif(path, mask, tr, crs):
+    import numpy as np
+    import rasterio
+    arr = np.where(mask, 1.0, np.nan).astype("float32")[None]
+    with rasterio.open(path, "w", driver="GTiff", height=arr.shape[1], width=arr.shape[2],
+                       count=1, dtype="float32", crs=crs, transform=tr, compress="deflate") as d:
+        d.write(arr)
+
+
+def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post):
+    try:
+        import skimage  # noqa: F401
+    except ImportError:
+        raise SystemExit("optical coastline needs scikit-image: pip install 'satchange[maps]'")
+    smooth_px = max(int((smooth_m or 0) / scale), 0)
+    band_px = max(int((smooth_m or 30) / scale), 2)
+    midlat = (bbox[1] + bbox[3]) / 2.0
+
+    post_tif, n_post = _mndwi_tif(aoi, post, run_dir, "post" if pre else "now", scale)
+    arr, valid, tr, crs = _read_band(post_tif)
+    sea_post, thr = _otsu_sea(arr, valid, smooth_px)
+    _write_mask_tif(os.path.join(run_dir, "sea_mask.tif"), sea_post, tr, crs)
+    lines, length_km = _subpixel_coast(arr, valid, thr, sea_post, tr, band_px)
+    _write_geojson(os.path.join(run_dir, "coastline.geojson"),
+                   {"type": "MultiLineString", "coordinates": lines},
+                   {"kind": "coastline", "length_km": length_km,
+                    "method": "optical MNDWI Otsu sub-pixel"})
+    px = _px_km2(tr, midlat)
+
+    if pre:
+        pre_tif, n_pre = _mndwi_tif(aoi, pre, run_dir, "pre", scale)
+        parr, pvalid, ptr, _ = _read_band(pre_tif)
+        if parr.shape != arr.shape:
+            raise SystemExit("optical pre/post grids differ; try equal --pre/--post windows.")
+        sea_pre, _ = _otsu_sea(parr, pvalid, smooth_px)
+        ero = _declutter_np(sea_post & ~sea_pre)
+        acc = _declutter_np(sea_pre & ~sea_post)
+        _write_mask_tif(os.path.join(run_dir, "erosion.tif"), ero, tr, crs)
+        _write_mask_tif(os.path.join(run_dir, "accretion.tif"), acc, tr, crs)
+        ero_ha, acc_ha = int(ero.sum()) * px * 100.0, int(acc.sum()) * px * 100.0
+        _render_map(run_dir, name, bbox, lines,
+                    [("erosion", "erosion.tif", "#d62728"), ("accretion", "accretion.tif", "#2ca02c")],
+                    f"Shoreline change (S2 MNDWI ~sub-pixel) — {name}  ·  "
+                    f"erosion {ero_ha:.0f} ha, accretion {acc_ha:.0f} ha")
+        return {"mode": "change", "method": "optical", "pre": list(pre), "post": list(post),
+                "coastline_length_km_post": length_km, "erosion_ha": round(ero_ha, 1),
+                "accretion_ha": round(acc_ha, 1), "net_land_change_ha": round(acc_ha - ero_ha, 1),
+                "scenes_pre": n_pre, "scenes_post": n_post}
+
+    sea_km2 = int(sea_post.sum()) * px
+    aoi_km2 = (bbox[2] - bbox[0]) * 111.32 * math.cos(math.radians(midlat)) * (bbox[3] - bbox[1]) * 110.57
+    _render_map(run_dir, name, bbox, lines, [],
+                f"Coastline (S2 MNDWI ~sub-pixel) — {name}  ·  {length_km:.1f} km")
+    return {"mode": "single", "method": "optical", "window": list(post),
+            "coastline_length_km": length_km, "sea_area_km2": round(sea_km2, 2),
+            "land_area_km2": round(max(aoi_km2 - sea_km2, 0), 2), "scenes": n_post}
+
+
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
-        pre=None, post=None, thr=VV_WATER_THR, smooth_m=150):
+        pre=None, post=None, thr=VV_WATER_THR, smooth_m=150, method="sar"):
     """Entry point called by detect.py for the coastline scenario (GEE only).
 
-    `smooth_m` (metres) morphologically opens the sea to strip tambak/pond fingers
-    and narrow inlets, yielding the open-sea mainland shoreline (0 = raw water edge).
+    method: 'sar' (Sentinel-1 VV water mask → vector; cloud-proof) or 'optical'
+    (Sentinel-2 MNDWI + Otsu + marching-squares sub-pixel contour; cloud-limited,
+    sharper). `smooth_m` opens the sea to strip tambak/pond fingers (0 = raw edge).
     """
     if backend == "mpc":
-        raise SystemExit("coastline currently needs --backend gee (SAR + vector via GEE).")
+        raise SystemExit("coastline currently needs --backend gee.")
     from .gee_utils import initialize_ee, square_aoi
     initialize_ee(config_key)
     aoi = square_aoi(lon, lat, radius)
@@ -258,22 +411,24 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     xs = [p[0] for p in b]; ys = [p[1] for p in b]
     bbox = [min(xs), min(ys), max(xs), max(ys)]
     scale = 10
-
-    from .indices import best_orbit
     post = post or DEFAULT_WIN
-    periods = [pre, post] if pre else [post]
-    orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
-    if not covered:
-        raise SystemExit(f"No Sentinel-1 orbit covers all windows: {counts}")
-    print(f"Sentinel-1 VV, orbit {orbit}, scenes {counts}")
 
-    print(f"Sea smoothing (open-sea): {smooth_m} m" if smooth_m else "Sea smoothing: off (raw water edge)")
-    if pre:
-        print(f"Shoreline CHANGE: {pre[0]}..{pre[1]}  →  {post[0]}..{post[1]}")
-        stats = _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m)
+    if method == "optical":
+        print(f"Optical (Sentinel-2 MNDWI sub-pixel); smoothing {smooth_m} m")
+        stats = _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post)
     else:
-        print(f"Coastline (single date): {post[0]}..{post[1]}")
-        stats = _run_single(aoi, bbox, orbit, post, run_dir, name, scale, thr, smooth_m)
+        from .indices import best_orbit
+        periods = [pre, post] if pre else [post]
+        orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
+        if not covered:
+            raise SystemExit(f"No Sentinel-1 orbit covers all windows: {counts}")
+        print(f"Sentinel-1 VV, orbit {orbit}, scenes {counts}; smoothing {smooth_m} m")
+        if pre:
+            print(f"Shoreline CHANGE: {pre[0]}..{pre[1]}  →  {post[0]}..{post[1]}")
+            stats = _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m)
+        else:
+            print(f"Coastline (single date): {post[0]}..{post[1]}")
+            stats = _run_single(aoi, bbox, orbit, post, run_dir, name, scale, thr, smooth_m)
 
     stats.update({"run_id": run_id, "scenario": "coastline", "smooth_m": smooth_m,
                   "location": {"lat": lat, "lon": lon}, "radius_km": radius})
