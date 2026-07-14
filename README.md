@@ -53,14 +53,18 @@ Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
 ## Deteksi Perubahan Multiguna — `detect.py`
 
 Satu perintah: `-s <skenario>` memilih **metode** yang tepat, lokasi lewat
-`--lat/--lon`, `-l 'lat,lon'`, atau `--site NAMA`.
+`--lat/--lon`, `-l 'lat,lon'`, **`--city 'Nama, Negara'`** (geocoding OpenStreetMap
+gratis), atau `--site NAMA`.
 
 | Skenario | Metode | Sensor |
 |----------|--------|--------|
 | `deforestation` | Kehilangan NDVI (ΔNDVI < ambang) | Sentinel-2 |
 | `mining` | SIRAD radar temporal **+** kehilangan NDVI | Sentinel-1 + S2 |
 | `urbanization` | Kenaikan NDBI (indeks terbangun) | Sentinel-2 |
-| `flood` | Luas genangan SAR (event vs baseline) | Sentinel-1 VV |
+| `urban-trend` | Timing built-up 3 epoch → komposit RGB | Landsat 5, 8/9 |
+| `urban-history` | Built-up per **dekade sejak 1980** (GHSL + Landsat) + infografik | GHSL + Landsat |
+| `flood` | Luas genangan SAR — **satu** scene pra/pasca, orbit sama | Sentinel-1 VV |
+| `disturbance` | Dampak banjir/longsor via **perubahan VH** (untuk medan) | Sentinel-1 |
 | `burn` | dNBR (severity kebakaran) | Sentinel-2 |
 | `water` | Perubahan NDWI (air permukaan) | Sentinel-2 |
 
@@ -71,6 +75,7 @@ python3 detect.py -s <skenario> --lat <LAT> --lon <LON> [--radius KM] \
 
 # Contoh
 python3 detect.py -s mining --site konawe               # pakai preset sites.py
+python3 detect.py -s urbanization --city "Surabaya, Indonesia" -r 20   # geocoding nama tempat
 python3 detect.py -s urbanization --lat -6.2 --lon 106.8 --radius 12
 python3 detect.py -s burn --lat -7.5 --lon 110.4 \
     --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30
@@ -158,6 +163,39 @@ Contoh (Cikarang/Bekasi): built-up 10% (2010) → 23% (2020), 15% baru.
 
 > Untuk perbandingan **dua** tanggal saja, jalankan skenario optik/termal biasa
 > dengan `--pre`/`--post` (mis. `--method NDISI` untuk memakai band termal Landsat).
+
+### Sejarah urban per dekade — `urban-history` (+ close-up PlanetScope opsional)
+
+Memetakan **ekspansi built-up & kehilangan vegetasi per dekade sejak 1980**,
+menggabungkan **GHSL GHS-BUILT-S** (built-up otoritatif 1980–2025, hanya GEE)
+dengan NDBI/NDVI Landsat. Menghasilkan: peta **"dekade pertama terbangun"** (kota
+meluas cincin demi cincin), panel per dekade, grafik tren built-up & vegetasi,
+peta konversi vegetasi→urban, overlay jalan OSM, dan **infografik satu halaman**
+(PNG + PDF). TM & OLI tidak digabung lintas patahan sensor 2011–2013.
+
+```bash
+satchange -s urban-history --city "Jakarta, Indonesia" --radius 45
+# Contoh Jabodetabek: built-up 507 → 872 km² (1980→2025), +72%.
+```
+
+**Hybrid PlanetScope (opsional, `--planet`).** GHSL menemukan sel **paling banyak
+berubah**, lalu PlanetScope harian (Data API, 4-band → **NDVI**) meng-close-up area
+kecil itu pada **~3 m**. Hemat kuota: pencarian **gratis** (tak memakai kuota),
+unduhan (order ter-*clip*) hanya terjadi dengan `--planet-confirm`.
+
+```bash
+# dry-run (gratis): urban-history + hotspot otomatis + pencarian Planet + estimasi kuota
+satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 --planet
+# lalu benar-benar ambil scene ter-clip & buat close-up (memakai kuota):
+satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 \
+    --planet --planet-confirm --hotspot-from 2015 --hotspot-to 2025
+```
+
+Kunci Planet dibaca dari `--planet-key`, `$PLANET_API_KEY`, atau
+`~/.planet.json` / `~/planet.conf` / `~/.config/planet.*`. Tanpa `--planet`,
+aplikasi **tidak menyentuh** PlanetScope sama sekali (tanpa kunci, tanpa kuota).
+`--hotspot-from/--hotspot-to` memilih periode perubahan GHSL; `--planet-pre/--planet-post`
+tanggal citra Planet.
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
