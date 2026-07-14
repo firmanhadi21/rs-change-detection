@@ -389,6 +389,14 @@ def main():
         list_outputs(run_dir)
         return
 
+    if cfg.get("method") == "coastline":
+        from . import coastline
+        coastline.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                      config_key=(args.ee_key or CONFIG_KEY),
+                      pre=params.get("pre"), post=params.get("post"))
+        list_outputs(run_dir)
+        return
+
     if args.backend == "mpc":
         from .mpc_backend import run_mpc
         run_mpc(args.scenario, cfg, lat, lon, radius, name, params,

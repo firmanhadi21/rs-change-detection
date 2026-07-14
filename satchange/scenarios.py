@@ -381,4 +381,12 @@ SCENARIOS = {
         "post": ("2025-01-01", "2025-12-31"),
         "interpretation": "Hijau = air permukaan bertambah; merah = menyusut.",
     },
+    "coastline": {
+        "label": "Coastline — sea boundary & shoreline change (Sentinel-1 SAR)",
+        "method": "coastline",
+        "radius": 15.0, "needs": "pre_post",
+        "post": ("2025-01-01", "2025-12-31"),
+        "interpretation": ("Garis pantai laut (SAR). Dengan --pre/--post: "
+                           "abrasi (merah) & akresi/ reklamasi (hijau)."),
+    },
 }
