@@ -405,10 +405,13 @@ def main():
 
     if cfg.get("method") == "coastline":
         from . import coastline
+        coast_epochs = ([parse_period(w) for w in args.epochs.split(",")]
+                        if args.epochs else None)
         coastline.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                       config_key=(args.ee_key or CONFIG_KEY),
                       pre=params.get("pre"), post=params.get("post"),
-                      smooth_m=args.coast_smooth, method=args.coast_method)
+                      smooth_m=args.coast_smooth, method=args.coast_method,
+                      epochs=coast_epochs)
         list_outputs(run_dir)
         return
 

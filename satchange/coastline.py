@@ -401,8 +401,130 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post, sensor, l
             "land_area_km2": round(max(aoi_km2 - sea_km2, 0), 2), "scenes": n_post}
 
 
+# ===================== periodical / time-series (optical, landsat) =====================
+def _shift_year(datestr, delta):
+    y, m, d = datestr.split("-")
+    return f"{int(y) + delta:04d}-{m}-{d}"
+
+
+def _epoch_shoreline(aoi, win, run_dir, scale, sensor, smooth_px, band_px, midlat, aoi_km2):
+    yr = win[0][:4]
+    tif = n = None
+    for pad in (0, 1, 2):                      # widen the window if an epoch is empty
+        try:
+            tif, n = _mndwi_tif(aoi, (_shift_year(win[0], -pad), _shift_year(win[1], pad)),
+                                run_dir, yr, scale, sensor)
+            break
+        except SystemExit:
+            tif = None
+    if tif is None:
+        return None, None
+    arr, valid, tr, _crs = _read_band(tif)
+    sea, thr = _otsu_sea(arr, valid, smooth_px)
+    lines, length_km = _subpixel_coast(arr, valid, thr, sea, tr, band_px)
+    _write_geojson(os.path.join(run_dir, f"coastline_{yr}.geojson"),
+                   {"type": "MultiLineString", "coordinates": lines},
+                   {"year": int(yr), "length_km": length_km})
+    sea_km2 = int(sea.sum()) * _px_km2(tr, midlat)
+    rec = {"year": int(yr), "window": list(win), "scenes": n,
+           "coastline_length_km": length_km, "sea_area_km2": round(sea_km2, 2),
+           "land_area_km2": round(max(aoi_km2 - sea_km2, 0), 2)}
+    return rec, lines
+
+
+def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, label):
+    try:
+        import skimage  # noqa: F401
+    except ImportError:
+        raise SystemExit("optical coastline needs scikit-image: pip install 'satchange[maps]'")
+    smooth_px = max(int((smooth_m or 0) / scale), 0)
+    band_px = max(int((smooth_m or 30) / scale), 2)
+    midlat = (bbox[1] + bbox[3]) / 2.0
+    aoi_km2 = (bbox[2] - bbox[0]) * 111.32 * math.cos(math.radians(midlat)) * (bbox[3] - bbox[1]) * 110.57
+    series, year_lines = [], {}
+    for win in epochs:
+        print(f"  epoch {win[0][:4]}: {win[0]}..{win[1]}")
+        rec, lines = _epoch_shoreline(aoi, win, run_dir, scale, sensor,
+                                      smooth_px, band_px, midlat, aoi_km2)
+        if rec is None:
+            print(f"    {win[0][:4]}: no scenes (even ±2 yr) — skipped")
+            continue
+        series.append(rec)
+        year_lines[rec["year"]] = lines
+        print(f"    scenes={rec['scenes']:3d}  coastline={rec['coastline_length_km']:6.1f} km  "
+              f"land={rec['land_area_km2']:.0f} km²")
+    if not series:
+        raise SystemExit("No epoch had usable scenes — widen the windows or check the AOI.")
+    feats = [{"type": "Feature", "properties": {"year": yr},
+              "geometry": {"type": "MultiLineString", "coordinates": year_lines[yr]}}
+             for yr in sorted(year_lines)]
+    with open(os.path.join(run_dir, "shorelines.geojson"), "w") as f:
+        json.dump({"type": "FeatureCollection", "features": feats}, f)
+    _render_series_map(run_dir, name, bbox, year_lines, label)
+    _render_trend(run_dir, name, series)
+    first, last = series[0], series[-1]
+    return {"mode": "timeseries", "method": sensor, "label": label,
+            "epochs": [s["year"] for s in series], "series": series,
+            "from_year": first["year"], "to_year": last["year"],
+            "net_land_change_ha": round((last["land_area_km2"] - first["land_area_km2"]) * 100, 1)}
+
+
+def _add_basemap(ax):
+    try:
+        import contextily as cx
+        cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.CartoDB.Positron, attribution=False)
+    except Exception as ex:  # noqa: BLE001
+        print(f"  (basemap skipped: {ex})")
+
+
+def _render_series_map(run_dir, name, bbox, year_lines, label):
+    plt = _plt()
+    from matplotlib import cm, colors
+    w, s, e, n = bbox
+    years = sorted(year_lines)
+    norm = colors.Normalize(min(years), max(years))
+    cmap = plt.get_cmap("viridis")
+    fig, ax = plt.subplots(figsize=(11, 11), dpi=150)
+    ax.set_xlim(w, e); ax.set_ylim(s, n)
+    _add_basemap(ax)
+    for yr in years:
+        for seg in year_lines[yr]:
+            xs = [p[0] for p in seg]; ys = [p[1] for p in seg]
+            ax.plot(xs, ys, color=cmap(norm(yr)), lw=1.1, alpha=0.9, zorder=5)
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
+    fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02, label="Year (old → new)")
+    ax.set_title(f"Shoreline time-series ({label} MNDWI ~sub-pixel) — {name}",
+                 fontsize=13, fontweight="bold")
+    ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
+    ax.grid(True, ls=":", color="#888", alpha=0.4)
+    fig.tight_layout(); fig.savefig(os.path.join(run_dir, "shorelines_map.png")); plt.close(fig)
+    print("Time-series map: shorelines_map.png")
+
+
+def _render_trend(run_dir, name, series):
+    plt = _plt()
+    yrs = [s["year"] for s in series]
+    land = [s["land_area_km2"] for s in series]
+    length = [s["coastline_length_km"] for s in series]
+    fig, ax1 = plt.subplots(figsize=(7, 4.2), dpi=150)
+    ax1.plot(yrs, land, "-o", color="#8c564b", label="Land area (km²)")
+    ax1.set_xlabel("Year"); ax1.set_ylabel("Land area in AOI (km²)", color="#8c564b")
+    ax1.tick_params(axis="y", labelcolor="#8c564b")
+    for x, y in zip(yrs, land):
+        ax1.annotate(f"{y:.0f}", (x, y), textcoords="offset points", xytext=(0, 6),
+                     ha="center", fontsize=7, color="#8c564b")
+    ax2 = ax1.twinx()
+    ax2.plot(yrs, length, "--s", color="#1f6fb2")
+    ax2.set_ylabel("Coastline length (km)", color="#1f6fb2")
+    ax2.tick_params(axis="y", labelcolor="#1f6fb2")
+    ax1.set_title(f"Coastal trend — {name}")
+    ax1.grid(True, ls=":", alpha=0.5)
+    fig.tight_layout(); fig.savefig(os.path.join(run_dir, "trend.png")); plt.close(fig)
+    print("Trend chart: trend.png")
+
+
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
-        pre=None, post=None, thr=VV_WATER_THR, smooth_m=150, method="sar"):
+        pre=None, post=None, thr=VV_WATER_THR, smooth_m=150, method="sar", epochs=None):
     """Entry point called by detect.py for the coastline scenario (GEE only).
 
     method: 'sar' (Sentinel-1 VV water mask → vector; cloud-proof) or 'optical'
@@ -425,8 +547,14 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         osc = 30 if method == "landsat" else 10          # Landsat 30 m, S2 10 m
         label = "Landsat" if method == "landsat" else "Sentinel-2"
         print(f"Optical ({label} MNDWI sub-pixel, {osc} m); smoothing {smooth_m} m")
-        stats = _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label)
+        if epochs:
+            print(f"Time-series: {len(epochs)} epochs")
+            stats = _run_timeseries(aoi, bbox, run_dir, name, osc, smooth_m, epochs, sensor, label)
+        else:
+            stats = _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label)
     else:
+        if epochs:
+            raise SystemExit("--epochs time-series needs --coast-method optical or landsat.")
         from .indices import best_orbit
         periods = [pre, post] if pre else [post]
         orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
