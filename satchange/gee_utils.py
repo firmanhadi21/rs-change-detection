@@ -25,13 +25,29 @@ def _fetch(url, out_path):
 
 
 def download_png(image, region, out_path, dimensions="1920x1920", vis=None):
-    """Download an RGB quick-look PNG thumbnail."""
-    params = {"region": region, "dimensions": dimensions, "format": "png"}
-    if vis:
-        params.update(vis)
-    _fetch(image.getThumbURL(params), out_path)
-    print(f"Saved: {os.path.normpath(out_path)}")
-    return out_path
+    """Download an RGB quick-look PNG thumbnail.
+
+    Earth Engine's thumbnail endpoint has a per-user memory limit; large AOIs
+    or heavy composites (e.g. 3-band SIRAD at 1920x1920) can 400 with
+    'User memory limit exceeded'. Retry at progressively smaller dimensions.
+    """
+    candidates = [int(d) for d in str(dimensions).split("x")]
+    sizes = [dimensions,
+             f"{candidates[0]//2}x{candidates[1]//2}",
+             f"{candidates[0]//4}x{candidates[1]//4}"]
+    last_err = None
+    for d in sizes:
+        try:
+            params = {"region": region, "dimensions": d, "format": "png"}
+            if vis:
+                params.update(vis)
+            _fetch(image.getThumbURL(params), out_path)
+            print(f"Saved: {os.path.normpath(out_path)}")
+            return out_path
+        except Exception as e:  # noqa: BLE001 — retry smaller
+            last_err = e
+            print(f"  thumbnail {d} failed ({e.__class__.__name__}); trying smaller…")
+    raise last_err
 
 
 def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16):
