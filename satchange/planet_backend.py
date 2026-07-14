@@ -176,30 +176,58 @@ def _download_sr(order_json, out_path, key):
 
 
 # --------------------------- analysis + render ---------------------------
+def _red_nir(a):
+    """(red, nir) bands regardless of Dove (4-band) or SuperDove (8-band) SR."""
+    return (a[5], a[7]) if a.shape[0] >= 8 else (a[2], a[3])
+
+
+def _rgb_idx(a):
+    return (5, 3, 1) if a.shape[0] >= 8 else (2, 1, 0)
+
+
 def _ndvi(a):
-    red, nir = a[2].astype("float32"), a[3].astype("float32")
-    return (nir - red) / (nir + red + 1e-6)
+    import numpy as np
+    red, nir = _red_nir(a)
+    red, nir = red.astype("float32"), nir.astype("float32")
+    denom = nir + red
+    return np.where(denom > 0, (nir - red) / (denom + 1e-6), np.nan)
 
 
 def _truecolor(a):
     import numpy as np
-    rgb = np.dstack([a[2], a[1], a[0]]).astype("float32")  # R,G,B from SR B,G,R,NIR
-    lo, hi = np.nanpercentile(rgb, 2), np.nanpercentile(rgb, 98)
-    return np.clip((rgb - lo) / max(hi - lo, 1e-6), 0, 1)
+    ri, gi, bi = _rgb_idx(a)
+    rgb = np.dstack([a[ri], a[gi], a[bi]]).astype("float32")
+    valid = rgb.sum(axis=2) > 0
+    v = rgb[valid] if valid.any() else rgb.reshape(-1, 3)
+    lo, hi = np.nanpercentile(v, 2), np.nanpercentile(v, 98)
+    out = np.clip((rgb - lo) / max(hi - lo, 1e-6), 0, 1)
+    out[~valid] = 1.0  # white where a scene doesn't cover the cell
+    return out
 
 
 def analyze_and_render(pre_tif, post_tif, run_dir, name, meta):
-    """NDVI before/after + true-color + a close-up infographic. Offline (no Planet)."""
+    """NDVI before/after + true-color + a close-up infographic. Offline (no Planet).
+
+    The two scenes rarely share a pixel grid (different footprints, and Dove vs
+    SuperDove), so `post` is reprojected onto `pre`'s grid before differencing.
+    """
     import numpy as np
     import rasterio
+    from rasterio.warp import reproject, Resampling
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    def read(t):
-        with rasterio.open(t) as s:
-            return s.read()
-    pre, post = read(pre_tif), read(post_tif)
+    with rasterio.open(pre_tif) as sp:
+        pre = sp.read().astype("float32")
+        dst_crs, dst_tr, H, W = sp.crs, sp.transform, sp.height, sp.width
+    with rasterio.open(post_tif) as sq:
+        src = sq.read().astype("float32")
+        post = np.zeros((src.shape[0], H, W), "float32")
+        for b in range(src.shape[0]):
+            reproject(src[b], post[b], src_transform=sq.transform, src_crs=sq.crs,
+                      dst_transform=dst_tr, dst_crs=dst_crs, resampling=Resampling.bilinear)
+
     nd_pre, nd_post = _ndvi(pre), _ndvi(post)
     dnd = nd_post - nd_pre
     veg_pre = np.isfinite(nd_pre) & (nd_pre > 0.3)
