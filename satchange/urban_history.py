@@ -191,9 +191,7 @@ def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
         start_drive_export(builtup_epochs.toByte(), aoi, f"{name}_builtup_epochs",
                            folder=drive_folder, scale=100)
 
-    _render_extras_gee(run_dir, stats, epochs_tif)
-    if planet:
-        _run_planet(aoi, stats, run_dir, name, planet)
+    _render_extras_gee(aoi, run_dir, stats, epochs_tif, name, planet)
     _write_stats(stats, run_dir, run_id, "gee")
 
 
@@ -420,21 +418,26 @@ def _run_planet(aoi, stats, run_dir, name, planet):
         stats["planet"] = {"error": str(e)}
 
 
-def _render_extras_gee(run_dir, stats, epochs_tif):
-    """All GEE-run rendering: charts, decade map, panel, roads, infographic.
+def _render_extras_gee(aoi, run_dir, stats, epochs_tif, name, planet):
+    """All GEE-run rendering: charts, decade map, panel, roads, PlanetScope, poster.
 
-    Roads and the infographic are optional (network / missing layers) — a failure
-    in either is logged, not fatal.
+    The PlanetScope close-up (when requested) runs BEFORE the infographic so the
+    poster can embed it. Roads, Planet and the infographic are optional — a failure
+    in any is logged, not fatal.
     """
     _render_all(stats, run_dir, epochs_tif, GHSL_YEARS,
                 os.path.join(run_dir, "first_built_decade.tif"))
-    optional = (("OSM road overlay", lambda: _render_roads(run_dir, stats["name"])),
-                ("infographic", lambda: _render_infographic(run_dir, stats)))
-    for label, fn in optional:
+
+    def _try(label, fn):
         try:
             fn()
         except Exception as e:  # noqa: BLE001 — optional extras never break a run
             print(f"  ({label} skipped: {e})")
+
+    _try("OSM road overlay", lambda: _render_roads(run_dir, stats["name"]))
+    if planet:
+        _run_planet(aoi, stats, run_dir, name, planet)  # writes planet_closeup + hotspot
+    _try("infographic", lambda: _render_infographic(run_dir, stats))
 
 
 def _render_mpc(stats, run_dir, extent, masks, years, veg_loss):
@@ -554,10 +557,12 @@ def _render_roads(run_dir, name):
 
 
 def _render_infographic(run_dir, stats):
-    """Compose a one-page poster PNG from a run's layers + headline numbers.
+    """Compose a one-page poster PNG/PDF from a run's layers + headline numbers.
 
     Reproducible and offline: reads the already-rendered PNGs (decade map, panel,
-    trend charts) and stats.json. GEE-only (needs the GHSL built-up numbers).
+    trend charts, and the PlanetScope hotspot close-up if present) and stats.json.
+    GEE-only (needs the GHSL built-up numbers). The poster grows a bottom band
+    when a PlanetScope close-up was produced.
     """
     if not stats.get("ghsl"):
         return
@@ -574,6 +579,10 @@ def _render_infographic(run_dir, stats):
     panel = imread("builtup_panel.png")
     bu_chart = imread("builtup_trend.png")
     veg_chart = imread("vegetation_trend.png")
+    planet_img = imread("planet_closeup.png")
+    hs = stats.get("hotspot")
+    pl = stats.get("planet") or {}
+    has_planet = planet_img is not None and hs is not None
 
     g = stats["ghsl"]
     yrs = sorted(int(y) for y in g)
@@ -582,66 +591,78 @@ def _render_infographic(run_dir, stats):
     growth = (bu1 - bu0) / bu0 * 100.0 if bu0 else 0.0
     uc = stats.get("urban_conversion_GHSL", {})
     ls = stats.get("landsat", {})
-    vt = stats.get("vegetation_loss_TM", {})
     name = str(stats.get("name", "")).replace("_", " ").title()
+    RED, PURPLE, GREEN, GRAY, INK, BLUE = "#a50f15", "#7a0177", "#1a7a3a", "#555", "#222", "#1f6fb2"
 
-    RED, PURPLE, GREEN, GRAY, INK = "#a50f15", "#7a0177", "#1a7a3a", "#555", "#222"
-    fig = plt.figure(figsize=(13, 18), dpi=150)
+    Wf = 13.0
+    Hf = 18.0 + (4.9 if has_planet else 0.0)
+    fig = plt.figure(figsize=(Wf, Hf), dpi=150)
     fig.patch.set_facecolor("white")
 
-    fig.text(0.5, 0.972, f"{name}: Urban Growth {y0}–{y1}", ha="center",
+    def rect(x, ytop, w, h):        # inches-from-top -> add_axes fraction
+        return [x / Wf, (Hf - ytop - h) / Hf, w / Wf, h / Hf]
+
+    def ty(y_in):                   # inch-from-top -> text y fraction
+        return (Hf - y_in) / Hf
+
+    fig.text(0.5, ty(0.55), f"{name}: Urban Growth {y0}–{y1}", ha="center",
              va="center", fontsize=27, fontweight="bold", color=INK)
     loc = stats.get("location", {})
-    fig.text(0.5, 0.949, f"Built-up expansion & vegetation loss  ·  GHSL + Landsat  ·  "
+    fig.text(0.5, ty(1.02), f"Built-up expansion & vegetation loss  ·  GHSL + Landsat  ·  "
              f"{loc.get('lat')}, {loc.get('lon')}  ·  {stats.get('radius_km')} km radius",
              ha="center", va="center", fontsize=12, color=GRAY)
 
-    def card(rect, big, label, color):
-        ax = fig.add_axes(rect); ax.axis("off")
+    def card(x, ytop, w, h, big, label, color):
+        ax = fig.add_axes(rect(x, ytop, w, h)); ax.axis("off")
         ax.add_patch(FancyBboxPatch((0.02, 0.06), 0.96, 0.88,
                      boxstyle="round,pad=0.02,rounding_size=0.06",
                      transform=ax.transAxes, facecolor=color, alpha=0.10,
                      edgecolor=color, linewidth=1.6))
-        ax.text(0.5, 0.60, big, ha="center", va="center", fontsize=19,
+        ax.text(0.5, 0.60, big, ha="center", va="center", fontsize=18.5,
                 fontweight="bold", color=color, transform=ax.transAxes)
-        ax.text(0.5, 0.24, label, ha="center", va="center", fontsize=9.5,
+        ax.text(0.5, 0.24, label, ha="center", va="center", fontsize=9.3,
                 color="#333", transform=ax.transAxes)
 
-    cy, ch, cw, gap = 0.86, 0.065, 0.225, 0.02
-    xs = 0.035
-    card([xs, cy, cw, ch], f"{bu0:.0f} → {bu1:.0f} km²", f"Built-up area ({y0}→{y1})", RED)
-    card([xs + (cw + gap), cy, cw, ch], f"+{growth:.0f}%", "Built-up growth", RED)
-    card([xs + 2 * (cw + gap), cy, cw, ch],
+    mrg, gap = 0.45, 0.28
+    cw = (Wf - 2 * mrg - 3 * gap) / 4
+    card(mrg, 1.5, cw, 1.15, f"{bu0:.0f} → {bu1:.0f} km²", f"Built-up area ({y0}→{y1})", RED)
+    card(mrg + (cw + gap), 1.5, cw, 1.15, f"+{growth:.0f}%", "Built-up growth", RED)
+    card(mrg + 2 * (cw + gap), 1.5, cw, 1.15,
          f"+{uc.get('new_builtup_km2', 0):.0f} km²", "New urban 1990→2025", PURPLE)
     if "1990" in ls and "2010" in ls:
-        card([xs + 3 * (cw + gap), cy, cw, ch],
+        card(mrg + 3 * (cw + gap), 1.5, cw, 1.15,
              f"{ls['1990']['vegetation_pct']:.0f}% → {ls['2010']['vegetation_pct']:.0f}%",
              "Vegetation 1990→2010 (TM)", GREEN)
 
-    def place(img, rect, title=None):
-        ax = fig.add_axes(rect); ax.axis("off")
+    def place(img, x, ytop, w, h):
+        ax = fig.add_axes(rect(x, ytop, w, h)); ax.axis("off")
         if img is not None:
             ax.imshow(img)
-        if title:
-            ax.set_title(title, fontsize=11, fontweight="bold", color=INK, pad=4)
 
-    place(hero, [0.035, 0.475, 0.60, 0.37])
-    place(bu_chart, [0.655, 0.665, 0.32, 0.175])
-    place(veg_chart, [0.655, 0.475, 0.32, 0.175])
-    place(panel, [0.035, 0.085, 0.93, 0.36])
+    place(hero, mrg, 3.0, 7.5, 7.1)
+    place(bu_chart, 8.3, 3.0, 4.25, 3.35)
+    place(veg_chart, 8.3, 6.6, 4.25, 3.35)
+    place(panel, mrg, 10.4, 12.1, 6.4)
+    ybot = 16.9
 
-    fig.text(0.035, 0.045,
-             "Data: EU JRC GHSL GHS-BUILT-S (built-up)  ·  Landsat 5 TM + 8/9 OLI, USGS "
-             "(NDBI/NDVI)  ·  OSM roads via Overpass.",
-             fontsize=8.5, color=GRAY)
-    fig.text(0.035, 0.030,
-             "Note: Landsat TM & OLI NDVI are not comparable across the 2011–2013 sensor "
-             "break (vegetation loss uses TM-only 1990–2010).",
-             fontsize=8.5, color=GRAY)
-    fig.text(0.035, 0.015,
-             "OSM roads show today's network (mapping ≠ construction; OSM starts 2004).  "
-             "Generated with satchange.",
-             fontsize=8.5, color=GRAY)
+    if has_planet:                  # PlanetScope hotspot close-up band
+        cap = (f"Most-changed hotspot @ {hs['lat']}, {hs['lon']}  ·  "
+               f"+{hs.get('new_builtup_km2', 0)} km²/cell new built-up (1990–2025)")
+        if pl.get("pre_date"):
+            cap += f"  ·  Planet {pl['pre_date']} → {pl['post_date']}"
+        fig.text(mrg / Wf, ty(17.3), cap, ha="left", va="center",
+                 fontsize=10.5, fontweight="bold", color=BLUE)
+        place(planet_img, mrg, 17.5, 12.1, 4.35)
+        ybot = 17.5 + 4.35
+
+    for i, line in enumerate((
+        "Data: EU JRC GHSL GHS-BUILT-S (built-up)  ·  Landsat 5 TM + 8/9 OLI, USGS (NDBI/NDVI)  "
+        "·  PlanetScope, Planet Labs (close-up)  ·  OSM roads via Overpass.",
+        "Note: Landsat TM & OLI NDVI are not comparable across the 2011–2013 sensor break "
+        "(vegetation loss uses TM-only 1990–2010).",
+        "OSM roads show today's network (mapping ≠ construction; OSM starts 2004).  "
+        "Generated with satchange.")):
+        fig.text(mrg / Wf, ty(ybot + 0.42 + i * 0.26), line, fontsize=8.5, color=GRAY)
 
     fig.savefig(os.path.join(run_dir, "infographic.png"), facecolor="white")
     fig.savefig(os.path.join(run_dir, "infographic.pdf"), facecolor="white")
