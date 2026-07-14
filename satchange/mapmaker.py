@@ -6,7 +6,9 @@ Produces an A4-landscape map sheet (PDF + PNG) with:
   * title / subtitle
   * legend (colorbar or SIRAD RGB key)
   * statistics panel (from the stats dict)
-  * location inset, coordinate grid, scale bar, north arrow
+  * location overview inset (CartoDB Positron, wide)
+  * ESRI Satellite inset (same AOI as the main map, no overlay)
+  * coordinate grid, scale bar, north arrow
   * data-source / date footer
 
 Used by detect.py (--map) and by make_map.py (re-render an existing result).
@@ -109,9 +111,8 @@ def _draw_north(ax):
                 zorder=7)
 
 
-def _location_inset(fig, rect, lon, lat):
+def _location_inset(fig, rect, lon, lat, span=7.0):
     ax = fig.add_axes(rect)
-    span = 7.0
     ax.set_xlim(lon - span, lon + span)
     ax.set_ylim(lat - span, lat + span)
     ax.set_xticks([]); ax.set_yticks([])
@@ -119,6 +120,30 @@ def _location_inset(fig, rect, lon, lat):
     ax.plot(lon, lat, marker="*", markersize=15, color="red",
             markeredgecolor="white", markeredgewidth=0.8, zorder=8)
     ax.set_title("Lokasi", fontsize=8)
+    for s in ax.spines.values():
+        s.set_edgecolor("#888")
+    return ax
+
+
+def _satellite_inset(fig, rect, extent):
+    """ESRI Satellite close-up of the same AOI as the main map.
+
+    `extent` is [minlon, maxlon, minlat, maxlat] (matches the main map).
+    No change layer, no AOI rectangle — just the satellite basemap underneath.
+    """
+    ax = fig.add_axes(rect)
+    minlon, maxlon, minlat, maxlat = extent
+    ax.set_xlim(minlon, maxlon)
+    ax.set_ylim(minlat, maxlat)
+    ax.set_xticks([]); ax.set_yticks([])
+    if _HAS_CX:
+        try:
+            cx.add_basemap(ax, crs="EPSG:4326",
+                           source=cx.providers.Esri.WorldImagery,
+                           attribution=False)
+        except Exception as e:  # noqa: BLE001
+            print(f"  (satellite inset skipped: {e})")
+    ax.set_title("Satelit (ESRI)", fontsize=8)
     for s in ax.spines.values():
         s.set_edgecolor("#888")
     return ax
@@ -255,18 +280,21 @@ def render_map(meta, out_base, basemap="osm"):
         cb.ax.tick_params(labelsize=7)
 
     # --- statistics panel ---
-    st = fig.add_axes([0.68, 0.30, 0.29, 0.34])
+    st = fig.add_axes([0.68, 0.42, 0.29, 0.26])
     st.axis("off")
     st.text(0, 1.0, "Statistik", fontsize=11, fontweight="bold", va="top")
     body = "\n".join(_stats_lines(meta))
-    st.text(0, 0.90, body, fontsize=8.5, va="top", family="monospace", linespacing=1.5)
+    st.text(0, 0.88, body, fontsize=8, va="top", family="monospace", linespacing=1.4)
     interp = meta.get("interpretation", "")
     if interp:
-        st.text(0, 0.06, interp, fontsize=8, va="bottom", style="italic",
+        st.text(0, 0.06, interp, fontsize=7.5, va="bottom", style="italic",
                 wrap=True, color="#444")
 
-    # --- location inset ---
-    _location_inset(fig, [0.68, 0.09, 0.18, 0.19], lon, lat)
+    # --- location overview inset (wide, CartoDB) ---
+    _location_inset(fig, [0.68, 0.18, 0.135, 0.16], lon, lat)
+
+    # --- ESRI Satellite inset (same AOI as the main map) ---
+    _satellite_inset(fig, [0.835, 0.18, 0.135, 0.16], extent)
 
     # --- footer ---
     date = datetime.now().strftime("%Y-%m-%d")
