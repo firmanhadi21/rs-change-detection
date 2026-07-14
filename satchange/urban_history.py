@@ -115,6 +115,55 @@ def _mean(img, aoi, scale):
     return vals[0] if vals else None
 
 
+def _landsat_epoch(aoi, y):
+    """Median Landsat SR for epoch year y; widen to ±1 then ±2 years if the single
+    calendar year has no scenes (cloudy/sparse areas). Returns (img_or_None, n, pad)."""
+    from .indices import l_sr_median
+    for pad in (0, 1, 2):
+        img, n = l_sr_median(aoi, f"{y - pad}-01-01", f"{y + pad}-12-31")
+        if n > 0:
+            return img, n, pad
+    return None, 0, 0
+
+
+def _landsat_epochs_gee(aoi, stats):
+    """Per-epoch Landsat NDBI/NDVI (skipping empty epochs) + the TM vegetation-loss
+    image (1990->2010) when both epochs exist. Populates stats['landsat'] /
+    stats['vegetation_loss_TM']; returns the veg-loss ee.Image or None."""
+    print("Landsat NDBI/NDVI per epoch:")
+    ndvi_by_year = {}
+    for y in LANDSAT_YEARS:
+        img, n, pad = _landsat_epoch(aoi, y)
+        if n == 0:
+            print(f"  {y}: no Landsat scenes (even ±2 yr) — skipped")
+            continue
+        sensor = "TM (L5)" if y <= 2011 else "OLI (L8/9)"
+        ndbi = img.normalizedDifference(["SWIR1", "NIR"])
+        ndvi = img.normalizedDifference(["NIR", "RED"])
+        ndvi_by_year[y] = ndvi
+        stats["landsat"][str(y)] = {
+            "scenes": n, "sensor": sensor, "window_pad_yr": pad,
+            "builtup_ndbi_pct": round(_pct(ndbi.gt(NDBI_THR), aoi, 30), 1),
+            "vegetation_pct": round(_pct(ndvi.gt(NDVI_VEG_THR), aoi, 30), 1),
+            "mean_ndvi": round(_mean(ndvi, aoi, 30) or 0.0, 3)}
+        r = stats["landsat"][str(y)]
+        pad_s = f" ±{pad}yr" if pad else ""
+        print(f"  {y}: scenes={n:3d} {sensor:9s}{pad_s:6s} built={r['builtup_ndbi_pct']:4.1f}%  "
+              f"veg={r['vegetation_pct']:4.1f}%  meanNDVI={r['mean_ndvi']:.3f}")
+
+    y0, y1 = TM_YEARS[0], TM_YEARS[-1]
+    if y0 not in ndvi_by_year or y1 not in ndvi_by_year:
+        print(f"  (vegetation-loss map skipped: TM epochs {y0}/{y1} not both available)")
+        return None
+    nd0, nd1 = ndvi_by_year[y0], ndvi_by_year[y1]
+    vl = (nd0.gt(NDVI_VEG_THR).And(nd1.lt(NDVI_GONE_THR))
+          .And(nd1.subtract(nd0).lt(NDVI_LOSS_DROP)))
+    stats["vegetation_loss_TM"] = {"from_year": y0, "to_year": y1,
+                                   "sensor": "Landsat-5 TM (same sensor)",
+                                   "pct_lost": round(_pct(vl, aoi, 30), 1)}
+    return vl.selfMask().clip(aoi).rename("veg_loss")
+
+
 def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
              do_drive=False, drive_folder="satchange", planet=None):
     from .gee_utils import (initialize_ee, square_aoi, download_png,
@@ -142,34 +191,7 @@ def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
         code = code.where(code.eq(0).And(_ghsl(y).gt(BUILT_M2_THR)), i)
     first_built = code.selfMask().clip(aoi).rename("first_built")
 
-    # Landsat NDBI/NDVI per epoch
-    from .indices import l_sr_median
-    print("Landsat NDBI/NDVI per epoch:")
-    ndvi_by_year = {}
-    for y in LANDSAT_YEARS:
-        img, n = l_sr_median(aoi, f"{y}-01-01", f"{y}-12-31")
-        sensor = "TM (L5)" if y <= 2011 else "OLI (L8/9)"
-        ndbi = img.normalizedDifference(["SWIR1", "NIR"])
-        ndvi = img.normalizedDifference(["NIR", "RED"])
-        ndvi_by_year[y] = ndvi
-        stats["landsat"][str(y)] = {
-            "scenes": n, "sensor": sensor,
-            "builtup_ndbi_pct": round(_pct(ndbi.gt(NDBI_THR), aoi, 30), 1),
-            "vegetation_pct": round(_pct(ndvi.gt(NDVI_VEG_THR), aoi, 30), 1),
-            "mean_ndvi": round(_mean(ndvi, aoi, 30) or 0.0, 3)}
-        r = stats["landsat"][str(y)]
-        print(f"  {y}: scenes={n:3d} {sensor:9s} built={r['builtup_ndbi_pct']:4.1f}%  "
-              f"veg={r['vegetation_pct']:4.1f}%  meanNDVI={r['mean_ndvi']:.3f}")
-
-    # vegetation loss (same-sensor TM 1990->2010)
-    y0, y1 = TM_YEARS[0], TM_YEARS[-1]
-    nd0, nd1 = ndvi_by_year[y0], ndvi_by_year[y1]
-    vl = (nd0.gt(NDVI_VEG_THR).And(nd1.lt(NDVI_GONE_THR))
-          .And(nd1.subtract(nd0).lt(NDVI_LOSS_DROP)))
-    veg_loss = vl.selfMask().clip(aoi).rename("veg_loss")
-    stats["vegetation_loss_TM"] = {"from_year": y0, "to_year": y1,
-                                   "sensor": "Landsat-5 TM (same sensor)",
-                                   "pct_lost": round(_pct(vl, aoi, 30), 1)}
+    veg_loss = _landsat_epochs_gee(aoi, stats)
 
     # authoritative full-span new built-up (GHSL 1990->2025)
     new_urban = (_ghsl(2025).gt(BUILT_M2_THR).And(_ghsl(1990).gt(BUILT_M2_THR).Not())
@@ -184,9 +206,11 @@ def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
     products = {
         "first_built_decade": (first_built, {"min": 1, "max": len(DECADE_YEARS),
                                              "palette": DECADE_PALETTE}, 100),
-        "vegetation_loss": (veg_loss, {"min": 0, "max": 1, "palette": ["1a9850"]}, 30),
         "new_urban": (new_urban, {"min": 0, "max": 1, "palette": ["7a0177"]}, 100),
     }
+    if veg_loss is not None:
+        products["vegetation_loss"] = (veg_loss, {"min": 0, "max": 1,
+                                                  "palette": ["1a9850"]}, 30)
     for key, (img, vis, scale) in products.items():
         print(f"Downloading {key}...")
         download_png(img, aoi, os.path.join(run_dir, key + ".png"), vis=vis)
@@ -320,6 +344,7 @@ def _render_charts(stats, run_dir):
     ax1.plot(tmy, veg(tmy), "-o", color="#1a9850", label="Vegetation % (TM, comparable)")
     if oliy:
         ax1.plot(oliy, veg(oliy), "D", color="#66bd63", label="Vegetation % (OLI, separate)")
+    if oliy and tmy:
         brk = (max(tmy) + min(oliy)) / 2.0
         ax1.axvline(brk, color="#999", ls="--", lw=1)
         ax1.annotate("TM→OLI sensor break\n(not comparable across it)",
