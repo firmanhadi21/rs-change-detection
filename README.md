@@ -171,7 +171,9 @@ menggabungkan **GHSL GHS-BUILT-S** (built-up otoritatif 1980–2025, hanya GEE)
 dengan NDBI/NDVI Landsat. Menghasilkan: peta **"dekade pertama terbangun"** (kota
 meluas cincin demi cincin), panel per dekade, grafik tren built-up & vegetasi,
 peta konversi vegetasi→urban, overlay jalan OSM, dan **infografik satu halaman**
-(PNG + PDF). TM & OLI tidak digabung lintas patahan sensor 2011–2013.
+(PNG + PDF). TM & OLI tidak digabung lintas patahan sensor 2011–2013: epoch TM
+(1990/2000/2010, sebanding) dipakai untuk peta vegetation-loss, epoch OLI
+(2015/2020/2025, sebanding satu sama lain) dilaporkan terpisah.
 
 ```bash
 satchange -s urban-history --city "Jakarta, Indonesia" --radius 45
