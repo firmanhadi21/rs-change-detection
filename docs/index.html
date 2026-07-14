@@ -237,6 +237,8 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
   "pct_affected": 6.3, "pct_severe": 2.7, "scenes_pre": 30, "scenes_post": 25 …</code></pre>
   <div class="callout en"><b>Negative-latitude tip.</b> A leading <code>-</code> can confuse the shell if you use <code>-l</code>. Either use <code>--lat/--lon</code> (above) or attach the value with <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
   <div class="callout id"><b>Tips lintang negatif.</b> Tanda <code>-</code> di depan bisa membingungkan shell bila memakai <code>-l</code>. Gunakan <code>--lat/--lon</code> (di atas) atau sambungkan nilai dengan <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
+  <div class="callout tip en"><b>Prefer a place name?</b> Use <code>--city "Jakarta, Indonesia"</code> instead of <code>--lat/--lon</code> — satchange geocodes it with free OpenStreetMap Nominatim and prints the resolved coordinates. Add a country for accuracy (e.g. <code>--city "Bandung, Indonesia"</code>).</div>
+  <div class="callout tip id"><b>Lebih suka nama tempat?</b> Pakai <code>--city "Jakarta, Indonesia"</code> alih-alih <code>--lat/--lon</code> — satchange menggeokode dengan OpenStreetMap Nominatim gratis dan mencetak koordinat hasilnya. Tambahkan negara agar akurat (mis. <code>--city "Bandung, Indonesia"</code>).</div>
 
   <h2 id="outputs">5 · <span class="en">Reading the outputs</span><span class="id">Membaca keluaran</span></h2>
   <table>

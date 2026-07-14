@@ -16,6 +16,9 @@ Examples (installed CLI — after `pip install satchange`)
     # Same, coordinate as "lat,lon" (quote/`=` because lat is negative)
     satchange -s mining -l=-3.333,122.25
 
+    # By place name instead of coordinates (free OpenStreetMap geocoding)
+    satchange -s urbanization --city "Surabaya, Indonesia" -r 20
+
     # Flood: baseline window vs event window (both required)
     satchange -s flood --lat 24.9 --lon 67.9 \
         --pre 2022-06-01:2022-06-30 --post 2022-08-15:2022-09-05
@@ -104,7 +107,32 @@ def print_scenarios():
         print(f"  {key:<14} {cfg['label']}")
     print(f"\nBuilt-up methods (--method) · Sentinel-2: {', '.join(BUILTUP_METHODS)}")
     print(f"                            · Landsat (thermal, auto): {', '.join(THERMAL_METHODS)}")
-    print("\nLocation: --lat LAT --lon LON  |  -l 'lat,lon'  |  --site NAME")
+    print("\nLocation: --lat LAT --lon LON  |  -l 'lat,lon'  |  "
+          "--city 'Name, Country'  |  --site NAME")
+
+
+def geocode_place(query):
+    """Geocode 'City, Country' -> (lat, lon, display_name) via OpenStreetMap Nominatim.
+
+    Free, no API key. Nominatim requires a descriptive User-Agent and light use
+    (we do a single lookup per run).
+    """
+    import requests
+    try:
+        r = requests.get("https://nominatim.openstreetmap.org/search",
+                         params={"q": query, "format": "json", "limit": 1},
+                         headers={"User-Agent": "satchange satellite change detection "
+                                  "(https://github.com/firmanhadi21/rs-change-detection)"},
+                         timeout=30)
+        r.raise_for_status()
+        hits = r.json()
+    except Exception as e:  # noqa: BLE001
+        raise SystemExit(f"Geocoding '{query}' failed ({e}). Use --lat/--lon instead.")
+    if not hits:
+        raise SystemExit(f"No place found for '{query}'. Try 'City, Country', or "
+                         "use --lat/--lon.")
+    top = hits[0]
+    return float(top["lat"]), float(top["lon"]), top.get("display_name", query)
 
 
 def resolve_location(args):
@@ -113,13 +141,17 @@ def resolve_location(args):
         from .sites import get_site
         site = get_site(["--site", args.site])
         return site["lat"], site["lon"], site["radius_km"], args.site
+    if getattr(args, "city", None):
+        lat, lon, display = geocode_place(args.city)
+        print(f"Geocoded '{args.city}' → {lat:.5f}, {lon:.5f}  ({display})")
+        return lat, lon, None, args.name or safe_name(args.city)
     if args.location:
         lat, lon = parse_location(args.location)
     elif args.lat is not None and args.lon is not None:
         lat, lon = args.lat, args.lon
     else:
-        raise SystemExit("Provide a location: --lat/--lon, -l 'lat,lon', "
-                         "or --site NAME. See --help.")
+        raise SystemExit("Provide a location: --city 'Name, Country', --lat/--lon, "
+                         "-l 'lat,lon', or --site NAME. See --help.")
     name = args.name or safe_name(f"{lat}_{lon}")
     return lat, lon, None, name
 
@@ -261,6 +293,8 @@ def main():
     ap.add_argument("-l", "--location", help="'lat,lon' (use -l=-3.3,122.2 if lat<0)")
     ap.add_argument("--lat", type=float)
     ap.add_argument("--lon", type=float)
+    ap.add_argument("--city", help="place name to geocode instead of --lat/--lon, "
+                    "e.g. --city 'Jakarta, Indonesia' (free OpenStreetMap Nominatim)")
     ap.add_argument("--site", help="named preset from sites.py")
     ap.add_argument("-r", "--radius", type=float, help="AOI radius in km")
     ap.add_argument("--pre", help="baseline window START:END")
