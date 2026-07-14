@@ -62,14 +62,22 @@ def _ghsl(year):
     return ee.Image(f"JRC/GHSL/P2023A/GHS_BUILT_S/{year}").select("built_surface")
 
 
-def find_hotspot(aoi, box_km=6.0):
-    """Locate the ~box_km grid cell with the MOST new built-up land (GHSL 1990->2025).
+GHSL_EPOCHS = (1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025, 2030)
 
-    This is the free, wide-area step of the hybrid workflow: it auto-picks where to
-    point a small, quota-cheap PlanetScope close-up. Returns
-    {lat, lon, bbox=[w,s,e,n], new_builtup_km2, box_km}.
+
+def find_hotspot(aoi, box_km=6.0, from_year=1990, to_year=2025):
+    """Locate the ~box_km grid cell with the MOST new built-up land (GHSL).
+
+    The change period is configurable: `from_year`->`to_year` (GHSL epochs, 5-yearly
+    1975-2030). Use a recent pair (e.g. 2015->2025) to point Planet at ACTIVE change,
+    or the full span for cumulative growth. Free, wide-area step of the hybrid workflow.
+    Returns {lat, lon, bbox=[w,s,e,n], new_builtup_km2, box_km, from_year, to_year}.
     """
-    new_built = _ghsl(2025).subtract(_ghsl(1990)).max(0).unmask(0).rename("sum")
+    for y in (from_year, to_year):
+        if y not in GHSL_EPOCHS:
+            raise SystemExit(f"GHSL hotspot years must be a 5-yearly epoch in "
+                             f"{GHSL_EPOCHS[0]}..{GHSL_EPOCHS[-1]}; got {y}.")
+    new_built = _ghsl(to_year).subtract(_ghsl(from_year)).max(0).unmask(0).rename("sum")
     grid = aoi.coveringGrid(ee.Projection("EPSG:4326"), box_km * 1000)
     scored = (new_built.reduceRegions(grid, ee.Reducer.sum(), 100)
               .filter(ee.Filter.notNull(["sum"])).sort("sum", False))
@@ -82,7 +90,8 @@ def find_hotspot(aoi, box_km=6.0):
     return {"lat": round(c[1], 5), "lon": round(c[0], 5),
             "bbox": [round(min(xs), 5), round(min(ys), 5),
                      round(max(xs), 5), round(max(ys), 5)],
-            "new_builtup_km2": round(km2, 2), "box_km": box_km}
+            "new_builtup_km2": round(km2, 2), "box_km": box_km,
+            "from_year": from_year, "to_year": to_year}
 
 
 def _sum_km2(built_surface_m2, aoi):
@@ -404,9 +413,10 @@ def _render_all(stats, run_dir, epochs_tif, years, first_built_tif):
 
 def _run_planet(aoi, stats, run_dir, name, planet):
     """Hybrid: locate the most-changed hotspot (GHSL) and run a PlanetScope close-up."""
-    hs = find_hotspot(aoi, planet.get("hotspot_km", 6.0))
-    print(f"\nHotspot (most new built-up, GHSL 1990->2025): {hs['lat']}, {hs['lon']}"
-          f"  ({hs['new_builtup_km2']} km² in a {hs['box_km']:.0f} km cell)")
+    hs = find_hotspot(aoi, planet.get("hotspot_km", 6.0),
+                      planet.get("hotspot_from", 1990), planet.get("hotspot_to", 2025))
+    print(f"\nHotspot (most new built-up, GHSL {hs['from_year']}->{hs['to_year']}): "
+          f"{hs['lat']}, {hs['lon']}  ({hs['new_builtup_km2']} km² in a {hs['box_km']:.0f} km cell)")
     stats["hotspot"] = hs
     try:
         from . import planet_backend
@@ -647,7 +657,8 @@ def _render_infographic(run_dir, stats):
 
     if has_planet:                  # PlanetScope hotspot close-up band
         cap = (f"Most-changed hotspot @ {hs['lat']}, {hs['lon']}  ·  "
-               f"+{hs.get('new_builtup_km2', 0)} km²/cell new built-up (1990–2025)")
+               f"+{hs.get('new_builtup_km2', 0)} km²/cell new built-up "
+               f"({hs.get('from_year', 1990)}–{hs.get('to_year', 2025)})")
         if pl.get("pre_date"):
             cap += f"  ·  Planet {pl['pre_date']} → {pl['post_date']}"
         fig.text(mrg / Wf, ty(17.3), cap, ha="left", va="center",

@@ -295,6 +295,11 @@ def main():
     ap.add_argument("--planet-post", default="2025-07", help="Planet post month YYYY-MM")
     ap.add_argument("--hotspot-km", type=float, default=6.0,
                     help="hotspot cell size in km (fits one PlanetScope scene; default 6)")
+    ap.add_argument("--hotspot-from", type=int, default=1990,
+                    help="GHSL start epoch for the hotspot change period (default 1990; "
+                         "use e.g. 2015 to target recent change)")
+    ap.add_argument("--hotspot-to", type=int, default=2025,
+                    help="GHSL end epoch for the hotspot change period (default 2025)")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
@@ -341,6 +346,7 @@ def main():
         if args.planet:
             planet_opts = {"key": args.planet_key, "pre": args.planet_pre,
                            "post": args.planet_post, "hotspot_km": args.hotspot_km,
+                           "hotspot_from": args.hotspot_from, "hotspot_to": args.hotspot_to,
                            "confirm": args.planet_confirm}
         urban_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                           do_map=args.map, config_key=(args.ee_key or CONFIG_KEY),
