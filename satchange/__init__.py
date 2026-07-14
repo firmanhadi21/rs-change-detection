@@ -5,4 +5,4 @@ multi-epoch urban growth from free Sentinel-1/2 and Landsat data, via Google
 Earth Engine or Microsoft Planetary Computer (no account needed). Pure Python.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.13"
