@@ -12,7 +12,7 @@ Two independent views of how a metro area urbanised since 1980:
 Cross-sensor honesty: Landsat TM and OLI NDVI are NOT comparable across the
 2011->2013 break, so the code never stitches them into one absolute trend. The
 vegetation-decline line + loss map use same-sensor TM epochs (1990/2000/2010);
-OLI epochs (2020/2025) are reported separately; full-span vegetation-to-urban
+OLI epochs (2015/2020/2025) are reported separately; full-span vegetation-to-urban
 conversion is measured by GHSL (new_urban).
 
 Backends:
@@ -40,9 +40,9 @@ except ImportError:
 
 GHSL_YEARS = [1980, 1990, 2000, 2010, 2020, 2025]
 DECADE_YEARS = [1980, 1990, 2000, 2010, 2020]   # 5 classes for the first-built map
-LANDSAT_YEARS = [1990, 2000, 2010, 2020, 2025]  # L5/8/9 (1980 = MSS, skipped)
-TM_YEARS = [1990, 2000, 2010]                   # Landsat-5 TM — mutually comparable
-OLI_YEARS = [2020, 2025]                        # Landsat-8/9 OLI — comparable to each other
+LANDSAT_YEARS = [1990, 2000, 2010, 2015, 2020, 2025]  # L5/8/9 (1980 = MSS, skipped)
+TM_YEARS = [1990, 2000, 2010]                            # Landsat-5 TM — mutually comparable
+OLI_YEARS = [2015, 2020, 2025]                           # Landsat-8/9 OLI — comparable to each other
 
 BUILT_M2_THR = 2000.0   # GHSL: >20% of a 100 m cell built-up = "built"
 NDBI_THR = 0.0          # Landsat NDBI > 0 ~ built-up / bare (trend proxy)
@@ -293,7 +293,7 @@ def _run_mpc(lat, lon, radius, name, run_dir, run_id, do_map):
 _NOTES = ("GHSL GHS-BUILT-S is the authoritative cross-decade built-up series "
           "(internally consistent). Landsat NDVI/NDBI absolute values are NOT "
           "comparable across the TM->OLI break (2011->2013): TM epochs "
-          "(1990/2000/2010) form one comparable group, OLI (2020/2025) another. "
+          "(1990/2000/2010) form one comparable group, OLI (2015/2020/2025) another. "
           "The vegetation-loss map uses TM-only 1990->2010.")
 
 
