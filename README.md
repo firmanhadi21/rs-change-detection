@@ -4,6 +4,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/satchange.svg)](https://pypi.org/project/satchange/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-tutorial-blue.svg)](https://firmanhadi21.github.io/rs-change-detection/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21370696.svg)](https://doi.org/10.5281/zenodo.21370696)
 
 Instalasi: `pip install 'satchange[all]'` — perintah `satchange` & `satmap`.
 
@@ -573,25 +574,29 @@ Jika Anda menggunakan perangkat lunak ini dalam penelitian atau publikasi, mohon
 Di GitHub, gunakan tombol **"Cite this repository"** (didukung oleh berkas
 [`CITATION.cff`](CITATION.cff)) untuk mendapatkan format APA/BibTeX terkini.
 
+DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.21370696)
+
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.21) [Perangkat lunak]. Universitas Diponegoro. https://github.com/firmanhadi21/rs-change-detection
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.22) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
 ```bibtex
 @software{hadi_satchange_2026,
-  author  = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
-  title   = {satchange: Multipurpose satellite change detection},
-  version = {0.1.21},
-  year    = {2026},
-  url      = {https://github.com/firmanhadi21/rs-change-detection},
-  note    = {Universitas Diponegoro}
+  author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
+  title     = {satchange: Multipurpose satellite change detection},
+  version   = {0.1.22},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.21370696},
+  url        = {https://doi.org/10.5281/zenodo.21370696},
+  note      = {Universitas Diponegoro}
 }
 ```
 
-> Setelah repositori terhubung ke Zenodo dan sebuah *release* dibuat, DOI resmi akan
-> muncul di sini (gantikan APA/BibTeX di atas dengan versi ber-DOI dari Zenodo).
+> DOI di atas adalah *concept DOI* (selalu menuju versi terbaru). Untuk mengutip
+> rilis spesifik v0.1.22, gunakan DOI versi `10.5281/zenodo.21370762`.
 
 ## Disclaimer
 
