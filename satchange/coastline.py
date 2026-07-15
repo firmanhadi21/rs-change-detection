@@ -28,6 +28,7 @@ except ImportError:
 
 VV_WATER_THR = -18.0   # dB — open sea water is very smooth
 DEFAULT_WIN = ("2025-01-01", "2025-12-31")
+MAX_RATE_M_YR = 30.0   # transects with |rate| beyond this are measurement artifacts
 
 
 # ------------------------------- SAR sea mask -------------------------------
@@ -418,7 +419,7 @@ def _epoch_shoreline(aoi, win, run_dir, scale, sensor, smooth_px, band_px, midla
         except SystemExit:
             tif = None
     if tif is None:
-        return None, None
+        return None, None, None, None
     arr, valid, tr, _crs = _read_band(tif)
     sea, thr = _otsu_sea(arr, valid, smooth_px)
     lines, length_km = _subpixel_coast(arr, valid, thr, sea, tr, band_px)
@@ -429,10 +430,11 @@ def _epoch_shoreline(aoi, win, run_dir, scale, sensor, smooth_px, band_px, midla
     rec = {"year": int(yr), "window": list(win), "scenes": n,
            "coastline_length_km": length_km, "sea_area_km2": round(sea_km2, 2),
            "land_area_km2": round(max(aoi_km2 - sea_km2, 0), 2)}
-    return rec, lines
+    return rec, lines, sea, tr
 
 
-def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, label):
+def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, label,
+                    transect_spacing=500):
     try:
         import skimage  # noqa: F401
     except ImportError:
@@ -441,16 +443,17 @@ def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, l
     band_px = max(int((smooth_m or 30) / scale), 2)
     midlat = (bbox[1] + bbox[3]) / 2.0
     aoi_km2 = (bbox[2] - bbox[0]) * 111.32 * math.cos(math.radians(midlat)) * (bbox[3] - bbox[1]) * 110.57
-    series, year_lines = [], {}
+    series, year_lines, ref_sea, ref_tr = [], {}, None, None
     for win in epochs:
         print(f"  epoch {win[0][:4]}: {win[0]}..{win[1]}")
-        rec, lines = _epoch_shoreline(aoi, win, run_dir, scale, sensor,
-                                      smooth_px, band_px, midlat, aoi_km2)
+        rec, lines, sea, tr = _epoch_shoreline(aoi, win, run_dir, scale, sensor,
+                                               smooth_px, band_px, midlat, aoi_km2)
         if rec is None:
             print(f"    {win[0][:4]}: no scenes (even ±2 yr) — skipped")
             continue
         series.append(rec)
         year_lines[rec["year"]] = lines
+        ref_sea, ref_tr = sea, tr        # latest usable epoch = landward-most baseline
         print(f"    scenes={rec['scenes']:3d}  coastline={rec['coastline_length_km']:6.1f} km  "
               f"land={rec['land_area_km2']:.0f} km²")
     if not series:
@@ -463,10 +466,15 @@ def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, l
     _render_series_map(run_dir, name, bbox, year_lines, label)
     _render_trend(run_dir, name, series)
     first, last = series[0], series[-1]
-    return {"mode": "timeseries", "method": sensor, "label": label,
-            "epochs": [s["year"] for s in series], "series": series,
-            "from_year": first["year"], "to_year": last["year"],
-            "net_land_change_ha": round((last["land_area_km2"] - first["land_area_km2"]) * 100, 1)}
+    out = {"mode": "timeseries", "method": sensor, "label": label,
+           "epochs": [s["year"] for s in series], "series": series,
+           "from_year": first["year"], "to_year": last["year"],
+           "net_land_change_ha": round((last["land_area_km2"] - first["land_area_km2"]) * 100, 1)}
+    if transect_spacing and len(series) >= 2 and ref_sea is not None:
+        t = _run_transects(run_dir, name, bbox, year_lines, ref_sea, ref_tr, transect_spacing)
+        if t:
+            out["transects"] = t
+    return out
 
 
 def _add_basemap(ax):
@@ -479,20 +487,21 @@ def _add_basemap(ax):
 
 def _render_series_map(run_dir, name, bbox, year_lines, label):
     plt = _plt()
-    from matplotlib import cm, colors
+    from matplotlib.lines import Line2D
     w, s, e, n = bbox
     years = sorted(year_lines)
-    norm = colors.Normalize(min(years), max(years))
     cmap = plt.get_cmap("viridis")
+    cols = [cmap(i / max(len(years) - 1, 1)) for i in range(len(years))]  # one per epoch
     fig, ax = plt.subplots(figsize=(11, 11), dpi=150)
     ax.set_xlim(w, e); ax.set_ylim(s, n)
     _add_basemap(ax)
-    for yr in years:
+    for col, yr in zip(cols, years):
         for seg in year_lines[yr]:
             xs = [p[0] for p in seg]; ys = [p[1] for p in seg]
-            ax.plot(xs, ys, color=cmap(norm(yr)), lw=1.1, alpha=0.9, zorder=5)
-    sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
-    fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02, label="Year (old → new)")
+            ax.plot(xs, ys, color=col, lw=1.2, alpha=0.9, zorder=5)
+    ax.legend(handles=[Line2D([0], [0], color=c, lw=2.6, label=str(y))
+                       for c, y in zip(cols, years)],
+              title="Shoreline year", loc="lower right", framealpha=0.92, fontsize=9)
     ax.set_title(f"Shoreline time-series ({label} MNDWI ~sub-pixel) — {name}",
                  fontsize=13, fontweight="bold")
     ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
@@ -523,8 +532,200 @@ def _render_trend(run_dir, name, series):
     print("Trend chart: trend.png")
 
 
+# ===================== transects (cross-shore retreat rate, m/yr) =====================
+def _proj(bbox):
+    """Local equirectangular projection to metres (accurate over a small AOI)."""
+    lon0, lat0 = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
+    kx = 111320.0 * math.cos(math.radians(lat0))
+    ky = 110570.0
+    return (lambda lon, lat: ((lon - lon0) * kx, (lat - lat0) * ky),
+            lambda x, y: (lon0 + x / kx, lat0 + y / ky))
+
+
+def _lines_to_m(lines, to_m):
+    from shapely.geometry import LineString, MultiLineString
+    segs = [LineString([to_m(p[0], p[1]) for p in seg]) for seg in lines if len(seg) >= 2]
+    return MultiLineString(segs) if segs else None
+
+
+def _baseline_normals(ref_sea, tr, to_m, spacing):
+    """Longest contour of the reference sea → baseline points + unit normals (metres)."""
+    import numpy as np
+    import rasterio
+    from skimage import measure
+    contours = measure.find_contours(ref_sea.astype(float), 0.5)
+    if not contours:
+        return None, None
+    c = max(contours, key=len)
+    lon, lat = rasterio.transform.xy(tr, c[:, 0], c[:, 1])
+    xy = np.array([to_m(lo, la) for lo, la in zip(lon, lat)])
+    d = np.r_[0.0, np.cumsum(np.hypot(np.diff(xy[:, 0]), np.diff(xy[:, 1])))]
+    if d[-1] < spacing * 2:
+        return None, None
+    ss = np.arange(spacing, d[-1], spacing)
+    pts = np.column_stack([np.interp(ss, d, xy[:, 0]), np.interp(ss, d, xy[:, 1])])
+    from scipy.ndimage import uniform_filter1d           # smooth for stable normals
+    pts[:, 0] = uniform_filter1d(pts[:, 0], size=5, mode="nearest")
+    pts[:, 1] = uniform_filter1d(pts[:, 1], size=5, mode="nearest")
+    tang = np.gradient(pts, axis=0)
+    tl = np.hypot(tang[:, 0], tang[:, 1]); tl[tl == 0] = 1
+    tang /= tl[:, None]
+    nrm = np.column_stack([-tang[:, 1], tang[:, 0]])
+    return pts, nrm
+
+
+def _sea_votes(pt, direction, ref_sea, tr, to_ll, step, nsteps):
+    """Count sea pixels sampled `nsteps` along `direction` from `pt` (metres)."""
+    import rasterio
+    H, W = ref_sea.shape
+    v = 0
+    for k in range(1, nsteps + 1):
+        lon, lat = to_ll(*(pt + direction * step * k))
+        row, col = rasterio.transform.rowcol(tr, lon, lat)
+        if 0 <= row < H and 0 <= col < W and ref_sea[row, col]:
+            v += 1
+    return v
+
+
+def _orient_seaward(pts, nrm, ref_sea, tr, to_ll, step=90.0, nsteps=8):
+    """Point each transect toward the sea: vote over several steps on both sides."""
+    out = nrm.copy()
+    for i in range(len(pts)):
+        pos = _sea_votes(pts[i], nrm[i], ref_sea, tr, to_ll, step, nsteps)
+        neg = _sea_votes(pts[i], -nrm[i], ref_sea, tr, to_ll, step, nsteps)
+        if neg > pos:
+            out[i] = -nrm[i]           # more sea on the -normal side → flip
+    return out
+
+
+def _intersection_dist(tline, ml, ox, oy):
+    import numpy as np
+    inter = tline.intersection(ml)
+    if inter.is_empty:
+        return None
+    coords = []
+    for g in (inter.geoms if hasattr(inter, "geoms") else [inter]):
+        coords += list(g.coords) if g.geom_type != "Point" else [(g.x, g.y)]
+    if not coords:
+        return None
+    return max(np.hypot(x - ox, y - oy) for x, y in coords)   # seaward-most crossing
+
+
+def _transect_rates(pts, nrm, length, year_lines_m, years):
+    from shapely.geometry import LineString
+    import numpy as np
+    out = []
+    for i in range(len(pts)):
+        o = pts[i]; end = o + nrm[i] * length
+        tline = LineString([tuple(o), tuple(end)])
+        dby = {}
+        for yr in years:
+            ml = year_lines_m.get(yr)
+            if ml is None:
+                continue
+            dist = _intersection_dist(tline, ml, o[0], o[1])
+            if dist is not None:
+                dby[yr] = dist
+        if len(dby) >= 2:
+            yy = np.array(sorted(dby)); dd = np.array([dby[y] for y in yy])
+            rate = float(np.polyfit(yy, dd, 1)[0])       # m/yr; <0 = retreat
+            if abs(rate) <= MAX_RATE_M_YR:               # drop artifacts on complex coasts
+                out.append({"origin": tuple(o), "end": tuple(end), "rate": rate,
+                            "n": len(dby),
+                            "dist_by_year": {int(y): round(float(dby[y]), 1) for y in dby}})
+    return out
+
+
+def _run_transects(run_dir, name, bbox, year_lines, ref_sea, tr, spacing, length=2500.0):
+    to_m, to_ll = _proj(bbox)
+    pts, nrm = _baseline_normals(ref_sea, tr, to_m, spacing)
+    if pts is None:
+        print("  (transects skipped: no usable baseline contour)")
+        return None
+    nrm = _orient_seaward(pts, nrm, ref_sea, tr, to_ll)
+    ylm = {yr: _lines_to_m(year_lines[yr], to_m) for yr in year_lines}
+    tr_res = _transect_rates(pts, nrm, length, ylm, sorted(year_lines))
+    if not tr_res:
+        print("  (transects skipped: no transect crossed >=2 shorelines)")
+        return None
+    import numpy as np
+    feats = []
+    for k, t in enumerate(tr_res):
+        feats.append({"type": "Feature",
+                      "properties": {"id": k, "rate_m_per_yr": round(t["rate"], 2),
+                                     "n_years": t["n"], "dist_by_year": t["dist_by_year"]},
+                      "geometry": {"type": "LineString",
+                                   "coordinates": [list(to_ll(*t["origin"])), list(to_ll(*t["end"]))]}})
+    with open(os.path.join(run_dir, "transects.geojson"), "w") as f:
+        json.dump({"type": "FeatureCollection", "features": feats}, f)
+    rates = np.array([t["rate"] for t in tr_res])
+    _render_transects(run_dir, name, bbox, year_lines, tr_res, to_ll)
+    print(f"Transects: {len(tr_res)} @ {spacing:.0f} m  ·  median rate {np.median(rates):+.1f} m/yr")
+    return {"n_transects": len(tr_res), "spacing_m": spacing,
+            "mean_rate_m_per_yr": round(float(rates.mean()), 2),
+            "median_rate_m_per_yr": round(float(np.median(rates)), 2),
+            "max_retreat_m_per_yr": round(float(rates.min()), 2),
+            "pct_retreating": round(100.0 * float((rates < 0).mean()), 1)}
+
+
+def _render_transects(run_dir, name, bbox, year_lines, tr_res, to_ll):
+    plt = _plt()
+    import numpy as np
+    from matplotlib import cm, colors
+    w, s, e, n = bbox
+    rates = np.array([t["rate"] for t in tr_res])
+    lim = max(1.0, float(np.nanpercentile(np.abs(rates), 95)))
+    norm = colors.Normalize(-lim, lim)
+    cmap = plt.get_cmap("RdBu")               # red = retreat (neg), blue = advance (pos)
+    fig, ax = plt.subplots(figsize=(11, 11), dpi=150)
+    ax.set_xlim(w, e); ax.set_ylim(s, n)
+    _add_basemap(ax)
+    for yr in sorted(year_lines):             # faint shorelines for context
+        for seg in year_lines[yr]:
+            ax.plot([p[0] for p in seg], [p[1] for p in seg], color="#999", lw=0.4, alpha=0.5, zorder=3)
+    for t in tr_res:
+        (ox, oy), (ex, ey) = to_ll(*t["origin"]), to_ll(*t["end"])
+        ax.plot([ox, ex], [oy, ey], color=cmap(norm(t["rate"])), lw=1.6, zorder=5)
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
+    fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02, label="Shoreline change rate (m/yr)  ·  red = retreat")
+    ax.set_title(f"Shoreline retreat rate along transects — {name}", fontsize=13, fontweight="bold")
+    ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
+    ax.grid(True, ls=":", color="#888", alpha=0.4)
+    fig.tight_layout(); fig.savefig(os.path.join(run_dir, "transects_map.png")); plt.close(fig)
+    print("Transect map: transects_map.png")
+
+
+def _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m, pre, post, epochs, spacing):
+    sensor = "landsat" if method == "landsat" else "s2"
+    osc = 30 if method == "landsat" else 10          # Landsat 30 m, S2 10 m
+    label = "Landsat" if method == "landsat" else "Sentinel-2"
+    print(f"Optical ({label} MNDWI sub-pixel, {osc} m); smoothing {smooth_m} m")
+    if epochs:
+        print(f"Time-series: {len(epochs)} epochs; transects @ {spacing} m" if spacing
+              else f"Time-series: {len(epochs)} epochs (no transects)")
+        return _run_timeseries(aoi, bbox, run_dir, name, osc, smooth_m, epochs, sensor, label, spacing)
+    return _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label)
+
+
+def _dispatch_sar(aoi, bbox, run_dir, name, scale, smooth_m, thr, pre, post, epochs):
+    if epochs:
+        raise SystemExit("--epochs time-series needs --coast-method optical or landsat.")
+    from .indices import best_orbit
+    periods = [pre, post] if pre else [post]
+    orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
+    if not covered:
+        raise SystemExit(f"No Sentinel-1 orbit covers all windows: {counts}")
+    print(f"Sentinel-1 VV, orbit {orbit}, scenes {counts}; smoothing {smooth_m} m")
+    if pre:
+        print(f"Shoreline CHANGE: {pre[0]}..{pre[1]}  →  {post[0]}..{post[1]}")
+        return _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m)
+    print(f"Coastline (single date): {post[0]}..{post[1]}")
+    return _run_single(aoi, bbox, orbit, post, run_dir, name, scale, thr, smooth_m)
+
+
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
-        pre=None, post=None, thr=VV_WATER_THR, smooth_m=150, method="sar", epochs=None):
+        pre=None, post=None, thr=VV_WATER_THR, smooth_m=150, method="sar", epochs=None,
+        transect_spacing=500):
     """Entry point called by detect.py for the coastline scenario (GEE only).
 
     method: 'sar' (Sentinel-1 VV water mask → vector; cloud-proof) or 'optical'
@@ -543,30 +744,10 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     post = post or DEFAULT_WIN
 
     if method in ("optical", "landsat"):
-        sensor = "landsat" if method == "landsat" else "s2"
-        osc = 30 if method == "landsat" else 10          # Landsat 30 m, S2 10 m
-        label = "Landsat" if method == "landsat" else "Sentinel-2"
-        print(f"Optical ({label} MNDWI sub-pixel, {osc} m); smoothing {smooth_m} m")
-        if epochs:
-            print(f"Time-series: {len(epochs)} epochs")
-            stats = _run_timeseries(aoi, bbox, run_dir, name, osc, smooth_m, epochs, sensor, label)
-        else:
-            stats = _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label)
+        stats = _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m,
+                                  pre, post, epochs, transect_spacing)
     else:
-        if epochs:
-            raise SystemExit("--epochs time-series needs --coast-method optical or landsat.")
-        from .indices import best_orbit
-        periods = [pre, post] if pre else [post]
-        orbit, covered, counts = best_orbit(aoi, periods, pol="VV")
-        if not covered:
-            raise SystemExit(f"No Sentinel-1 orbit covers all windows: {counts}")
-        print(f"Sentinel-1 VV, orbit {orbit}, scenes {counts}; smoothing {smooth_m} m")
-        if pre:
-            print(f"Shoreline CHANGE: {pre[0]}..{pre[1]}  →  {post[0]}..{post[1]}")
-            stats = _run_change(aoi, bbox, orbit, pre, post, run_dir, name, scale, thr, smooth_m)
-        else:
-            print(f"Coastline (single date): {post[0]}..{post[1]}")
-            stats = _run_single(aoi, bbox, orbit, post, run_dir, name, scale, thr, smooth_m)
+        stats = _dispatch_sar(aoi, bbox, run_dir, name, scale, smooth_m, thr, pre, post, epochs)
 
     stats.update({"run_id": run_id, "scenario": "coastline", "smooth_m": smooth_m,
                   "location": {"lat": lat, "lon": lon}, "radius_km": radius})

@@ -352,6 +352,9 @@ def main():
                     help="coastline sensor: sar (Sentinel-1, cloud-proof), optical "
                          "(Sentinel-2 MNDWI sub-pixel, 10 m, 2015+), or landsat "
                          "(MNDWI sub-pixel, 30 m, archive to 1984 — long-period change)")
+    ap.add_argument("--transect-spacing", type=int, default=500,
+                    help="coastline --epochs time-series: cross-shore transect spacing in "
+                         "metres for the retreat-rate (m/yr) analysis (default 500; 0 = off)")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
@@ -415,7 +418,7 @@ def main():
                       config_key=(args.ee_key or CONFIG_KEY),
                       pre=params.get("pre"), post=params.get("post"),
                       smooth_m=args.coast_smooth, method=args.coast_method,
-                      epochs=coast_epochs)
+                      epochs=coast_epochs, transect_spacing=args.transect_spacing)
         list_outputs(run_dir)
         return
 
