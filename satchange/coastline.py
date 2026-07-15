@@ -434,7 +434,7 @@ def _epoch_shoreline(aoi, win, run_dir, scale, sensor, smooth_px, band_px, midla
 
 
 def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, label,
-                    transect_spacing=500):
+                    transect_spacing=500, transects_file=None):
     try:
         import skimage  # noqa: F401
     except ImportError:
@@ -470,8 +470,9 @@ def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, l
            "epochs": [s["year"] for s in series], "series": series,
            "from_year": first["year"], "to_year": last["year"],
            "net_land_change_ha": round((last["land_area_km2"] - first["land_area_km2"]) * 100, 1)}
-    if transect_spacing and len(series) >= 2 and ref_sea is not None:
-        t = _run_transects(run_dir, name, bbox, year_lines, ref_sea, ref_tr, transect_spacing)
+    if (transect_spacing or transects_file) and len(series) >= 2 and ref_sea is not None:
+        t = _run_transects(run_dir, name, bbox, year_lines, ref_sea, ref_tr, transect_spacing,
+                           transects_file=transects_file)
         if t:
             out["transects"] = t
     return out
@@ -611,42 +612,72 @@ def _intersection_dist(tline, ml, ox, oy):
     return max(np.hypot(x - ox, y - oy) for x, y in coords)   # seaward-most crossing
 
 
-def _transect_rates(pts, nrm, length, year_lines_m, years):
+def _auto_transects(pts, nrm, length):
+    """Auto transects from baseline points + seaward normals: coords + landward origin."""
+    return [{"coords": [tuple(pts[i]), tuple(pts[i] + nrm[i] * length)],
+             "origin": (float(pts[i][0]), float(pts[i][1]))} for i in range(len(pts))]
+
+
+def _file_transects(path, to_m):
+    """User transects from a GeoJSON of LineStrings (first vertex = landward origin)."""
+    gj = json.load(open(path))
+    feats = gj["features"] if gj.get("type") == "FeatureCollection" else [gj]
+    out = []
+    for f in feats:
+        g = f.get("geometry", f)
+        if g.get("type") != "LineString" or len(g["coordinates"]) < 2:
+            continue
+        coords = [to_m(c[0], c[1]) for c in g["coordinates"]]
+        out.append({"coords": coords, "origin": coords[0]})
+    return out
+
+
+def _transect_rates(transects, year_lines_m, years):
     from shapely.geometry import LineString
     import numpy as np
     out = []
-    for i in range(len(pts)):
-        o = pts[i]; end = o + nrm[i] * length
-        tline = LineString([tuple(o), tuple(end)])
+    for t in transects:
+        tline = LineString(t["coords"]); ox, oy = t["origin"]
         dby = {}
         for yr in years:
             ml = year_lines_m.get(yr)
             if ml is None:
                 continue
-            dist = _intersection_dist(tline, ml, o[0], o[1])
+            dist = _intersection_dist(tline, ml, ox, oy)
             if dist is not None:
                 dby[yr] = dist
         if len(dby) >= 2:
             yy = np.array(sorted(dby)); dd = np.array([dby[y] for y in yy])
             rate = float(np.polyfit(yy, dd, 1)[0])       # m/yr; <0 = retreat
             if abs(rate) <= MAX_RATE_M_YR:               # drop artifacts on complex coasts
-                out.append({"origin": tuple(o), "end": tuple(end), "rate": rate,
-                            "n": len(dby),
+                out.append({"coords": t["coords"], "rate": rate, "n": len(dby),
                             "dist_by_year": {int(y): round(float(dby[y]), 1) for y in dby}})
     return out
 
 
-def _run_transects(run_dir, name, bbox, year_lines, ref_sea, tr, spacing, length=2500.0):
+def _build_transects(bbox, ref_sea, tr, spacing, length, transects_file):
+    """Return (transects list, to_m, to_ll, source-label) from a file or auto-generation."""
     to_m, to_ll = _proj(bbox)
+    if transects_file:
+        transects = _file_transects(transects_file, to_m)
+        return transects, to_m, to_ll, f"file ({len(transects)})"
     pts, nrm = _baseline_normals(ref_sea, tr, to_m, spacing)
     if pts is None:
-        print("  (transects skipped: no usable baseline contour)")
-        return None
+        return None, to_m, to_ll, "auto"
     nrm = _orient_seaward(pts, nrm, ref_sea, tr, to_ll)
+    return _auto_transects(pts, nrm, length), to_m, to_ll, f"auto @ {spacing:.0f} m"
+
+
+def _run_transects(run_dir, name, bbox, year_lines, ref_sea, tr, spacing,
+                   length=2500.0, transects_file=None):
+    transects, to_m, to_ll, src = _build_transects(bbox, ref_sea, tr, spacing, length, transects_file)
+    if not transects:
+        print("  (transects skipped: no usable baseline / no transects loaded)")
+        return None
     ylm = {yr: _lines_to_m(year_lines[yr], to_m) for yr in year_lines}
-    tr_res = _transect_rates(pts, nrm, length, ylm, sorted(year_lines))
+    tr_res = _transect_rates(transects, ylm, sorted(year_lines))
     if not tr_res:
-        print("  (transects skipped: no transect crossed >=2 shorelines)")
+        print("  (transects skipped: none crossed >=2 shorelines)")
         return None
     import numpy as np
     feats = []
@@ -655,13 +686,13 @@ def _run_transects(run_dir, name, bbox, year_lines, ref_sea, tr, spacing, length
                       "properties": {"id": k, "rate_m_per_yr": round(t["rate"], 2),
                                      "n_years": t["n"], "dist_by_year": t["dist_by_year"]},
                       "geometry": {"type": "LineString",
-                                   "coordinates": [list(to_ll(*t["origin"])), list(to_ll(*t["end"]))]}})
+                                   "coordinates": [list(to_ll(*c)) for c in t["coords"]]}})
     with open(os.path.join(run_dir, "transects.geojson"), "w") as f:
         json.dump({"type": "FeatureCollection", "features": feats}, f)
     rates = np.array([t["rate"] for t in tr_res])
     _render_transects(run_dir, name, bbox, year_lines, tr_res, to_ll)
-    print(f"Transects: {len(tr_res)} @ {spacing:.0f} m  ·  median rate {np.median(rates):+.1f} m/yr")
-    return {"n_transects": len(tr_res), "spacing_m": spacing,
+    print(f"Transects: {len(tr_res)} ({src})  ·  median rate {np.median(rates):+.1f} m/yr")
+    return {"n_transects": len(tr_res), "source": src,
             "mean_rate_m_per_yr": round(float(rates.mean()), 2),
             "median_rate_m_per_yr": round(float(np.median(rates)), 2),
             "max_retreat_m_per_yr": round(float(rates.min()), 2),
@@ -684,8 +715,8 @@ def _render_transects(run_dir, name, bbox, year_lines, tr_res, to_ll):
         for seg in year_lines[yr]:
             ax.plot([p[0] for p in seg], [p[1] for p in seg], color="#999", lw=0.4, alpha=0.5, zorder=3)
     for t in tr_res:
-        (ox, oy), (ex, ey) = to_ll(*t["origin"]), to_ll(*t["end"])
-        ax.plot([ox, ex], [oy, ey], color=cmap(norm(t["rate"])), lw=1.6, zorder=5)
+        ll = [to_ll(*c) for c in t["coords"]]
+        ax.plot([p[0] for p in ll], [p[1] for p in ll], color=cmap(norm(t["rate"])), lw=1.6, zorder=5)
     sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
     fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02, label="Shoreline change rate (m/yr)  ·  red = retreat")
     ax.set_title(f"Shoreline retreat rate along transects — {name}", fontsize=13, fontweight="bold")
@@ -695,15 +726,20 @@ def _render_transects(run_dir, name, bbox, year_lines, tr_res, to_ll):
     print("Transect map: transects_map.png")
 
 
-def _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m, pre, post, epochs, spacing):
+def _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m, pre, post, epochs, spacing,
+                      transects_file=None):
     sensor = "landsat" if method == "landsat" else "s2"
     osc = 30 if method == "landsat" else 10          # Landsat 30 m, S2 10 m
     label = "Landsat" if method == "landsat" else "Sentinel-2"
     print(f"Optical ({label} MNDWI sub-pixel, {osc} m); smoothing {smooth_m} m")
     if epochs:
-        print(f"Time-series: {len(epochs)} epochs; transects @ {spacing} m" if spacing
-              else f"Time-series: {len(epochs)} epochs (no transects)")
-        return _run_timeseries(aoi, bbox, run_dir, name, osc, smooth_m, epochs, sensor, label, spacing)
+        if transects_file:
+            print(f"Time-series: {len(epochs)} epochs; transects from file {transects_file}")
+        else:
+            print(f"Time-series: {len(epochs)} epochs; transects @ {spacing} m" if spacing
+                  else f"Time-series: {len(epochs)} epochs (no transects)")
+        return _run_timeseries(aoi, bbox, run_dir, name, osc, smooth_m, epochs, sensor, label,
+                               spacing, transects_file=transects_file)
     return _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label)
 
 
@@ -725,7 +761,7 @@ def _dispatch_sar(aoi, bbox, run_dir, name, scale, smooth_m, thr, pre, post, epo
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         pre=None, post=None, thr=VV_WATER_THR, smooth_m=150, method="sar", epochs=None,
-        transect_spacing=500):
+        transect_spacing=500, transects_file=None):
     """Entry point called by detect.py for the coastline scenario (GEE only).
 
     method: 'sar' (Sentinel-1 VV water mask → vector; cloud-proof) or 'optical'
@@ -745,7 +781,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
     if method in ("optical", "landsat"):
         stats = _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m,
-                                  pre, post, epochs, transect_spacing)
+                                  pre, post, epochs, transect_spacing,
+                                  transects_file=transects_file)
     else:
         stats = _dispatch_sar(aoi, bbox, run_dir, name, scale, smooth_m, thr, pre, post, epochs)
 
