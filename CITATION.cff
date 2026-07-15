@@ -6,9 +6,6 @@ identifiers:
   - type: doi
     value: "10.5281/zenodo.21370696"
     description: "Concept DOI (all versions)"
-  - type: doi
-    value: "10.5281/zenodo.21370762"
-    description: "Version DOI (v0.1.22)"
 abstract: >-
   Pure-Python toolkit for satellite change detection — deforestation, mining,
   urbanisation, floods, burns, surface-water change and multi-epoch urban growth
@@ -30,7 +27,7 @@ authors:
 repository-code: "https://github.com/firmanhadi21/rs-change-detection"
 url: "https://firmanhadi21.github.io/rs-change-detection/"
 license: MIT
-version: "0.1.22"
+version: "0.1.23"
 date-released: "2026-07-15"
 keywords:
   - remote sensing

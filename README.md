@@ -235,10 +235,29 @@ dengan laju perubahan **m/tahun** (merah = surut). Statistik: laju rata-rata/med
 % pantai yang surut. Contoh Pekalongan 1994→2023: median **−2,3 m/thn**, 84% pantai
 surut. Metode `optical`/`landsat` butuh `satchange[maps]` (scikit-image, shapely).
 
+**Transek kustom (`--transects-file`).** Di teluk kompleks, transek otomatis bisa
+salah arah. Anda dapat menggambar sendiri transek melintang-pantai di QGIS,
+menyimpannya sebagai GeoJSON `LineString` (titik pertama = sisi darat), lalu:
+
+```bash
+satchange -s coastline --coast-method landsat --city "Pekalongan" --radius 12 \
+    --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31 \
+    --transects-file transek_saya.geojson
+```
+
+Setiap transek dipotong dengan garis pantai tiap epoch, lalu jarak-vs-tahun
+diregresi menjadi laju **m/tahun** (mengikuti pendekatan CoastSat, MIT-native).
+
 > **Catatan jujur:** di pantai tambak (mis. Demak/Pekalongan), tambak yang
 > tersambung ke laut ikut terhitung sebagai "laut", sehingga angka abrasi
 > mencampur surut nyata dengan genangan akibat penurunan tanah (rob). Transek
 > otomatis bisa salah arah di teluk kompleks — median dipakai sebagai angka utama.
+>
+> **Soal koreksi pasang-surut:** garis pantai di sini diambil dari **komposit median**
+> per epoch, sehingga sudah **ter-rata-rata terhadap pasang** (waterline ≈ muka air
+> rata-rata, bukan satu ketinggian pasang sesaat). Koreksi pasang per-scene ala
+> CoastSat hanya berlaku untuk citra per-tanggal, bukan komposit — jadi tidak
+> ditambahkan agar tidak memberi kesan presisi yang keliru.
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
@@ -578,7 +597,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.22) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.23) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -586,7 +605,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_satchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.22},
+  version   = {0.1.23},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},
@@ -596,7 +615,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 ```
 
 > DOI di atas adalah *concept DOI* (selalu menuju versi terbaru). Untuk mengutip
-> rilis spesifik v0.1.22, gunakan DOI versi `10.5281/zenodo.21370762`.
+> rilis tertentu, gunakan **DOI versi** yang tertera pada halaman rilis di Zenodo.
 
 ## Disclaimer
 
