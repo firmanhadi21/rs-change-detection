@@ -567,6 +567,32 @@ Sentinel-2 → SIRAD → PlanetScope NDVI → verifikasi legal (BHUMI/MODI) → 
 - **Google Earth Engine** — pemrosesan citra.
 - **BHUMI** ATR/BPN & **MODI** ESDM — catatan publik Pemerintah Indonesia.
 
+## Sitasi
+
+Jika Anda menggunakan perangkat lunak ini dalam penelitian atau publikasi, mohon sitasi.
+Di GitHub, gunakan tombol **"Cite this repository"** (didukung oleh berkas
+[`CITATION.cff`](CITATION.cff)) untuk mendapatkan format APA/BibTeX terkini.
+
+**APA**
+
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.21) [Perangkat lunak]. Universitas Diponegoro. https://github.com/firmanhadi21/rs-change-detection
+
+**BibTeX**
+
+```bibtex
+@software{hadi_satchange_2026,
+  author  = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
+  title   = {satchange: Multipurpose satellite change detection},
+  version = {0.1.21},
+  year    = {2026},
+  url      = {https://github.com/firmanhadi21/rs-change-detection},
+  note    = {Universitas Diponegoro}
+}
+```
+
+> Setelah repositori terhubung ke Zenodo dan sebuah *release* dibuat, DOI resmi akan
+> muncul di sini (gantikan APA/BibTeX di atas dengan versi ber-DOI dari Zenodo).
+
 ## Disclaimer
 
 Repositori ini dibuat untuk tujuan jurnalisme investigatif dan verifikasi berbasis bukti terbuka (*open-source intelligence*). Interpretasi citra satelit bersifat indikatif; status hukum final merupakan kewenangan otoritas berwenang. Semua sumber data yang digunakan bersifat publik atau berlisensi sah.
