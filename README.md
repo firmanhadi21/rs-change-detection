@@ -67,6 +67,7 @@ gratis), atau `--site NAMA`.
 | `disturbance` | Dampak banjir/longsor via **perubahan VH** (untuk medan) | Sentinel-1 |
 | `burn` | dNBR (severity kebakaran) | Sentinel-2 |
 | `water` | Perubahan NDWI (air permukaan) | Sentinel-2 |
+| `coastline` | Garis pantai + perubahan garis pantai (abrasi/akresi) + laju surut m/thn | S1 SAR / S2 / Landsat |
 
 ```bash
 # Sintaks umum
@@ -198,6 +199,45 @@ Kunci Planet dibaca dari `--planet-key`, `$PLANET_API_KEY`, atau
 aplikasi **tidak menyentuh** PlanetScope sama sekali (tanpa kunci, tanpa kuota).
 `--hotspot-from/--hotspot-to` memilih periode perubahan GHSL; `--planet-pre/--planet-post`
 tanggal citra Planet.
+
+### Garis pantai & perubahan garis pantai — `coastline`
+
+Mengekstrak **batas laut–darat** dan memetakan **perubahan garis pantai**
+(abrasi/akresi) serta **laju surut (m/tahun)**. Keluaran raster **dan** vektor
+GeoJSON (`coastline.geojson`, `sea.geojson`) untuk QGIS.
+
+Tiga sensor lewat `--coast-method`:
+
+| Metode | Sumber | Catatan |
+|--------|--------|---------|
+| `sar` (default) | Sentinel-1 VV | Tembus awan, ~10 m — cepat & andal |
+| `optical` | Sentinel-2 MNDWI + Otsu + marching-squares | **Sub-piksel**, 10 m, sejak 2015 |
+| `landsat` | MNDWI (L5/8-9), 30 m | **Arsip sejak 1984** — perubahan multi-dekade |
+
+```bash
+# Garis pantai satu tanggal (SAR)
+satchange -s coastline --lat -6.95 --lon 110.45 --radius 8
+
+# Perubahan: abrasi (darat→laut) & akresi (laut→darat) antar dua tanggal
+satchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
+    --pre 2016-01-01:2016-12-31 --post 2025-01-01:2025-12-31
+
+# Deret waktu periodik + transek laju surut (m/thn), Landsat sejak 1990-an
+satchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
+    --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31
+```
+
+Mode deret waktu (`--epochs`) menulis garis pantai per epoch, peta
+`shorelines_map.png` (berwarna per tahun), grafik tren, dan analisis **transek**
+(`transects.geojson` + `transects_map.png`, `--transect-spacing` default 500 m)
+dengan laju perubahan **m/tahun** (merah = surut). Statistik: laju rata-rata/median,
+% pantai yang surut. Contoh Pekalongan 1994→2023: median **−2,3 m/thn**, 84% pantai
+surut. Metode `optical`/`landsat` butuh `satchange[maps]` (scikit-image, shapely).
+
+> **Catatan jujur:** di pantai tambak (mis. Demak/Pekalongan), tambak yang
+> tersambung ke laut ikut terhitung sebagai "laut", sehingga angka abrasi
+> mencampur surut nyata dengan genangan akibat penurunan tanah (rob). Transek
+> otomatis bisa salah arah di teluk kompleks — median dipakai sebagai angka utama.
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
