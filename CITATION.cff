@@ -8,10 +8,11 @@ identifiers:
     description: "Concept DOI (all versions)"
 abstract: >-
   Pure-Python toolkit for satellite change detection — deforestation, mining,
-  urbanisation, floods, burns, surface-water change and multi-epoch urban growth
-  — from free Sentinel-1/2 and Landsat data via Google Earth Engine or Microsoft
-  Planetary Computer (no account needed). Produces georeferenced GeoTIFFs,
-  quick-look PNGs, statistics, and print-ready maps.
+  urbanisation, floods, burns, surface-water change, coastal/shoreline change
+  (erosion/accretion with cross-shore retreat rates in m/yr) and multi-epoch
+  urban growth — from free Sentinel-1/2 and Landsat data via Google Earth Engine
+  or Microsoft Planetary Computer (no account needed). Produces georeferenced
+  GeoTIFFs, quick-look PNGs, statistics, and print-ready maps.
 type: software
 authors:
   - given-names: Firman
@@ -40,5 +41,8 @@ keywords:
   - NDVI
   - flood mapping
   - deforestation
+  - coastal change
+  - shoreline change
+  - shoreline erosion
   - GIS
   - geospatial
