@@ -358,6 +358,17 @@ def main():
     ap.add_argument("--transects-file", help="coastline --epochs time-series: GeoJSON of custom "
                     "cross-shore transect LineStrings (drawn in QGIS) — overrides auto-transects "
                     "for clean m/yr rates in complex bays (CoastSat-style)")
+    ap.add_argument("--transit-file", help="transit-access: GeoJSON of public-transport "
+                    "stops (Point/MultiPoint) or routes (LineString, sampled). If omitted, "
+                    "stops are fetched from OpenStreetMap.")
+    ap.add_argument("--walk-dist", default="500", help="transit-access: walking-distance "
+                    "threshold(s) in metres, comma-separated (default 500; SDG 11.2.1 uses "
+                    "500 m for buses, ~1000 m for rail). The first value drives the map.")
+    ap.add_argument("--pop-year", type=int, default=2020,
+                    help="transit-access: WorldPop year (2000–2020; default 2020)")
+    ap.add_argument("--access-buffer", type=float, default=100.0,
+                    help="transit-access: corridor width (m) around served streets for the "
+                         "service-area polygon (map only; default 100)")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
@@ -410,6 +421,15 @@ def main():
                           do_map=args.map, config_key=(args.ee_key or CONFIG_KEY),
                           do_drive=args.drive, drive_folder=args.drive_folder,
                           planet=planet_opts)
+        list_outputs(run_dir)
+        return
+
+    if cfg.get("method") == "transit-access":
+        from . import transit
+        transit.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                    config_key=(args.ee_key or CONFIG_KEY),
+                    transit_file=args.transit_file, walk_dist=args.walk_dist,
+                    pop_year=args.pop_year, access_buffer=args.access_buffer)
         list_outputs(run_dir)
         return
 

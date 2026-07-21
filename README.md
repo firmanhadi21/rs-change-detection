@@ -69,6 +69,7 @@ gratis), atau `--site NAMA`.
 | `burn` | dNBR (severity kebakaran) | Sentinel-2 |
 | `water` | Perubahan NDWI (air permukaan) | Sentinel-2 |
 | `coastline` | Garis pantai + perubahan garis pantai (abrasi/akresi) + laju surut m/thn | S1 SAR / S2 / Landsat |
+| `transit-access` | % populasi yang menjangkau transportasi publik (SDG 11.2.1) | WorldPop + OSM |
 
 ```bash
 # Sintaks umum
@@ -258,6 +259,45 @@ diregresi menjadi laju **m/tahun** (mengikuti pendekatan CoastSat, MIT-native).
 > rata-rata, bukan satu ketinggian pasang sesaat). Koreksi pasang per-scene ala
 > CoastSat hanya berlaku untuk citra per-tanggal, bukan komposit — jadi tidak
 > ditambahkan agar tidak memberi kesan presisi yang keliru.
+
+### Akses transportasi publik (SDG 11.2.1) — `transit-access`
+
+Menghitung **berapa persen populasi yang dapat menjangkau halte/stasiun dengan
+berjalan kaki** — indikator resmi **SDG 11.2.1** (angka di balik pernyataan seperti
+"transportasi publik kini menjangkau 60% populasi perkotaan dunia"). Aksesibilitas
+diukur **menyusuri jaringan jalan** (bukan sekadar lingkaran buffer), sehingga
+sungai atau jalan bebas-hambatan tanpa penyeberangan tetap memutus akses meski
+halte dekat secara garis lurus.
+
+Cara kerja: (1) jaringan pejalan kaki dari OpenStreetMap, (2) halte dari
+`--transit-file` Anda **atau** otomatis dari OSM, (3) *multi-source Dijkstra* →
+jarak jalan kaki tiap simpul ke halte terdekat, (4) grid populasi **WorldPop 100 m**
+(GEE) → tiap sel dinilai punya-akses bila simpul jalan terdekatnya ≤ ambang
+(default **500 m**; SDG 11.2.1 memakai 500 m untuk bus, ~1 km untuk kereta).
+
+```bash
+# Halte otomatis dari OSM (default), Semarang
+satchange -s transit-access --city "Semarang" --radius 8 --backend gee
+
+# Ambang ganda (bus 500 m + kereta 1 km); yang pertama dipakai untuk peta
+satchange -s transit-access --lat -6.9667 --lon 110.4167 --radius 8 \
+    --walk-dist 500,1000 --pop-year 2020
+
+# Halte/rute Anda sendiri (mis. koridor TransSemarang dari QGIS)
+satchange -s transit-access --city "Semarang" --radius 10 \
+    --transit-file transjateng_stops.geojson
+```
+
+Keluaran: `transit_access_map.png` (kepadatan WorldPop + area terlayani + halte),
+`service_area.geojson`, `stops.geojson`, dan `stats.json` dengan
+**% populasi terlayani**, jumlah orang terlayani/total, per ambang. Butuh
+`satchange[transit]` (networkx, scipy, shapely, rasterio, matplotlib, contextily).
+
+> **Catatan:** `--transit-file` menerima titik (halte) atau garis (rute — otomatis
+> dicuplik tiap ~250 m). Kelengkapan hasil bergantung pada kelengkapan pemetaan
+> jalan/halte di OSM; untuk angkot yang belum terpetakan, berikan halte Anda
+> sendiri. Peta contoh koridor BRT Semarang tersedia sebagai layer ArcGIS yang
+> dapat diekspor ke GeoJSON.
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
@@ -597,7 +637,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.23) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.24) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -605,7 +645,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_satchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.23},
+  version   = {0.1.24},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

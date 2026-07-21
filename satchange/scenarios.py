@@ -389,4 +389,12 @@ SCENARIOS = {
         "interpretation": ("Garis pantai laut (SAR). Dengan --pre/--post: "
                            "abrasi (merah) & akresi/ reklamasi (hijau)."),
     },
+    "transit-access": {
+        "label": "Transit access — % population near public transport (SDG 11.2.1, WorldPop + OSM)",
+        "method": "transit-access",
+        "radius": 12.0, "needs": "none",
+        "interpretation": ("Persentase populasi (WorldPop) yang dapat menjangkau "
+                           "halte/stasiun dengan berjalan kaki di jaringan jalan "
+                           "(default 500 m, SDG 11.2.1)."),
+    },
 }

@@ -50,6 +50,8 @@ GeoTIFF, statistics JSON, metadata, and any maps.
 | `mining` | SIRAD radar temporal + NDVI loss | Sentinel-1 + S2 |
 | `flood` | SAR water extent (event vs baseline) | Sentinel-1 |
 | `urban-trend` | NDBI at 3 epochs → RGB growth-timing map | Landsat 5/8/9 |
+| `coastline` | Sea boundary + shoreline change (erosion/accretion) + retreat rate m/yr | S1 / S2 / Landsat |
+| `transit-access` | % population with access to public transport (SDG 11.2.1) | WorldPop + OSM |
 
 ## Two backends
 
