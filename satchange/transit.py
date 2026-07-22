@@ -74,17 +74,38 @@ def _haversine(lon1, lat1, lon2, lat2):
 
 
 # ----------------------------- OSM / Overpass -----------------------------
-def _overpass(query, timeout=180):
+def _overpass(query, timeout=180, rounds=4):
+    """POST a query to Overpass, cycling mirrors and retrying with backoff.
+
+    Public Overpass servers routinely return 429/504 under load, so a single
+    pass over the mirrors is not enough for a reliable city-scale fetch. Each
+    round tries every mirror; between rounds we wait (20 s, 40 s, 60 s…) to let
+    a busy server recover.
+    """
+    import time
     last = None
-    for url in OVERPASS_URLS:
-        try:
-            r = requests.post(url, data={"data": query}, timeout=timeout)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:  # noqa: BLE001 — try the next mirror
-            last = e
-            print(f"  Overpass {url.split('/')[2]} failed ({e.__class__.__name__}); trying next…")
-    raise SystemExit(f"All Overpass mirrors failed: {last}")
+    for attempt in range(rounds):
+        for url in OVERPASS_URLS:
+            try:
+                return _overpass_try(url, query, timeout)
+            except Exception as e:  # noqa: BLE001 — try the next mirror
+                last = e
+                print(f"  Overpass {url.split('/')[2]} failed ({e.__class__.__name__}); trying next…")
+        if attempt < rounds - 1:
+            wait = 20 * (attempt + 1)
+            print(f"  all mirrors busy; waiting {wait}s before retry "
+                  f"{attempt + 2}/{rounds}…")
+            time.sleep(wait)
+    raise SystemExit(f"All Overpass mirrors failed after {rounds} rounds: {last}")
+
+
+def _overpass_try(url, query, timeout):
+    """One Overpass POST; raises on a transient status so the caller can fail over."""
+    r = requests.post(url, data={"data": query}, timeout=timeout)
+    if r.status_code in (429, 502, 503, 504):
+        raise requests.HTTPError(f"HTTP {r.status_code}")
+    r.raise_for_status()
+    return r.json()
 
 
 def _walk_graph(bbox):
@@ -93,22 +114,53 @@ def _walk_graph(bbox):
     Returns (G, node_lonlat) where G is a networkx.Graph with edge 'length' in
     metres and node_lonlat maps node id -> (lon, lat).
     """
+    import math
     import networkx as nx
     w, s, e, n = bbox
     hw = "|".join(sorted(WALK_HIGHWAY))
-    q = (f"[out:json][timeout:150];"
-         f'way["highway"~"^({hw})$"]["foot"!~"^(no|private)$"]'
-         f'["access"!~"^(private|no)$"]({s},{w},{n},{e});'
-         f"(._;>;);out body;")
-    print("  fetching walking network from OpenStreetMap…")
-    data = _overpass(q)
-    coords = {el["id"]: (el["lon"], el["lat"])
-              for el in data["elements"] if el["type"] == "node"}
+
+    def query(ts, tw, tn, te):
+        return (f"[out:json][timeout:300];"
+                f'way["highway"~"^({hw})$"]["foot"!~"^(no|private)$"]'
+                f'["access"!~"^(private|no)$"]({ts},{tw},{tn},{te});'
+                f"(._;>;);out body;")
+
+    # A single Overpass query for a whole big-city bbox 504s; split into tiles of
+    # at most ~MAXSPAN degrees per side so each sub-request is small enough to serve.
+    MAXSPAN = 0.11
+    ncol = max(1, math.ceil((e - w) / MAXSPAN))
+    nrow = max(1, math.ceil((n - s) / MAXSPAN))
+    if ncol * nrow > 1:
+        print(f"  fetching walking network from OpenStreetMap ({ncol}×{nrow} tiles)…")
+    else:
+        print("  fetching walking network from OpenStreetMap…")
+
+    coords, ways = {}, []
+    for r in range(nrow):
+        for c in range(ncol):
+            tw = w + (e - w) * c / ncol; te = w + (e - w) * (c + 1) / ncol
+            ts = s + (n - s) * r / nrow; tn = s + (n - s) * (r + 1) / nrow
+            data = _overpass(query(ts, tw, tn, te), timeout=330)
+            for el in data["elements"]:
+                if el["type"] == "node":
+                    coords[el["id"]] = (el["lon"], el["lat"])
+                elif el["type"] == "way":
+                    ways.append(el.get("nodes", []))
+            if ncol * nrow > 1:
+                print(f"    tile {r * ncol + c + 1}/{ncol * nrow}: "
+                      f"{len(coords)} nodes so far")
+
+    G = _graph_from_ways(ways, coords)
+    node_lonlat = {nid: coords[nid] for nid in G.nodes if nid in coords}
+    print(f"  network: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    return G, node_lonlat
+
+
+def _graph_from_ways(ways, coords):
+    """Build an undirected networkx graph (edge 'length' m) from OSM way node-lists."""
+    import networkx as nx
     G = nx.Graph()
-    for el in data["elements"]:
-        if el["type"] != "way":
-            continue
-        nds = el.get("nodes", [])
+    for nds in ways:
         for a, b in zip(nds[:-1], nds[1:]):
             if a not in coords or b not in coords:
                 continue
@@ -119,9 +171,7 @@ def _walk_graph(bbox):
                     G[a][b]["length"] = d
             else:
                 G.add_edge(a, b, length=d)
-    node_lonlat = {nid: coords[nid] for nid in G.nodes if nid in coords}
-    print(f"  network: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
-    return G, node_lonlat
+    return G
 
 
 def _stops_from_osm(bbox):
@@ -180,7 +230,53 @@ def _stops_from_file(path):
     return pts
 
 
+# ----------------------------- admin boundary -----------------------------
+def _boundary_from_geojson(gj):
+    """First Polygon/MultiPolygon in a GeoJSON as a shapely geometry (lon/lat)."""
+    from shapely.geometry import shape
+    feats = gj["features"] if gj.get("type") == "FeatureCollection" else [gj]
+    for ft in feats:
+        g = ft.get("geometry", ft)
+        if g.get("type") in ("Polygon", "MultiPolygon"):
+            return shape(g)
+    raise SystemExit("boundary file has no Polygon/MultiPolygon geometry.")
+
+
+def _load_boundary_file(path):
+    return _boundary_from_geojson(json.load(open(path)))
+
+
+def _fetch_boundary(name):
+    """Fetch an administrative boundary polygon by name from OSM Nominatim."""
+    from shapely.geometry import shape
+    r = requests.get("https://nominatim.openstreetmap.org/search",
+                     params={"q": name, "format": "jsonv2",
+                             "polygon_geojson": 1, "limit": 8},
+                     headers={"User-Agent": "satchange transit-access (boundary lookup)"},
+                     timeout=60)
+    r.raise_for_status()
+    results = r.json()
+    polys = [x for x in results
+             if x.get("geojson", {}).get("type") in ("Polygon", "MultiPolygon")]
+    if not polys:
+        raise SystemExit(f"Nominatim found no polygon boundary for {name!r}. "
+                         "Try a more specific name or pass --aoi-file.")
+    # Prefer an administrative boundary / city over a point-of-interest polygon.
+    def rank(x):
+        return (x.get("category") == "boundary",
+                x.get("addresstype") in ("city", "administrative", "county"))
+    best = sorted(polys, key=rank, reverse=True)[0]
+    print(f"  boundary: {best.get('display_name', name)[:70]}  "
+          f"[{best.get('category')}/{best.get('type')}]")
+    return shape(best["geojson"])
+
+
 # ----------------------------- accessibility core -----------------------------
+def _node_arrays(node_lonlat, to_m):
+    import numpy as np
+    ids = list(node_lonlat)
+    xy = np.array([to_m(*node_lonlat[i]) for i in ids])
+    return ids, xy
 def _node_arrays(node_lonlat, to_m):
     import numpy as np
     ids = list(node_lonlat)
@@ -188,41 +284,62 @@ def _node_arrays(node_lonlat, to_m):
     return ids, xy
 
 
-def _snap(pts, node_ids, node_xy, tree, to_m):
-    """Snap lon/lat points to nearest network node id (within MAX_SNAP_M)."""
+def _snap(pts, tree, to_m, snap_m=MAX_SNAP_M):
+    """Snap lon/lat points to their nearest network-node INDEX (within snap_m)."""
     import numpy as np
     if not pts:
         return []
     q = np.array([to_m(p[0], p[1]) for p in pts])
     dist, idx = tree.query(q, k=1)
-    out = []
-    for d, i in zip(np.atleast_1d(dist), np.atleast_1d(idx)):
-        if d <= MAX_SNAP_M:
-            out.append(node_ids[int(i)])
-    return sorted(set(out))
+    d = np.atleast_1d(dist); i = np.atleast_1d(idx)
+    return sorted({int(j) for dj, j in zip(d, i) if dj <= snap_m})
 
 
-def _dijkstra_node_dist(G, sources, cutoff):
-    import networkx as nx
-    src = [s for s in sources if s in G]
-    if not src:
+def _route_min_dist(G, node_ids, id_to_idx, source_idx, cutoff):
+    """Min walking distance from ANY source node to every node (scipy csgraph).
+
+    Returns a float array aligned to the node_ids index; entries beyond `cutoff`
+    are inf. Uses scipy's C-level Dijkstra with min_only=True (a single pass over
+    the graph from all sources at once) — orders of magnitude faster than a
+    pure-Python multi-source Dijkstra on a city-sized network (~300k nodes).
+    """
+    import numpy as np
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import dijkstra
+    if not source_idx:
         raise SystemExit("No transit stop could be snapped to the walking network.")
-    return nx.multi_source_dijkstra_path_length(G, src, cutoff=cutoff, weight="length")
+    n = len(node_ids)
+    m = G.number_of_edges()
+    rows = np.empty(2 * m, dtype=np.int64)
+    cols = np.empty(2 * m, dtype=np.int64)
+    data = np.empty(2 * m, dtype=np.float64)
+    k = 0
+    for a, b, w in G.edges(data="length"):
+        ia, ib = id_to_idx[a], id_to_idx[b]
+        rows[k] = ia; cols[k] = ib; data[k] = w; k += 1
+        rows[k] = ib; cols[k] = ia; data[k] = w; k += 1
+    csr = csr_matrix((data, (rows, cols)), shape=(n, n))
+    return dijkstra(csr, directed=False, indices=list(source_idx),
+                    limit=cutoff, min_only=True)
 
 
 def _service_polygon(G, node_lonlat, served_nodes, to_m, to_ll, buffer_m):
-    """Union of served street segments, buffered, as a lon/lat shapely polygon."""
-    from shapely.geometry import LineString
-    from shapely.ops import unary_union, transform
+    """Buffered union of served street segments, as a lon/lat shapely polygon.
+
+    Buffering a single MultiLineString dissolves the segments inside GEOS (C),
+    which is far faster than a Python-level unary_union of many LineStrings on a
+    city-sized served network.
+    """
+    from shapely.geometry import MultiLineString
+    from shapely.ops import transform
     served = set(served_nodes)
     segs = []
     for a, b in G.edges():
         if a in served and b in served and a in node_lonlat and b in node_lonlat:
-            (xa, ya), (xb, yb) = to_m(*node_lonlat[a]), to_m(*node_lonlat[b])
-            segs.append(LineString([(xa, ya), (xb, yb)]))
+            segs.append((to_m(*node_lonlat[a]), to_m(*node_lonlat[b])))
     if not segs:
         return None
-    poly_m = unary_union(segs).buffer(buffer_m)
+    poly_m = MultiLineString(segs).buffer(buffer_m, quad_segs=2)
     return transform(lambda xs, ys, z=None: to_ll(xs, ys), poly_m)
 
 
@@ -249,9 +366,17 @@ def _worldpop_tif(aoi, region, year, run_dir):
     return out, year
 
 
-def _population_access(pop_path, G, node_lonlat, node_dist, thresholds,
-                       to_m, tree, node_ids):
-    """Return (stats-per-threshold, primary_served_nodes, grid dict for the map)."""
+def _population_access(pop_path, dist_arr, thresholds, to_m, tree, boundary_geom=None,
+                       snap_m=MAX_SNAP_M):
+    """Return (stats-per-threshold, primary_served_node_indices, grid dict).
+
+    `dist_arr` is the per-node walking distance to the nearest stop, aligned to
+    the KDTree's node index. Each populated WorldPop cell is snapped to its
+    nearest network node and inherits that node's distance-to-stop. When
+    `boundary_geom` is given, only cells inside it are *counted* (the reported
+    share is over that administrative area) — but the full population raster is
+    still returned for display, so the map is not blanked outside the boundary.
+    """
     import numpy as np
     import rasterio
     with rasterio.open(pop_path) as ds:
@@ -267,24 +392,25 @@ def _population_access(pop_path, G, node_lonlat, node_dist, thresholds,
     lon2d, lat2d = np.meshgrid(lon, lat)
 
     popf = pop.ravel()
-    sel = popf > 0
-    total_pop = float(popf.sum())
-    # Snap each populated cell to its nearest network node (metric coords via to_m).
+    inside = np.ones(popf.size, dtype=bool)
+    if boundary_geom is not None:
+        from rasterio.features import rasterize
+        mask = rasterize([(boundary_geom, 1)], out_shape=(H, W), transform=T,
+                         fill=0, dtype="uint8")
+        inside = mask.ravel().astype(bool)
+        print(f"  counting population within boundary ({int(inside.sum()):,} cells inside)")
+    sel = (popf > 0) & inside                        # cells that count toward the %
+    total_pop = float(popf[sel].sum())
+    # Snap every counted cell to its nearest network node (vectorised projection).
     plon = lon2d.ravel()[sel]; plat = lat2d.ravel()[sel]
-    qx = np.empty(plon.size); qy = np.empty(plon.size)
-    for k in range(plon.size):
-        qx[k], qy[k] = to_m(plon[k], plat[k])
+    qx, qy = to_m(plon, plat)                         # to_m is pure arithmetic → vectorises
     dist, idx = tree.query(np.column_stack([qx, qy]), k=1)
-    # Per-cell nearest-node walking-distance-to-stop (inf if node unreachable).
-    near_nodes = [node_ids[int(i)] for i in idx]
-    cell_node_dist = np.array([node_dist.get(nid, np.inf) for nid in near_nodes])
-    snap_ok = dist <= MAX_SNAP_M
+    cell_node_dist = np.where(dist <= snap_m, dist_arr[idx], np.inf)
     cell_pop = popf[sel]
 
     stats = []
-    primary_served_nodes = None
-    for j, thr in enumerate(thresholds):
-        served = snap_ok & (cell_node_dist <= thr)
+    for thr in thresholds:
+        served = cell_node_dist <= thr
         served_pop = float(cell_pop[served].sum())
         stats.append({
             "walk_dist_m": thr,
@@ -292,10 +418,9 @@ def _population_access(pop_path, G, node_lonlat, node_dist, thresholds,
             "pop_with_access": round(served_pop),
             "pct_with_access": round(100.0 * served_pop / total_pop, 1) if total_pop else 0.0,
         })
-        if j == 0:
-            primary_served_nodes = {nid for nid, d in node_dist.items() if d <= thr}
-    grid = {"lon": lon, "lat": lat, "pop": pop}
-    return stats, primary_served_nodes, grid
+    primary_served_idx = np.where(dist_arr <= thresholds[0])[0]
+    grid = {"lon": lon, "lat": lat, "pop": pop}       # full raster for display (not blanked)
+    return stats, primary_served_idx, grid
 
 
 # ----------------------------- rendering -----------------------------
@@ -315,34 +440,72 @@ def _add_basemap(ax):
         print(f"  (basemap skipped: {e.__class__.__name__})")
 
 
-def _render_map(run_dir, name, bbox, grid, service_poly, stops, primary_stats):
+def _network_segments(G, node_lonlat, served_nodes):
+    """Split walking-network edges into (served, other) lon/lat segment lists."""
+    served = set(served_nodes or [])
+    seg_served, seg_other = [], []
+    for a, b in G.edges():
+        if a not in node_lonlat or b not in node_lonlat:
+            continue
+        seg = (node_lonlat[a], node_lonlat[b])
+        (seg_served if (a in served and b in served) else seg_other).append(seg)
+    return seg_served, seg_other
+
+
+def _render_map(run_dir, name, bbox, grid, service_poly, stops, primary_stats,
+                G=None, node_lonlat=None, served_nodes=None, boundary_geom=None):
     plt = _plt()
     import numpy as np
     from matplotlib.colors import LinearSegmentedColormap
+    from matplotlib.collections import LineCollection
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
     w, s, e, n = bbox
     pop = grid["pop"].copy()
     pop[pop <= 0] = np.nan
     fig, ax = plt.subplots(figsize=(11, 11), dpi=150)
     ax.set_xlim(w, e); ax.set_ylim(s, n)
     _add_basemap(ax)
-    # Population density (log-ish via percentile clip).
+    # Population density (percentile-clipped).
     finite = pop[np.isfinite(pop)]
     vmax = float(np.nanpercentile(finite, 97)) if finite.size else 1.0
     cmap = LinearSegmentedColormap.from_list("pop", ["#ffffcc", "#fd8d3c", "#800026"])
     im = ax.imshow(pop, extent=[w, e, s, n], origin="upper", cmap=cmap,
-                   vmin=0, vmax=max(vmax, 1.0), alpha=0.75, zorder=2)
+                   vmin=0, vmax=max(vmax, 1.0), alpha=0.65, zorder=2)
+    handles = [Patch(facecolor="#800026", edgecolor="none", label="Populasi (WorldPop)")]
+
+    # OSM walking network: streets beyond reach in grey, within reach in green.
+    if G is not None and node_lonlat is not None:
+        seg_served, seg_other = _network_segments(G, node_lonlat, served_nodes)
+        if seg_other:
+            ax.add_collection(LineCollection(seg_other, colors="#6b7280",
+                                             linewidths=0.25, alpha=0.5, zorder=3,
+                                             rasterized=True, antialiaseds=False))
+            handles.append(Line2D([0], [0], color="#6b7280", lw=1.0,
+                                  label="Jaringan jalan OSM"))
+        if seg_served:
+            ax.add_collection(LineCollection(seg_served, colors="#1a9850",
+                                             linewidths=0.6, alpha=0.9, zorder=5,
+                                             rasterized=True))
+            handles.append(Line2D([0], [0], color="#1a9850", lw=1.4,
+                                  label="Jalan dalam jangkauan"))
+
     if service_poly is not None and not service_poly.is_empty:
-        geoms = getattr(service_poly, "geoms", [service_poly])
-        first = True
-        for g in geoms:
+        for g in getattr(service_poly, "geoms", [service_poly]):
             xs, ys = g.exterior.xy
-            ax.fill(xs, ys, facecolor="#2c7fb8", edgecolor="#08519c", lw=0.6,
-                    alpha=0.28, zorder=4, label="Area terlayani" if first else None)
-            first = False
+            ax.fill(xs, ys, facecolor="#2c7fb8", edgecolor="none", alpha=0.18, zorder=4)
+        handles.append(Patch(facecolor="#2c7fb8", alpha=0.35, label="Area terlayani"))
     if stops:
-        ax.scatter([p[0] for p in stops], [p[1] for p in stops], s=9,
-                   c="#08306b", edgecolors="white", linewidths=0.3, zorder=6,
-                   label="Halte/stasiun")
+        ax.scatter([p[0] for p in stops], [p[1] for p in stops], s=11,
+                   c="#08306b", edgecolors="white", linewidths=0.3, zorder=6)
+        handles.append(Line2D([0], [0], marker="o", color="none",
+                              markerfacecolor="#08306b", markeredgecolor="white",
+                              markersize=6, label="Halte BRT / stasiun"))
+    if boundary_geom is not None:
+        for g in getattr(boundary_geom, "geoms", [boundary_geom]):
+            xs, ys = g.exterior.xy
+            ax.plot(xs, ys, color="#111", lw=1.6, zorder=7)
+        handles.append(Line2D([0], [0], color="#111", lw=1.6, label="Batas wilayah"))
     fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02, label="Populasi / sel 100 m (WorldPop)")
     pct = primary_stats["pct_with_access"]
     d = primary_stats["walk_dist_m"]
@@ -350,7 +513,7 @@ def _render_map(run_dir, name, bbox, grid, service_poly, stops, primary_stats):
                  f"{pct:.0f}% populasi dalam {d:.0f} m jalan kaki ke halte "
                  f"(SDG 11.2.1)", fontsize=13, fontweight="bold")
     ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
-    ax.legend(loc="lower left", fontsize=8, framealpha=0.9)
+    ax.legend(handles=handles, loc="lower left", fontsize=8, framealpha=0.9)
     ax.grid(True, ls=":", color="#888", alpha=0.4)
     fig.tight_layout()
     out = os.path.join(run_dir, "transit_access_map.png")
@@ -359,10 +522,40 @@ def _render_map(run_dir, name, bbox, grid, service_poly, stops, primary_stats):
 
 
 # ----------------------------- entry point -----------------------------
+def _resolve_boundary(boundary, aoi_file, lat, lon, radius):
+    """Resolve an optional admin boundary and auto-size the AOI to it.
+
+    Leaves ~1.5 km margin so stops just outside the line still serve edge cells.
+    Returns (boundary_geom_or_None, lat, lon, radius).
+    """
+    import math
+    geom = None
+    if aoi_file:
+        geom = _load_boundary_file(aoi_file)
+        print(f"Boundary: file {aoi_file}")
+    elif boundary:
+        print(f"Boundary: fetching '{boundary}' from OpenStreetMap…")
+        geom = _fetch_boundary(boundary)
+    if geom is None:
+        return None, lat, lon, radius
+    minx, miny, maxx, maxy = geom.bounds
+    lon, lat = (minx + maxx) / 2.0, (miny + maxy) / 2.0
+    half_lon_km = (maxx - minx) / 2.0 * 111.32 * math.cos(math.radians(lat))
+    half_lat_km = (maxy - miny) / 2.0 * 110.57
+    radius = max(half_lon_km, half_lat_km) + 1.5
+    print(f"  AOI auto-sized to boundary: centre ({lat:.4f}, {lon:.4f}), radius {radius:.1f} km")
+    return geom, lat, lon, radius
+
+
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         transit_file=None, walk_dist=DEFAULT_WALK_DIST, pop_year=DEFAULT_POP_YEAR,
-        access_buffer=100.0):
-    """Compute SDG 11.2.1 transit accessibility for a city AOI (GEE backend)."""
+        access_buffer=100.0, boundary=None, aoi_file=None, snap_dist=MAX_SNAP_M):
+    """Compute SDG 11.2.1 transit accessibility for a city AOI (GEE backend).
+
+    If `boundary` (a place name, fetched from OSM) or `aoi_file` (a local GeoJSON
+    polygon) is given, the AOI is auto-sized to that boundary and the reported
+    population share is computed over it — not the square AOI box.
+    """
     for mod in ("networkx", "shapely", "rasterio", "numpy", "scipy"):
         try:
             __import__(mod)
@@ -380,6 +573,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         thresholds = [500.0]
     cutoff = max(thresholds)
 
+    boundary_geom, lat, lon, radius = _resolve_boundary(boundary, aoi_file, lat, lon, radius)
+
     initialize_ee(config_key)
     aoi = square_aoi(lon, lat, radius)
     b = aoi.bounds().coordinates().getInfo()[0]
@@ -392,6 +587,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     if G.number_of_nodes() == 0:
         raise SystemExit("OpenStreetMap returned no walkable streets for this AOI.")
     node_ids, node_xy = _node_arrays(node_lonlat, to_m)
+    id_to_idx = {nid: i for i, nid in enumerate(node_ids)}
     tree = cKDTree(node_xy)
 
     # 2. Stops.
@@ -409,42 +605,52 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
              {"type": "Point", "coordinates": [p[0], p[1]]}} for p in stops]}, f)
     print(f"Stops: {src}")
 
-    # 3. Snap stops → multi-source Dijkstra (walking distance to nearest stop per node).
-    src_nodes = _snap(stops, node_ids, node_xy, tree, to_m)
-    print(f"  snapped {len(src_nodes)} stop nodes; routing (cutoff {cutoff:.0f} m)…")
-    node_dist = _dijkstra_node_dist(G, src_nodes, cutoff)
+    # 3. Snap stops → scipy multi-source Dijkstra (walking distance to nearest stop).
+    src_idx = _snap(stops, tree, to_m, snap_m=snap_dist)
+    print(f"  snapped {len(src_idx)} stop nodes; routing (cutoff {cutoff:.0f} m, "
+          f"snap {snap_dist:.0f} m)…")
+    dist_arr = _route_min_dist(G, node_ids, id_to_idx, src_idx, cutoff)
 
-    # 4. WorldPop + population-weighted access.
+    # 4. WorldPop + population-weighted access (counted within boundary if given).
     pop_path, used_year = _worldpop_tif(aoi, aoi, pop_year, run_dir)
-    per_thr, served_nodes, grid = _population_access(
-        pop_path, G, node_lonlat, node_dist, thresholds, to_m, tree, node_ids)
+    per_thr, served_idx, grid = _population_access(pop_path, dist_arr, thresholds, to_m, tree,
+                                                   boundary_geom=boundary_geom, snap_m=snap_dist)
+    served_nodes = {node_ids[i] for i in served_idx}
 
-    # 5. Service-area polygon + map.
+    # 5. Service-area polygon + boundary + map.
+    from shapely.geometry import mapping
     service_poly = _service_polygon(G, node_lonlat, served_nodes, to_m, to_ll, access_buffer)
     if service_poly is not None:
-        from shapely.geometry import mapping
         with open(os.path.join(run_dir, "service_area.geojson"), "w") as f:
             json.dump({"type": "Feature",
                        "properties": {"walk_dist_m": thresholds[0]},
                        "geometry": mapping(service_poly)}, f)
-    _render_map(run_dir, name, bbox, grid, service_poly, stops, per_thr[0])
+    if boundary_geom is not None:
+        with open(os.path.join(run_dir, "boundary.geojson"), "w") as f:
+            json.dump({"type": "Feature", "properties": {"name": boundary or aoi_file},
+                       "geometry": mapping(boundary_geom)}, f)
+    _render_map(run_dir, name, bbox, grid, service_poly, stops, per_thr[0],
+                G=G, node_lonlat=node_lonlat, served_nodes=served_nodes,
+                boundary_geom=boundary_geom)
 
     primary = per_thr[0]
+    area = boundary or aoi_file or "AOI (kotak)"
     for t in per_thr:
         print(f"  ≤ {t['walk_dist_m']:.0f} m: {t['pct_with_access']:.1f}% "
               f"({t['pop_with_access']:,} / {t['pop_total']:,})")
     stats = {"run_id": run_id, "scenario": "transit-access",
              "method": "SDG 11.2.1 network walking distance to nearest stop",
+             "population_area": area, "boundary_clipped": boundary_geom is not None,
              "worldpop_year": used_year, "stops_source": src,
-             "n_stops": len(stops), "n_stops_snapped": len(src_nodes),
+             "n_stops": len(stops), "n_stops_snapped": len(src_idx),
              "network_nodes": G.number_of_nodes(), "network_edges": G.number_of_edges(),
-             "access_buffer_m": access_buffer,
+             "access_buffer_m": access_buffer, "snap_dist_m": snap_dist,
              "thresholds": per_thr,
              "pct_with_access": primary["pct_with_access"],
              "pop_total": primary["pop_total"],
              "pop_with_access": primary["pop_with_access"]}
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
-    print(f"\nSDG 11.2.1: {primary['pct_with_access']:.0f}% of {primary['pop_total']:,} "
-          f"people are within {thresholds[0]:.0f} m walk of a stop.")
+    print(f"\nSDG 11.2.1 [{area}]: {primary['pct_with_access']:.0f}% of "
+          f"{primary['pop_total']:,} people are within {thresholds[0]:.0f} m walk of a stop.")
     return stats

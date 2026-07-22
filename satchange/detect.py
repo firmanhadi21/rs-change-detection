@@ -369,6 +369,16 @@ def main():
     ap.add_argument("--access-buffer", type=float, default=100.0,
                     help="transit-access: corridor width (m) around served streets for the "
                          "service-area polygon (map only; default 100)")
+    ap.add_argument("--snap-dist", type=float, default=400.0,
+                    help="transit-access: max distance (m) to snap a population cell or a stop "
+                         "to the nearest street (default 400; lower = stricter, drops cells far "
+                         "from any mapped road)")
+    ap.add_argument("--boundary", help="transit-access: administrative area name (e.g. "
+                    "\"Kota Semarang\") — fetched from OpenStreetMap; the AOI is auto-sized to "
+                    "it and the share is computed over that area, not the square box.")
+    ap.add_argument("--aoi-file", help="transit-access: local GeoJSON polygon to clip "
+                    "population to (overrides --boundary; use an official BPS/BIG boundary "
+                    "for a citable figure).")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
@@ -429,7 +439,8 @@ def main():
         transit.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                     config_key=(args.ee_key or CONFIG_KEY),
                     transit_file=args.transit_file, walk_dist=args.walk_dist,
-                    pop_year=args.pop_year, access_buffer=args.access_buffer)
+                    pop_year=args.pop_year, access_buffer=args.access_buffer,
+                    boundary=args.boundary, aoi_file=args.aoi_file, snap_dist=args.snap_dist)
         list_outputs(run_dir)
         return
 

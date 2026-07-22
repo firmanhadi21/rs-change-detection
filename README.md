@@ -286,12 +286,26 @@ satchange -s transit-access --lat -6.9667 --lon 110.4167 --radius 8 \
 # Halte/rute Anda sendiri (mis. koridor TransSemarang dari QGIS)
 satchange -s transit-access --city "Semarang" --radius 10 \
     --transit-file transjateng_stops.geojson
+
+# Hitung populasi di dalam batas administrasi (diambil dari OSM), AOI otomatis
+satchange -s transit-access --lat -7.02 --lon 110.39 --backend gee \
+    --boundary "Kota Semarang" --walk-dist 500,1000 \
+    --transit-file transsemarang_halte.geojson
 ```
 
-Keluaran: `transit_access_map.png` (kepadatan WorldPop + area terlayani + halte),
-`service_area.geojson`, `stops.geojson`, dan `stats.json` dengan
-**% populasi terlayani**, jumlah orang terlayani/total, per ambang. Butuh
-`satchange[transit]` (networkx, scipy, shapely, rasterio, matplotlib, contextily).
+Dengan `--boundary "<nama wilayah>"`, batas administrasi diambil dari OpenStreetMap,
+**AOI di-ukur otomatis** ke wilayah itu, dan **% dihitung hanya untuk populasi di dalam
+batas** (peta tetap menampilkan seluruh raster + garis batas). Pakai `--aoi-file
+batas.geojson` untuk batas resmi (BPS/BIG) Anda sendiri. `--snap-dist` (default 400 m)
+mengatur jarak maksimum sebuah sel populasi/halte "menempel" ke jalan terdekat
+(lebih kecil = lebih ketat).
+
+Keluaran: `transit_access_map.png` (kepadatan WorldPop + **jaringan jalan OSM** +
+jalan dalam jangkauan + halte + garis batas), `service_area.geojson`,
+`boundary.geojson`, `stops.geojson`, dan `stats.json` dengan **% populasi terlayani**,
+jumlah orang terlayani/total, per ambang. Butuh `satchange[transit]` (networkx, scipy,
+shapely, rasterio, matplotlib, contextily). Untuk kota besar, jaringan jalan diambil
+dengan **tiling + retry** Overpass agar tahan terhadap server yang sibuk.
 
 > **Catatan:** `--transit-file` menerima titik (halte) atau garis (rute — otomatis
 > dicuplik tiap ~250 m). Kelengkapan hasil bergantung pada kelengkapan pemetaan
@@ -637,7 +651,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.24) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.25) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -645,7 +659,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_satchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.24},
+  version   = {0.1.25},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},
