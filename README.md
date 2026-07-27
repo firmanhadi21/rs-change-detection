@@ -70,6 +70,7 @@ gratis), atau `--site NAMA`.
 | `water` | Perubahan NDWI (air permukaan) | Sentinel-2 |
 | `coastline` | Garis pantai + perubahan garis pantai (abrasi/akresi) + laju surut m/thn | S1 SAR / S2 / Landsat |
 | `transit-access` | % populasi yang menjangkau transportasi publik (SDG 11.2.1) | WorldPop + OSM |
+| `island-heat` | Tren SST + LST + wet-bulb (panas lembab) pulau kecil | OISST / Landsat / ERA5 |
 
 ```bash
 # Sintaks umum
@@ -312,6 +313,35 @@ dengan **tiling + retry** Overpass agar tahan terhadap server yang sibuk.
 > jalan/halte di OSM; untuk angkot yang belum terpetakan, berikan halte Anda
 > sendiri. Peta contoh koridor BRT Semarang tersedia sebagai layer ArcGIS yang
 > dapat diekspor ke GeoJSON.
+
+### Panas pulau kecil: SST + LST + wet-bulb — `island-heat`
+
+Membangun **deret waktu suhu** untuk pulau kecil: **SST** (suhu laut sekitar, NOAA
+OISST 1981+), **LST** (suhu darat pulau, Landsat termal, di-mask ke lahan bervegetasi
+NDVI agar pulau sub-km bersih), dan **wet-bulb** (panas *lembab* dari suhu udara +
+titik embun ERA5-Land, rumus Stull) — beserta **tren °C/dekade** dan **puncak
+wet-bulb harian per tahun** relatif ambang bahaya (28 °C) dan ekstrem (31 °C).
+Latar: ancaman pulau kecil bukan hanya kenaikan muka laut, tetapi panas-lembab yang
+membuat keringat tak lagi mendinginkan tubuh.
+
+```bash
+# Satu klaster pulau (mode agregat, default): satu deret SST/LST/wet-bulb
+satchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
+    --start-year 2000 -n "Kepulauan Seribu"
+
+# Per-pulau: deret LST terpisah tiap pulau (SST & wet-bulb tetap regional)
+satchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
+    --island-mode per-island --islands-file pulau.geojson
+```
+
+Keluaran: `island_heat.png` (tren SST/LST/wet-bulb + panel puncak wet-bulb),
+`stats.json` (tren per variabel, deret tahunan). Butuh `satchange[maps]`.
+
+> **Catatan jujur:** data ini **observasi** (satelit + reanalisis), yakni tren
+> terukur — **bukan** proyeksi model iklim (CMIP6) hingga 2100. LST pulau sangat
+> kecil (mis. Kepulauan Seribu, <500 m) tetap berisik antar-tahun karena sedikit
+> piksel lahan valid; pulau lebih besar memberi LST lebih bersih. SST & wet-bulb
+> stabil.
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
@@ -651,7 +681,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.25) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.26) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -659,7 +689,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_satchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.25},
+  version   = {0.1.26},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

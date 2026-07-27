@@ -373,6 +373,16 @@ def main():
                     help="transit-access: max distance (m) to snap a population cell or a stop "
                          "to the nearest street (default 400; lower = stricter, drops cells far "
                          "from any mapped road)")
+    ap.add_argument("--island-mode", choices=["aggregate", "per-island"], default="aggregate",
+                    help="island-heat: aggregate the whole cluster into one series (default), "
+                         "or a per-island LST series (needs --islands-file)")
+    ap.add_argument("--islands-file", help="island-heat per-island: GeoJSON polygons of the "
+                    "individual islands")
+    ap.add_argument("--start-year", type=int, default=2000,
+                    help="island-heat: first year of the time series (default 2000; LST from 2013)")
+    ap.add_argument("--wetbulb-thr", type=float, default=28.0,
+                    help="island-heat: wet-bulb danger threshold in °C for heat-day counts "
+                         "(default 28)")
     ap.add_argument("--boundary", help="transit-access: administrative area name (e.g. "
                     "\"Kota Semarang\") — fetched from OpenStreetMap; the AOI is auto-sized to "
                     "it and the share is computed over that area, not the square box.")
@@ -441,6 +451,15 @@ def main():
                     transit_file=args.transit_file, walk_dist=args.walk_dist,
                     pop_year=args.pop_year, access_buffer=args.access_buffer,
                     boundary=args.boundary, aoi_file=args.aoi_file, snap_dist=args.snap_dist)
+        list_outputs(run_dir)
+        return
+
+    if cfg.get("method") == "island-heat":
+        from . import island_heat
+        island_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                        config_key=(args.ee_key or CONFIG_KEY),
+                        island_mode=args.island_mode, islands_file=args.islands_file,
+                        start_year=args.start_year, wetbulb_thr=args.wetbulb_thr)
         list_outputs(run_dir)
         return
 

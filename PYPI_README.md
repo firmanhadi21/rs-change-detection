@@ -52,6 +52,7 @@ GeoTIFF, statistics JSON, metadata, and any maps.
 | `urban-trend` | NDBI at 3 epochs → RGB growth-timing map | Landsat 5/8/9 |
 | `coastline` | Sea boundary + shoreline change (erosion/accretion) + retreat rate m/yr | S1 / S2 / Landsat |
 | `transit-access` | % population with access to public transport (SDG 11.2.1) | WorldPop + OSM |
+| `island-heat` | SST + LST + wet-bulb (humid heat) trends for small islands | OISST / Landsat / ERA5 |
 
 ## Two backends
 

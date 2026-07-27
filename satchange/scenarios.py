@@ -397,4 +397,11 @@ SCENARIOS = {
                            "halte/stasiun dengan berjalan kaki di jaringan jalan "
                            "(default 500 m, SDG 11.2.1)."),
     },
+    "island-heat": {
+        "label": "Island heat — SST + LST + wet-bulb trends for small islands (OISST/Landsat/ERA5)",
+        "method": "island-heat",
+        "radius": 30.0, "needs": "none",
+        "interpretation": ("Tren suhu laut (SST), suhu darat (LST) & wet-bulb "
+                           "(panas lembab) pulau kecil; hari berbahaya per tahun."),
+    },
 }
