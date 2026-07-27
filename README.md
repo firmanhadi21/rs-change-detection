@@ -329,10 +329,19 @@ membuat keringat tak lagi mendinginkan tubuh.
 satchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
     --start-year 2000 -n "Kepulauan Seribu"
 
+# Pulau lebih besar (mis. Karimunjawa): LST MODIS 1 km lebih bersih
+satchange -s island-heat --backend gee --lat -5.85 --lon 110.42 --radius 25 \
+    --lst-source modis -n "Karimunjawa"
+
 # Per-pulau: deret LST terpisah tiap pulau (SST & wet-bulb tetap regional)
 satchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
     --island-mode per-island --islands-file pulau.geojson
 ```
+
+Pilih sensor LST dengan `--lst-source`: **`landsat`** (default; 100 m, di-mask ke
+lahan bervegetasi NDVI — memisahkan pulau kecil/tersebar dari air & daratan utama)
+atau **`modis`** (1 km, lebih rapat/bersih — terbaik untuk satu pulau besar yang jauh
+dari daratan utama).
 
 Keluaran: `island_heat.png` (tren SST/LST/wet-bulb + panel puncak wet-bulb),
 **tiga peta perubahan dekadal** `sst_change_map.png` (SST laut, MODIS 4 km),
@@ -342,10 +351,12 @@ beserta GeoTIFF-nya, dan `stats.json` (tren per variabel, deret tahunan). Butuh
 `satchange[maps]`.
 
 > **Catatan jujur:** data ini **observasi** (satelit + reanalisis), yakni tren
-> terukur — **bukan** proyeksi model iklim (CMIP6) hingga 2100. LST pulau sangat
-> kecil (mis. Kepulauan Seribu, <500 m) tetap berisik antar-tahun karena sedikit
-> piksel lahan valid; pulau lebih besar memberi LST lebih bersih. SST & wet-bulb
-> stabil.
+> terukur — **bukan** proyeksi model iklim (CMIP6) hingga 2100. **SST & wet-bulb
+> adalah sinyal yang paling andal.** Tren **LST untuk pulau sangat kecil (<1 km, mis.
+> Kepulauan Seribu) tidak stabil** apa pun sensornya (piksel lahan sedikit/tercampur
+> air) — bersifat indikatif; pulau lebih besar (mis. Karimunjawa dengan `--lst-source
+> modis`) memberi LST bersih. Wet-bulb memakai ERA5 global (mencakup laut) sehingga
+> deretnya berakhir ~2020 (cakupan dataset).
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
@@ -685,7 +696,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.27) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.28) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -693,7 +704,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_satchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.27},
+  version   = {0.1.28},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

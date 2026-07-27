@@ -383,6 +383,10 @@ def main():
     ap.add_argument("--wetbulb-thr", type=float, default=28.0,
                     help="island-heat: wet-bulb danger threshold in °C for heat-day counts "
                          "(default 28)")
+    ap.add_argument("--lst-source", choices=["landsat", "modis"], default="landsat",
+                    help="island-heat: LST sensor — landsat 100 m (default; NDVI-masked island "
+                         "land, best for small/scattered islands) or modis 1 km (cleaner/denser, "
+                         "best for a large island away from the mainland)")
     ap.add_argument("--boundary", help="transit-access: administrative area name (e.g. "
                     "\"Kota Semarang\") — fetched from OpenStreetMap; the AOI is auto-sized to "
                     "it and the share is computed over that area, not the square box.")
@@ -459,7 +463,8 @@ def main():
         island_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                         config_key=(args.ee_key or CONFIG_KEY),
                         island_mode=args.island_mode, islands_file=args.islands_file,
-                        start_year=args.start_year, wetbulb_thr=args.wetbulb_thr)
+                        start_year=args.start_year, wetbulb_thr=args.wetbulb_thr,
+                        lst_source=args.lst_source)
         list_outputs(run_dir)
         return
 

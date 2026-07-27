@@ -30,12 +30,13 @@ os.environ.pop("PROJ_DATA", None)
 
 OISST = "NOAA/CDR/OISST/V2_1"
 MODIS_SST = "NASA/OCEANDATA/MODIS-Aqua/L3SMI"    # 4 km SST in °C (for the change map)
+MODIS_LST = "MODIS/061/MYD11A2"                  # Aqua 8-day 1 km LST (clean series)
 L8 = "LANDSAT/LC08/C02/T1_L2"
 L9 = "LANDSAT/LC09/C02/T1_L2"
-ERA5_MONTHLY = "ECMWF/ERA5_LAND/MONTHLY_AGGR"
-ERA5_DAILY = "ECMWF/ERA5_LAND/DAILY_AGGR"
+ERA5_MONTHLY = "ECMWF/ERA5/MONTHLY"              # GLOBAL ERA5 (covers ocean; ERA5-Land does not)
 
 DEFAULT_START_YEAR = 2000
+MODIS_MIN_YEAR = 2003              # MODIS Aqua full years
 LST_MIN_YEAR = 2013                # Landsat 8/9 Collection-2 L2 (clean, cross-consistent)
 WETBULB_DANGER = 28.0              # °C wet-bulb — dangerous humid heat
 WETBULB_EXTREME = 31.0            # °C wet-bulb — extreme / survivability risk
@@ -59,8 +60,12 @@ def _wetbulb(t_c, rh):
 
 
 # ----------------------------- GEE series helpers -----------------------------
-def _annual_series(coll, band, aoi, scale, years):
-    """Server-side annual mean of `band` over `aoi` for each year (one fetch)."""
+def _annual_series(coll, band, aoi, scale, years, how="mean"):
+    """Server-side annual statistic of `band` over `aoi` for each year (one fetch).
+
+    `how` composites the year's images: 'mean' (annual mean) or 'max' (annual
+    maximum, e.g. the hottest month's peak temperature).
+    """
     import ee
     yl = ee.List(years)
 
@@ -68,13 +73,29 @@ def _annual_series(coll, band, aoi, scale, years):
         y = ee.Number(y)
         s = ee.Date.fromYMD(y, 1, 1)
         e = ee.Date.fromYMD(y, 12, 31).advance(1, "day")
-        img = coll.select(band).filterDate(s, e).mean()
-        v = img.reduceRegion(ee.Reducer.mean(), aoi, scale,
-                             maxPixels=int(1e9), bestEffort=True).get(band)
+        yc = coll.select(band).filterDate(s, e)
+        img = yc.max() if how == "max" else yc.mean()
+        red = ee.Dictionary(img.reduceRegion(ee.Reducer.mean(), aoi, scale,
+                                             maxPixels=int(1e9), bestEffort=True))
+        # Empty year (no images) or fully-masked AOI → dict lacks the band → None,
+        # instead of throwing "Dictionary does not contain key".
+        v = ee.Algorithms.If(red.contains(band), red.get(band), None)
         return ee.Feature(None, {"year": y, "v": v})
 
     fc = ee.FeatureCollection(yl.map(per))
-    return fc.aggregate_array("year").getInfo(), fc.aggregate_array("v").getInfo()
+    yv = _fc_columns(fc, ["year", "v"])
+    return yv["year"], yv["v"]
+
+
+def _fc_columns(fc, keys):
+    """Fetch a FeatureCollection once and return aligned columns preserving None.
+
+    Unlike separate aggregate_array() calls (which silently drop null entries and
+    misalign the arrays), this keeps one value per feature per key — None where a
+    year's reduceRegion returned no data.
+    """
+    feats = fc.getInfo()["features"]
+    return {k: [f["properties"].get(k) for f in feats] for k in keys}
 
 
 def _sst_series(aoi, years):
@@ -114,70 +135,66 @@ def _landsat_lst_coll(aoi, ndvi_thr=0.2):
             .filterBounds(aoi).map(prep))
 
 
-def _lst_landsat(aoi, years):
+def _lst_modis(aoi, years):
+    """MODIS Aqua (MYD11A2) 1 km daytime LST (°C) annual mean — many obs, low noise."""
+    import ee
+    coll = ee.ImageCollection(MODIS_LST).map(
+        lambda im: im.select("LST_Day_1km").multiply(0.02).subtract(273.15)
+        .rename("lst").copyProperties(im, ["system:time_start"]))
+    myrs = [y for y in years if y >= MODIS_MIN_YEAR]
+    return _annual_series(coll, "lst", aoi, 1000, myrs)
+
+
+def _lst_landsat_series(aoi, years):
     coll = _landsat_lst_coll(aoi)
     lyrs = [y for y in years if y >= LST_MIN_YEAR]
-    return _annual_series(coll, "lst", aoi, 100, lyrs)
+    ly, lv = _annual_series(coll, "lst", aoi, 100, lyrs)
+    return ly, lv, "Landsat 100 m"
 
 
-def _era5_wetbulb_series(aoi, years):
-    """Annual mean air temp, dewpoint → RH → wet-bulb (°C) over the AOI."""
-    import ee
-    coll = ee.ImageCollection(ERA5_MONTHLY)
-    yt, tv = _annual_series(coll, "temperature_2m", aoi, 11132, years)
-    yd, dv = _annual_series(coll, "dewpoint_temperature_2m", aoi, 11132, years)
-    out_t, out_wb = [], []
-    for i, y in enumerate(yt):
-        t, d = tv[i], dv[i]
-        if t is None or d is None:
-            out_t.append(None); out_wb.append(None); continue
-        tc, tdc = t - 273.15, d - 273.15
-        out_t.append(round(tc, 2))
-        out_wb.append(round(_wetbulb(tc, _rh_from_dew(tc, tdc)), 2))
-    return yt, out_t, out_wb
+def _lst_series(aoi, years, source="landsat"):
+    """Island LST series.
+
+    Default 'landsat': Landsat 100 m masked to vegetated island land (NDVI>0.2),
+    which isolates island interior from both water and nearby mainland — the right
+    choice for small/scattered islands, at the cost of more year-to-year noise (few
+    clear scenes). 'modis': MODIS 1 km — a cleaner, denser series, best for a large
+    island well separated from the mainland (its 1 km pixels are part-water on
+    sub-km islands and pick up mainland if the AOI clips a coast).
+    """
+    if source == "modis":
+        my, mv = _lst_modis(aoi, years)
+        return my, mv, "MODIS 1 km"
+    return _lst_landsat_series(aoi, years)
 
 
-def _heat_metrics(aoi, years, thr):
-    """Per year: days with peak wet-bulb ≥ thr, and the annual max daily wet-bulb.
+def _era5_series(aoi, years):
+    """Global ERA5 monthly wet-bulb (°C): annual-mean and annual peak (hottest month).
 
-    Uses ERA5-Land daily-MAX air temperature (afternoon peak) with daily-mean
-    dewpoint → peak humid heat. Daily-mean temperature never reaches the danger
-    threshold in the tropics, so the peak is the physically meaningful quantity.
-    Returns (years, days_over_thr, annual_max_wetbulb). Guarded by the caller.
+    Global ERA5 (not ERA5-Land) is used because it covers the ocean — small islands
+    sit in mostly-sea cells that ERA5-Land masks out. Peak = wet-bulb from the year's
+    maximum monthly max-temperature with mean dewpoint (a robust, ocean-safe proxy for
+    peak humid heat, in place of a land-only daily product).
     """
     import ee
-    coll = ee.ImageCollection(ERA5_DAILY)
-
-    def wb(im):
-        t = im.select("temperature_2m_max").subtract(273.15)
-        d = im.select("dewpoint_temperature_2m").subtract(273.15)
-        es = t.expression("6.112*exp(17.62*T/(243.12+T))", {"T": t})
-        e = d.expression("6.112*exp(17.62*D/(243.12+D))", {"D": d})
-        rh = e.divide(es).multiply(100).clamp(1, 100)
-        tw = t.expression(
-            "T*atan(0.151977*sqrt(RH+8.313659)) + atan(T+RH) - atan(RH-1.676331)"
-            " + 0.00391838*pow(RH,1.5)*atan(0.023101*RH) - 4.686035",
-            {"T": t, "RH": rh})
-        return tw.rename("wb").copyProperties(im, ["system:time_start"])
-
-    wbc = coll.map(wb)
-
-    def per(y):
-        y = ee.Number(y)
-        s = ee.Date.fromYMD(y, 1, 1)
-        e = ee.Date.fromYMD(y, 12, 31).advance(1, "day")
-        yc = wbc.filterDate(s, e)
-        days = yc.map(lambda im: im.gte(thr)).sum()
-        dv = days.reduceRegion(ee.Reducer.mean(), aoi, 11132,
-                               maxPixels=int(1e9), bestEffort=True).get("wb")
-        mv = yc.max().reduceRegion(ee.Reducer.mean(), aoi, 11132,
-                                   maxPixels=int(1e9), bestEffort=True).get("wb")
-        return ee.Feature(None, {"year": y, "days": dv, "maxwb": mv})
-
-    fc = ee.FeatureCollection(ee.List(years).map(per))
-    return (fc.aggregate_array("year").getInfo(),
-            fc.aggregate_array("days").getInfo(),
-            fc.aggregate_array("maxwb").getInfo())
+    coll = ee.ImageCollection(ERA5_MONTHLY)
+    yt, tmean = _annual_series(coll, "mean_2m_air_temperature", aoi, 27000, years)
+    _, tmax = _annual_series(coll, "maximum_2m_air_temperature", aoi, 27000, years, how="max")
+    _, dmean = _annual_series(coll, "dewpoint_2m_temperature", aoi, 27000, years)
+    mean_wb, peak_wb = [], []
+    for i in range(len(yt)):
+        tm, dm, tx = tmean[i], dmean[i], tmax[i]
+        if tm is None or dm is None:
+            mean_wb.append(None)
+        else:
+            tc, tdc = tm - 273.15, dm - 273.15
+            mean_wb.append(round(_wetbulb(tc, _rh_from_dew(tc, tdc)), 2))
+        if tx is None or dm is None:
+            peak_wb.append(None)
+        else:
+            txc, tdc = tx - 273.15, dm - 273.15
+            peak_wb.append(round(_wetbulb(txc, _rh_from_dew(txc, tdc)), 2))
+    return yt, mean_wb, peak_wb
 
 
 # ----------------------------- analysis -----------------------------
@@ -318,13 +335,13 @@ def _render(run_dir, name, series, thr):
           if v is not None]
     if mw:
         mtr = _fit_line(ax2, [p[0] for p in mw], [p[1] for p in mw], "#d6604d",
-                        "Wet-bulb maks. harian")
+                        "Wet-bulb bulan terpanas")
         ax2.axhline(WETBULB_DANGER, ls="--", color="#e08214", lw=1,
                     label=f"Berbahaya {WETBULB_DANGER:.0f} °C")
         ax2.axhline(WETBULB_EXTREME, ls="--", color="#b2182b", lw=1,
                     label=f"Ekstrem {WETBULB_EXTREME:.0f} °C")
         sub = f"  ({mtr:+.2f} °C/dekade)" if mtr is not None else ""
-        ax2.set_title(f"Puncak panas lembab: wet-bulb maksimum harian per tahun{sub}",
+        ax2.set_title(f"Puncak panas lembab: wet-bulb bulan terpanas per tahun{sub}",
                       fontsize=11)
         ax2.set_ylabel("°C wet-bulb"); ax2.legend(fontsize=7, loc="best")
     else:
@@ -353,28 +370,19 @@ def _load_polygons(path):
     return out
 
 
-def _aggregate(aoi, bbox, years, thr, run_dir, name):
-    import ee
+def _aggregate(aoi, bbox, years, thr, run_dir, name, lst_source="landsat"):
     print("  SST (OISST)…")
     ys, sst = _sst_series(aoi, years)
-    print("  LST (Landsat thermal, land-masked)…")
-    ly, lst = _lst_landsat(aoi, years)
-    print("  wet-bulb (ERA5-Land)…")
-    _, t2m, wetbulb = _era5_wetbulb_series(aoi, years)
-    try:
-        print("  peak humid heat (ERA5-Land daily wet-bulb)…")
-        hy, heat_days, max_wb = _heat_metrics(aoi, years, thr)
-        hd_map = dict(zip(hy, heat_days)); mw_map = dict(zip(hy, max_wb))
-        heat_days = [hd_map.get(y) for y in ys]
-        max_wb = [mw_map.get(y) for y in ys]
-    except Exception as e:  # noqa: BLE001 — heavy optional step
-        print(f"  (peak-heat metrics skipped: {e.__class__.__name__})")
-        heat_days = [None] * len(ys); max_wb = [None] * len(ys)
-    series = {"years": ys, "sst": sst, "lst_years": ly, "lst": lst,
-              "wetbulb": wetbulb, "air_temp": t2m,
-              "heat_days": heat_days, "max_wetbulb": max_wb}
+    ly, lst, lst_src = _lst_series(aoi, years, lst_source)
+    print(f"  LST ({lst_src})…")
+    print("  wet-bulb (ERA5 global monthly)…")
+    _, wetbulb, max_wb = _era5_series(aoi, years)
+    # align wet-bulb series (ERA5 years == ys) to the SST year axis
+    wb_map = dict(zip(ys, wetbulb)); mw_map = dict(zip(ys, max_wb))
+    series = {"years": ys, "sst": sst, "lst_years": ly, "lst": lst, "lst_source": lst_src,
+              "wetbulb": [wb_map.get(y) for y in ys], "max_wetbulb": [mw_map.get(y) for y in ys],
+              "heat_days": [None] * len(ys)}
     _render(run_dir, name, series, thr)
-
     _change_maps(aoi, bbox, years, run_dir, name)
     return series
 
@@ -412,7 +420,7 @@ def _change_maps(aoi, bbox, years, run_dir, name):
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         island_mode="aggregate", islands_file=None, start_year=DEFAULT_START_YEAR,
-        wetbulb_thr=WETBULB_DANGER):
+        wetbulb_thr=WETBULB_DANGER, lst_source="landsat"):
     """Island SST/LST/wet-bulb trend analysis (GEE backend)."""
     for mod in ("numpy", "matplotlib", "shapely"):
         try:
@@ -433,9 +441,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         if not islands_file:
             raise SystemExit("--island-mode per-island needs --islands-file "
                              "(GeoJSON polygons of the islands).")
-        stats = _run_per_island(aoi, islands_file, years, wetbulb_thr, run_dir, name)
+        stats = _run_per_island(aoi, islands_file, years, wetbulb_thr, run_dir, name, lst_source)
     else:
-        series = _aggregate(aoi, bbox, years, wetbulb_thr, run_dir, name)
+        series = _aggregate(aoi, bbox, years, wetbulb_thr, run_dir, name, lst_source)
         stats = _summ(series, wetbulb_thr)
 
     stats.update({"run_id": run_id, "scenario": "island-heat", "mode": island_mode,
@@ -450,41 +458,38 @@ def _summ(series, thr):
     sst_tr, sst_ch = _trend(series["years"], series["sst"])
     lst_tr, lst_ch = _trend(series["lst_years"], series["lst"])
     wb_tr, wb_ch = _trend(series["years"], series["wetbulb"])
-    hd = [(y, v) for y, v in zip(series["years"], series["heat_days"]) if v is not None]
     mw = series.get("max_wetbulb", [None] * len(series["years"]))
     mw_tr, _ = _trend(series["years"], mw)
     mwv = [(y, v) for y, v in zip(series["years"], mw) if v is not None]
     return {
+        "lst_source": series.get("lst_source"),
         "sst_trend_c_per_decade": sst_tr, "sst_change_c": sst_ch,
         "lst_trend_c_per_decade": lst_tr, "lst_change_c": lst_ch,
         "wetbulb_trend_c_per_decade": wb_tr, "wetbulb_change_c": wb_ch,
         "peak_wetbulb_trend_c_per_decade": mw_tr,
         "peak_wetbulb_latest_c": (round(mwv[-1][1], 2) if mwv else None),
-        "heat_days_first": (round(hd[0][1], 1) if hd else None),
-        "heat_days_last": (round(hd[-1][1], 1) if hd else None),
         "sst_series": _series_dict(series["years"], series["sst"]),
         "lst_series": _series_dict(series["lst_years"], series["lst"]),
         "wetbulb_series": _series_dict(series["years"], series["wetbulb"]),
         "peak_wetbulb_series": _series_dict(series["years"], mw),
-        "heat_days_series": _series_dict(series["years"], series["heat_days"]),
     }
 
 
-def _run_per_island(aoi, islands_file, years, thr, run_dir, name):
+def _run_per_island(aoi, islands_file, years, thr, run_dir, name, lst_source="landsat"):
     import ee
     polys = _load_polygons(islands_file)
     if not polys:
         raise SystemExit("No island polygons found in --islands-file.")
     print(f"  per-island: {len(polys)} islands")
     # SST + wet-bulb are regional → computed once over the AOI.
-    _, sst = _sst_series(aoi, years)
-    _, _t, wetbulb = _era5_wetbulb_series(aoi, years)
-    sst_tr, _ = _trend(years, sst)
-    wb_tr, _ = _trend(years, wetbulb)
+    ys, sst = _sst_series(aoi, years)
+    yw, wetbulb, _ = _era5_series(aoi, years)
+    sst_tr, _ = _trend(ys, sst)
+    wb_tr, _ = _trend(yw, wetbulb)
     rows = []
     for nm, geom, gj in polys:
         eeg = ee.Geometry(gj)
-        ly, lst = _lst_landsat(eeg, years)
+        ly, lst, _src = _lst_series(eeg, years, lst_source)
         lst_tr, lst_ch = _trend(ly, lst)
         rows.append({"island": nm, "lst_trend_c_per_decade": lst_tr,
                      "lst_change_c": lst_ch,
@@ -508,10 +513,9 @@ def _print_summary(stats):
     else:
         print(f"Island-heat trends (°C/decade):  "
               f"SST {stats['sst_trend_c_per_decade']}  ·  "
-              f"LST {stats['lst_trend_c_per_decade']}  ·  "
+              f"LST {stats['lst_trend_c_per_decade']} ({stats.get('lst_source')})  ·  "
               f"wet-bulb {stats['wetbulb_trend_c_per_decade']}")
         if stats.get("peak_wetbulb_latest_c") is not None:
-            print(f"Peak daily wet-bulb: {stats['peak_wetbulb_latest_c']} °C latest "
-                  f"({stats['peak_wetbulb_trend_c_per_decade']:+} °C/decade); "
-                  f"danger ≥{WETBULB_DANGER:.0f}, extreme ≥{WETBULB_EXTREME:.0f}. "
-                  f"Days ≥ threshold: {stats['heat_days_first']} → {stats['heat_days_last']}")
+            print(f"Peak humid heat (hottest month): wet-bulb {stats['peak_wetbulb_latest_c']} °C "
+                  f"latest ({stats['peak_wetbulb_trend_c_per_decade']:+} °C/decade); "
+                  f"danger ≥{WETBULB_DANGER:.0f}, extreme ≥{WETBULB_EXTREME:.0f}")
