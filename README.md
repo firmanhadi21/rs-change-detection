@@ -335,7 +335,11 @@ satchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
 ```
 
 Keluaran: `island_heat.png` (tren SST/LST/wet-bulb + panel puncak wet-bulb),
-`stats.json` (tren per variabel, deret tahunan). Butuh `satchange[maps]`.
+**tiga peta perubahan dekadal** `sst_change_map.png` (SST laut, MODIS 4 km),
+`lst_change_map.png` (LST lahan pulau, Landsat — laut transparan), dan
+`combined_change_map.png` (gabungan: LST di darat + SST di laut dalam satu raster)
+beserta GeoTIFF-nya, dan `stats.json` (tren per variabel, deret tahunan). Butuh
+`satchange[maps]`.
 
 > **Catatan jujur:** data ini **observasi** (satelit + reanalisis), yakni tren
 > terukur — **bukan** proyeksi model iklim (CMIP6) hingga 2100. LST pulau sangat
@@ -681,7 +685,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.26) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.27) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -689,7 +693,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_satchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.26},
+  version   = {0.1.27},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

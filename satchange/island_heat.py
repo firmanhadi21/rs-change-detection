@@ -29,6 +29,7 @@ os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
 
 OISST = "NOAA/CDR/OISST/V2_1"
+MODIS_SST = "NASA/OCEANDATA/MODIS-Aqua/L3SMI"    # 4 km SST in °C (for the change map)
 L8 = "LANDSAT/LC08/C02/T1_L2"
 L9 = "LANDSAT/LC09/C02/T1_L2"
 ERA5_MONTHLY = "ECMWF/ERA5_LAND/MONTHLY_AGGR"
@@ -84,7 +85,13 @@ def _sst_series(aoi, years):
     return _annual_series(coll, "sst", aoi, 25000, years)
 
 
-def _lst_landsat(aoi, years):
+def _landsat_lst_coll(aoi, ndvi_thr=0.2):
+    """Landsat 8/9 LST (°C), masked to cloud-free vegetated island land.
+
+    NDVI-based land masking is far more reliable than the QA water bit on tiny
+    sub-km islands whose 100 m pixels are part-water. A higher `ndvi_thr` is used
+    for the per-pixel change MAP (turbid Java-Sea water can leak past NDVI>0.2).
+    """
     import ee
 
     def prep(im):
@@ -92,20 +99,23 @@ def _lst_landsat(aoi, years):
         clear = (qa.bitwiseAnd(1 << 1).eq(0)          # dilated cloud
                  .And(qa.bitwiseAnd(1 << 3).eq(0))    # cloud
                  .And(qa.bitwiseAnd(1 << 4).eq(0)))   # cloud shadow
-        # Confident island land = vegetated (NDVI > 0.2). Far more reliable than the
-        # QA water bit on tiny sub-km islands whose 100 m pixels are part-water.
+        water = qa.bitwiseAnd(1 << 7).eq(0)           # QA water bit 0 → land
         nir = im.select("SR_B5").multiply(0.0000275).add(-0.2)
         red = im.select("SR_B4").multiply(0.0000275).add(-0.2)
         ndvi = nir.subtract(red).divide(nir.add(red))
-        land = ndvi.gt(0.2)
+        land = ndvi.gt(ndvi_thr).And(water)
         lst = (im.select("ST_B10").multiply(0.00341802).add(149.0)
                .subtract(273.15).rename("lst"))
         lst = lst.updateMask(clear).updateMask(land) \
                  .updateMask(lst.gt(5)).updateMask(lst.lt(55))   # drop non-physical
         return lst.copyProperties(im, ["system:time_start"])
 
-    coll = (ee.ImageCollection(L8).merge(ee.ImageCollection(L9))
+    return (ee.ImageCollection(L8).merge(ee.ImageCollection(L9))
             .filterBounds(aoi).map(prep))
+
+
+def _lst_landsat(aoi, years):
+    coll = _landsat_lst_coll(aoi)
     lyrs = [y for y in years if y >= LST_MIN_YEAR]
     return _annual_series(coll, "lst", aoi, 100, lyrs)
 
@@ -188,12 +198,90 @@ def _series_dict(years, vals):
             for y, v in zip(years, vals)}
 
 
+# ----------------------------- decadal change maps -----------------------------
+def _end_periods(years, k=5):
+    """Early and recent k-year windows at the two ends of the record."""
+    k = min(k, max(2, len(years) // 3))
+    return (years[0], years[0] + k - 1), (years[-1] - k + 1, years[-1])
+
+
+def _sst_change_image(years):
+    """MODIS-Aqua 4 km SST change (°C): recent mean − early mean."""
+    import ee
+    coll = ee.ImageCollection(MODIS_SST).select("sst")
+    (e0, e1), (r0, r1) = _end_periods(years)
+    early = coll.filterDate(f"{e0}-01-01", f"{e1}-12-31").mean()
+    recent = coll.filterDate(f"{r0}-01-01", f"{r1}-12-31").mean()
+    return recent.subtract(early).rename("sst_change"), (e0, e1), (r0, r1)
+
+
+def _lst_change_image(aoi, years):
+    """Landsat LST change (°C) over confident island land: recent − early mean.
+
+    Stricter NDVI (0.4) plus a ≥2-observation requirement in BOTH windows keeps
+    only reliable vegetated-land pixels, so turbid water and one-off noise stay
+    transparent instead of speckling the map.
+    """
+    coll = _landsat_lst_coll(aoi, ndvi_thr=0.4)
+    ly = [y for y in years if y >= LST_MIN_YEAR]
+    (e0, e1), (r0, r1) = _end_periods(ly, k=4)
+    ec = coll.filterDate(f"{e0}-01-01", f"{e1}-12-31")
+    rc = coll.filterDate(f"{r0}-01-01", f"{r1}-12-31")
+    diff = rc.mean().subtract(ec.mean())
+    valid = ec.count().gte(2).And(rc.count().gte(2))
+    return diff.updateMask(valid).rename("lst_change"), (e0, e1), (r0, r1)
+
+
+def _change_map(diff_img, aoi, bbox, run_dir, key, title, vlim, scale):
+    """Download a change image to GeoTIFF and render a diverging map (Δ°C)."""
+    from .gee_utils import download_geotiff
+    tif = os.path.join(run_dir, f"{key}.tif")
+    if download_geotiff(diff_img.clip(aoi), aoi, tif, scale=scale) is None:
+        print(f"  ({key}: download failed, map skipped)")
+        return
+    _render_change(tif, bbox, run_dir, f"{key}.png", title, vlim)
+
+
+def _render_change(tif, bbox, run_dir, fname, title, vlim):
+    import numpy as np
+    import rasterio
+    plt = _plt()
+    with rasterio.open(tif) as ds:
+        a = ds.read(1).astype("float64")
+        if ds.nodata is not None:
+            a[a == ds.nodata] = np.nan
+    a[~np.isfinite(a)] = np.nan
+    w, s, e, n = bbox
+    fig, ax = plt.subplots(figsize=(9, 9), dpi=150)
+    ax.set_xlim(w, e); ax.set_ylim(s, n)
+    _add_basemap(ax)
+    im = ax.imshow(a, extent=[w, e, s, n], origin="upper", cmap="RdBu_r",
+                   vmin=-vlim, vmax=vlim, alpha=0.85, zorder=2)
+    fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02,
+                 label="Perubahan suhu (Δ°C)  ·  merah = menghangat")
+    ax.set_title(title, fontsize=12, fontweight="bold")
+    ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
+    ax.grid(True, ls=":", alpha=0.4)
+    fig.tight_layout()
+    fig.savefig(os.path.join(run_dir, fname)); plt.close(fig)
+    print(f"Map: {os.path.normpath(os.path.join(run_dir, fname))}")
+
+
 # ----------------------------- rendering -----------------------------
 def _plt():
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     return plt
+
+
+def _add_basemap(ax):
+    try:
+        import contextily as cx
+        cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.CartoDB.Positron,
+                       attribution_size=5)
+    except Exception as e:  # noqa: BLE001 — basemap is optional
+        print(f"  (basemap skipped: {e.__class__.__name__})")
 
 
 def _fit_line(ax, years, vals, color, label):
@@ -265,7 +353,7 @@ def _load_polygons(path):
     return out
 
 
-def _aggregate(aoi, years, thr, run_dir, name):
+def _aggregate(aoi, bbox, years, thr, run_dir, name):
     import ee
     print("  SST (OISST)…")
     ys, sst = _sst_series(aoi, years)
@@ -286,7 +374,40 @@ def _aggregate(aoi, years, thr, run_dir, name):
               "wetbulb": wetbulb, "air_temp": t2m,
               "heat_days": heat_days, "max_wetbulb": max_wb}
     _render(run_dir, name, series, thr)
+
+    _change_maps(aoi, bbox, years, run_dir, name)
     return series
+
+
+def _change_maps(aoi, bbox, years, run_dir, name):
+    """Write three decadal change maps: SST (sea), LST (island land), combined."""
+    sst_img = lst_img = None
+    try:
+        sst_img, ep, rp = _sst_change_image(years)
+        print(f"  SST change map ({ep[0]}–{ep[1]} → {rp[0]}–{rp[1]})…")
+        _change_map(sst_img, aoi, bbox, run_dir, "sst_change_map",
+                    f"Perubahan SST {ep[0]}–{ep[1]} → {rp[0]}–{rp[1]} — {name}",
+                    vlim=1.5, scale=4000)
+    except Exception as ex:  # noqa: BLE001
+        print(f"  (SST change map skipped: {ex.__class__.__name__})")
+    try:
+        lst_img, ep, rp = _lst_change_image(aoi, years)
+        print(f"  LST change map ({ep[0]}–{ep[1]} → {rp[0]}–{rp[1]})…")
+        _change_map(lst_img, aoi, bbox, run_dir, "lst_change_map",
+                    f"Perubahan LST (darat) {ep[0]}–{ep[1]} → {rp[0]}–{rp[1]} — {name}",
+                    vlim=3.0, scale=200)
+    except Exception as ex:  # noqa: BLE001
+        print(f"  (LST change map skipped: {ex.__class__.__name__})")
+    if sst_img is None or lst_img is None:
+        return
+    try:
+        print("  combined change map (LST darat + SST laut)…")
+        combined = sst_img.blend(lst_img)     # LST painted on land, SST elsewhere
+        _change_map(combined, aoi, bbox, run_dir, "combined_change_map",
+                    f"Perubahan suhu gabungan: LST (darat) + SST (laut) — {name}",
+                    vlim=3.0, scale=200)
+    except Exception as ex:  # noqa: BLE001
+        print(f"  (combined change map skipped: {ex.__class__.__name__})")
 
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
@@ -303,6 +424,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     from .gee_utils import initialize_ee, square_aoi
     initialize_ee(config_key)
     aoi = square_aoi(lon, lat, radius)
+    b = aoi.bounds().coordinates().getInfo()[0]
+    xs = [p[0] for p in b]; ys = [p[1] for p in b]
+    bbox = [min(xs), min(ys), max(xs), max(ys)]
     years = list(range(int(start_year), CURRENT_YEAR + 1))
 
     if island_mode == "per-island":
@@ -311,7 +435,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                              "(GeoJSON polygons of the islands).")
         stats = _run_per_island(aoi, islands_file, years, wetbulb_thr, run_dir, name)
     else:
-        series = _aggregate(aoi, years, wetbulb_thr, run_dir, name)
+        series = _aggregate(aoi, bbox, years, wetbulb_thr, run_dir, name)
         stats = _summ(series, wetbulb_thr)
 
     stats.update({"run_id": run_id, "scenario": "island-heat", "mode": island_mode,
