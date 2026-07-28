@@ -266,6 +266,42 @@ def _mndwi_tif(aoi, win, run_dir, tag, scale, sensor):
     return path, n
 
 
+def _mndwi_tif_mpc(bbox, win, run_dir, tag, sensor):
+    """MNDWI (Green,SWIR1) GeoTIFF from Microsoft Planetary Computer (no Earth Engine).
+
+    Produces the same single-band MNDWI raster as `_mndwi_tif`, so the entire
+    downstream Otsu / sub-pixel / transect pipeline runs unchanged. Otsu auto-
+    thresholds, so the exact reflectance scaling is irrelevant.
+    """
+    import numpy as np
+    import rasterio
+    from . import mpc_backend as mpc
+    if sensor == "landsat":
+        med, n, geobox = mpc._l_sr_median(bbox, win[0], win[1])
+        if n == 0:
+            raise SystemExit(f"No Landsat scenes on MPC in {win[0]}..{win[1]} for this AOI.")
+        mndwi = mpc._nd(mpc._b(med, "GREEN"), mpc._b(med, "SWIR1"))
+    else:
+        med, n, geobox = mpc._s2_median(bbox, win[0], win[1], ["B03", "B11"])
+        if n == 0:
+            raise SystemExit(f"No Sentinel-2 scenes on MPC in {win[0]}..{win[1]} for this AOI.")
+        mndwi = mpc._nd(mpc._b(med, "B03"), mpc._b(med, "B11"))
+    arr = np.asarray(mndwi, dtype="float32")
+    path = os.path.join(run_dir, f"mndwi_{tag}.tif")
+    with rasterio.open(path, "w", driver="GTiff", height=arr.shape[0], width=arr.shape[1],
+                       count=1, dtype="float32", crs=str(geobox.crs),
+                       transform=geobox.affine, nodata=float("nan")) as dst:
+        dst.write(arr, 1)
+    return path, n
+
+
+def _get_mndwi(backend, aoi, bbox, win, run_dir, tag, scale, sensor):
+    """Backend-aware MNDWI GeoTIFF: GEE (download) or MPC (STAC composite)."""
+    if backend == "mpc":
+        return _mndwi_tif_mpc(bbox, win, run_dir, tag, sensor)
+    return _mndwi_tif(aoi, win, run_dir, tag, scale, sensor)
+
+
 def _read_band(tif):
     import numpy as np
     import rasterio
@@ -353,7 +389,8 @@ def _write_mask_tif(path, mask, tr, crs):
         d.write(arr)
 
 
-def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post, sensor, label):
+def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post, sensor, label,
+                 backend="gee"):
     try:
         import skimage  # noqa: F401
     except ImportError:
@@ -362,7 +399,8 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post, sensor, l
     band_px = max(int((smooth_m or 30) / scale), 2)
     midlat = (bbox[1] + bbox[3]) / 2.0
 
-    post_tif, n_post = _mndwi_tif(aoi, post, run_dir, "post" if pre else "now", scale, sensor)
+    post_tif, n_post = _get_mndwi(backend, aoi, bbox, post, run_dir,
+                                  "post" if pre else "now", scale, sensor)
     arr, valid, tr, crs = _read_band(post_tif)
     sea_post, thr = _otsu_sea(arr, valid, smooth_px)
     _write_mask_tif(os.path.join(run_dir, "sea_mask.tif"), sea_post, tr, crs)
@@ -374,7 +412,7 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post, sensor, l
     px = _px_km2(tr, midlat)
 
     if pre:
-        pre_tif, n_pre = _mndwi_tif(aoi, pre, run_dir, "pre", scale, sensor)
+        pre_tif, n_pre = _get_mndwi(backend, aoi, bbox, pre, run_dir, "pre", scale, sensor)
         parr, pvalid, ptr, _ = _read_band(pre_tif)
         if parr.shape != arr.shape:
             raise SystemExit("optical pre/post grids differ; try equal --pre/--post windows.")
@@ -408,12 +446,14 @@ def _shift_year(datestr, delta):
     return f"{int(y) + delta:04d}-{m}-{d}"
 
 
-def _epoch_shoreline(aoi, win, run_dir, scale, sensor, smooth_px, band_px, midlat, aoi_km2):
+def _epoch_shoreline(aoi, bbox, win, run_dir, scale, sensor, smooth_px, band_px,
+                     midlat, aoi_km2, backend="gee"):
     yr = win[0][:4]
     tif = n = None
     for pad in (0, 1, 2):                      # widen the window if an epoch is empty
         try:
-            tif, n = _mndwi_tif(aoi, (_shift_year(win[0], -pad), _shift_year(win[1], pad)),
+            tif, n = _get_mndwi(backend, aoi, bbox,
+                                (_shift_year(win[0], -pad), _shift_year(win[1], pad)),
                                 run_dir, yr, scale, sensor)
             break
         except SystemExit:
@@ -434,7 +474,7 @@ def _epoch_shoreline(aoi, win, run_dir, scale, sensor, smooth_px, band_px, midla
 
 
 def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, label,
-                    transect_spacing=500, transects_file=None):
+                    transect_spacing=500, transects_file=None, backend="gee"):
     try:
         import skimage  # noqa: F401
     except ImportError:
@@ -446,8 +486,8 @@ def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, l
     series, year_lines, ref_sea, ref_tr = [], {}, None, None
     for win in epochs:
         print(f"  epoch {win[0][:4]}: {win[0]}..{win[1]}")
-        rec, lines, sea, tr = _epoch_shoreline(aoi, win, run_dir, scale, sensor,
-                                               smooth_px, band_px, midlat, aoi_km2)
+        rec, lines, sea, tr = _epoch_shoreline(aoi, bbox, win, run_dir, scale, sensor,
+                                               smooth_px, band_px, midlat, aoi_km2, backend)
         if rec is None:
             print(f"    {win[0][:4]}: no scenes (even ±2 yr) — skipped")
             continue
@@ -727,11 +767,12 @@ def _render_transects(run_dir, name, bbox, year_lines, tr_res, to_ll):
 
 
 def _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m, pre, post, epochs, spacing,
-                      transects_file=None):
+                      transects_file=None, backend="gee"):
     sensor = "landsat" if method == "landsat" else "s2"
     osc = 30 if method == "landsat" else 10          # Landsat 30 m, S2 10 m
     label = "Landsat" if method == "landsat" else "Sentinel-2"
-    print(f"Optical ({label} MNDWI sub-pixel, {osc} m); smoothing {smooth_m} m")
+    src = "MPC" if backend == "mpc" else "GEE"
+    print(f"Optical ({label} MNDWI sub-pixel, {osc} m, {src}); smoothing {smooth_m} m")
     if epochs:
         if transects_file:
             print(f"Time-series: {len(epochs)} epochs; transects from file {transects_file}")
@@ -739,8 +780,9 @@ def _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m, pre, post, epo
             print(f"Time-series: {len(epochs)} epochs; transects @ {spacing} m" if spacing
                   else f"Time-series: {len(epochs)} epochs (no transects)")
         return _run_timeseries(aoi, bbox, run_dir, name, osc, smooth_m, epochs, sensor, label,
-                               spacing, transects_file=transects_file)
-    return _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label)
+                               spacing, transects_file=transects_file, backend=backend)
+    return _run_optical(aoi, bbox, run_dir, name, osc, smooth_m, pre, post, sensor, label,
+                        backend=backend)
 
 
 def _dispatch_sar(aoi, bbox, run_dir, name, scale, smooth_m, thr, pre, post, epochs):
@@ -767,24 +809,34 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     method: 'sar' (Sentinel-1 VV water mask → vector; cloud-proof) or 'optical'
     (Sentinel-2 MNDWI + Otsu + marching-squares sub-pixel contour; cloud-limited,
     sharper). `smooth_m` opens the sea to strip tambak/pond fingers (0 = raw edge).
+
+    Backends: optical/landsat run on GEE or MPC; SAR needs GEE (server-side vectors).
     """
-    if backend == "mpc":
-        raise SystemExit("coastline currently needs --backend gee.")
-    from .gee_utils import initialize_ee, square_aoi
-    initialize_ee(config_key)
-    aoi = square_aoi(lon, lat, radius)
-    b = aoi.bounds().coordinates().getInfo()[0]
-    xs = [p[0] for p in b]; ys = [p[1] for p in b]
-    bbox = [min(xs), min(ys), max(xs), max(ys)]
     scale = 10
     post = post or DEFAULT_WIN
 
-    if method in ("optical", "landsat"):
-        stats = _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m,
+    if backend == "mpc":
+        if method not in ("optical", "landsat"):
+            raise SystemExit("coastline SAR needs --backend gee; on MPC use "
+                             "--coast-method optical (or landsat).")
+        from .mpc_backend import square_bbox
+        bbox = square_bbox(lon, lat, radius)
+        stats = _dispatch_optical(None, bbox, run_dir, name, method, smooth_m,
                                   pre, post, epochs, transect_spacing,
-                                  transects_file=transects_file)
+                                  transects_file=transects_file, backend="mpc")
     else:
-        stats = _dispatch_sar(aoi, bbox, run_dir, name, scale, smooth_m, thr, pre, post, epochs)
+        from .gee_utils import initialize_ee, square_aoi
+        initialize_ee(config_key)
+        aoi = square_aoi(lon, lat, radius)
+        b = aoi.bounds().coordinates().getInfo()[0]
+        xs = [p[0] for p in b]; ys = [p[1] for p in b]
+        bbox = [min(xs), min(ys), max(xs), max(ys)]
+        if method in ("optical", "landsat"):
+            stats = _dispatch_optical(aoi, bbox, run_dir, name, method, smooth_m,
+                                      pre, post, epochs, transect_spacing,
+                                      transects_file=transects_file, backend="gee")
+        else:
+            stats = _dispatch_sar(aoi, bbox, run_dir, name, scale, smooth_m, thr, pre, post, epochs)
 
     stats.update({"run_id": run_id, "scenario": "coastline", "smooth_m": smooth_m,
                   "location": {"lat": lat, "lon": lon}, "radius_km": radius})
