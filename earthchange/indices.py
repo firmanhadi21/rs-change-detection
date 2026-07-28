@@ -76,6 +76,22 @@ INDEX_FN = {"NDVI": ndvi, "NDBI": ndbi, "NDWI": ndwi, "NBR": nbr,
 # NDISI/EBBI need a thermal band (Landsat), so they are NOT listed here.
 BUILTUP_METHODS = ["NDBI", "UI", "BU", "IBI"]
 
+
+# --- The same indices on a Landsat SR composite (unified GREEN/RED/NIR/SWIR1/SWIR2
+#     bands from l_sr_median) so optical scenarios can reach back to 1984 (L5 TM). ---
+def _lndvi(img):  return img.normalizedDifference(["NIR", "RED"]).rename("NDVI")
+def _lndbi(img):  return img.normalizedDifference(["SWIR1", "NIR"]).rename("NDBI")
+def _lndwi(img):  return img.normalizedDifference(["GREEN", "NIR"]).rename("NDWI")
+def _lnbr(img):   return img.normalizedDifference(["NIR", "SWIR2"]).rename("NBR")
+def _lui(img):    return img.normalizedDifference(["SWIR2", "NIR"]).rename("UI")
+def _lbu(img):    return _lndbi(img).subtract(_lndvi(img)).rename("BU")
+
+LANDSAT_INDEX_FN = {"NDVI": _lndvi, "NDBI": _lndbi, "NDWI": _lndwi,
+                    "NBR": _lnbr, "UI": _lui, "BU": _lbu}
+
+# Green/SWIR1 band pair for the water mask (MNDWI) per sensor.
+MNDWI_BANDS = {"s2": ("B3", "B11"), "landsat": ("GREEN", "SWIR1")}
+
 # Per-method change-detection defaults: (direction, affected_thr, severe_thr, vmax).
 # Different indices have different ranges, so each needs its own thresholds.
 METHOD_DEFAULTS = {

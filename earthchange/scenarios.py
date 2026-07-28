@@ -44,14 +44,27 @@ def _mean(img, aoi, scale=10):
 
 # ----------------------------- methods -----------------------------
 def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6):
-    """Generic Sentinel-2 index change: delta = post - pre.
+    """Generic optical index change: delta = post - pre.
 
     direction 'loss' reports pixels below thr (e.g. NDVI drop); 'gain' reports
-    pixels above thr (e.g. NDBI/NDWI rise).
+    pixels above thr (e.g. NDBI/NDWI rise). `p['sensor']` = 'landsat' forces the
+    Landsat SR composite (archive to 1984) instead of Sentinel-2 (2015+). Water is
+    masked out by default (except for the NDWI/water scenario) so sea and lakes
+    don't pollute NDVI/NBR change — essential on coasts and islands.
     """
-    fn = INDEX_FN[index_name]
-    loader = l2_median if SENSOR.get(index_name) == "L8" else s2_median
-    sensor = "Landsat" if SENSOR.get(index_name) == "L8" else "Sentinel-2"
+    from .indices import LANDSAT_INDEX_FN, MNDWI_BANDS
+    thermal = SENSOR.get(index_name) == "L8"          # NDISI/EBBI need Landsat thermal
+    want_landsat = p.get("sensor") == "landsat"
+    if thermal:
+        loader, fn, sensor, scale, wsensor = l2_median, INDEX_FN[index_name], "Landsat", 30, None
+    elif want_landsat:
+        if index_name not in LANDSAT_INDEX_FN:
+            raise SystemExit(f"--sensor landsat is not available for {index_name}.")
+        loader, fn = l_sr_median, LANDSAT_INDEX_FN[index_name]
+        sensor, scale, wsensor = "Landsat (archive to 1984)", 30, "landsat"
+    else:
+        loader, fn, sensor, scale, wsensor = s2_median, INDEX_FN[index_name], "Sentinel-2", 10, "s2"
+
     pre_img, n_pre = loader(aoi, *p["pre"])
     post_img, n_post = loader(aoi, *p["post"])
     if n_pre == 0 or n_post == 0:
@@ -60,6 +73,14 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6)
             f"for this AOI — adjust --pre/--post dates."
         )
     delta = fn(post_img).subtract(fn(pre_img)).rename("d" + index_name).clip(aoi)
+
+    # Mask permanent water (MNDWI>0 in either date) so it isn't counted as change.
+    water_masked = False
+    if p.get("mask_water", True) and index_name != "NDWI" and wsensor:
+        gb = list(MNDWI_BANDS[wsensor])
+        land = pre_img.normalizedDifference(gb).lt(0).And(post_img.normalizedDifference(gb).lt(0))
+        delta = delta.updateMask(land)
+        water_masked = True
 
     if direction == "loss":
         affected, severe = delta.lt(thr), delta.lt(severe_thr)
@@ -75,11 +96,12 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6)
                  "pct_affected": _pct(affected, aoi),
                  "pct_strong": _pct(severe, aoi),
                  "threshold": thr, "strong_threshold": severe_thr}
-    stats.update({"scenes_pre": n_pre, "scenes_post": n_post})
+    stats.update({"scenes_pre": n_pre, "scenes_post": n_post,
+                  "sensor": sensor, "water_masked": water_masked})
 
     vis = {"min": -vmax, "max": vmax, "palette": DIVERGING}
     product = {"key": "d" + index_name.lower(), "thumb": delta,
-               "thumb_vis": vis, "tif": delta, "scale": 10}
+               "thumb_vis": vis, "tif": delta, "scale": scale}
     return {"products": [product], "stats": stats}
 
 

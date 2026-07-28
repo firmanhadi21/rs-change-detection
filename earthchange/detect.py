@@ -196,6 +196,8 @@ def build_params(scenario, args):
             f"Scenario '{scenario}' needs explicit windows: "
             "--pre START:END --post START:END")
     p["pre"], p["post"] = pre, post
+    p["sensor"] = getattr(args, "sensor", "s2")
+    p["mask_water"] = not getattr(args, "no_water_mask", False)
     return p
 
 
@@ -464,6 +466,13 @@ def main():
                     "for a citable figure).")
     ap.add_argument("--method", help="override the index for optical scenarios "
                     "(e.g. urbanization: NDBI|UI|BU|IBI; also NDVI/NDWI/NBR)")
+    ap.add_argument("--sensor", choices=["s2", "landsat"], default="s2",
+                    help="optical scenarios: 's2' (Sentinel-2, 2015+, 10 m) or 'landsat' "
+                         "(Landsat SR, archive back to 1984 via L5 TM, 30 m) — use landsat "
+                         "for pre-2015 baselines, e.g. deforestation since the 1980s")
+    ap.add_argument("--no-water-mask", action="store_true",
+                    help="optical scenarios: keep water pixels (by default sea/lakes are "
+                         "masked out of NDVI/NBR change, e.g. for islands and coasts)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
     ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")

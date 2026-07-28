@@ -146,6 +146,29 @@ python3 detect.py -s urbanization --lat -6.23 --lon 106.85 --method EBBI --backe
 Indeks termal peka pada kondisi akuisisi (suhu permukaan berbeda antar-tanggal),
 jadi kalibrasi ambang untuk area Anda.
 
+### Landsat untuk baseline pra-2015 (`--sensor landsat`) & masking air
+
+Sentinel-2 baru ada sejak ~2015. Untuk **baseline lama** — mis. deforestasi sejak
+**1980-an** — pakai `--sensor landsat`: komposit reflektansi Landsat (arsip **sejak
+1984** via Landsat 5 TM; L7 dilewati karena SLC-off), 30 m. Berlaku untuk skenario
+optik (NDVI/NBR/NDBI, dst.) di kedua backend (di GEE paling andal untuk arsip lama).
+
+```bash
+# Deforestasi 1990 -> 2022 dari Landsat, air di-mask otomatis
+earthchange -s deforestation --lat 1.0 --lon 102.5 --radius 8 --sensor landsat \
+    --pre 1990-01-01:1992-12-31 --post 2021-01-01:2023-12-31
+```
+
+**Masking air (default).** Untuk analisis berbasis NDVI (deforestasi/burn/urban),
+laut, sungai, dan danau (MNDWI>0 pada kedua tanggal) **otomatis di-mask** agar tidak
+salah terhitung sebagai perubahan vegetasi — penting di **pulau & pesisir**. Matikan
+dengan `--no-water-mask`. Skenario `water` (NDWI) tidak di-mask (justru soal air).
+
+> **Catatan:** di backend MPC, komposit Sentinel-2 kini **diselaraskan** untuk
+> pergeseran *processing baseline 04.00* (offset −1000 DN sejak 2022‑01‑25) — tanpa
+> ini, NDVI yang melintasi batas 2022 (mis. 2019 vs 2023) bias dan memalsukan
+> "kehilangan vegetasi". GEE sudah memakai koleksi harmonized.
+
 ### Perubahan multi-tahun (mis. 2010 · 2015 · 2020)
 
 **Penting:** Sentinel-2 baru tersedia sejak ~2015/2016 — **tidak bisa** melihat
@@ -727,7 +750,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.31) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.32) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -735,7 +758,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.31},
+  version   = {0.1.32},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

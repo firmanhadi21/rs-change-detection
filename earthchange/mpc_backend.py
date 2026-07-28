@@ -83,6 +83,17 @@ INDEX_NP = {
     "NDISI": _ix_ndisi,
     "EBBI": _ix_ebbi,
 }
+# Same indices on a Landsat SR composite (GREEN/RED/NIR/SWIR1/SWIR2 from
+# _l_sr_median) so optical scenarios can reach back to 1984 via --sensor landsat.
+LANDSAT_INDEX_NP = {
+    "NDVI": lambda ds: _nd(_b(ds, "NIR"), _b(ds, "RED")),
+    "NDBI": lambda ds: _nd(_b(ds, "SWIR1"), _b(ds, "NIR")),
+    "NDWI": lambda ds: _nd(_b(ds, "GREEN"), _b(ds, "NIR")),
+    "NBR": lambda ds: _nd(_b(ds, "NIR"), _b(ds, "SWIR2")),
+    "UI": lambda ds: _nd(_b(ds, "SWIR2"), _b(ds, "NIR")),
+    "BU": lambda ds: _nd(_b(ds, "SWIR1"), _b(ds, "NIR")) - _nd(_b(ds, "NIR"), _b(ds, "RED")),
+}
+
 S2_RES = 0.0001   # ~11 m in degrees (EPSG:4326)
 S1_RES = 0.0002   # ~22 m
 L_RES = 0.0003    # ~30 m (Landsat)
@@ -123,6 +134,14 @@ def _s2_median(bbox, start, end, bands, geobox=None):
         ds = odc.stac.load(items, bbox=bbox, crs="EPSG:4326",
                            resolution=S2_RES, **load_kw)
     keep = ~ds["SCL"].isin(SCL_BAD)
+    # Harmonise the Sentinel-2 processing-baseline 04.00 change: scenes acquired
+    # from 2022-01-25 carry a -1000 DN BOA offset. Without this, NDVI computed
+    # across the boundary (e.g. 2019 vs 2023) is biased and fakes vegetation loss.
+    import numpy as np
+    cutoff = np.datetime64("2022-01-25")
+    new = ds["time"] >= cutoff
+    for b in bands:
+        ds[b] = ds[b].where(~new, (ds[b] - 1000).clip(min=0))
     med = ds[list(bands)].where(keep).median(dim="time")
     return med.compute(), len(items), ds.odc.geobox
 
@@ -224,25 +243,39 @@ def run_urban_trend(bbox, params, bu_thr=0.0):
             "interpretation": "R/G/B = NDBI epoch-1/2/3. Biru = built-up baru; putih = selalu terbangun."}
 
 
-def run_optical(bbox, params, index, direction, thr, severe, vmax=0.6):
-    if index in L8_METHODS:  # thermal indices -> Landsat
-        pre, n_pre, gbox = _landsat_median(bbox, *params["pre"])
-        if pre is None:
-            raise SystemExit("No Landsat scenes in the pre window (MPC).")
-        post, n_post, _ = _landsat_median(bbox, *params["post"], geobox=gbox)
-        if post is None:
-            raise SystemExit("No Landsat scenes in the post window (MPC).")
-    else:
-        bands = INDEX_LOAD[index]
-        pre, n_pre, gbox = _s2_median(bbox, *params["pre"], bands)
-        if pre is None:
-            raise SystemExit("No Sentinel-2 scenes in the pre window (MPC).")
-        post, n_post, _ = _s2_median(bbox, *params["post"], bands, geobox=gbox)
-        if post is None:
-            raise SystemExit("No Sentinel-2 scenes in the post window (MPC).")
+def _optical_composites(bbox, params, index):
+    """Load pre/post composites for an index. Returns (pre, post, n_pre, n_post,
+    gbox, index_fn, mndwi_bands). Picks Sentinel-2, thermal-Landsat, or (via
+    --sensor landsat) the Landsat SR archive back to 1984."""
+    want_landsat = params.get("sensor") == "landsat"
+    if index in L8_METHODS:                  # thermal indices -> Landsat 8/9
+        loader, fn, wb = _landsat_median, INDEX_NP[index], None
+        pre, n_pre, gb = loader(bbox, *params["pre"])
+        post, n_post = (None, 0) if pre is None else loader(bbox, *params["post"], geobox=gb)[:2]
+    elif want_landsat:                       # Landsat SR archive back to 1984 (L5 TM)
+        loader, fn, wb = _l_sr_median, LANDSAT_INDEX_NP[index], ("GREEN", "SWIR1")
+        pre, n_pre, gb = loader(bbox, *params["pre"])
+        post, n_post = (None, 0) if pre is None else loader(bbox, *params["post"], geobox=gb)[:2]
+    else:                                    # Sentinel-2 (2015+), + MNDWI bands
+        bands = list(dict.fromkeys(INDEX_LOAD[index] + ["B03", "B11"]))
+        fn, wb = INDEX_NP[index], ("B03", "B11")
+        pre, n_pre, gb = _s2_median(bbox, *params["pre"], bands)
+        post, n_post = (None, 0) if pre is None else _s2_median(bbox, *params["post"], bands, geobox=gb)[:2]
+    src = "Landsat" if (want_landsat or index in L8_METHODS) else "Sentinel-2"
+    if pre is None or post is None:
+        raise SystemExit(f"No {src} scenes in the "
+                         f"{'pre' if pre is None else 'post'} window (MPC).")
+    return pre, post, n_pre, n_post, gb, fn, wb
 
-    fn = INDEX_NP[index]
+
+def run_optical(bbox, params, index, direction, thr, severe, vmax=0.6):
+    pre, post, n_pre, n_post, gbox, fn, wbands = _optical_composites(bbox, params, index)
     delta = fn(post) - fn(pre)
+    # Mask permanent water (MNDWI>0 in either date) unless it's the water scenario.
+    if params.get("mask_water", True) and index != "NDWI" and wbands:
+        g, s = wbands
+        wpre = _nd(_b(pre, g), _b(pre, s)); wpost = _nd(_b(post, g), _b(post, s))
+        delta = np.where((wpre < 0) & (wpost < 0), delta, np.nan)
     valid = np.isfinite(delta)
     if direction == "loss":
         aff, sev = (delta < thr) & valid, (delta < severe) & valid
@@ -253,7 +286,10 @@ def run_optical(bbox, params, index, direction, thr, severe, vmax=0.6):
              "mean": float(np.nanmean(delta)),
              "pct_affected": 100.0 * int(aff.sum()) / n,
              ("pct_severe" if direction == "loss" else "pct_strong"): 100.0 * int(sev.sum()) / n,
-             "threshold": thr, "scenes_pre": n_pre, "scenes_post": n_post}
+             "threshold": thr, "scenes_pre": n_pre, "scenes_post": n_post,
+             "sensor": ("Landsat (archive to 1984)" if params.get("sensor") == "landsat"
+                        else "Landsat" if index in L8_METHODS else "Sentinel-2"),
+             "water_masked": bool(params.get("mask_water", True) and index != "NDWI" and wbands)}
     vis = {"min": -vmax, "max": vmax, "palette": DIVERGING, "label": "d" + index}
     product = {"key": "d" + index.lower(), "data": delta, "geobox": gbox,
                "vis": vis, "is_rgb": False}
