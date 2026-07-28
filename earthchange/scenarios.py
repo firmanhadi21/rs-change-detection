@@ -440,4 +440,12 @@ SCENARIOS = {
         "interpretation": ("Kapan tiap piksel hutan hilang (peta) + tren luas hutan "
                            "antar-periode. Pakai --sensor landsat untuk sejak 1980-an."),
     },
+    "population-change": {
+        "label": "Population change — two GHSL epochs, gained/lost/present map + 3D spike forest (GHS_POP)",
+        "method": "population-change",
+        "radius": 40.0, "needs": "none",
+        "interpretation": ("Perubahan populasi antar dua epoch GHSL (mis. 1990→2020): "
+                           "sel bertambah (hijau) / berkurang (magenta) / tetap (abu). "
+                           "Peta 2D + hutan paku 3D + ekspor untuk forge3d."),
+    },
 }

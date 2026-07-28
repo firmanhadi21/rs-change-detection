@@ -160,6 +160,11 @@ def resolve_location(args):
         lat, lon = parse_location(args.location)
     elif args.lat is not None and args.lon is not None:
         lat, lon = args.lat, args.lon
+    elif getattr(args, "country", None):
+        return None, None, None, args.name or safe_name(args.country)
+    elif getattr(args, "bbox", None):
+        w, s, e, n = (float(x) for x in args.bbox.split(","))
+        return (s + n) / 2, (w + e) / 2, None, args.name or "bbox"
     else:
         raise SystemExit("Provide a location: --city 'Name, Country', --lat/--lon, "
                          "-l 'lat,lon', or --site NAME. See --help.")
@@ -297,6 +302,19 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
     print(f"\n{result.get('interpretation', cfg.get('interpretation', ''))}")
 
 
+def _run_population_change(args, lat, lon, radius, name, run_dir, run_id, ee_key):
+    from . import population_change
+    pc_years = tuple(int(y) for y in args.pop_years.split(","))
+    pc_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+    pc_regions = (population_change.REGION_PRESETS.get(args.regions)
+                  if args.regions else None)
+    population_change.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                          config_key=ee_key, country=args.country, bbox=pc_bbox,
+                          years=pc_years, cell_km=args.cell_km,
+                          neutral_pct=args.neutral_pct, min_pop=args.min_pop,
+                          regions=pc_regions)
+
+
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
     """Run a scenario that has its own module (not the generic optical/radar engine).
 
@@ -347,6 +365,10 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         forest_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                            config_key=ee_key, epochs=fh_epochs, sensor=args.sensor,
                            forest_thr=args.forest_thr, drop_thr=args.drop_thr)
+        return True
+
+    if method == "population-change":
+        _run_population_change(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
     if method == "island-heat":
@@ -488,6 +510,26 @@ def main():
     ap.add_argument("--drop-thr", type=float, default=0.2,
                     help="forest-history: NDVI fall below baseline that counts as loss "
                          "(default 0.2)")
+    ap.add_argument("--country", help="population-change: English country name (LSIB), "
+                    "e.g. 'Indonesia' — sets the AOI to the whole country")
+    ap.add_argument("--bbox", help="population-change: area of interest as w,s,e,n "
+                    "(lon/lat), e.g. 106.3,-6.5,107.2,-5.9")
+    ap.add_argument("--pop-years", default="1990,2020",
+                    help="population-change: two GHSL epochs Y1,Y2 (default 1990,2020; "
+                         "5-yearly 1975..2030)")
+    ap.add_argument("--cell-km", type=float,
+                    help="population-change: grid cell size in km (default auto ~"
+                         "national/regional overview; use 1 for city detail)")
+    ap.add_argument("--neutral-pct", type=float, default=1.0,
+                    help="population-change: |Δ| within this %% of the earlier year stays "
+                         "grey/'present' (default 1)")
+    ap.add_argument("--min-pop", type=float, default=150,
+                    help="population-change: don't draw cells whose larger epoch is below "
+                         "this many residents (default 150)")
+    ap.add_argument("--regions", choices=["indonesia"],
+                    help="population-change: run per main island group and assemble a "
+                         "combined panel (needs --country); 'indonesia' = Sumatera, Jawa, "
+                         "Bali, Nusa Tenggara, Kalimantan, Sulawesi, Maluku, Papua")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
     ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")

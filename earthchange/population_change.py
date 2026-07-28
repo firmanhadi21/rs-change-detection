@@ -1,0 +1,540 @@
+#!/usr/bin/env python3
+"""Population-change scenario — two GHSL epochs as a forest of 3D spikes.
+
+Compares gridded population (GHSL GHS_POP) between two epochs (default
+1990 & 2020) and classifies every cell:
+
+  * grey    — present in both years (change within the neutral band, ±1%)
+  * green   — gained population since the earlier year
+  * magenta — lost population since the earlier year
+
+Spike height (in the 2.5-D render and the forge3d export) is the *larger* of
+the two populations on a log scale, so bigger settlements stand taller.
+
+Outputs (in the run directory):
+  * pop_change_map.png     — flat 2-D gained/lost/present map
+  * pop_spikes.png         — 2.5-D "forest of spikes" (painter's-algorithm oblique view)
+  * pop_change_class.tif   — class raster (1 present / 2 gained / 3 lost)
+  * pop_<y1>.tif, pop_<y2>.tif — the two aggregated population grids
+  * pop_cells.csv          — one row per drawn cell (lon, lat, pop1, pop2, delta,
+                             pct, class, height) — ready for forge3d 3D rendering
+  * stats.json
+
+Inspired by Miloš Popović's GHSL population-spike maps. Backend: needs --backend gee.
+"""
+
+import json
+import math
+import os
+
+os.environ.pop("PROJ_LIB", None)
+os.environ.pop("PROJ_DATA", None)
+
+# GHS_POP P2023A epochs available in Earth Engine (5-yearly).
+GHSL_EPOCHS = (1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010,
+               2015, 2020, 2025, 2030)
+NATIVE_M = 100                    # GHS_POP P2023A native cell (metres)
+DEFAULT_YEARS = (1990, 2020)
+NEUTRAL_PCT = 1.0                 # |Δ| within this % of the earlier year = "present"
+MIN_POP = 150                     # cells below this (larger epoch) are not drawn
+TARGET_COLS = 380                 # auto cell size aims for ~this many columns across
+
+# Colours (light-theme palette from the reference graphic).
+C_PRESENT = "#c8c6bf"
+C_GAINED = "#1a7f5a"
+C_LOST = "#b0217a"
+
+
+# ----------------------------- GEE building blocks -----------------------------
+def _resolve_aoi(country, bbox, lon, lat, radius):
+    """Return an ee.Geometry for the requested area of interest."""
+    import ee
+    if country:
+        fc = (ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017")
+              .filter(ee.Filter.eq("country_na", country)))
+        if fc.size().getInfo() == 0:
+            raise SystemExit(f"--country {country!r} not found in LSIB. "
+                             "Use the English country name, e.g. 'Indonesia'.")
+        return fc.geometry()
+    if bbox:
+        return ee.Geometry.Rectangle(list(bbox))
+    from .gee_utils import square_aoi
+    return square_aoi(lon, lat, radius)
+
+
+def _pop_epoch(year, cell_m):
+    """GHS_POP for the nearest epoch, summed up to a `cell_m` grid. Returns (img, ep)."""
+    import ee
+    ep = min(GHSL_EPOCHS, key=lambda e: abs(e - year))
+    img = ee.Image(f"JRC/GHSL/P2023A/GHS_POP/{ep}").select("population_count")
+    img = img.updateMask(img.gte(0))          # GHS_POP fills no-data with -200
+    factor = max(1, round(cell_m / NATIVE_M))
+    if factor > 1:
+        # Sum the native 100 m population counts into each coarse cell.
+        img = (img.reduceResolution(ee.Reducer.sum().unweighted(),
+                                    maxPixels=min(factor * factor + 4, 65535))
+               .reproject(img.projection().atScale(cell_m)))
+    return img.rename("pop"), ep
+
+
+def _fetch_tile(img, region, cell_m, tp):
+    """Download one tile as a GeoTIFF at fixed scale. Returns tp or None on failure."""
+    import ee  # noqa: F401
+    from .gee_utils import _fetch
+    try:
+        url = img.getDownloadURL({"region": region, "scale": cell_m, "crs": "EPSG:4326",
+                                  "format": "GEO_TIFF", "filePerBand": False})
+        _fetch(url, tp)
+        return tp
+    except Exception as e:  # noqa: BLE001
+        print(f"    tile failed ({e.__class__.__name__}) — skipped")
+        return None
+
+
+def _mosaic(tiles, out_path):
+    """Merge tile GeoTIFFs into one, clean up the tiles, return out_path."""
+    import rasterio
+    from rasterio.merge import merge
+    if len(tiles) == 1:
+        os.replace(tiles[0], out_path)
+        return out_path
+    srcs = [rasterio.open(t) for t in tiles]
+    mosaic, transform = merge(srcs)
+    prof = srcs[0].profile
+    prof.update(height=mosaic.shape[1], width=mosaic.shape[2], transform=transform)
+    for sc in srcs:
+        sc.close()
+    with rasterio.open(out_path, "w", **prof) as dst:
+        dst.write(mosaic[0], 1)
+    for t in tiles:
+        os.remove(t)
+    print(f"Saved: {os.path.normpath(out_path)}  ({mosaic.shape[2]}×{mosaic.shape[1]} cells, "
+          f"{len(tiles)} tiles)")
+    return out_path
+
+
+def _download_agg(img, box, cell_m, out_path, max_deg=4.0):
+    """Download an aggregated image, tiling the region so each Earth Engine request
+    only computes its own native pixels (a national reduceResolution in one request
+    exceeds the compute limit). Small AOIs download as a single tile — no overhead.
+    """
+    import math
+    import ee
+    w, s, e, n = box
+    nx = max(1, math.ceil((e - w) / max_deg))
+    ny = max(1, math.ceil((n - s) / max_deg))
+    if nx * ny > 1:
+        print(f"  tiling download: {nx}×{ny} = {nx*ny} tiles at {cell_m/1000:.1f} km")
+    tiles = []
+    for j in range(ny):
+        for i in range(nx):
+            tw, te = w + (e - w) * i / nx, w + (e - w) * (i + 1) / nx
+            ts, tn = s + (n - s) * j / ny, s + (n - s) * (j + 1) / ny
+            region = ee.Geometry.Rectangle([tw, ts, te, tn])
+            tp = _fetch_tile(img, region, cell_m,
+                             out_path.replace(".tif", f"__t{j}_{i}.tif"))
+            if tp:
+                tiles.append(tp)
+        if nx * ny > 1:
+            print(f"    row {j+1}/{ny} done ({len(tiles)} tiles)")
+    return _mosaic(tiles, out_path) if tiles else None
+
+
+def _auto_cell_m(bbox):
+    """Pick a cell size (metres) so the map is ~TARGET_COLS cells wide."""
+    w, s, e, n = bbox
+    mid = math.radians((s + n) / 2)
+    width_km = (e - w) * 111.32 * max(math.cos(mid), 0.1)
+    cell_km = width_km / TARGET_COLS
+    cell_km = min(max(cell_km, 1.0), 25.0)      # clamp 1..25 km
+    return round(cell_km * 1000)
+
+
+# ----------------------------- classification -----------------------------
+def _classify(p1, p2, neutral_pct, min_pop):
+    """Numpy arrays -> (cls, delta, pct, height). cls: 0 none,1 present,2 gain,3 loss."""
+    import numpy as np
+    p1 = np.nan_to_num(p1, nan=0.0)
+    p2 = np.nan_to_num(p2, nan=0.0)
+    bigger = np.maximum(p1, p2)
+    delta = p2 - p1
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pct = np.where(p1 > 0, 100.0 * delta / p1,
+                       np.where(p2 > 0, 999.0, 0.0))     # brand-new cells: big +%
+    cls = np.zeros(p1.shape, dtype="uint8")
+    drawn = bigger >= min_pop
+    gain = drawn & (pct > neutral_pct)
+    loss = drawn & (pct < -neutral_pct)
+    present = drawn & ~gain & ~loss
+    cls[present] = 1
+    cls[gain] = 2
+    cls[loss] = 3
+    with np.errstate(divide="ignore", invalid="ignore"):
+        height = np.where(bigger > 0, np.log10(bigger), 0.0)
+    return cls, delta, pct, height
+
+
+def _country_geojson(aoi):
+    """Simplified GeoJSON of the AOI outline (fetched once, reused across regions)."""
+    try:
+        return aoi.simplify(maxError=2000).getInfo()    # ~2 km simplify keeps it cheap
+    except Exception as e:  # noqa: BLE001
+        print(f"  (country outline fetch failed: {e.__class__.__name__})")
+        return None
+
+
+def _rasterize_mask(gj, box, shape):
+    """Boolean grid (shape) True inside the GeoJSON outline, for numpy-side clipping."""
+    if gj is None:
+        return None
+    try:
+        from rasterio.features import rasterize
+        from rasterio.transform import from_bounds
+        transform = from_bounds(*box, shape[1], shape[0])
+        m = rasterize([(gj, 1)], out_shape=shape, transform=transform,
+                      fill=0, all_touched=True, dtype="uint8")
+        return m.astype(bool)
+    except Exception as e:  # noqa: BLE001
+        print(f"  (country clip skipped: {e.__class__.__name__})")
+        return None
+
+
+# ----------------------------- rendering -----------------------------
+def _plt():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    return plt
+
+
+def _read(tif):
+    import numpy as np
+    import rasterio
+    with rasterio.open(tif) as ds:
+        a = ds.read(1, masked=True).astype("float64").filled(0.0)
+        b = ds.bounds
+    a = np.where(a < 0, 0.0, a)                # defensively drop any no-data fill
+    return a, [b.left, b.bottom, b.right, b.top]
+
+
+def _render_flat_map(cls, bbox, run_dir, name, years, counts):
+    import numpy as np
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    from matplotlib.patches import Patch
+    plt = _plt()
+    w, s, e, n = bbox
+    disp = cls.astype("float64")
+    disp[cls == 0] = np.nan
+    cmap = ListedColormap([C_PRESENT, C_GAINED, C_LOST])
+    cmap.set_bad((0, 0, 0, 0))
+    norm = BoundaryNorm([0.5, 1.5, 2.5, 3.5], cmap.N)
+    fig, ax = plt.subplots(figsize=(11, 11), dpi=150)
+    ax.imshow(disp, extent=[w, e, s, n], origin="upper", cmap=cmap, norm=norm,
+              interpolation="nearest")
+    ax.set_xlim(w, e); ax.set_ylim(s, n)
+    ax.set_aspect(1 / math.cos(math.radians((s + n) / 2)))
+    handles = [Patch(facecolor=C_GAINED, label=f"gained since {years[0]}"),
+               Patch(facecolor=C_LOST, label=f"lost since {years[0]}"),
+               Patch(facecolor=C_PRESENT, label="present in both years")]
+    ax.legend(handles=handles, loc="lower left", fontsize=9, framealpha=0.92)
+    ax.set_title(f"Population change {years[0]}–{years[1]} — {name}\n"
+                 f"{counts[0]/1e6:.1f} M → {counts[1]/1e6:.1f} M people",
+                 fontsize=13, fontweight="bold")
+    ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
+    ax.grid(True, ls=":", alpha=0.35)
+    fig.tight_layout()
+    out = os.path.join(run_dir, "pop_change_map.png")
+    fig.savefig(out); plt.close(fig)
+    print(f"Map: {os.path.normpath(out)}")
+
+
+def _spike_collection(cls, height, bbox, dark=False):
+    """Build the oblique 2.5-D spike geometry for one grid.
+
+    Painter's-algorithm PolyCollection (far/north drawn first) with the ground
+    plane receding north (far rows higher and sheared right) so spikes separate
+    into a "forest". Returns (PolyCollection, xlim, ylim) or (None, None, None).
+    """
+    import numpy as np
+    from matplotlib.collections import PolyCollection
+    w, s, e, n = bbox
+    rows, colsN = cls.shape
+    lons = w + (np.arange(colsN) + 0.5) * (e - w) / colsN
+    lats = n - (np.arange(rows) + 0.5) * (n - s) / rows
+    hmax = float(height.max()) if height.size else 1.0
+    hmin = float(height[cls > 0].min()) if (cls > 0).any() else 0.0
+    span = max(hmax - hmin, 1e-6)
+    lat_span, lon_span = n - s, e - w
+    tilt, shear = 0.50, 0.45              # plane squash, farthest-row rightward shift
+    vscale = 0.55 * lat_span             # tallest spike height
+    halfw = 0.42 * lon_span / colsN      # spike base half-width (lon units)
+    fg = {1: C_PRESENT, 2: ("#2fe38f" if dark else C_GAINED),
+          3: ("#ff36c0" if dark else C_LOST)}
+    verts, facecolors = [], []
+    for r in range(rows):                # far (north) → near (south)
+        depth = (lats[r] - s) / lat_span
+        y0 = s + (lats[r] - s) * tilt
+        xshift = shear * depth * lon_span
+        for c in range(colsN):
+            k = cls[r, c]
+            if k == 0:
+                continue
+            hn = (height[r, c] - hmin) / span
+            x = lons[c] + xshift
+            verts.append([(x - halfw, y0), (x + halfw, y0), (x, y0 + hn * vscale)])
+            facecolors.append(fg[k])
+    if not verts:
+        return None, None, None
+    coll = PolyCollection(verts, facecolors=facecolors, edgecolors="none",
+                          linewidths=0, antialiased=True)
+    xlim = (w - halfw, e + shear * lon_span + halfw)
+    ylim = (s - 0.02 * lat_span, s + lat_span * tilt + vscale + 0.06 * lat_span)
+    return coll, xlim, ylim
+
+
+def _place_spikes(ax, coll, xlim, ylim, bbox):
+    """Add a spike collection to an axis with the right extent and aspect."""
+    s, n = bbox[1], bbox[3]
+    ax.add_collection(coll)
+    ax.set_xlim(*xlim); ax.set_ylim(*ylim)
+    ax.set_aspect(1 / math.cos(math.radians((s + n) / 2)))
+    ax.axis("off")
+
+
+def _render_spikes(cls, height, bbox, run_dir, name, years, dark=False):
+    """Standalone 2.5-D 'forest of spikes' PNG for one area."""
+    plt = _plt()
+    coll, xlim, ylim = _spike_collection(cls, height, bbox, dark=dark)
+    if coll is None:
+        print("  (spike view skipped: no cells above --min-pop)")
+        return
+    bg = "#161616" if dark else "#f2f0ea"
+    fig, ax = plt.subplots(figsize=(12, 12), dpi=150)
+    fig.patch.set_facecolor(bg); ax.set_facecolor(bg)
+    _place_spikes(ax, coll, xlim, ylim, bbox)
+    ax.set_title(f"Population change {years[0]}–{years[1]} — {name}",
+                 fontsize=15, fontweight="bold", color=("#eee" if dark else "#222"))
+    fig.tight_layout()
+    out = os.path.join(run_dir, "pop_spikes_dark.png" if dark else "pop_spikes.png")
+    fig.savefig(out, facecolor=bg); plt.close(fig)
+    print(f"Spikes: {os.path.normpath(out)}")
+
+
+def _write_cells_csv(cls, p1, p2, delta, pct, height, bbox, run_dir, years):
+    """One row per drawn cell — feed this to forge3d for a true 3-D spike render."""
+    import numpy as np
+    w, s, e, n = bbox
+    rows, colsN = cls.shape
+    lon = w + (np.arange(colsN) + 0.5) * (e - w) / colsN
+    lat = n - (np.arange(rows) + 0.5) * (n - s) / rows
+    out = os.path.join(run_dir, "pop_cells.csv")
+    label = {1: "present", 2: "gained", 3: "lost"}
+    with open(out, "w") as f:
+        f.write(f"lon,lat,pop_{years[0]},pop_{years[1]},delta,pct,class,height\n")
+        rr, cc = np.where(cls > 0)
+        for r, c in zip(rr.tolist(), cc.tolist()):
+            f.write(f"{lon[c]:.5f},{lat[r]:.5f},{p1[r,c]:.1f},{p2[r,c]:.1f},"
+                    f"{delta[r,c]:.1f},{pct[r,c]:.2f},{label[int(cls[r,c])]},"
+                    f"{height[r,c]:.4f}\n")
+    print(f"Cells: {os.path.normpath(out)}  ({int((cls>0).sum()):,} spikes) "
+          "— ready for forge3d")
+    return out
+
+
+# Main island groups of Indonesia (lon w, lat s, lon e, lat n). Chosen roughly
+# disjoint; each is clipped to the country outline so neighbours (Malaysia on
+# Borneo, PNG on New Guinea) drop out.
+INDONESIA_REGIONS = {
+    "Sumatera":      (95.0, -6.0, 106.2, 6.1),
+    "Jawa":          (105.0, -8.9, 114.6, -5.8),
+    "Bali":          (114.4, -8.9, 115.8, -8.0),
+    "Nusa_Tenggara": (115.8, -11.0, 125.2, -8.0),
+    "Kalimantan":    (108.8, -4.2, 119.0, 3.5),
+    "Sulawesi":      (118.8, -6.1, 125.2, 2.1),
+    "Maluku":        (125.2, -8.5, 130.9, 2.6),
+    "Papua":         (130.9, -9.2, 141.1, 0.9),
+}
+REGION_PRESETS = {"indonesia": INDONESIA_REGIONS}
+
+
+def _write_class_raster(cls, src_tif, box1, run_dir):
+    try:
+        import rasterio
+        from rasterio.transform import from_bounds
+        with rasterio.open(src_tif) as ds0:
+            prof = ds0.profile
+        prof.update(dtype="uint8", count=1, nodata=0,
+                    height=cls.shape[0], width=cls.shape[1],
+                    transform=from_bounds(*box1, cls.shape[1], cls.shape[0]))
+        with rasterio.open(os.path.join(run_dir, "pop_change_class.tif"), "w", **prof) as dst:
+            dst.write(cls, 1)
+    except Exception as e:  # noqa: BLE001
+        print(f"  (class raster skipped: {e.__class__.__name__})")
+
+
+def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_id,
+                  clip_gj=None):
+    """Download two epochs over `box`, classify, optionally clip to a country outline,
+    and write per-area outputs. Returns a result dict, or None if the download fails.
+    """
+    import numpy as np
+    y1, y2 = years
+    img1, ep1 = _pop_epoch(y1, cell_m)
+    img2, ep2 = _pop_epoch(y2, cell_m)
+    tif1 = os.path.join(run_dir, f"pop_{ep1}.tif")
+    tif2 = os.path.join(run_dir, f"pop_{ep2}.tif")
+    if _download_agg(img1, box, cell_m, tif1) is None or \
+       _download_agg(img2, box, cell_m, tif2) is None:
+        return None
+    p1, box1 = _read(tif1)
+    p2, _ = _read(tif2)
+    r = min(p1.shape[0], p2.shape[0]); c = min(p1.shape[1], p2.shape[1])
+    p1, p2 = p1[:r, :c], p2[:r, :c]
+    if clip_gj is not None:                       # keep only cells inside the country
+        mask = _rasterize_mask(clip_gj, box1, p1.shape)
+        if mask is not None:
+            p1 = np.where(mask, p1, 0.0); p2 = np.where(mask, p2, 0.0)
+    cls, delta, pct, height = _classify(p1, p2, neutral_pct, min_pop)
+    _write_class_raster(cls, tif1, box1, run_dir)
+    tot1, tot2 = float(p1.sum()), float(p2.sum())
+    _render_flat_map(cls, box1, run_dir, name, (y1, y2), (tot1, tot2))
+    _render_spikes(cls, height, box1, run_dir, name, (y1, y2), dark=False)
+    _render_spikes(cls, height, box1, run_dir, name, (y1, y2), dark=True)
+    _write_cells_csv(cls, p1, p2, delta, pct, height, box1, run_dir, (y1, y2))
+    gained_pop = float(delta[cls == 2].sum()); lost_pop = float(-delta[cls == 3].sum())
+    stats = {"run_id": run_id, "scenario": "population-change", "name": name,
+             "dataset": "GHSL GHS_POP P2023A", "epochs": [ep1, ep2],
+             "cell_km": round(cell_m / 1000, 2), "aoi_bbox": [round(v, 4) for v in box],
+             "neutral_pct": neutral_pct, "min_pop": min_pop,
+             f"pop_{ep1}": round(tot1), f"pop_{ep2}": round(tot2),
+             "net_change": round(tot2 - tot1),
+             "net_change_pct": round(100 * (tot2 - tot1) / (tot1 or 1), 2),
+             "cells_gained": int((cls == 2).sum()), "cells_lost": int((cls == 3).sum()),
+             "cells_present": int((cls == 1).sum()),
+             "pop_gained": round(gained_pop), "pop_lost": round(lost_pop)}
+    with open(os.path.join(run_dir, "stats.json"), "w") as f:
+        json.dump(stats, f, indent=2)
+    print(f"  {name}: {tot1/1e6:.2f} M → {tot2/1e6:.2f} M  "
+          f"(net {(tot2-tot1)/1e6:+.2f} M, {stats['net_change_pct']:+.1f}%)")
+    return {"name": name, "cls": cls, "height": height, "box": box1,
+            "tot1": tot1, "tot2": tot2, "ep1": ep1, "ep2": ep2, "stats": stats}
+
+
+def _render_region_panel(results, run_dir, years, title):
+    """One dark figure: a spike forest per island group, laid out on a grid."""
+    import math as _m
+    from matplotlib.patches import Patch
+    plt = _plt()
+    n = len(results)
+    ncols = 4 if n > 4 else n
+    nrows = _m.ceil(n / ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5.2 * ncols, 4.6 * nrows), dpi=150)
+    bg = "#141414"
+    fig.patch.set_facecolor(bg)
+    axes = axes.ravel() if hasattr(axes, "ravel") else [axes]
+    for ax in axes:
+        ax.set_facecolor(bg); ax.axis("off")
+    for ax, res in zip(axes, results):
+        coll, xlim, ylim = _spike_collection(res["cls"], res["height"], res["box"], dark=True)
+        pct = res["stats"]["net_change_pct"]
+        ax.set_title(f"{res['name'].replace('_', ' ')}   {pct:+.0f}%\n"
+                     f"{res['tot1']/1e6:.1f} → {res['tot2']/1e6:.1f} M",
+                     fontsize=12, fontweight="bold", color="#eee", pad=4,
+                     linespacing=1.3)
+        if coll is None:
+            continue
+        _place_spikes(ax, coll, xlim, ylim, res["box"])
+    handles = [Patch(facecolor="#2fe38f", label=f"gained since {years[0]}"),
+               Patch(facecolor="#ff36c0", label=f"lost since {years[0]}"),
+               Patch(facecolor=C_PRESENT, label="present in both")]
+    fig.legend(handles=handles, loc="lower center", ncol=3, fontsize=11,
+               facecolor="#222", edgecolor="#444", labelcolor="#eee",
+               bbox_to_anchor=(0.5, 0.005))
+    fig.suptitle(f"Population change {years[0]}–{years[1]} — {title} by main island",
+                 fontsize=20, fontweight="bold", color="#fff", y=0.985)
+    fig.tight_layout(rect=[0, 0.04, 1, 0.96])
+    out = os.path.join(run_dir, "pop_islands_panel.png")
+    fig.savefig(out, facecolor=bg); plt.close(fig)
+    print(f"\nIslands panel: {os.path.normpath(out)}")
+
+
+# ----------------------------- entry point -----------------------------
+def _run_regions(regions, country, years, cell_km, neutral_pct, min_pop,
+                 run_dir, run_id):
+    """Run the scenario per island group, then assemble a combined panel + totals."""
+    aoi = _resolve_aoi(country, None, None, None, None)
+    gj = _country_geojson(aoi)
+    results = []
+    for rname, box in regions.items():
+        sub = os.path.join(run_dir, rname)
+        os.makedirs(sub, exist_ok=True)
+        cell_m = round(cell_km * 1000) if cell_km else _auto_cell_m(list(box))
+        print(f"\n=== {rname}  cell={cell_m/1000:.1f} km ===")
+        res = _process_area(list(box), cell_m, years, neutral_pct, min_pop,
+                            sub, rname, run_id, clip_gj=gj)
+        if res:
+            results.append(res)
+    if not results:
+        raise SystemExit("No island group produced output.")
+    _render_region_panel(results, run_dir, years, country or "Indonesia")
+    tot1 = sum(r["tot1"] for r in results); tot2 = sum(r["tot2"] for r in results)
+    agg = {"run_id": run_id, "scenario": "population-change",
+           "mode": "by-island", "country": country, "epochs": list(years),
+           "note": "regional boxes are ~disjoint; the sum is an approximate national total",
+           "regions": {r["name"]: r["stats"] for r in results},
+           "pop_earlier": round(tot1), "pop_later": round(tot2),
+           "net_change": round(tot2 - tot1),
+           "net_change_pct": round(100 * (tot2 - tot1) / (tot1 or 1), 2)}
+    with open(os.path.join(run_dir, "stats.json"), "w") as f:
+        json.dump(agg, f, indent=2)
+    print(f"\nBy-island total {years[0]}→{years[1]}: {tot1/1e6:.1f} M → {tot2/1e6:.1f} M "
+          f"({agg['net_change_pct']:+.1f}%)")
+    for r in sorted(results, key=lambda x: x["stats"]["net_change_pct"], reverse=True):
+        print(f"  {r['name']:<15} {r['stats']['net_change_pct']:+6.1f}%   "
+              f"{r['tot1']/1e6:6.2f} → {r['tot2']/1e6:6.2f} M")
+    return agg
+
+
+def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
+        country=None, bbox=None, years=DEFAULT_YEARS, cell_km=None,
+        neutral_pct=NEUTRAL_PCT, min_pop=MIN_POP, dark=False, regions=None):
+    """Two-epoch GHSL population change: flat map + 3-D spike forest + forge3d export.
+
+    `regions` (a name→bbox dict, e.g. INDONESIA_REGIONS) runs the scenario per
+    island group and assembles a combined panel instead of one national frame.
+    """
+    for mod in ("numpy", "matplotlib", "rasterio"):
+        try:
+            __import__(mod)
+        except ImportError:
+            raise SystemExit(f"population-change needs {mod}: pip install 'earthchange[maps]'")
+    if backend == "mpc":
+        raise SystemExit("population-change currently needs --backend gee (GHSL GHS_POP).")
+    if len(years) != 2:
+        raise SystemExit("population-change needs exactly two years, e.g. --pop-years 1990,2020")
+    from .gee_utils import initialize_ee
+    initialize_ee(config_key)
+    y1, y2 = sorted(years)
+
+    if regions:
+        if not country:
+            raise SystemExit("--regions needs --country (for the clip outline), e.g. "
+                             "--country Indonesia")
+        return _run_regions(regions, country, (y1, y2), cell_km, neutral_pct, min_pop,
+                            run_dir, run_id)
+
+    aoi = _resolve_aoi(country, bbox, lon, lat, radius)
+    b = aoi.bounds().coordinates().getInfo()[0]
+    xs = [p[0] for p in b]; ys = [p[1] for p in b]
+    box = [min(xs), min(ys), max(xs), max(ys)]
+    cell_m = round(cell_km * 1000) if cell_km else _auto_cell_m(box)
+    print(f"  AOI {box[0]:.2f},{box[1]:.2f},{box[2]:.2f},{box[3]:.2f}  "
+          f"cell={cell_m/1000:.1f} km")
+    gj = _country_geojson(aoi) if country else None
+    res = _process_area(box, cell_m, (y1, y2), neutral_pct, min_pop,
+                        run_dir, name, run_id, clip_gj=gj)
+    if res is None:
+        raise SystemExit("GHS_POP download failed — try a larger --cell-km or smaller area.")
+    print(f"\nPopulation {res['ep1']}→{res['ep2']} [{name}]: {res['tot1']/1e6:.2f} M → "
+          f"{res['tot2']/1e6:.2f} M  ({res['stats']['net_change_pct']:+.1f}%)")
+    return res["stats"]

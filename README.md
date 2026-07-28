@@ -73,6 +73,7 @@ gratis), atau `--site NAMA`.
 | `island-heat` | Tren SST + LST + wet-bulb (panas lembab) pulau kecil | OISST / Landsat / ERA5 |
 | `urban-heat` | Pulau panas perkotaan (SUHII) + peta titik panas + tren dekadal | GHSL + Landsat + MODIS |
 | `forest-history` | Deforestasi multi-periode: peta tahun-kehilangan + tren luas hutan | S2 / Landsat NDVI |
+| `population-change` | Perubahan populasi 2 epoch: peta tambah/kurang/tetap + hutan paku 3D + ekspor forge3d | GHSL GHS_POP |
 
 ```bash
 # Sintaks umum
@@ -440,6 +441,51 @@ per periode, total). Butuh `earthchange[maps]`. Atur ambang dengan
 > lama pakai GEE (paling andal). Contoh Kalteng: 56.316 → 49.802 ha (−12%, terbesar
 > pada 2000–2010).
 
+### Perubahan populasi sebagai hutan paku 3D — `population-change`
+
+Membandingkan populasi ber-grid (**GHSL GHS_POP**) antara **dua epoch** (default
+1990 & 2020) dan mengklasifikasikan tiap sel: **abu** = ada di kedua tahun (dalam
+pita netral ±1%), **hijau** = bertambah, **magenta** = berkurang. Tinggi paku =
+populasi *terbesar* dari dua epoch (skala log) — permukiman besar menjulang tinggi.
+Terinspirasi peta paku populasi GHSL milik Miloš Popović.
+
+```bash
+# Skala nasional (AOI = seluruh negara via LSIB; ukuran sel otomatis)
+earthchange -s population-change --country Indonesia
+
+# Per pulau utama → panel gabungan (Sumatera, Jawa, Bali, Nusa Tenggara,
+# Kalimantan, Sulawesi, Maluku, Papua) — tiap pulau di-clip ke batas negara
+earthchange -s population-change --country Indonesia --regions indonesia --cell-km 5
+
+# Detail kota (sel 1 km) via kotak batas w,s,e,n
+earthchange -s population-change --bbox 106.3,-6.5,107.2,-5.9 --cell-km 1 -n Jakarta
+
+# Reproduksi contoh Miloš
+earthchange -s population-change --country Poland --pop-years 1990,2020
+```
+
+Mode **`--regions indonesia`** menjalankan skenario per **pulau utama** dan merakit
+satu **panel `pop_islands_panel.png`** (satu hutan paku per pulau, tiap subplot diberi
+%-perubahan neto) plus subfolder per pulau berisi peta, paku, dan `stats.json`-nya.
+Cocok untuk kepulauan yang tersebar — jauh lebih terbaca daripada satu bingkai
+nasional selebar 46°. Tiap kotak pulau di-clip ke garis negara (LSIB) sehingga
+Malaysia (di Borneo) dan PNG (di Papua) tidak ikut terhitung.
+
+Keluaran: `pop_change_map.png` (peta 2D tambah/kurang/tetap), `pop_spikes.png` +
+`pop_spikes_dark.png` (**hutan paku 2.5D**, proyeksi oblique), `pop_change_class.tif`
+(raster kelas), `pop_<y1>.tif`/`pop_<y2>.tif` (grid populasi), **`pop_cells.csv`**
+(satu baris per sel: lon, lat, pop tiap epoch, delta, %, kelas, tinggi — **siap
+dirender 3D di [forge3d](https://github.com)**), dan `stats.json`. Butuh
+`earthchange[maps]`. Atur dengan `--pop-years`, `--cell-km`, `--neutral-pct`
+(default 1), `--min-pop` (default 150). Backend: **GEE** (GHS_POP; unduhan nasional
+otomatis di-tile agar tidak melampaui batas komputasi Earth Engine).
+
+> **Catatan:** GHS_POP adalah **model** (sensus di-disagregasi ke grid terbangun),
+> bukan cacah langsung; nilai antar-epoch adalah estimasi model. Baik untuk pola
+> redistribusi (kota tumbuh vs desa menyusut), bukan angka sel yang presisi. Metro
+> yang seragam padat (mis. Jabodetabek) tampak seluruhnya hijau; pola "hutan paku"
+> paling terbaca pada skala nasional saat sel laut/hutan rontok.
+
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
 Sumber data dipilih lewat `--backend`:
@@ -778,7 +824,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.33) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.34) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -786,7 +832,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.33},
+  version   = {0.1.34},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},
