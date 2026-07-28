@@ -5,46 +5,46 @@ Pick a SCENARIO and a LOCATION; the scenario selects the remote-sensing method
 (NDVI/NDBI/NDWI/NBR change, SIRAD radar, or SAR flood water). Results download
 straight to disk as a PNG quick-look, a georeferenced GeoTIFF, and a stats JSON.
 
-Examples (installed CLI — after `pip install satchange`)
+Examples (installed CLI — after `pip install earthchange`)
 --------
     # List available scenarios
-    satchange --list
+    earthchange --list
 
     # Deforestation around a coordinate (radius 6 km)
-    satchange -s deforestation --lat -3.333 --lon 122.25 -r 6
+    earthchange -s deforestation --lat -3.333 --lon 122.25 -r 6
 
     # Same, coordinate as "lat,lon" (quote/`=` because lat is negative)
-    satchange -s mining -l=-3.333,122.25
+    earthchange -s mining -l=-3.333,122.25
 
     # By place name instead of coordinates (free OpenStreetMap geocoding)
-    satchange -s urbanization --city "Surabaya, Indonesia" -r 20
+    earthchange -s urbanization --city "Surabaya, Indonesia" -r 20
 
     # Flood: baseline window vs event window (both required)
-    satchange -s flood --lat 24.9 --lon 67.9 \
+    earthchange -s flood --lat 24.9 --lon 67.9 \
         --pre 2022-06-01:2022-06-30 --post 2022-08-15:2022-09-05
 
     # Disturbance (flood/landslide impact in terrain, when flood shows nothing)
-    satchange -s disturbance --lat 1.9983 --lon 99.4235 \
+    earthchange -s disturbance --lat 1.9983 --lon 99.4235 \
         --pre 2025-11-01:2025-11-11 --post 2025-11-26:2025-11-29
 
     # Urban history: built-up by decade since 1980 (GHSL + Landsat), a metro area
-    satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
+    earthchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
 
     # Coastline (SAR): sea boundary for one date (raster + coastline.geojson)
-    satchange -s coastline --lat -6.95 --lon 110.45 --radius 8
+    earthchange -s coastline --lat -6.95 --lon 110.45 --radius 8
 
     # Shoreline change: erosion (land->sea) & accretion (sea->land) between 2 dates
-    satchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
+    earthchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
         --pre 2016-01-01:2016-12-31 --post 2025-01-01:2025-12-31
 
     # Periodical time-series: sub-pixel shoreline per epoch (Landsat, back to 1984)
-    satchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
+    earthchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
         --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31
 
     # Use a named preset from sites.py instead of a coordinate
-    satchange -s mining --site konawe
+    earthchange -s mining --site konawe
 
-    # From a source checkout (no install), swap `satchange` for `python3 detect.py`.
+    # From a source checkout (no install), swap `earthchange` for `python3 detect.py`.
 
 Outputs (per run):
     images/<scenario>_<product>_<name>.png     quick-look
@@ -132,7 +132,7 @@ def geocode_place(query):
     try:
         r = requests.get("https://nominatim.openstreetmap.org/search",
                          params={"q": query, "format": "json", "limit": 1},
-                         headers={"User-Agent": "satchange satellite change detection "
+                         headers={"User-Agent": "earthchange satellite change detection "
                                   "(https://github.com/firmanhadi21/rs-change-detection)"},
                          timeout=30)
         r.raise_for_status()
@@ -224,7 +224,7 @@ def apply_overrides(cfg, args):
 
 
 def _write_gee_product(prod, aoi, run_dir, common, do_map, basemap,
-                       do_drive=False, drive_folder="satchange"):
+                       do_drive=False, drive_folder="earthchange"):
     """Download one GEE product (png + tif), write its meta, optionally its map."""
     base = f"{common['scenario']}_{prod['key']}_{common['name']}"
     png = os.path.join(run_dir, base + ".png")
@@ -261,7 +261,7 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
         import ee  # noqa: F401 — GEE backend only
     except ImportError:
         sys.exit("The GEE backend needs earthengine-api: "
-                 "pip install 'satchange[gee]'  (or use --backend mpc)")
+                 "pip install 'earthchange[gee]'  (or use --backend mpc)")
     if getattr(args, "drive", False):
         initialize_ee(prefer_user=True)  # Drive export needs personal auth
     else:
@@ -283,7 +283,7 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
     for prod in result["products"]:
         _write_gee_product(prod, aoi, run_dir, common, args.map, args.basemap,
                            do_drive=getattr(args, "drive", False),
-                           drive_folder=getattr(args, "drive_folder", "satchange"))
+                           drive_folder=getattr(args, "drive_folder", "earthchange"))
 
     stats = {"run_id": run_id, "scenario": args.scenario,
              "location": {"lat": lat, "lon": lon},
@@ -389,13 +389,13 @@ def main():
                     help="data backend: gee (Earth Engine) or mpc "
                          "(Microsoft Planetary Computer, no account needed)")
     ap.add_argument("--ee-key", help="path to a GEE service-account key JSON "
-                    "(overrides $SATCHANGE_EE_KEY and the default locations)")
+                    "(overrides $EARTHCHANGE_EE_KEY and the default locations)")
     ap.add_argument("--drive", action="store_true",
                     help="also export each full-resolution GeoTIFF to Google "
                          "Drive (async; needs PERSONAL google auth, not the "
                          "service-account key). Good for very large AOIs.")
-    ap.add_argument("--drive-folder", default="satchange",
-                    help="Drive folder for --drive exports (default: satchange)")
+    ap.add_argument("--drive-folder", default="earthchange",
+                    help="Drive folder for --drive exports (default: earthchange)")
     ap.add_argument("--planet", action="store_true",
                     help="urban-history hybrid: auto-locate the most-changed hotspot "
                          "and add a PlanetScope ~3 m close-up (needs $PLANET_API_KEY). "

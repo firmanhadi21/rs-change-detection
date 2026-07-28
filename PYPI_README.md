@@ -1,4 +1,4 @@
-# satchange
+# earthchange
 
 **Multipurpose satellite change detection in pure Python.** Map deforestation,
 mining, urbanisation, floods, burns, surface-water change and multi-epoch urban
@@ -14,26 +14,26 @@ georeferenced GeoTIFFs, quick-look PNGs, statistics, and print-ready A4 maps.
 Heavy dependencies are optional *extras*, so the install stays lean:
 
 ```bash
-pip install 'satchange[gee]'       # Google Earth Engine backend (free account)
-pip install 'satchange[mpc,maps]'  # Planetary Computer + maps (no account)
-pip install 'satchange[all]'       # everything
+pip install 'earthchange[gee]'       # Google Earth Engine backend (free account)
+pip install 'earthchange[mpc,maps]'  # Planetary Computer + maps (no account)
+pip install 'earthchange[all]'       # everything
 ```
 
 ## Quick start
 
 ```bash
 # Deforestation around a coordinate, with a finished map
-satchange -s deforestation --lat -3.333 --lon 122.25 --radius 6 --map
+earthchange -s deforestation --lat -3.333 --lon 122.25 --radius 6 --map
 
 # Flood extent from Sentinel-1 SAR — no Earth Engine account needed
-satchange -s flood --lat 27.2 --lon 68.3 \
+earthchange -s flood --lat 27.2 --lon 68.3 \
     --pre 2022-07-01:2022-07-25 --post 2022-08-20:2022-09-10 --backend mpc
 
 # Urban growth timing across 2010/2015/2020 (Landsat 5/8/9)
-satchange -s urban-trend --lat -6.30 --lon 107.15 --map
+earthchange -s urban-trend --lat -6.30 --lon 107.15 --map
 
 # List everything
-satchange --list
+earthchange --list
 ```
 
 Each run writes a self-contained `output/<run-id>/` folder containing the PNG,
@@ -69,7 +69,7 @@ your coordinate. Landsat 7 is skipped (SLC-off gaps).
 ## Make maps from a finished run
 
 ```bash
-satmap output/<run-id>            # render A4 map sheets offline (no GEE)
+earthmap output/<run-id>            # render A4 map sheets offline (no GEE)
 ```
 
 Map sheets include an OpenStreetMap basemap, the change layer, legend, a

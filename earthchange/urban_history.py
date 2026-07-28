@@ -165,7 +165,7 @@ def _landsat_epochs_gee(aoi, stats):
 
 
 def _run_gee(lat, lon, radius, name, run_dir, run_id, do_map, config_key,
-             do_drive=False, drive_folder="satchange", planet=None):
+             do_drive=False, drive_folder="earthchange", planet=None):
     from .gee_utils import (initialize_ee, square_aoi, download_png,
                             download_geotiff, start_drive_export)
     initialize_ee(prefer_user=True) if do_drive else initialize_ee(config_key)
@@ -697,7 +697,7 @@ def _render_infographic(run_dir, stats):
         "Note: Landsat TM & OLI NDVI are not comparable across the 2011–2013 sensor break "
         "(vegetation loss uses TM-only 1990–2010).",
         "OSM roads show today's network (mapping ≠ construction; OSM starts 2004).  "
-        "Generated with satchange.")):
+        "Generated with earthchange.")):
         fig.text(mrg / Wf, ty(ybot + 0.42 + i * 0.26), line, fontsize=8.5, color=GRAY)
 
     fig.savefig(os.path.join(run_dir, "infographic.png"), facecolor="white")
@@ -714,7 +714,7 @@ def _write_stats(stats, run_dir, run_id, backend):
 
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, do_map=False,
-        config_key=None, do_drive=False, drive_folder="satchange", planet=None):
+        config_key=None, do_drive=False, drive_folder="earthchange", planet=None):
     """Entry point called by detect.py for the urban-history scenario.
 
     `planet` (dict) enables the hybrid PlanetScope close-up on the GEE backend:

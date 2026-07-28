@@ -14,8 +14,8 @@ import os, sys, json, requests
 from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from satchange.sites import get_site
-from satchange.gee_utils import (
+from earthchange.sites import get_site
+from earthchange.gee_utils import (
     download_png, download_geotiff, mask_s2_clouds, square_aoi)
 
 # === Configuration (site-parameterised: --site NAME or SITE env) ===

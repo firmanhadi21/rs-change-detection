@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Source-checkout shim for the `satmap` CLI (see satchange/make_map.py).
+"""Source-checkout shim for the `earthmap` CLI (see earthchange/make_map.py).
 
-Run `python3 make_map.py ...` from a clone, or use the `satmap` command after
-`pip install satchange`.
+Run `python3 make_map.py ...` from a clone, or use the `earthmap` command after
+`pip install earthchange`.
 """
 
-from satchange.make_map import main
+from earthchange.make_map import main
 
 if __name__ == "__main__":
     main()

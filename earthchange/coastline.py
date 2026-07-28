@@ -394,7 +394,7 @@ def _run_optical(aoi, bbox, run_dir, name, scale, smooth_m, pre, post, sensor, l
     try:
         import skimage  # noqa: F401
     except ImportError:
-        raise SystemExit("optical coastline needs scikit-image: pip install 'satchange[maps]'")
+        raise SystemExit("optical coastline needs scikit-image: pip install 'earthchange[maps]'")
     smooth_px = max(int((smooth_m or 0) / scale), 0)
     band_px = max(int((smooth_m or 30) / scale), 2)
     midlat = (bbox[1] + bbox[3]) / 2.0
@@ -478,7 +478,7 @@ def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, l
     try:
         import skimage  # noqa: F401
     except ImportError:
-        raise SystemExit("optical coastline needs scikit-image: pip install 'satchange[maps]'")
+        raise SystemExit("optical coastline needs scikit-image: pip install 'earthchange[maps]'")
     smooth_px = max(int((smooth_m or 0) / scale), 0)
     band_px = max(int((smooth_m or 30) / scale), 2)
     midlat = (bbox[1] + bbox[3]) / 2.0

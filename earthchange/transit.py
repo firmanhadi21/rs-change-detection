@@ -252,7 +252,7 @@ def _fetch_boundary(name):
     r = requests.get("https://nominatim.openstreetmap.org/search",
                      params={"q": name, "format": "jsonv2",
                              "polygon_geojson": 1, "limit": 8},
-                     headers={"User-Agent": "satchange transit-access (boundary lookup)"},
+                     headers={"User-Agent": "earthchange transit-access (boundary lookup)"},
                      timeout=60)
     r.raise_for_status()
     results = r.json()
@@ -560,7 +560,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         try:
             __import__(mod)
         except ImportError:
-            raise SystemExit(f"transit-access needs {mod}: pip install 'satchange[transit]'")
+            raise SystemExit(f"transit-access needs {mod}: pip install 'earthchange[transit]'")
     if backend == "mpc":
         raise SystemExit("transit-access currently needs --backend gee (WorldPop).")
 

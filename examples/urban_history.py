@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Standalone runner for the decadal urban-history analysis (Jakarta default).
 
-This is a thin wrapper around satchange.urban_history — the SAME analysis is a
+This is a thin wrapper around earthchange.urban_history — the SAME analysis is a
 first-class scenario in the CLI:
 
-    satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
+    earthchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
 
 Combines GHSL GHS-BUILT-S (authoritative built-up 1980-2025, GEE) with Landsat
 NDBI/NDVI (built-up + vegetation loss). Produces a first-built-decade map, a
@@ -19,7 +19,7 @@ import argparse
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from satchange import urban_history
+from earthchange import urban_history
 
 
 def main():

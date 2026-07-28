@@ -2,20 +2,20 @@
 """Render value-added map(s) from an already-produced change-detection run.
 
 Works fully offline (no Earth Engine) — reads each product's GeoTIFF and its
-`.meta.json` sidecar that `satchange` writes into output/<run-id>/.
+`.meta.json` sidecar that `earthchange` writes into output/<run-id>/.
 
-Examples (installed CLI — after `pip install satchange`)
+Examples (installed CLI — after `pip install earthchange`)
 
     # A whole run folder (renders every product in it)
-    satmap output/20260708-2210_deforestation_x_ab12cd
+    earthmap output/20260708-2210_deforestation_x_ab12cd
 
     # A single product (.tif or .meta.json)
-    satmap output/<run>/deforestation_dndvi_x.tif --basemap gray
+    earthmap output/<run>/deforestation_dndvi_x.tif --basemap gray
 
     # A run-id or product base name (searched under output/)
-    satmap 20260708-2210_deforestation_x_ab12cd
+    earthmap 20260708-2210_deforestation_x_ab12cd
 
-    # From a source checkout (no install), swap `satmap` for `python3 make_map.py`.
+    # From a source checkout (no install), swap `earthmap` for `python3 make_map.py`.
 """
 
 import os
@@ -54,7 +54,7 @@ def main():
 
     metas = [m for m in metas_for(args.target) if os.path.exists(m)]
     if not metas:
-        sys.exit(f"No .meta.json found for '{args.target}'. Run satchange first, "
+        sys.exit(f"No .meta.json found for '{args.target}'. Run earthchange first, "
                  "or pass a run folder / .tif / .meta.json path.")
     if args.out and len(metas) > 1:
         sys.exit("--out only works with a single product; pass a specific .tif.")

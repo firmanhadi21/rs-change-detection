@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "satchange/**"
+      - "earthchange/**"
       - "docs/**"
       - "pyproject.toml"
       - ".github/workflows/docs.yml"
@@ -31,7 +31,7 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install satchange + pdoc
+      - name: Install earthchange + pdoc
         # [maps] pulls the deps needed to import every module for introspection
         # (numpy, rasterio, matplotlib, contextily); ee/odc/pystac are lazy.
         run: |
@@ -39,7 +39,7 @@ jobs:
           pip install ".[maps]" pdoc
 
       - name: Generate API reference
-        run: pdoc satchange -o docs/api
+        run: pdoc earthchange -o docs/api
 
       - uses: actions/configure-pages@v5
 

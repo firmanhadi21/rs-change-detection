@@ -426,7 +426,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         try:
             __import__(mod)
         except ImportError:
-            raise SystemExit(f"island-heat needs {mod}: pip install 'satchange[maps]'")
+            raise SystemExit(f"island-heat needs {mod}: pip install 'earthchange[maps]'")
     if backend == "mpc":
         raise SystemExit("island-heat currently needs --backend gee.")
     from .gee_utils import initialize_ee, square_aoi

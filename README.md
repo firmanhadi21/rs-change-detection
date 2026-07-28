@@ -1,12 +1,12 @@
 # Satellite Change Detection (multiguna)
 
-[![PyPI](https://img.shields.io/pypi/v/satchange.svg)](https://pypi.org/project/satchange/)
-[![Python](https://img.shields.io/pypi/pyversions/satchange.svg)](https://pypi.org/project/satchange/)
+[![PyPI](https://img.shields.io/pypi/v/earthchange.svg)](https://pypi.org/project/earthchange/)
+[![Python](https://img.shields.io/pypi/pyversions/earthchange.svg)](https://pypi.org/project/earthchange/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-tutorial-blue.svg)](https://firmanhadi21.github.io/rs-change-detection/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21370696.svg)](https://doi.org/10.5281/zenodo.21370696)
 
-Instalasi: `pip install 'satchange[all]'` — perintah `satchange` & `satmap`.
+Instalasi: `pip install 'earthchange[all]'` — perintah `earthchange` & `earthmap`.
 
 **Alat deteksi perubahan berbasis penginderaan jauh untuk berbagai skenario** —
 deforestasi, tambang, urbanisasi, banjir, kebakaran, dan perubahan air — berjalan
@@ -30,16 +30,16 @@ python3 detect.py -s flood --lat 27.2 --lon 68.3 \
 
 ## Instalasi
 
-Alat inti dikemas sebagai paket Python **`satchange`** dengan perintah `satchange`
-(dan `satmap`). Dependensi berat bersifat opsional (*extras*):
+Alat inti dikemas sebagai paket Python **`earthchange`** dengan perintah `earthchange`
+(dan `earthmap`). Dependensi berat bersifat opsional (*extras*):
 
 ```bash
-pip install 'satchange[gee]'       # backend Earth Engine (butuh akun GEE)
-pip install 'satchange[mpc,maps]'  # Planetary Computer + peta (tanpa akun)
-pip install 'satchange[all]'       # semuanya
+pip install 'earthchange[gee]'       # backend Earth Engine (butuh akun GEE)
+pip install 'earthchange[mpc,maps]'  # Planetary Computer + peta (tanpa akun)
+pip install 'earthchange[all]'       # semuanya
 
-satchange -s deforestation --lat -3.333 --lon 122.25 --map
-satmap output/<run-id>             # render ulang peta
+earthchange -s deforestation --lat -3.333 --lon 122.25 --map
+earthmap output/<run-id>             # render ulang peta
 ```
 
 Dari checkout sumber (repo ini) tanpa instalasi, `python3 detect.py …` tetap
@@ -47,7 +47,7 @@ berfungsi (shim ke paket). Untuk kembangkan: `pip install -e '.[all]'`.
 Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
 
 > Contoh perintah di bawah memakai `python3 detect.py …`; setelah instal paket,
-> ganti dengan `satchange …` (argumen identik).
+> ganti dengan `earthchange …` (argumen identik).
 
 ---
 
@@ -181,7 +181,7 @@ peta konversi vegetasi→urban, overlay jalan OSM, dan **infografik satu halaman
 (2015/2020/2025, sebanding satu sama lain) dilaporkan terpisah.
 
 ```bash
-satchange -s urban-history --city "Jakarta, Indonesia" --radius 45
+earthchange -s urban-history --city "Jakarta, Indonesia" --radius 45
 # Contoh Jabodetabek: built-up 507 → 872 km² (1980→2025), +72%.
 ```
 
@@ -192,9 +192,9 @@ unduhan (order ter-*clip*) hanya terjadi dengan `--planet-confirm`.
 
 ```bash
 # dry-run (gratis): urban-history + hotspot otomatis + pencarian Planet + estimasi kuota
-satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 --planet
+earthchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 --planet
 # lalu benar-benar ambil scene ter-clip & buat close-up (memakai kuota):
-satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 \
+earthchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 \
     --planet --planet-confirm --hotspot-from 2015 --hotspot-to 2025
 ```
 
@@ -220,14 +220,14 @@ Tiga sensor lewat `--coast-method`:
 
 ```bash
 # Garis pantai satu tanggal (SAR)
-satchange -s coastline --lat -6.95 --lon 110.45 --radius 8
+earthchange -s coastline --lat -6.95 --lon 110.45 --radius 8
 
 # Perubahan: abrasi (darat→laut) & akresi (laut→darat) antar dua tanggal
-satchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
+earthchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
     --pre 2016-01-01:2016-12-31 --post 2025-01-01:2025-12-31
 
 # Deret waktu periodik + transek laju surut (m/thn), Landsat sejak 1990-an
-satchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
+earthchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
     --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31
 ```
 
@@ -236,14 +236,14 @@ Mode deret waktu (`--epochs`) menulis garis pantai per epoch, peta
 (`transects.geojson` + `transects_map.png`, `--transect-spacing` default 500 m)
 dengan laju perubahan **m/tahun** (merah = surut). Statistik: laju rata-rata/median,
 % pantai yang surut. Contoh Pekalongan 1994→2023: median **−2,3 m/thn**, 84% pantai
-surut. Metode `optical`/`landsat` butuh `satchange[maps]` (scikit-image, shapely).
+surut. Metode `optical`/`landsat` butuh `earthchange[maps]` (scikit-image, shapely).
 
 **Transek kustom (`--transects-file`).** Di teluk kompleks, transek otomatis bisa
 salah arah. Anda dapat menggambar sendiri transek melintang-pantai di QGIS,
 menyimpannya sebagai GeoJSON `LineString` (titik pertama = sisi darat), lalu:
 
 ```bash
-satchange -s coastline --coast-method landsat --city "Pekalongan" --radius 12 \
+earthchange -s coastline --coast-method landsat --city "Pekalongan" --radius 12 \
     --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31 \
     --transects-file transek_saya.geojson
 ```
@@ -279,18 +279,18 @@ jarak jalan kaki tiap simpul ke halte terdekat, (4) grid populasi **WorldPop 100
 
 ```bash
 # Halte otomatis dari OSM (default), Semarang
-satchange -s transit-access --city "Semarang" --radius 8 --backend gee
+earthchange -s transit-access --city "Semarang" --radius 8 --backend gee
 
 # Ambang ganda (bus 500 m + kereta 1 km); yang pertama dipakai untuk peta
-satchange -s transit-access --lat -6.9667 --lon 110.4167 --radius 8 \
+earthchange -s transit-access --lat -6.9667 --lon 110.4167 --radius 8 \
     --walk-dist 500,1000 --pop-year 2020
 
 # Halte/rute Anda sendiri (mis. koridor TransSemarang dari QGIS)
-satchange -s transit-access --city "Semarang" --radius 10 \
+earthchange -s transit-access --city "Semarang" --radius 10 \
     --transit-file transjateng_stops.geojson
 
 # Hitung populasi di dalam batas administrasi (diambil dari OSM), AOI otomatis
-satchange -s transit-access --lat -7.02 --lon 110.39 --backend gee \
+earthchange -s transit-access --lat -7.02 --lon 110.39 --backend gee \
     --boundary "Kota Semarang" --walk-dist 500,1000 \
     --transit-file transsemarang_halte.geojson
 ```
@@ -305,7 +305,7 @@ mengatur jarak maksimum sebuah sel populasi/halte "menempel" ke jalan terdekat
 Keluaran: `transit_access_map.png` (kepadatan WorldPop + **jaringan jalan OSM** +
 jalan dalam jangkauan + halte + garis batas), `service_area.geojson`,
 `boundary.geojson`, `stops.geojson`, dan `stats.json` dengan **% populasi terlayani**,
-jumlah orang terlayani/total, per ambang. Butuh `satchange[transit]` (networkx, scipy,
+jumlah orang terlayani/total, per ambang. Butuh `earthchange[transit]` (networkx, scipy,
 shapely, rasterio, matplotlib, contextily). Untuk kota besar, jaringan jalan diambil
 dengan **tiling + retry** Overpass agar tahan terhadap server yang sibuk.
 
@@ -327,15 +327,15 @@ membuat keringat tak lagi mendinginkan tubuh.
 
 ```bash
 # Satu klaster pulau (mode agregat, default): satu deret SST/LST/wet-bulb
-satchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
+earthchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
     --start-year 2000 -n "Kepulauan Seribu"
 
 # Pulau lebih besar (mis. Karimunjawa): LST MODIS 1 km lebih bersih
-satchange -s island-heat --backend gee --lat -5.85 --lon 110.42 --radius 25 \
+earthchange -s island-heat --backend gee --lat -5.85 --lon 110.42 --radius 25 \
     --lst-source modis -n "Karimunjawa"
 
 # Per-pulau: deret LST terpisah tiap pulau (SST & wet-bulb tetap regional)
-satchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
+earthchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
     --island-mode per-island --islands-file pulau.geojson
 ```
 
@@ -349,7 +349,7 @@ Keluaran: `island_heat.png` (tren SST/LST/wet-bulb + panel puncak wet-bulb),
 `lst_change_map.png` (LST lahan pulau, Landsat — laut transparan), dan
 `combined_change_map.png` (gabungan: LST di darat + SST di laut dalam satu raster)
 beserta GeoTIFF-nya, dan `stats.json` (tren per variabel, deret tahunan). Butuh
-`satchange[maps]`.
+`earthchange[maps]`.
 
 > **Catatan jujur:** data ini **observasi** (satelit + reanalisis), yakni tren
 > terukur — **bukan** proyeksi model iklim (CMIP6) hingga 2100. **SST & wet-bulb
@@ -370,17 +370,17 @@ agar topografi tidak membiaskan.
 
 ```bash
 # Snapshot + tren dekadal (default epoch 2000/2013/2022)
-satchange -s urban-heat --backend gee --lat -6.20 --lon 106.83 --radius 18 -n "Jakarta"
+earthchange -s urban-heat --backend gee --lat -6.20 --lon 106.83 --radius 18 -n "Jakarta"
 
 # Epoch & musim kemarau sendiri (UHI paling jelas saat kering)
-satchange -s urban-heat --city "Surabaya" --radius 15 \
+earthchange -s urban-heat --city "Surabaya" --radius 15 \
     --epochs 2001-01-01:2003-12-31,2012-01-01:2014-12-31,2022-01-01:2024-12-31 \
     --months 6-9
 ```
 
 Keluaran: `uhi_hotspot_map.png` (**suhu permukaan absolut** Landsat 100 m — kuning =
 titik panas), `uhi_lst.tif`, `uhi_trend.png` (tren SUHII), dan `stats.json`. Butuh
-`satchange[maps]`.
+`earthchange[maps]`.
 
 > **Catatan jujur:** dua angka SUHII berbeda karena resolusi. **Snapshot** memakai
 > **Landsat 100 m** — memisahkan atap/aspal panas (>45 °C) dari sawah sejuk (~29 °C),
@@ -507,11 +507,11 @@ Karena radar menembus awan, deret waktu tidak terputus oleh tutupan awan. Interp
 ```
 rs-change-detection/
 ├── README.md
-├── pyproject.toml                   ← Paket PyPI `satchange` (build + extras)
+├── pyproject.toml                   ← Paket PyPI `earthchange` (build + extras)
 ├── PUBLISHING.md                    ← Panduan rilis ke PyPI
-├── satchange/                       ← Paket inti (yang di-`pip install`)
-│   ├── detect.py                    #   CLI utama → perintah `satchange`
-│   ├── make_map.py                  #   Render peta → perintah `satmap`
+├── earthchange/                       ← Paket inti (yang di-`pip install`)
+│   ├── detect.py                    #   CLI utama → perintah `earthchange`
+│   ├── make_map.py                  #   Render peta → perintah `earthmap`
 │   ├── mapmaker.py                  #   Tata letak kartografi (matplotlib)
 │   ├── scenarios.py                 #   Registry skenario → metode
 │   ├── indices.py                   #   Indeks spektral + komposit + Landsat
@@ -680,7 +680,7 @@ python3 data-collection/02_sirad_gee.py --site konawe --drive
 ```
 
 Untuk mengganti tiga periode SIRAD (kanal R/G/B) tanpa mengubah `sites.py`,
-pakai `--epochs` (sama seperti `satchange -s mining`):
+pakai `--epochs` (sama seperti `earthchange -s mining`):
 
 ```bash
 python3 data-collection/02_sirad_gee.py --site konawe \
@@ -727,15 +727,15 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.30) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.31) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
 ```bibtex
-@software{hadi_satchange_2026,
+@software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
-  title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.30},
+  title     = {earthchange: Multipurpose satellite change detection},
+  version   = {0.1.31},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

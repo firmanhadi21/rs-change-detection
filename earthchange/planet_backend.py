@@ -287,7 +287,7 @@ def run_closeup(bbox, hotspot, pre_month, post_month, run_dir, name,
     tifs = {}
     for tag in ("pre", "post"):
         print(f"  ordering {tag} scene {picks[tag]['id']} (clipped)…")
-        oid = _order_clip(picks[tag]["id"], bbox, key, f"satchange_{name}_{tag}")
+        oid = _order_clip(picks[tag]["id"], bbox, key, f"earthchange_{name}_{tag}")
         oj = _wait_order(oid, key)
         tifs[tag] = _download_sr(oj, os.path.join(run_dir, f"planet_{tag}.tif"), key)
         print(f"    saved {os.path.basename(tifs[tag])}")

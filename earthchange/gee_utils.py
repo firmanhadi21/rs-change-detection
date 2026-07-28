@@ -81,7 +81,7 @@ def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16):
     return None
 
 
-def start_drive_export(image, region, description, folder="satchange",
+def start_drive_export(image, region, description, folder="earthchange",
                        scale=10, crs="EPSG:4326"):
     """Start an async full-resolution GeoTIFF export to Google Drive.
 
@@ -138,7 +138,7 @@ def initialize_ee(config_key=None, prefer_user=False):
 
     Looks for a key JSON in priority order:
       1. `config_key` (e.g. the CLI --ee-key, or <cwd>/scripts/config/…)
-      2. $SATCHANGE_EE_KEY  (works from any directory — best for pip installs)
+      2. $EARTHCHANGE_EE_KEY  (works from any directory — best for pip installs)
       3. ~/.config/earthengine/ee-geodetic.json  (global fallback)
     Falls back to user credentials (`earthengine authenticate`) if none exist.
 
@@ -163,7 +163,8 @@ def initialize_ee(config_key=None, prefer_user=False):
 
     candidates = [
         p for p in (config_key,
-                    os.environ.get("SATCHANGE_EE_KEY"),
+                    os.environ.get("EARTHCHANGE_EE_KEY"),
+                    os.environ.get("SATCHANGE_EE_KEY"),   # backward-compat (former name)
                     os.path.expanduser("~/.config/earthengine/ee-geodetic.json"))
         if p
     ]
@@ -180,8 +181,8 @@ def initialize_ee(config_key=None, prefer_user=False):
     except Exception:  # noqa: BLE001 — give an actionable message, not a stack trace
         raise SystemExit(
             "Earth Engine is not authenticated and no service-account key was found.\n"
-            "Point satchange at your key JSON in one of these ways:\n"
-            "  satchange ... --ee-key /path/to/ee-geodetic.json\n"
-            "  export SATCHANGE_EE_KEY=/path/to/ee-geodetic.json   (any directory)\n"
+            "Point earthchange at your key JSON in one of these ways:\n"
+            "  earthchange ... --ee-key /path/to/ee-geodetic.json\n"
+            "  export EARTHCHANGE_EE_KEY=/path/to/ee-geodetic.json   (any directory)\n"
             "  cp /path/to/ee-geodetic.json ~/.config/earthengine/ee-geodetic.json\n"
             "or run `earthengine authenticate` for personal user credentials.")

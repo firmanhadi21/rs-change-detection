@@ -112,10 +112,10 @@
 <main>
   <h1>Satellite Change Detection</h1>
   <p style="margin:.2em 0 .6em">
-    <a href="https://pypi.org/project/satchange/"><img src="https://img.shields.io/pypi/v/satchange.svg" alt="PyPI version" style="vertical-align:middle"></a>
-    <a href="https://pypi.org/project/satchange/"><img src="https://img.shields.io/pypi/pyversions/satchange.svg" alt="Python versions" style="vertical-align:middle"></a>
+    <a href="https://pypi.org/project/earthchange/"><img src="https://img.shields.io/pypi/v/earthchange.svg" alt="PyPI version" style="vertical-align:middle"></a>
+    <a href="https://pypi.org/project/earthchange/"><img src="https://img.shields.io/pypi/pyversions/earthchange.svg" alt="Python versions" style="vertical-align:middle"></a>
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT" style="vertical-align:middle">
-    &nbsp;<code>pip install satchange</code>
+    &nbsp;<code>pip install earthchange</code>
   </p>
   <p class="lede en">A hands-on tutorial. Map <b>deforestation, mining, urbanisation, floods, burns and surface-water change</b> anywhere on Earth from free satellite data — then export georeferenced GeoTIFFs and print-ready maps. All in Python, powered by Google Earth Engine and Microsoft Planetary Computer.</p>
   <p class="lede id">Tutorial praktis. Petakan <b>deforestasi, tambang, urbanisasi, banjir, kebakaran, dan perubahan air permukaan</b> di mana saja dari data satelit gratis — lalu ekspor GeoTIFF tergeoreferensi dan peta siap cetak. Semua dengan Python, ditenagai Google Earth Engine dan Microsoft Planetary Computer.</p>
@@ -136,7 +136,7 @@
   <h2 id="overview">1 · <span class="en">What you'll build</span><span class="id">Yang akan Anda buat</span></h2>
   <p class="en">By the end you'll run a single command like this…</p>
   <p class="id">Di akhir tutorial, Anda menjalankan satu perintah seperti ini…</p>
-  <pre><code>satchange -s deforestation --lat -3.333 --lon 122.25 --radius 6 --map</code></pre>
+  <pre><code>earthchange -s deforestation --lat -3.333 --lon 122.25 --radius 6 --map</code></pre>
   <p class="en">…and get three things for your chosen area:</p>
   <p class="id">…dan mendapat tiga berkas untuk area pilihan Anda:</p>
   <ul class="en">
@@ -216,29 +216,29 @@
   <p class="id">Anda memerlukan <b>Python 3.11+</b>. Backend Earth Engine butuh <b>akun Google Earth Engine gratis</b> (<a href="https://earthengine.google.com/signup/">daftar</a>); backend Planetary Computer <b>tanpa akun sama sekali</b>.</p>
   <ol class="steps">
     <li><b><span class="en">Install the package</span><span class="id">Pasang paket</span></b>
-      <pre><code>pip install 'satchange[all]'          # everything
-# or leaner:  pip install 'satchange[gee]'  ·  pip install 'satchange[mpc,maps]'</code></pre>
-      <span class="note en">Gives you the <code>satchange</code> and <code>satmap</code> commands. To work from source instead: <code>git clone https://github.com/firmanhadi21/rs-change-detection &amp;&amp; cd rs-change-detection &amp;&amp; pip install -e '.[all]'</code> — then <code>python3 detect.py …</code> works identically.</span>
-      <span class="note id">Memberi perintah <code>satchange</code> dan <code>satmap</code>. Untuk memakai dari sumber: <code>git clone https://github.com/firmanhadi21/rs-change-detection &amp;&amp; cd rs-change-detection &amp;&amp; pip install -e '.[all]'</code> — lalu <code>python3 detect.py …</code> berfungsi sama.</span></li>
+      <pre><code>pip install 'earthchange[all]'          # everything
+# or leaner:  pip install 'earthchange[gee]'  ·  pip install 'earthchange[mpc,maps]'</code></pre>
+      <span class="note en">Gives you the <code>earthchange</code> and <code>earthmap</code> commands. To work from source instead: <code>git clone https://github.com/firmanhadi21/rs-change-detection &amp;&amp; cd rs-change-detection &amp;&amp; pip install -e '.[all]'</code> — then <code>python3 detect.py …</code> works identically.</span>
+      <span class="note id">Memberi perintah <code>earthchange</code> dan <code>earthmap</code>. Untuk memakai dari sumber: <code>git clone https://github.com/firmanhadi21/rs-change-detection &amp;&amp; cd rs-change-detection &amp;&amp; pip install -e '.[all]'</code> — lalu <code>python3 detect.py …</code> berfungsi sama.</span></li>
     <li><b><span class="en">Authenticate Earth Engine (GEE backend only)</span><span class="id">Autentikasi Earth Engine (backend GEE saja)</span></b>
       <pre><code>earthengine authenticate</code></pre>
-      <span class="note en">Opens a browser to link your Google account. To use a <b>service-account key</b> from <b>any directory</b>, point satchange at it with <code>--ee-key /path/to/ee-geodetic.json</code>, or <code>export SATCHANGE_EE_KEY=/path/to/ee-geodetic.json</code>, or copy it to <code>~/.config/earthengine/ee-geodetic.json</code>. (A key at <code>./scripts/config/ee-geodetic.json</code> only works when you run from the repo root.) Skip this entirely with <code>--backend mpc</code>.</span>
-      <span class="note id">Membuka browser untuk menautkan akun Google. Untuk memakai <b>kunci service account</b> dari <b>direktori mana pun</b>, arahkan satchange dengan <code>--ee-key /path/ke/ee-geodetic.json</code>, atau <code>export SATCHANGE_EE_KEY=/path/ke/ee-geodetic.json</code>, atau salin ke <code>~/.config/earthengine/ee-geodetic.json</code>. (Kunci di <code>./scripts/config/ee-geodetic.json</code> hanya berlaku saat dijalankan dari root repo.) Lewati dengan <code>--backend mpc</code>.</span></li>
+      <span class="note en">Opens a browser to link your Google account. To use a <b>service-account key</b> from <b>any directory</b>, point earthchange at it with <code>--ee-key /path/to/ee-geodetic.json</code>, or <code>export EARTHCHANGE_EE_KEY=/path/to/ee-geodetic.json</code>, or copy it to <code>~/.config/earthengine/ee-geodetic.json</code>. (A key at <code>./scripts/config/ee-geodetic.json</code> only works when you run from the repo root.) Skip this entirely with <code>--backend mpc</code>.</span>
+      <span class="note id">Membuka browser untuk menautkan akun Google. Untuk memakai <b>kunci service account</b> dari <b>direktori mana pun</b>, arahkan earthchange dengan <code>--ee-key /path/ke/ee-geodetic.json</code>, atau <code>export EARTHCHANGE_EE_KEY=/path/ke/ee-geodetic.json</code>, atau salin ke <code>~/.config/earthengine/ee-geodetic.json</code>. (Kunci di <code>./scripts/config/ee-geodetic.json</code> hanya berlaku saat dijalankan dari root repo.) Lewati dengan <code>--backend mpc</code>.</span></li>
     <li><b><span class="en">Check it's working</span><span class="id">Cek berjalan</span></b>
-      <pre><code>satchange --list</code></pre>
+      <pre><code>earthchange --list</code></pre>
       <span class="note en">Should print the thirteen available scenarios.</span>
       <span class="note id">Harusnya menampilkan tiga belas skenario.</span></li>
   </ol>
-  <div class="callout tip en"><b>No Google Earth Engine account?</b> Add <code>--backend mpc</code> to any command — <b>Microsoft Planetary Computer</b> streams Sentinel-1/2 &amp; Landsat Cloud-Optimized GeoTIFFs and processes them locally (comes with <code>satchange[mpc]</code>). Outputs and maps are identical.</div>
+  <div class="callout tip en"><b>No Google Earth Engine account?</b> Add <code>--backend mpc</code> to any command — <b>Microsoft Planetary Computer</b> streams Sentinel-1/2 &amp; Landsat Cloud-Optimized GeoTIFFs and processes them locally (comes with <code>earthchange[mpc]</code>). Outputs and maps are identical.</div>
 
-  <div class="callout tip en"><b>Very large area?</b> Earth Engine's direct download has a size limit, so big AOIs get coarsened to fit. Add <code>--drive</code> (optionally <code>--drive-folder NAME</code>) to also start an <b>async full-resolution export to your Google Drive</b>. Note: Drive export uses your <b>personal</b> Google account — run <code>earthengine authenticate</code> first (a service-account key exports to the service account's own Drive, which you can't browse). Monitor the task in the EE Code Editor <i>Tasks</i> tab; the GeoTIFF appears in <code>Drive/satchange/</code>.</div>
-  <div class="callout tip id"><b>Area sangat luas?</b> Unduhan langsung Earth Engine punya batas ukuran, jadi AOI besar diperkasar agar muat. Tambahkan <code>--drive</code> (opsional <code>--drive-folder NAMA</code>) untuk juga memulai <b>ekspor resolusi penuh asinkron ke Google Drive</b> Anda. Catatan: ekspor Drive memakai akun Google <b>pribadi</b> — jalankan <code>earthengine authenticate</code> dulu (kunci service account mengekspor ke Drive milik service account yang tak bisa Anda buka). Pantau task di tab <i>Tasks</i> EE Code Editor; GeoTIFF muncul di <code>Drive/satchange/</code>.</div>
-  <div class="callout tip id"><b>Tak punya akun Google Earth Engine?</b> Tambahkan <code>--backend mpc</code> pada perintah apa pun — <b>Microsoft Planetary Computer</b> mengalirkan COG Sentinel-1/2 &amp; Landsat dan memprosesnya lokal (termasuk di <code>satchange[mpc]</code>). Keluaran dan peta identik.</div>
+  <div class="callout tip en"><b>Very large area?</b> Earth Engine's direct download has a size limit, so big AOIs get coarsened to fit. Add <code>--drive</code> (optionally <code>--drive-folder NAME</code>) to also start an <b>async full-resolution export to your Google Drive</b>. Note: Drive export uses your <b>personal</b> Google account — run <code>earthengine authenticate</code> first (a service-account key exports to the service account's own Drive, which you can't browse). Monitor the task in the EE Code Editor <i>Tasks</i> tab; the GeoTIFF appears in <code>Drive/earthchange/</code>.</div>
+  <div class="callout tip id"><b>Area sangat luas?</b> Unduhan langsung Earth Engine punya batas ukuran, jadi AOI besar diperkasar agar muat. Tambahkan <code>--drive</code> (opsional <code>--drive-folder NAMA</code>) untuk juga memulai <b>ekspor resolusi penuh asinkron ke Google Drive</b> Anda. Catatan: ekspor Drive memakai akun Google <b>pribadi</b> — jalankan <code>earthengine authenticate</code> dulu (kunci service account mengekspor ke Drive milik service account yang tak bisa Anda buka). Pantau task di tab <i>Tasks</i> EE Code Editor; GeoTIFF muncul di <code>Drive/earthchange/</code>.</div>
+  <div class="callout tip id"><b>Tak punya akun Google Earth Engine?</b> Tambahkan <code>--backend mpc</code> pada perintah apa pun — <b>Microsoft Planetary Computer</b> mengalirkan COG Sentinel-1/2 &amp; Landsat dan memprosesnya lokal (termasuk di <code>earthchange[mpc]</code>). Keluaran dan peta identik.</div>
 
   <h2 id="first">4 · <span class="en">Your first detection</span><span class="id">Deteksi pertama Anda</span></h2>
   <p class="en">Let's map vegetation loss around a coordinate. Pick any <code>lat</code>/<code>lon</code> (decimal degrees; south and west are negative).</p>
   <p class="id">Mari petakan kehilangan vegetasi di sekitar koordinat. Pilih <code>lat</code>/<code>lon</code> apa saja (derajat desimal; selatan dan barat negatif).</p>
-  <pre><code>satchange -s deforestation --lat -3.333 --lon 122.25 --radius 6</code></pre>
+  <pre><code>earthchange -s deforestation --lat -3.333 --lon 122.25 --radius 6</code></pre>
   <p class="en">The tool builds a square area of interest (half-side = <code>radius</code> km), makes a cloud-free Sentinel-2 NDVI composite for a baseline year and a recent year, subtracts them, and downloads the result. You'll see something like:</p>
   <p class="id">Alat membangun area minat persegi (setengah-sisi = <code>radius</code> km), membuat composite NDVI Sentinel-2 bebas awan untuk tahun dasar dan tahun terkini, menguranginya, lalu mengunduh hasilnya. Anda akan melihat kira-kira:</p>
   <pre><code>=== Change detection: deforestation ===
@@ -249,8 +249,8 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
   "pct_affected": 6.3, "pct_severe": 2.7, "scenes_pre": 30, "scenes_post": 25 …</code></pre>
   <div class="callout en"><b>Negative-latitude tip.</b> A leading <code>-</code> can confuse the shell if you use <code>-l</code>. Either use <code>--lat/--lon</code> (above) or attach the value with <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
   <div class="callout id"><b>Tips lintang negatif.</b> Tanda <code>-</code> di depan bisa membingungkan shell bila memakai <code>-l</code>. Gunakan <code>--lat/--lon</code> (di atas) atau sambungkan nilai dengan <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
-  <div class="callout tip en"><b>Prefer a place name?</b> Use <code>--city "Jakarta, Indonesia"</code> instead of <code>--lat/--lon</code> — satchange geocodes it with free OpenStreetMap Nominatim and prints the resolved coordinates. Add a country for accuracy (e.g. <code>--city "Bandung, Indonesia"</code>).</div>
-  <div class="callout tip id"><b>Lebih suka nama tempat?</b> Pakai <code>--city "Jakarta, Indonesia"</code> alih-alih <code>--lat/--lon</code> — satchange menggeokode dengan OpenStreetMap Nominatim gratis dan mencetak koordinat hasilnya. Tambahkan negara agar akurat (mis. <code>--city "Bandung, Indonesia"</code>).</div>
+  <div class="callout tip en"><b>Prefer a place name?</b> Use <code>--city "Jakarta, Indonesia"</code> instead of <code>--lat/--lon</code> — earthchange geocodes it with free OpenStreetMap Nominatim and prints the resolved coordinates. Add a country for accuracy (e.g. <code>--city "Bandung, Indonesia"</code>).</div>
+  <div class="callout tip id"><b>Lebih suka nama tempat?</b> Pakai <code>--city "Jakarta, Indonesia"</code> alih-alih <code>--lat/--lon</code> — earthchange menggeokode dengan OpenStreetMap Nominatim gratis dan mencetak koordinat hasilnya. Tambahkan negara agar akurat (mis. <code>--city "Bandung, Indonesia"</code>).</div>
 
   <h2 id="outputs">5 · <span class="en">Reading the outputs</span><span class="id">Membaca keluaran</span></h2>
   <table>
@@ -272,78 +272,78 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
   <div class="callout tip id"><b>Ambang adalah titik awal, bukan patokan mutlak.</b> Ambang default tiap skenario (mis. ΔNDVI &lt; −0.15) adalah nilai wajar. Seperti dicatat Key &amp; Benson untuk severity kebakaran, ambang idealnya dikalibrasi dengan data lapangan lokal. Anggap angka % sebagai perbandingan, bukan mutlak.</div>
 
   <h2 id="scenarios">6 · <span class="en">Every scenario</span><span class="id">Setiap skenario</span></h2>
-  <p class="en">List them any time with <code>satchange --list</code>. Commands:</p>
-  <p class="id">Lihat daftarnya kapan saja dengan <code>satchange --list</code>. Perintah:</p>
+  <p class="en">List them any time with <code>earthchange --list</code>. Commands:</p>
+  <p class="id">Lihat daftarnya kapan saja dengan <code>earthchange --list</code>. Perintah:</p>
   <pre><code># Deforestation / vegetation loss (default baseline vs recent year)
-satchange -s deforestation --lat -3.333 --lon 122.25
+earthchange -s deforestation --lat -3.333 --lon 122.25
 
 # Mining — radar temporal (SIRAD) + NDVI loss, two products
-satchange -s mining --lat -3.333 --lon 122.25
+earthchange -s mining --lat -3.333 --lon 122.25
 #   set the 3 SIRAD periods (R/G/B) yourself with --epochs:
-satchange -s mining --lat -3.333 --lon 122.25 \
+earthchange -s mining --lat -3.333 --lon 122.25 \
     --epochs 2024-01-01:2024-06-30,2024-07-01:2024-12-31,2025-01-01:2025-06-30
 
 # Urbanisation — built-up (NDBI) gain
-satchange -s urbanization --lat -6.2 --lon 106.8 --radius 12
+earthchange -s urbanization --lat -6.2 --lon 106.8 --radius 12
 
 # Surface-water change (NDWI)
-satchange -s water --lat -0.5 --lon 117.1
+earthchange -s water --lat -0.5 --lon 117.1
 
 # Flood — needs an explicit baseline and event window
-satchange -s flood --lat 27.2 --lon 68.3 \
+earthchange -s flood --lat 27.2 --lon 68.3 \
     --pre 2022-07-01:2022-07-25 --post 2022-08-20:2022-09-10
 
 # Disturbance — flood/landslide impact in terrain, when flood shows nothing
-satchange -s disturbance --lat 1.9983 --lon 99.4235 --radius 15 \
+earthchange -s disturbance --lat 1.9983 --lon 99.4235 --radius 15 \
     --pre 2025-11-01:2025-11-11 --post 2025-11-26:2025-11-29 --map
 
 # Burn severity — needs pre-fire and post-fire windows
-satchange -s burn --lat -7.5 --lon 110.4 \
+earthchange -s burn --lat -7.5 --lon 110.4 \
     --pre 2025-08-01:2025-08-20 --post 2025-09-10:2025-09-30
 
 # Urban growth timing across 3 epochs (Landsat; default 2010/2015/2020)
-satchange -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map
+earthchange -s urban-trend --lat -6.30 --lon 107.15 --radius 10 --map
 
 # Urban history: built-up by decade since 1980 (GHSL + Landsat), whole metro
-satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
+earthchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 -n jabodetabek
 
 # Hybrid: auto-locate the most-changed hotspot + a PlanetScope ~3 m close-up
-satchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 --planet   # dry-run (free)
+earthchange -s urban-history --lat -6.2 --lon 106.85 --radius 45 --planet   # dry-run (free)
 
 # Coastline: shoreline change (SAR) — erosion & accretion between two dates
-satchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
+earthchange -s coastline --lat -6.95 --lon 110.45 --radius 8 \
     --pre 2016-01-01:2016-12-31 --post 2025-01-01:2025-12-31
 
 # Coastline time-series + retreat-rate transects (Landsat, back to the 1990s)
-satchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
+earthchange -s coastline --coast-method landsat --lat -6.95 --lon 110.45 --radius 10 \
     --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31
 
 # Custom cross-shore transects drawn in QGIS (clean m/yr in complex bays)
-satchange -s coastline --coast-method landsat --city "Pekalongan" --radius 12 \
+earthchange -s coastline --coast-method landsat --city "Pekalongan" --radius 12 \
     --epochs 1994-01-01:1996-12-31,2014-01-01:2016-12-31,2023-01-01:2025-12-31 \
     --transects-file my_transects.geojson
 
 # Public-transport access (SDG 11.2.1): % population within a walk of a stop
-satchange -s transit-access --city "Semarang" --radius 8 --walk-dist 500,1000
+earthchange -s transit-access --city "Semarang" --radius 8 --walk-dist 500,1000
 # ...or supply your own stops/routes (e.g. a BRT corridor exported from QGIS)
-satchange -s transit-access --city "Semarang" --radius 10 \
+earthchange -s transit-access --city "Semarang" --radius 10 \
     --transit-file transjateng_stops.geojson
 
 # Island heat: SST + LST + wet-bulb trends + decadal change maps
-satchange -s island-heat --lat -0.657 --lon 130.234 --radius 40 \
+earthchange -s island-heat --lat -0.657 --lon 130.234 --radius 40 \
     --lst-source modis -n "Raja Ampat"        # larger islands → MODIS LST
-satchange -s island-heat --lat -5.7 --lon 106.55 --radius 35 \
+earthchange -s island-heat --lat -5.7 --lon 106.55 --radius 35 \
     -n "Kepulauan Seribu"                     # tiny islands → Landsat (default)
 
 # Urban heat island: SUHII + hot-spot map + decadal trend
-satchange -s urban-heat --lat -6.20 --lon 106.83 --radius 18 -n "Jakarta"
-satchange -s urban-heat --city "Surabaya" --radius 15 --months 6-9   # dry-season only</code></pre>
-  <div class="callout tip en"><b>Transit access needs <code>satchange[transit]</code>.</b> <code>-s transit-access</code> pulls the OSM walking network (Overpass) + WorldPop (GEE), so install the extra: <code>pip install 'satchange[transit]'</code>. Stops come from OSM by default; pass <code>--transit-file stops.geojson</code> (points or route lines, auto-sampled) for networks OSM hasn't mapped — Indonesian angkot routes often aren't. Tune the corridor width of the drawn service area with <code>--access-buffer</code> (map only; the % is network-distance based, not buffer based).</div>
-  <div class="callout tip id"><b>Transit access butuh <code>satchange[transit]</code>.</b> <code>-s transit-access</code> mengambil jaringan jalan OSM (Overpass) + WorldPop (GEE), jadi pasang ekstra: <code>pip install 'satchange[transit]'</code>. Halte default dari OSM; berikan <code>--transit-file stops.geojson</code> (titik atau garis rute, dicuplik otomatis) untuk jaringan yang belum dipetakan OSM — rute angkot sering belum ada. Setel lebar koridor area terlayani dengan <code>--access-buffer</code> (hanya peta; persentasenya berbasis jarak jaringan, bukan buffer).</div>
-  <div class="callout tip en"><b>Urban heat: two SUHII numbers, by design.</b> <code>-s urban-heat</code> needs <code>satchange[maps]</code> and <code>--backend gee</code> (GHSL). The <b>snapshot</b> SUHII (Landsat 100&nbsp;m) is large because it resolves hot rooftops/asphalt vs cool paddy (Jakarta ~14&nbsp;°C); the <b>trend</b> SUHII (MODIS 1&nbsp;km, consistent sensor) is smaller because coarse pixels mix urban+rural (~2&nbsp;°C) — read the trend for <i>direction</i>, not absolute value. It's <i>surface</i> daytime temperature (LST), far larger than the air-temperature UHI. Restrict to the dry season (<code>--months 6-9</code>) for the cleanest signal.</div>
-  <div class="callout tip id"><b>Urban heat: dua angka SUHII, memang begitu.</b> <code>-s urban-heat</code> butuh <code>satchange[maps]</code> dan <code>--backend gee</code> (GHSL). SUHII <b>snapshot</b> (Landsat 100&nbsp;m) besar karena memisahkan atap/aspal panas dari sawah sejuk (Jakarta ~14&nbsp;°C); SUHII <b>tren</b> (MODIS 1&nbsp;km, sensor konsisten) lebih kecil karena piksel kasar mencampur kota+desa (~2&nbsp;°C) — baca tren untuk <i>arah</i>, bukan nilai absolut. Ini suhu <i>permukaan</i> siang (LST), jauh lebih besar dari UHI suhu udara. Batasi ke musim kemarau (<code>--months 6-9</code>) untuk sinyal terbersih.</div>
-  <div class="callout tip en"><b>Island heat: choosing the LST sensor.</b> <code>-s island-heat</code> needs <code>satchange[maps]</code>. Pick the land-temperature sensor with <code>--lst-source</code>: <b>landsat</b> (default, 100&nbsp;m, NDVI-masked island land — isolates small/scattered islands from water and mainland) or <b>modis</b> (1&nbsp;km, cleaner/denser — best for a large island away from the coast, e.g. Karimunjawa or Raja Ampat). Each run writes a trend chart plus three change maps (SST, island-LST, and a combined raster). <b>Honest note:</b> the data is <i>observed</i> (satellite + ERA5), not CMIP6 projections to 2100; SST &amp; wet-bulb are the robust signals, while the LST trend for sub-km islands is indicative only. The wet-bulb series uses global ERA5 (covers ocean) and ends ~2020.</div>
-  <div class="callout tip id"><b>Island heat: memilih sensor LST.</b> <code>-s island-heat</code> butuh <code>satchange[maps]</code>. Pilih sensor suhu darat dengan <code>--lst-source</code>: <b>landsat</b> (default, 100&nbsp;m, lahan pulau di-mask NDVI — memisahkan pulau kecil/tersebar dari air &amp; daratan utama) atau <b>modis</b> (1&nbsp;km, lebih rapat/bersih — terbaik untuk pulau besar yang jauh dari pantai, mis. Karimunjawa atau Raja Ampat). Tiap run menulis grafik tren plus tiga peta perubahan (SST, LST pulau, dan raster gabungan). <b>Catatan jujur:</b> datanya <i>observasi</i> (satelit + ERA5), bukan proyeksi CMIP6 hingga 2100; SST &amp; wet-bulb adalah sinyal andal, sedangkan tren LST untuk pulau &lt;1&nbsp;km bersifat indikatif. Deret wet-bulb memakai ERA5 global (mencakup laut) dan berakhir ~2020.</div>
+earthchange -s urban-heat --lat -6.20 --lon 106.83 --radius 18 -n "Jakarta"
+earthchange -s urban-heat --city "Surabaya" --radius 15 --months 6-9   # dry-season only</code></pre>
+  <div class="callout tip en"><b>Transit access needs <code>earthchange[transit]</code>.</b> <code>-s transit-access</code> pulls the OSM walking network (Overpass) + WorldPop (GEE), so install the extra: <code>pip install 'earthchange[transit]'</code>. Stops come from OSM by default; pass <code>--transit-file stops.geojson</code> (points or route lines, auto-sampled) for networks OSM hasn't mapped — Indonesian angkot routes often aren't. Tune the corridor width of the drawn service area with <code>--access-buffer</code> (map only; the % is network-distance based, not buffer based).</div>
+  <div class="callout tip id"><b>Transit access butuh <code>earthchange[transit]</code>.</b> <code>-s transit-access</code> mengambil jaringan jalan OSM (Overpass) + WorldPop (GEE), jadi pasang ekstra: <code>pip install 'earthchange[transit]'</code>. Halte default dari OSM; berikan <code>--transit-file stops.geojson</code> (titik atau garis rute, dicuplik otomatis) untuk jaringan yang belum dipetakan OSM — rute angkot sering belum ada. Setel lebar koridor area terlayani dengan <code>--access-buffer</code> (hanya peta; persentasenya berbasis jarak jaringan, bukan buffer).</div>
+  <div class="callout tip en"><b>Urban heat: two SUHII numbers, by design.</b> <code>-s urban-heat</code> needs <code>earthchange[maps]</code> and <code>--backend gee</code> (GHSL). The <b>snapshot</b> SUHII (Landsat 100&nbsp;m) is large because it resolves hot rooftops/asphalt vs cool paddy (Jakarta ~14&nbsp;°C); the <b>trend</b> SUHII (MODIS 1&nbsp;km, consistent sensor) is smaller because coarse pixels mix urban+rural (~2&nbsp;°C) — read the trend for <i>direction</i>, not absolute value. It's <i>surface</i> daytime temperature (LST), far larger than the air-temperature UHI. Restrict to the dry season (<code>--months 6-9</code>) for the cleanest signal.</div>
+  <div class="callout tip id"><b>Urban heat: dua angka SUHII, memang begitu.</b> <code>-s urban-heat</code> butuh <code>earthchange[maps]</code> dan <code>--backend gee</code> (GHSL). SUHII <b>snapshot</b> (Landsat 100&nbsp;m) besar karena memisahkan atap/aspal panas dari sawah sejuk (Jakarta ~14&nbsp;°C); SUHII <b>tren</b> (MODIS 1&nbsp;km, sensor konsisten) lebih kecil karena piksel kasar mencampur kota+desa (~2&nbsp;°C) — baca tren untuk <i>arah</i>, bukan nilai absolut. Ini suhu <i>permukaan</i> siang (LST), jauh lebih besar dari UHI suhu udara. Batasi ke musim kemarau (<code>--months 6-9</code>) untuk sinyal terbersih.</div>
+  <div class="callout tip en"><b>Island heat: choosing the LST sensor.</b> <code>-s island-heat</code> needs <code>earthchange[maps]</code>. Pick the land-temperature sensor with <code>--lst-source</code>: <b>landsat</b> (default, 100&nbsp;m, NDVI-masked island land — isolates small/scattered islands from water and mainland) or <b>modis</b> (1&nbsp;km, cleaner/denser — best for a large island away from the coast, e.g. Karimunjawa or Raja Ampat). Each run writes a trend chart plus three change maps (SST, island-LST, and a combined raster). <b>Honest note:</b> the data is <i>observed</i> (satellite + ERA5), not CMIP6 projections to 2100; SST &amp; wet-bulb are the robust signals, while the LST trend for sub-km islands is indicative only. The wet-bulb series uses global ERA5 (covers ocean) and ends ~2020.</div>
+  <div class="callout tip id"><b>Island heat: memilih sensor LST.</b> <code>-s island-heat</code> butuh <code>earthchange[maps]</code>. Pilih sensor suhu darat dengan <code>--lst-source</code>: <b>landsat</b> (default, 100&nbsp;m, lahan pulau di-mask NDVI — memisahkan pulau kecil/tersebar dari air &amp; daratan utama) atau <b>modis</b> (1&nbsp;km, lebih rapat/bersih — terbaik untuk pulau besar yang jauh dari pantai, mis. Karimunjawa atau Raja Ampat). Tiap run menulis grafik tren plus tiga peta perubahan (SST, LST pulau, dan raster gabungan). <b>Catatan jujur:</b> datanya <i>observasi</i> (satelit + ERA5), bukan proyeksi CMIP6 hingga 2100; SST &amp; wet-bulb adalah sinyal andal, sedangkan tren LST untuk pulau &lt;1&nbsp;km bersifat indikatif. Deret wet-bulb memakai ERA5 global (mencakup laut) dan berakhir ~2020.</div>
   <div class="callout tip en"><b>Custom transects (<code>--transects-file</code>).</b> In complex bays the auto-transects can mis-orient. Draw your own cross-shore lines in QGIS, save them as a GeoJSON of <code>LineString</code>s (first vertex = landward), and pass <code>--transects-file my.geojson</code> — each is intersected with every epoch's shoreline and regressed to a clean <b>m/yr</b> rate (CoastSat-style, MIT-native). <b>On tides:</b> shorelines here come from <b>median composites</b>, which are already tide-<i>averaged</i> (waterline ≈ mean tide). Per-scene tidal correction applies only to per-date imagery, not composites, so it's deliberately not faked.</div>
   <div class="callout tip id"><b>Transek kustom (<code>--transects-file</code>).</b> Di teluk kompleks, transek otomatis bisa salah arah. Gambar sendiri garis lintas-pantai di QGIS, simpan sebagai GeoJSON <code>LineString</code> (titik pertama = sisi darat), lalu berikan <code>--transects-file my.geojson</code> — tiap transek dipotong dengan garis pantai tiap epoch dan diregresi menjadi laju <b>m/thn</b> yang bersih (ala CoastSat, MIT-native). <b>Soal pasang-surut:</b> garis pantai di sini dari <b>komposit median</b> yang sudah ter-rata-rata terhadap pasang (waterline ≈ muka air rata-rata). Koreksi pasang per-scene hanya berlaku untuk citra per-tanggal, bukan komposit, jadi sengaja tidak dipalsukan.</div>
   <div class="callout tip en"><b>Hybrid PlanetScope close-up (<code>--planet</code>).</b> For <code>urban-history</code>, free wide-area GHSL locates the single most-changed grid cell, then a small, quota-cheap <b>PlanetScope</b> daily scene (4-band → NDVI works) zooms in at <b>~3 m</b>. It's <b>quota-safe</b>: search is free, and ordering/downloading only happens with <code>--planet-confirm</code>. Set the change period with <code>--hotspot-from/--hotspot-to</code> and the imagery dates with <code>--planet-pre/--planet-post</code>. Key from <code>$PLANET_API_KEY</code> or <code>~/.planet.json</code>/<code>~/planet.conf</code>. Without <code>--planet</code>, PlanetScope is never touched.</div>
@@ -351,14 +351,14 @@ satchange -s urban-heat --city "Surabaya" --radius 15 --months 6-9   # dry-seaso
   <div class="callout en"><b>Flood and burn require dates.</b> They compare a specific <i>event</i> to a <i>baseline</i>, so pass <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Other scenarios have default windows you can still override. <b>For flood, each window is a search range, not a composite</b> — the tool picks a single Sentinel-1 scene from each (the most recent pass, same relative orbit). Keep windows tight (≈2–4 weeks) so each holds a pass but doesn't reach far from the event; place <code>--post</code> to end on/after the flood peak, since it takes the latest pass in the window.</div>
   <div class="callout id"><b>Banjir dan kebakaran wajib tanggal.</b> Keduanya membandingkan <i>kejadian</i> tertentu dengan <i>baseline</i>, jadi berikan <code>--pre START:END --post START:END</code> (format <code>YYYY-MM-DD:YYYY-MM-DD</code>). Skenario lain punya jendela default yang tetap bisa diubah. <b>Untuk banjir, tiap jendela adalah rentang pencarian, bukan komposit</b> — alat memilih satu citra Sentinel-1 dari masing-masing (lintasan terbaru, orbit relatif sama). Buat jendela sempit (≈2–4 minggu) agar tiap jendela berisi satu lintasan namun tidak jauh dari kejadian; atur <code>--post</code> berakhir pada/setelah puncak banjir, karena diambil lintasan terbaru dalam jendela.</div>
 
-  <div class="callout tip en"><b>Custom SIRAD periods (mining).</b> <code>-s mining</code> builds an R/G/B radar composite from three time periods — <b>blue = activity only in the newest</b>. Set them with <code>--epochs W1,W2,W3</code> (the same option <code>urban-trend</code> uses); omit it for the default recent years: <code>satchange -s mining --lat -3.333 --lon 122.25 --epochs 2024-01-01:2024-12-31,2025-01-01:2025-12-31,2026-01-01:2026-06-30</code></div>
-  <div class="callout tip id"><b>Periode SIRAD kustom (mining).</b> <code>-s mining</code> membangun komposit radar R/G/B dari tiga periode — <b>biru = aktivitas hanya di periode terbaru</b>. Aturlah dengan <code>--epochs W1,W2,W3</code> (opsi yang sama dengan <code>urban-trend</code>); kosongkan untuk memakai tahun terkini default: <code>satchange -s mining --lat -3.333 --lon 122.25 --epochs 2024-01-01:2024-12-31,2025-01-01:2025-12-31,2026-01-01:2026-06-30</code></div>
+  <div class="callout tip en"><b>Custom SIRAD periods (mining).</b> <code>-s mining</code> builds an R/G/B radar composite from three time periods — <b>blue = activity only in the newest</b>. Set them with <code>--epochs W1,W2,W3</code> (the same option <code>urban-trend</code> uses); omit it for the default recent years: <code>earthchange -s mining --lat -3.333 --lon 122.25 --epochs 2024-01-01:2024-12-31,2025-01-01:2025-12-31,2026-01-01:2026-06-30</code></div>
+  <div class="callout tip id"><b>Periode SIRAD kustom (mining).</b> <code>-s mining</code> membangun komposit radar R/G/B dari tiga periode — <b>biru = aktivitas hanya di periode terbaru</b>. Aturlah dengan <code>--epochs W1,W2,W3</code> (opsi yang sama dengan <code>urban-trend</code>); kosongkan untuk memakai tahun terkini default: <code>earthchange -s mining --lat -3.333 --lon 122.25 --epochs 2024-01-01:2024-12-31,2025-01-01:2025-12-31,2026-01-01:2026-06-30</code></div>
 
   <div class="callout tip en"><b>Alternative methods (e.g. urbanisation).</b> Optical scenarios aren't tied to one index — swap with <code>--method</code>. Sentinel-2 built-up: <code>NDBI</code> (default), <code>UI</code>, <code>BU</code> (=NDBI−NDVI), <code>IBI</code>. Thermal built-up <code>NDISI</code>, <code>EBBI</code> <b>auto-switch to Landsat 8/9</b> (they need a thermal band Sentinel-2 lacks). Each method has its own default thresholds — tune with <code>--thr</code>/<code>--severe</code>.</div>
   <div class="callout tip id"><b>Metode alternatif (mis. urbanisasi).</b> Skenario optik tak terikat satu indeks — ganti dengan <code>--method</code>. Built-up Sentinel-2: <code>NDBI</code> (default), <code>UI</code>, <code>BU</code> (=NDBI−NDVI), <code>IBI</code>. Indeks termal <code>NDISI</code>, <code>EBBI</code> <b>otomatis beralih ke Landsat 8/9</b> (butuh band termal yang tak ada di Sentinel-2). Tiap metode punya ambang default — setel dengan <code>--thr</code>/<code>--severe</code>.</div>
 
-  <div class="callout en"><b>Three (or more) dates / historical years.</b> Sentinel-2 only starts ~2015 — it can't see 2010. For multi-year growth use <code>-s urban-trend</code>, which runs on <b>Landsat</b> (archive back to 1984) and maps NDBI at three epochs to R/G/B in one image (white = built the whole time, blue = newest growth): <code>satchange -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
-  <div class="callout id"><b>Tiga (atau lebih) tanggal / tahun historis.</b> Sentinel-2 baru ada sejak ~2015 — tak bisa melihat 2010. Untuk pertumbuhan multi-tahun pakai <code>-s urban-trend</code> yang berbasis <b>Landsat</b> (arsip sejak 1984) dan memetakan NDBI tiga epoch ke R/G/B dalam satu citra (putih = terbangun terus, biru = paling baru): <code>satchange -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
+  <div class="callout en"><b>Three (or more) dates / historical years.</b> Sentinel-2 only starts ~2015 — it can't see 2010. For multi-year growth use <code>-s urban-trend</code>, which runs on <b>Landsat</b> (archive back to 1984) and maps NDBI at three epochs to R/G/B in one image (white = built the whole time, blue = newest growth): <code>earthchange -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
+  <div class="callout id"><b>Tiga (atau lebih) tanggal / tahun historis.</b> Sentinel-2 baru ada sejak ~2015 — tak bisa melihat 2010. Untuk pertumbuhan multi-tahun pakai <code>-s urban-trend</code> yang berbasis <b>Landsat</b> (arsip sejak 1984) dan memetakan NDBI tiga epoch ke R/G/B dalam satu citra (putih = terbangun terus, biru = paling baru): <code>earthchange -s urban-trend --lat -6.30 --lon 107.15 --epochs 2010-01-01:2010-12-31,2015-01-01:2015-12-31,2020-01-01:2020-12-31</code></div>
 
   <figure>
     <img src="assets/example-urban-trend.png" alt="Example urban-trend map, Cikarang 2010/2015/2020">
@@ -368,15 +368,15 @@ satchange -s urban-heat --city "Surabaya" --radius 15 --months 6-9   # dry-seaso
   <h2 id="maps">7 · <span class="en">Make a map product</span><span class="id">Membuat produk peta</span></h2>
   <p class="en">Add <code>--map</code> to any run to render an <b>A4-landscape map sheet</b> (PDF + PNG) per product: OpenStreetMap basemap, the change layer, title, legend, a statistics panel, a location inset, coordinate grid, scale bar and north arrow.</p>
   <p class="id">Tambahkan <code>--map</code> pada run apa pun untuk membuat <b>lembar peta A4 landscape</b> (PDF + PNG) per produk: basemap OpenStreetMap, layer perubahan, judul, legenda, panel statistik, inset lokasi, grid koordinat, skala, dan panah utara.</p>
-  <pre><code>satchange -s mining --lat -3.333 --lon 122.25 --map</code></pre>
+  <pre><code>earthchange -s mining --lat -3.333 --lon 122.25 --map</code></pre>
   <figure>
     <img src="assets/example-mining-sirad.png" alt="Example mining SIRAD map">
     <figcaption><span class="en">A SIRAD radar-temporal map. Each colour is one period; <b>blue = new activity</b> only in the most recent period — a strong signal of fresh land clearing.</span><span class="id">Peta radar-temporal SIRAD. Tiap warna satu periode; <b>biru = aktivitas baru</b> hanya pada periode terkini — sinyal kuat pembukaan lahan baru.</span></figcaption>
   </figure>
   <p class="en">Already have results and just want to re-render (no Earth Engine needed)? Every run drops a <code>.meta.json</code> sidecar, so:</p>
   <p class="id">Sudah punya hasil dan ingin render ulang (tanpa Earth Engine)? Tiap run menulis sidecar <code>.meta.json</code>, jadi:</p>
-  <pre><code>satmap output/20260708-2226_deforestation_x_fac24e   # a run folder
-satmap output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or one .tif</code></pre>
+  <pre><code>earthmap output/20260708-2226_deforestation_x_fac24e   # a run folder
+earthmap output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or one .tif</code></pre>
   <p class="en">Maps land in <code>maps/</code>. Tweak the layout in <code>mapmaker.py</code> and re-run instantly.</p>
   <p class="id">Peta tersimpan di <code>maps/</code>. Ubah tata letak di <code>mapmaker.py</code> lalu jalankan ulang seketika.</p>
 
@@ -399,7 +399,7 @@ satmap output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or one .tif</code
     "ndvi_post": ("2026-01-01","2026-06-30"),
   },
 }</code></pre>
-  <pre><code>satchange -s deforestation --site my_area --map</code></pre>
+  <pre><code>earthchange -s deforestation --site my_area --map</code></pre>
   <h3><span class="en">Add a brand-new scenario</span><span class="id">Tambah skenario baru</span></h3>
   <p class="en">Most scenarios are one dictionary entry in <code>scenarios.py</code>. To add, say, a moisture-change scenario using NDWI on a custom threshold you only add a registry entry — the generic optical-change engine does the rest:</p>
   <p class="id">Kebanyakan skenario hanya satu entri dictionary di <code>scenarios.py</code>. Untuk menambah, misalnya, skenario perubahan kelembapan memakai NDWI dengan ambang khusus, cukup tambahkan satu entri — mesin perubahan optik generik menangani sisanya:</p>
@@ -433,7 +433,7 @@ satmap output/&lt;run&gt;/mining_sirad_x.tif --basemap gray  # or one .tif</code
     <tr><th><span class="en">Symptom</span><span class="id">Gejala</span></th><th><span class="en">Fix</span><span class="id">Solusi</span></th></tr>
     <tr><td><code>No Sentinel-2 scenes in pre/post window</code></td><td><span class="en">Widen your <code>--pre/--post</code> dates or increase <code>--radius</code>. Very cloudy tropics may need a longer window.</span><span class="id">Perlebar tanggal <code>--pre/--post</code> atau perbesar <code>--radius</code>. Tropis sangat berawan mungkin butuh jendela lebih panjang.</span></td></tr>
     <tr><td><code>No orbit covers all periods</code></td><td><span class="en">Enlarge the radius or shift the period dates; Sentinel-1 coverage is sparse in some years/areas.</span><span class="id">Perbesar radius atau geser tanggal periode; cakupan Sentinel-1 jarang di sebagian tahun/area.</span></td></tr>
-    <tr><td><span class="en">Earth Engine auth errors</span><span class="id">Galat autentikasi Earth Engine</span></td><td><span class="en">Usually a wrong working directory: the key at <code>scripts/config/ee-geodetic.json</code> is only found when you run from the repo root. Pass <code>--ee-key /path/to/ee-geodetic.json</code>, set <code>SATCHANGE_EE_KEY</code>, copy the key to <code>~/.config/earthengine/ee-geodetic.json</code>, or re-run <code>earthengine authenticate</code>.</span><span class="id">Biasanya direktori kerja salah: kunci di <code>scripts/config/ee-geodetic.json</code> hanya ditemukan saat dijalankan dari root repo. Berikan <code>--ee-key /path/ke/ee-geodetic.json</code>, set <code>SATCHANGE_EE_KEY</code>, salin kunci ke <code>~/.config/earthengine/ee-geodetic.json</code>, atau jalankan ulang <code>earthengine authenticate</code>.</span></td></tr>
+    <tr><td><span class="en">Earth Engine auth errors</span><span class="id">Galat autentikasi Earth Engine</span></td><td><span class="en">Usually a wrong working directory: the key at <code>scripts/config/ee-geodetic.json</code> is only found when you run from the repo root. Pass <code>--ee-key /path/to/ee-geodetic.json</code>, set <code>EARTHCHANGE_EE_KEY</code>, copy the key to <code>~/.config/earthengine/ee-geodetic.json</code>, or re-run <code>earthengine authenticate</code>.</span><span class="id">Biasanya direktori kerja salah: kunci di <code>scripts/config/ee-geodetic.json</code> hanya ditemukan saat dijalankan dari root repo. Berikan <code>--ee-key /path/ke/ee-geodetic.json</code>, set <code>EARTHCHANGE_EE_KEY</code>, salin kunci ke <code>~/.config/earthengine/ee-geodetic.json</code>, atau jalankan ulang <code>earthengine authenticate</code>.</span></td></tr>
     <tr><td><span class="en">Basemap missing / </span><span class="id">Basemap hilang / </span><code>EPSG code unknown</code></td><td><span class="en">A stale external PROJ database (e.g. from an OTB install) is shadowing PROJ. The tool clears <code>PROJ_LIB</code>; if it persists, <code>unset PROJ_LIB</code>.</span><span class="id">Basis data PROJ eksternal usang (mis. dari OTB) menutupi PROJ. Alat menghapus <code>PROJ_LIB</code>; bila masih, jalankan <code>unset PROJ_LIB</code>.</span></td></tr>
     <tr><td><span class="en">Direct GeoTIFF download refused</span><span class="id">Unduhan GeoTIFF langsung ditolak</span></td><td><span class="en">Very large AOIs exceed Earth Engine's limit — reduce <code>--radius</code>, or use <code>--drive</code> to export to Google Drive.</span><span class="id">AOI sangat besar melewati batas Earth Engine — kecilkan <code>--radius</code>, atau pakai <code>--drive</code> untuk ekspor ke Google Drive.</span></td></tr>
   </table>
