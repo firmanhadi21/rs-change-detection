@@ -72,6 +72,7 @@ gratis), atau `--site NAMA`.
 | `transit-access` | % populasi yang menjangkau transportasi publik (SDG 11.2.1) | WorldPop + OSM |
 | `island-heat` | Tren SST + LST + wet-bulb (panas lembab) pulau kecil | OISST / Landsat / ERA5 |
 | `urban-heat` | Pulau panas perkotaan (SUHII) + peta titik panas + tren dekadal | GHSL + Landsat + MODIS |
+| `forest-history` | Deforestasi multi-periode: peta tahun-kehilangan + tren luas hutan | S2 / Landsat NDVI |
 
 ```bash
 # Sintaks umum
@@ -274,7 +275,7 @@ earthchange -s coastline --coast-method landsat --city "Pekalongan" --radius 12 
 Setiap transek dipotong dengan garis pantai tiap epoch, lalu jarak-vs-tahun
 diregresi menjadi laju **m/tahun** (mengikuti pendekatan CoastSat, MIT-native).
 
-> **Catatan jujur:** di pantai tambak (mis. Demak/Pekalongan), tambak yang
+> **Catatan:** di pantai tambak (mis. Demak/Pekalongan), tambak yang
 > tersambung ke laut ikut terhitung sebagai "laut", sehingga angka abrasi
 > mencampur surut nyata dengan genangan akibat penurunan tanah (rob). Transek
 > otomatis bisa salah arah di teluk kompleks — median dipakai sebagai angka utama.
@@ -374,7 +375,7 @@ Keluaran: `island_heat.png` (tren SST/LST/wet-bulb + panel puncak wet-bulb),
 beserta GeoTIFF-nya, dan `stats.json` (tren per variabel, deret tahunan). Butuh
 `earthchange[maps]`.
 
-> **Catatan jujur:** data ini **observasi** (satelit + reanalisis), yakni tren
+> **Catatan:** data ini **observasi** (satelit + reanalisis), yakni tren
 > terukur — **bukan** proyeksi model iklim (CMIP6) hingga 2100. **SST & wet-bulb
 > adalah sinyal yang paling andal.** Tren **LST untuk pulau sangat kecil (<1 km, mis.
 > Kepulauan Seribu) tidak stabil** apa pun sensornya (piksel lahan sedikit/tercampur
@@ -405,12 +406,39 @@ Keluaran: `uhi_hotspot_map.png` (**suhu permukaan absolut** Landsat 100 m — ku
 titik panas), `uhi_lst.tif`, `uhi_trend.png` (tren SUHII), dan `stats.json`. Butuh
 `earthchange[maps]`.
 
-> **Catatan jujur:** dua angka SUHII berbeda karena resolusi. **Snapshot** memakai
+> **Catatan:** dua angka SUHII berbeda karena resolusi. **Snapshot** memakai
 > **Landsat 100 m** — memisahkan atap/aspal panas (>45 °C) dari sawah sejuk (~29 °C),
 > jadi SUHII besar (Jakarta ~14 °C). **Tren** memakai **MODIS 1 km sensor konsisten**
 > (Landsat mencampur TM/OLI yang tak sebanding) — piksel kasar mencampur kota+desa,
 > jadi SUHII absolutnya lebih kecil (~2 °C); yang penting adalah *arah* perubahannya.
 > Ini suhu *permukaan* siang hari (bukan suhu udara, yang jauh lebih kecil).
+
+### Deforestasi multi-periode — `forest-history`
+
+Bukan sekadar sebelum/sesudah — beri **4–5 periode** dan dapatkan **kapan** tiap
+piksel hutan hilang. "Hilang" ditakar relatif terhadap baseline tiap piksel (tahan
+terhadap jenis hutan/musim/beda sensor TM vs OLI): piksel yang awalnya hutan (NDVI
+baseline > ambang) dinyatakan hilang pada epoch pertama NDVI-nya turun lebih dari
+`--drop-thr` di bawah baseline. Air di-mask (MNDWI). Pakai `--sensor landsat` untuk
+menjangkau **sejak 1980-an**.
+
+```bash
+# 5 periode dari Landsat, 1990 -> 2024 (frontier deforestasi Kalteng)
+earthchange -s forest-history --backend gee --sensor landsat --lat -2.2 --lon 113.0 --radius 12 \
+    --epochs 1990-01-01:1992-12-31,2000-01-01:2002-12-31,2010-01-01:2012-12-31,2017-01-01:2019-12-31,2023-01-01:2025-12-31
+```
+
+Keluaran: `forest_loss_map.png` (**peta tahun-kehilangan** — hijau = masih hutan,
+kuning→merah tua = hilang lebih awal→lebih baru), `forest_trajectory.png` (luas hutan
+asli tersisa per periode), `forest_loss.tif`, dan `stats.json` (luas hutan & kehilangan
+per periode, total). Butuh `earthchange[maps]`. Atur ambang dengan
+`--forest-thr` (default 0.6) & `--drop-thr` (default 0.2).
+
+> **Catatan:** ΔNDVI antar-dekade menangkap perubahan *neto* — lahan yang
+> ditebang lalu ditanami sawit dapat pulih NDVI-nya dan tak terhitung "hilang".
+> Beberapa periode (bukan satu pra/pasca) memberi kisah yang lebih benar. Untuk arsip
+> lama pakai GEE (paling andal). Contoh Kalteng: 56.316 → 49.802 ha (−12%, terbesar
+> pada 2000–2010).
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
@@ -750,7 +778,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.32) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.33) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -758,7 +786,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.32},
+  version   = {0.1.33},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

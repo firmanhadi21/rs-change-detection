@@ -340,6 +340,15 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                        config_key=ee_key, epochs=uh_epochs, months=uh_months)
         return True
 
+    if method == "forest-history":
+        from . import forest_history
+        fh_epochs = ([parse_period(w) for w in args.epochs.split(",")]
+                     if args.epochs else None)
+        forest_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                           config_key=ee_key, epochs=fh_epochs, sensor=args.sensor,
+                           forest_thr=args.forest_thr, drop_thr=args.drop_thr)
+        return True
+
     if method == "island-heat":
         from . import island_heat
         island_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
@@ -473,6 +482,12 @@ def main():
     ap.add_argument("--no-water-mask", action="store_true",
                     help="optical scenarios: keep water pixels (by default sea/lakes are "
                          "masked out of NDVI/NBR change, e.g. for islands and coasts)")
+    ap.add_argument("--forest-thr", type=float, default=0.6,
+                    help="forest-history: baseline NDVI above which a pixel is 'forest' "
+                         "at epoch 1 (default 0.6)")
+    ap.add_argument("--drop-thr", type=float, default=0.2,
+                    help="forest-history: NDVI fall below baseline that counts as loss "
+                         "(default 0.2)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
     ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")

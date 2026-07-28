@@ -433,4 +433,11 @@ SCENARIOS = {
         "interpretation": ("Intensitas pulau panas perkotaan (SUHII = kota − desa), "
                            "peta titik panas, dan tren antar-dekade."),
     },
+    "forest-history": {
+        "label": "Forest history — multi-epoch deforestation, year-of-loss map + trajectory (S2/Landsat NDVI)",
+        "method": "forest-history",
+        "radius": 12.0, "needs": "none",
+        "interpretation": ("Kapan tiap piksel hutan hilang (peta) + tren luas hutan "
+                           "antar-periode. Pakai --sensor landsat untuk sejak 1980-an."),
+    },
 }
