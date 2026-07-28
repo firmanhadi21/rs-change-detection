@@ -295,6 +295,73 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
     print(f"\n{result.get('interpretation', cfg.get('interpretation', ''))}")
 
 
+def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
+    """Run a scenario that has its own module (not the generic optical/radar engine).
+
+    Returns True if it handled the scenario, else False (caller runs the generic path).
+    """
+    method = cfg.get("method")
+    ee_key = args.ee_key or CONFIG_KEY
+
+    if method == "urban-history":
+        from . import urban_history
+        planet_opts = None
+        if args.planet:
+            planet_opts = {"key": args.planet_key, "pre": args.planet_pre,
+                           "post": args.planet_post, "hotspot_km": args.hotspot_km,
+                           "hotspot_from": args.hotspot_from, "hotspot_to": args.hotspot_to,
+                           "confirm": args.planet_confirm}
+        urban_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                          do_map=args.map, config_key=ee_key,
+                          do_drive=args.drive, drive_folder=args.drive_folder,
+                          planet=planet_opts)
+        return True
+
+    if method == "transit-access":
+        from . import transit
+        transit.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                    config_key=ee_key,
+                    transit_file=args.transit_file, walk_dist=args.walk_dist,
+                    pop_year=args.pop_year, access_buffer=args.access_buffer,
+                    boundary=args.boundary, aoi_file=args.aoi_file, snap_dist=args.snap_dist)
+        return True
+
+    if method == "urban-heat":
+        from . import urban_heat
+        uh_epochs = ([parse_period(w) for w in args.epochs.split(",")]
+                     if args.epochs else None)
+        uh_months = None
+        if args.months:
+            m0, m1 = (int(x) for x in args.months.split("-"))
+            uh_months = (m0, m1)
+        urban_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                       config_key=ee_key, epochs=uh_epochs, months=uh_months)
+        return True
+
+    if method == "island-heat":
+        from . import island_heat
+        island_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                        config_key=ee_key,
+                        island_mode=args.island_mode, islands_file=args.islands_file,
+                        start_year=args.start_year, wetbulb_thr=args.wetbulb_thr,
+                        lst_source=args.lst_source)
+        return True
+
+    if method == "coastline":
+        from . import coastline
+        coast_epochs = ([parse_period(w) for w in args.epochs.split(",")]
+                        if args.epochs else None)
+        coastline.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                      config_key=ee_key,
+                      pre=params.get("pre"), post=params.get("post"),
+                      smooth_m=args.coast_smooth, method=args.coast_method,
+                      epochs=coast_epochs, transect_spacing=args.transect_spacing,
+                      transects_file=args.transects_file)
+        return True
+
+    return False
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Multipurpose satellite change detection.",
@@ -387,6 +454,8 @@ def main():
                     help="island-heat: LST sensor — landsat 100 m (default; NDVI-masked island "
                          "land, best for small/scattered islands) or modis 1 km (cleaner/denser, "
                          "best for a large island away from the mainland)")
+    ap.add_argument("--months", help="urban-heat: restrict to a month range M0-M1 (e.g. 5-10 "
+                    "for the dry season, when the surface UHI reads cleanest); default all months")
     ap.add_argument("--boundary", help="transit-access: administrative area name (e.g. "
                     "\"Kota Semarang\") — fetched from OpenStreetMap; the AOI is auto-sized to "
                     "it and the share is computed over that area, not the square box.")
@@ -433,51 +502,7 @@ def main():
     run_id, run_dir = new_run_dir(args.scenario, name)
     print(f"Output folder: output/{run_id}/\n")
 
-    if cfg.get("method") == "urban-history":
-        from . import urban_history
-        planet_opts = None
-        if args.planet:
-            planet_opts = {"key": args.planet_key, "pre": args.planet_pre,
-                           "post": args.planet_post, "hotspot_km": args.hotspot_km,
-                           "hotspot_from": args.hotspot_from, "hotspot_to": args.hotspot_to,
-                           "confirm": args.planet_confirm}
-        urban_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                          do_map=args.map, config_key=(args.ee_key or CONFIG_KEY),
-                          do_drive=args.drive, drive_folder=args.drive_folder,
-                          planet=planet_opts)
-        list_outputs(run_dir)
-        return
-
-    if cfg.get("method") == "transit-access":
-        from . import transit
-        transit.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                    config_key=(args.ee_key or CONFIG_KEY),
-                    transit_file=args.transit_file, walk_dist=args.walk_dist,
-                    pop_year=args.pop_year, access_buffer=args.access_buffer,
-                    boundary=args.boundary, aoi_file=args.aoi_file, snap_dist=args.snap_dist)
-        list_outputs(run_dir)
-        return
-
-    if cfg.get("method") == "island-heat":
-        from . import island_heat
-        island_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                        config_key=(args.ee_key or CONFIG_KEY),
-                        island_mode=args.island_mode, islands_file=args.islands_file,
-                        start_year=args.start_year, wetbulb_thr=args.wetbulb_thr,
-                        lst_source=args.lst_source)
-        list_outputs(run_dir)
-        return
-
-    if cfg.get("method") == "coastline":
-        from . import coastline
-        coast_epochs = ([parse_period(w) for w in args.epochs.split(",")]
-                        if args.epochs else None)
-        coastline.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                      config_key=(args.ee_key or CONFIG_KEY),
-                      pre=params.get("pre"), post=params.get("post"),
-                      smooth_m=args.coast_smooth, method=args.coast_method,
-                      epochs=coast_epochs, transect_spacing=args.transect_spacing,
-                      transects_file=args.transects_file)
+    if dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
         list_outputs(run_dir)
         return
 

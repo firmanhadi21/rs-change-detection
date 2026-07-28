@@ -404,4 +404,11 @@ SCENARIOS = {
         "interpretation": ("Tren suhu laut (SST), suhu darat (LST) & wet-bulb "
                            "(panas lembab) pulau kecil; hari berbahaya per tahun."),
     },
+    "urban-heat": {
+        "label": "Urban heat island — SUHII + hot-spot map + decadal trend (GHSL + Landsat LST)",
+        "method": "urban-heat",
+        "radius": 20.0, "needs": "none",
+        "interpretation": ("Intensitas pulau panas perkotaan (SUHII = kota − desa), "
+                           "peta titik panas, dan tren antar-dekade."),
+    },
 }

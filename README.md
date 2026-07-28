@@ -71,6 +71,7 @@ gratis), atau `--site NAMA`.
 | `coastline` | Garis pantai + perubahan garis pantai (abrasi/akresi) + laju surut m/thn | S1 SAR / S2 / Landsat |
 | `transit-access` | % populasi yang menjangkau transportasi publik (SDG 11.2.1) | WorldPop + OSM |
 | `island-heat` | Tren SST + LST + wet-bulb (panas lembab) pulau kecil | OISST / Landsat / ERA5 |
+| `urban-heat` | Pulau panas perkotaan (SUHII) + peta titik panas + tren dekadal | GHSL + Landsat + MODIS |
 
 ```bash
 # Sintaks umum
@@ -357,6 +358,36 @@ beserta GeoTIFF-nya, dan `stats.json` (tren per variabel, deret tahunan). Butuh
 > air) — bersifat indikatif; pulau lebih besar (mis. Karimunjawa dengan `--lst-source
 > modis`) memberi LST bersih. Wet-bulb memakai ERA5 global (mencakup laut) sehingga
 > deretnya berakhir ~2020 (cakupan dataset).
+
+### Pulau panas perkotaan (SUHII) — `urban-heat`
+
+Mengukur **pulau panas permukaan perkotaan**: kota lebih panas dari sekitarnya
+karena permukaan gelap kedap air menyimpan panas dan vegetasi pendingin hilang.
+Metrik utamanya **SUHII** (*Surface Urban Heat Island Intensity*) = rata-rata LST
+kota − rata-rata LST pedesaan. Urban vs rural ditentukan dari **GHSL** (fraksi
+permukaan terbangun), dan referensi pedesaan dibatasi ke ketinggian serupa (SRTM)
+agar topografi tidak membiaskan.
+
+```bash
+# Snapshot + tren dekadal (default epoch 2000/2013/2022)
+satchange -s urban-heat --backend gee --lat -6.20 --lon 106.83 --radius 18 -n "Jakarta"
+
+# Epoch & musim kemarau sendiri (UHI paling jelas saat kering)
+satchange -s urban-heat --city "Surabaya" --radius 15 \
+    --epochs 2001-01-01:2003-12-31,2012-01-01:2014-12-31,2022-01-01:2024-12-31 \
+    --months 6-9
+```
+
+Keluaran: `uhi_hotspot_map.png` (**suhu permukaan absolut** Landsat 100 m — kuning =
+titik panas), `uhi_lst.tif`, `uhi_trend.png` (tren SUHII), dan `stats.json`. Butuh
+`satchange[maps]`.
+
+> **Catatan jujur:** dua angka SUHII berbeda karena resolusi. **Snapshot** memakai
+> **Landsat 100 m** — memisahkan atap/aspal panas (>45 °C) dari sawah sejuk (~29 °C),
+> jadi SUHII besar (Jakarta ~14 °C). **Tren** memakai **MODIS 1 km sensor konsisten**
+> (Landsat mencampur TM/OLI yang tak sebanding) — piksel kasar mencampur kota+desa,
+> jadi SUHII absolutnya lebih kecil (~2 °C); yang penting adalah *arah* perubahannya.
+> Ini suhu *permukaan* siang hari (bukan suhu udara, yang jauh lebih kecil).
 
 ### Backend data: GEE atau Planetary Computer (tanpa akun)
 
@@ -696,7 +727,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.29) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *satchange: Multipurpose satellite change detection* (Versi 0.1.30) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -704,7 +735,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_satchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {satchange: Multipurpose satellite change detection},
-  version   = {0.1.29},
+  version   = {0.1.30},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

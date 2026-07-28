@@ -53,6 +53,7 @@ GeoTIFF, statistics JSON, metadata, and any maps.
 | `coastline` | Sea boundary + shoreline change (erosion/accretion) + retreat rate m/yr | S1 / S2 / Landsat |
 | `transit-access` | % population with access to public transport (SDG 11.2.1) | WorldPop + OSM |
 | `island-heat` | SST + LST + wet-bulb (humid heat) trends for small islands | OISST / Landsat / ERA5 |
+| `urban-heat` | Urban heat island (SUHII) + hot-spot map + decadal trend | GHSL + Landsat + MODIS |
 
 ## Two backends
 
