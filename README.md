@@ -468,11 +468,47 @@ tahun **dipisah gambut vs tanah mineral**, ditumpuk dengan garis titik panas FIR
 dan `stats.json` (per tahun, per bulan, total, %-gambut, tahun terparah, bulan puncak).
 Butuh `earthchange[maps]`. Backend: **GEE**.
 
-**Definisi gambut.** Tanpa `--peat-file`, gambut adalah **proxy**: karbon organik tanah
-OpenLandMap (10 cm) ≥ `--peat-thr` (default 30, satuan mentah). Dikalibrasi terhadap
-Riau (**3,8 Mha** vs ±4,0 Mha peta resmi) dan Jawa Barat (±0 — benar). Di Kalimantan
-proxy ini **melebih-lebihkan** (6,5 Mha vs ±3,0 Mha resmi) karena peta resmi hanya
-menghitung gambut >50 cm. Untuk angka yang disitasi, pakai `--peat-file`.
+**Lapisan gambut — tiga pilihan.** Tidak ada satu pun yang unggul di semua wilayah,
+jadi ketiganya bisa dipilih:
+
+| Sumber | Cara pakai | Sifat |
+|--------|-----------|-------|
+| **SOC proxy** (default) | `--peat-source soc` | Karbon organik tanah OpenLandMap (10 cm) ≥ `--peat-thr` (30). Tanpa unduhan. |
+| **PEATGRIDS** | `--peat-source peatgrids` | Ketebalan gambut global 1 km (GPM 2.0 + digital soil mapping). Tanpa unduhan. |
+| **Gumbricht 2017 (CIFOR)** | `--peat-file <file>.tif` | Peta gambut tropis 231 m, **terbit peer-review & bisa disitasi**. Perlu unduh sekali. |
+
+Mengunduh **Gumbricht et al. 2017** (Tropical and Subtropical Wetlands Distribution,
+[DOI 10.17528/CIFOR/DATA.00058](https://doi.org/10.17528/CIFOR/DATA.00058)):
+
+```bash
+curl -L -o peat.7z "https://data.cifor.org/api/access/datafile/1727"   # 40 MB
+7z x peat.7z          # -> TROP-SUBTROP_PeatV21_2016_CIFOR.tif (332 MB, 231 m)
+earthchange -s fire-history --lat 0.5 --lon 101.9 --radius 60 \
+    --peat-file TROP-SUBTROP_PeatV21_2016_CIFOR.tif
+```
+
+Definisi Gumbricht: tanah dengan **≥30 cm** bahan organik terdekomposisi dan **≥50%**
+bahan organik; disusun dari kelas lahan basah pembentuk gambut (mangrove, rawa, fen,
+riverine, floodswamp); kesesuaian 65% terhadap 275 profil tanah.
+
+**Perbandingan jujur** terhadap angka provinsi yang lazim dikutip (BBSDLP/Wetlands
+International — perkiraan, bukan kebenaran mutlak):
+
+| Provinsi | Lazim dikutip | Gumbricht | SOC≥30 | PEATGRIDS |
+|----------|--------------|-----------|--------|-----------|
+| Riau | ±4,0 Mha | 2,14 (kurang) | **3,88** ✓ | 5,74 (lebih) |
+| Kalimantan Tengah | ±3,0 | **2,63** ✓ | 6,55 (2× lebih) | 5,20 (lebih) |
+| Jawa Barat | ±0 | 0,16 (positif palsu) | **0,01** ✓ | **0,00** ✓ |
+| Papua | ±3,7 | 6,06 (lebih) | **3,61** ✓ | 11,92 (3× lebih) |
+| Sumatera Selatan | ±1,4 | **1,70** ✓ | 4,37 (3× lebih) | 3,41 (lebih) |
+
+Ringkasnya: **Gumbricht** lebih konservatif dan paling tepat di Kalteng & Sumsel
+(dan bisa disitasi), **SOC proxy** paling tepat di Riau, Papua & Jawa, **PEATGRIDS**
+konsisten melebih-lebihkan. Pilih sesuai wilayah, dan sebutkan sumbernya — nama
+lapisan selalu dicetak di grafik dan tersimpan di `stats.json`.
+
+Untuk peta gambut resmi Indonesia (KLHK/BBSDLP) berbentuk poligon, `--peat-file`
+juga menerima **GeoJSON**.
 
 > **Catatan:** MCD64A1 beresolusi 500 m dan **cenderung meremehkan** kebakaran gambut
 > Indonesia — banyak api gambut membara di bawah permukaan dan tertutup asap/awan.
@@ -901,7 +937,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.41) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.42) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -909,7 +945,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.41},
+  version   = {0.1.42},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

@@ -322,7 +322,8 @@ def _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     fire_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                      config_key=ee_key, start_year=args.start_year,
                      end_year=args.end_year, bbox=fh_bbox,
-                     peat_file=args.peat_file, peat_thr=args.peat_thr)
+                     peat_file=args.peat_file, peat_thr=args.peat_thr,
+                     peat_source=args.peat_source)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -554,6 +555,10 @@ def main():
     ap.add_argument("--peat-file", help="fire-history: GeoJSON of peat polygons for a "
                     "citable peat/mineral split (e.g. an official KLHK/BBSDLP map); "
                     "without it peat is a soil-organic-carbon proxy")
+    ap.add_argument("--peat-source", choices=["soc", "peatgrids"], default="soc",
+                    help="fire-history: peat layer when no --peat-file is given — "
+                         "'soc' (default, OpenLandMap soil-carbon proxy) or "
+                         "'peatgrids' (PEATGRIDS 1 km peat thickness > 0)")
     ap.add_argument("--peat-thr", type=float, default=30.0,
                     help="fire-history: peat proxy threshold on OpenLandMap soil "
                          "organic carbon at 10 cm, raw units (default 30 — calibrated "

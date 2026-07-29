@@ -32,6 +32,10 @@ FIRMS_IC = "FIRMS"                     # MODIS active fire (hotspots), daily
 SOC_IMG = "OpenLandMap/SOL/SOL_ORGANIC-CARBON_USDA-6A1C_M/v02"
 SOC_BAND = "b10"                       # 10 cm depth, raw units (see --peat-thr)
 PEAT_THR = 30.0                        # raw SOC; calibrated on Riau/Jawa Barat
+# Global 1 km peat thickness (GPM 2.0 extent, digital soil mapping), via the
+# awesome-gee-community-catalog. Server-side, no download needed.
+PEATGRIDS_IMG = "projects/sat-io/open-datasets/PEATGRIDS/THICKNESS_CM"
+PEAT_SOURCES = ("soc", "peatgrids", "file")
 DEFAULT_START = 2001                   # first full year of MCD64A1
 BURN_SCALE = 500
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -39,10 +43,20 @@ MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 
 # ----------------------------- GEE building blocks -----------------------------
-def _peat_mask(aoi, peat_file, peat_thr):
-    """Peat mask + a label describing its provenance."""
+def _is_raster(path):
+    return bool(path) and path.lower().endswith((".tif", ".tiff", ".vrt"))
+
+
+def _peat_mask(peat_source, peat_file, peat_thr):
+    """Server-side peat mask + provenance label.
+
+    Returns (ee.Image | None, label). None means the mask is a *local* raster
+    (e.g. the Gumbricht GeoTIFF) and is applied after download instead.
+    """
     import ee
-    if peat_file:
+    if peat_file and _is_raster(peat_file):
+        return None, f"peat raster: {os.path.basename(peat_file)}"
+    if peat_file:                                    # vector (GeoJSON) peat map
         with open(peat_file) as f:
             gj = json.load(f)
         feats = gj["features"] if gj.get("type") == "FeatureCollection" else [gj]
@@ -50,9 +64,27 @@ def _peat_mask(aoi, peat_file, peat_thr):
                                    for ft in feats])
         return ee.Image(0).paint(fc, 1).gt(0), \
             f"peat map from {os.path.basename(peat_file)}"
+    if peat_source == "peatgrids":
+        thick = ee.Image(PEATGRIDS_IMG).select(0)
+        return thick.gt(0).unmask(0), "peat: PEATGRIDS thickness > 0 (1 km)"
     soc = ee.Image(SOC_IMG).select(SOC_BAND)
     return soc.gte(peat_thr).unmask(0), \
         f"peat proxy: OpenLandMap SOC(10cm) >= {peat_thr:g} (raw units)"
+
+
+def _local_peat_on_grid(peat_file, tif):
+    """Read a local peat raster (e.g. Gumbricht) onto the burn raster's grid."""
+    import numpy as np
+    import rasterio
+    from rasterio.warp import reproject, Resampling
+    with rasterio.open(tif) as ref:
+        dst = np.zeros((ref.height, ref.width), dtype="uint8")
+        with rasterio.open(peat_file) as src:
+            reproject(source=rasterio.band(src, 1), destination=dst,
+                      src_transform=src.transform, src_crs=src.crs,
+                      dst_transform=ref.transform, dst_crs=ref.crs,
+                      resampling=Resampling.nearest)
+    return dst == 1                                   # Gumbricht: 1 = peat
 
 
 def _year_burn(year):
@@ -120,6 +152,54 @@ def _frequency(aoi, years):
     import ee
     imgs = [_year_burn(y) for y in years]
     return ee.ImageCollection(imgs).sum().rename("times").clip(aoi)
+
+
+def _burn_stack(aoi, years):
+    """One band per year, burned (1) / not (0) — for local analysis."""
+    import ee
+    return ee.Image.cat([_year_burn(y).rename(f"y{y}") for y in years]) \
+        .toByte().clip(aoi)
+
+
+def _cell_ha(ds):
+    """Per-row cell area in hectares for a lon/lat raster."""
+    import numpy as np
+    t = ds.transform
+    dlon, dlat = abs(t.a), abs(t.e)
+    lat_top = t.f
+    lats = lat_top - (np.arange(ds.height) + 0.5) * dlat
+    return (dlat * 110574.0) * (dlon * 111320.0 * np.cos(np.radians(lats))) / 1e4
+
+
+def _annual_local(stack_tif, years, peat_arr):
+    """Annual burned ha (total, peat) and the recurrence grid, computed locally."""
+    import numpy as np
+    import rasterio
+    with rasterio.open(stack_tif) as ds:
+        a = ds.read().astype(bool)                    # (year, row, col)
+        ha = _cell_ha(ds)[None, :, None]
+        prof = ds.profile
+    if peat_arr is not None:
+        pk = peat_arr[:a.shape[1], :a.shape[2]]
+        if pk.shape != a.shape[1:]:                   # pad if the peat clip is short
+            pad = np.zeros(a.shape[1:], dtype=bool)
+            pad[:pk.shape[0], :pk.shape[1]] = pk
+            pk = pad
+    else:
+        pk = np.zeros(a.shape[1:], dtype=bool)
+    tot = [round(float((a[i] * ha[0]).sum()), 1) for i in range(len(years))]
+    pt = [round(float(((a[i] & pk) * ha[0]).sum()), 1) for i in range(len(years))]
+    freq = a.sum(axis=0).astype("uint8")
+    return tot, pt, freq, prof
+
+
+def _write_freq(freq, prof, out):
+    import rasterio
+    prof = dict(prof)
+    prof.update(count=1, dtype="uint8", nodata=0)
+    with rasterio.open(out, "w", **prof) as dst:
+        dst.write(freq, 1)
+    return out
 
 
 # ----------------------------- rendering -----------------------------
@@ -228,10 +308,39 @@ def _render_season(run_dir, name, season, years):
     print(f"Chart: {os.path.normpath(out)}")
 
 
+def _burned_series(aoi, years, peat, peat_file, run_dir, tif, box, name):
+    """Annual burned ha (total, peat) + the recurrence GeoTIFF and its map.
+
+    With a server-side peat mask the series is reduced in Earth Engine. With a
+    local peat raster (e.g. Gumbricht) one per-year burn stack is downloaded
+    and the whole computation runs locally on that grid.
+    """
+    from .gee_utils import download_geotiff
+    if peat is None:
+        stack = os.path.join(run_dir, "fire_burn_stack.tif")
+        if download_geotiff(_burn_stack(aoi, years), aoi, stack,
+                            scale=BURN_SCALE) is None:
+            raise SystemExit("burn-stack download failed — try a smaller --radius "
+                             "or a shorter year range.")
+        peat_arr = _local_peat_on_grid(peat_file, stack)
+        tot, pt, freq_arr, prof = _annual_local(stack, years, peat_arr)
+        _write_freq(freq_arr, prof, tif)
+        print(f"Saved: {os.path.normpath(tif)}")
+        _render_freq_map(tif, box, run_dir, name, years)
+        return tot, pt
+    tot, pt = _annual_series(aoi, years, peat)
+    if download_geotiff(_frequency(aoi, years).toByte(), aoi, tif,
+                        scale=BURN_SCALE) is not None:
+        _render_freq_map(tif, box, run_dir, name, years)
+    else:
+        print("  (frequency map skipped: download failed — try a smaller --radius)")
+    return tot, pt
+
+
 # ----------------------------- entry point -----------------------------
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         start_year=DEFAULT_START, end_year=None, bbox=None,
-        peat_file=None, peat_thr=PEAT_THR):
+        peat_file=None, peat_thr=PEAT_THR, peat_source="soc"):
     """Multi-year fire history: recurrence map + annual/seasonal charts (GEE)."""
     for mod in ("numpy", "matplotlib", "rasterio"):
         try:
@@ -259,20 +368,14 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     xs = [p[0] for p in b]; ys = [p[1] for p in b]
     box = [min(xs), min(ys), max(xs), max(ys)]
 
-    peat, peat_label = _peat_mask(aoi, peat_file, peat_thr)
+    peat, peat_label = _peat_mask(peat_source, peat_file, peat_thr)
     print(f"  {peat_label}")
     print(f"  years {years[0]}–{years[-1]} ({len(years)})")
 
-    tot, pt = _annual_series(aoi, years, peat)
+    tif = os.path.join(run_dir, "fire_frequency.tif")
+    tot, pt = _burned_series(aoi, years, peat, peat_file, run_dir, tif, box, name)
     season = _season_series(aoi, years)
     hot = _hotspots(aoi, years)
-
-    freq = _frequency(aoi, years)
-    tif = os.path.join(run_dir, "fire_frequency.tif")
-    if download_geotiff(freq.toByte(), aoi, tif, scale=BURN_SCALE) is not None:
-        _render_freq_map(tif, box, run_dir, name, years)
-    else:
-        print("  (frequency map skipped: download failed — try a smaller --radius)")
     _render_year_chart(run_dir, name, years, tot, pt, hot, peat_label)
     _render_season(run_dir, name, season, years)
 
