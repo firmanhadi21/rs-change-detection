@@ -55,7 +55,7 @@ GeoTIFF, statistics JSON, metadata, and any maps.
 | `island-heat` | SST + LST + wet-bulb (humid heat) trends for small islands | OISST / Landsat / ERA5 |
 | `urban-heat` | Urban heat island (SUHII) + hot-spot map + decadal trend | GHSL + Landsat + MODIS |
 | `forest-history` | Multi-epoch deforestation: year-of-loss map + forest-area trajectory | S2 / Landsat NDVI |
-| `population-change` | Two-epoch population change: gained/lost/present map + 3D spike forest + forge3d export | GHSL GHS_POP |
+| `population-change` | Two-epoch population change: Miloš-style spike-forest poster + gained/lost/present map + forge3d export | GHSL GHS_POP |
 
 ## Two backends
 

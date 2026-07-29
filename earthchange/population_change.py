@@ -44,6 +44,35 @@ C_PRESENT = "#c8c6bf"
 C_GAINED = "#1a7f5a"
 C_LOST = "#b0217a"
 
+# City labels for the poster, keyed by AOI name (lower-case, spaces→_). (name, lon, lat)
+CITY_LABELS = {
+    "jawa": [("Jakarta", 106.85, -6.20), ("Bandung", 107.61, -6.91),
+             ("Semarang", 110.42, -6.97), ("Surabaya", 112.75, -7.25),
+             ("Yogyakarta", 110.37, -7.80), ("Surakarta", 110.83, -7.56),
+             ("Cirebon", 108.55, -6.73), ("Malang", 112.63, -7.98)],
+    "sumatera": [("Medan", 98.67, 3.59), ("Padang", 100.37, -0.95),
+                 ("Palembang", 104.76, -2.98), ("Pekanbaru", 101.45, 0.51),
+                 ("Bandar Lampung", 105.27, -5.43), ("Banda Aceh", 95.32, 5.55)],
+    "kalimantan": [("Pontianak", 109.34, -0.02), ("Banjarmasin", 114.59, -3.32),
+                   ("Samarinda", 117.15, -0.50), ("Balikpapan", 116.83, -1.24),
+                   ("Palangkaraya", 113.92, -2.21)],
+    "sulawesi": [("Makassar", 119.42, -5.15), ("Manado", 124.85, 1.49),
+                 ("Palu", 119.87, -0.90), ("Kendari", 122.51, -3.99),
+                 ("Gorontalo", 123.06, 0.54)],
+    "papua": [("Jayapura", 140.72, -2.53), ("Sorong", 131.25, -0.88),
+              ("Manokwari", 134.06, -0.86), ("Merauke", 140.40, -8.49),
+              ("Timika", 136.89, -4.55)],
+    "bali": [("Denpasar", 115.22, -8.67), ("Singaraja", 115.10, -8.11)],
+    "nusa_tenggara": [("Mataram", 116.12, -8.58), ("Kupang", 123.61, -10.18),
+                      ("Bima", 118.73, -8.46)],
+    "maluku": [("Ambon", 128.19, -3.70), ("Ternate", 127.38, 0.79)],
+    "indonesia": [("Jakarta", 106.85, -6.20), ("Surabaya", 112.75, -7.25),
+                  ("Bandung", 107.61, -6.91), ("Medan", 98.67, 3.59),
+                  ("Semarang", 110.42, -6.97), ("Makassar", 119.42, -5.15),
+                  ("Palembang", 104.76, -2.98), ("Denpasar", 115.22, -8.67),
+                  ("Balikpapan", 116.83, -1.24), ("Jayapura", 140.72, -2.53)],
+}
+
 
 # ----------------------------- GEE building blocks -----------------------------
 def _resolve_aoi(country, bbox, lon, lat, radius):
@@ -301,25 +330,6 @@ def _place_spikes(ax, coll, xlim, ylim, bbox):
     ax.axis("off")
 
 
-def _render_spikes(cls, height, bbox, run_dir, name, years, dark=False):
-    """Standalone 2.5-D 'forest of spikes' PNG for one area."""
-    plt = _plt()
-    coll, xlim, ylim = _spike_collection(cls, height, bbox, dark=dark)
-    if coll is None:
-        print("  (spike view skipped: no cells above --min-pop)")
-        return
-    bg = "#161616" if dark else "#f2f0ea"
-    fig, ax = plt.subplots(figsize=(12, 12), dpi=150)
-    fig.patch.set_facecolor(bg); ax.set_facecolor(bg)
-    _place_spikes(ax, coll, xlim, ylim, bbox)
-    ax.set_title(f"Population change {years[0]}–{years[1]} — {name}",
-                 fontsize=15, fontweight="bold", color=("#eee" if dark else "#222"))
-    fig.tight_layout()
-    out = os.path.join(run_dir, "pop_spikes_dark.png" if dark else "pop_spikes.png")
-    fig.savefig(out, facecolor=bg); plt.close(fig)
-    print(f"Spikes: {os.path.normpath(out)}")
-
-
 def _write_cells_csv(cls, p1, p2, delta, pct, height, bbox, run_dir, years):
     """One row per drawn cell — feed this to forge3d for a true 3-D spike render."""
     import numpy as np
@@ -398,8 +408,8 @@ def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_i
     _write_class_raster(cls, tif1, box1, run_dir)
     tot1, tot2 = float(p1.sum()), float(p2.sum())
     _render_flat_map(cls, box1, run_dir, name, (y1, y2), (tot1, tot2))
-    _render_spikes(cls, height, box1, run_dir, name, (y1, y2), dark=False)
-    _render_spikes(cls, height, box1, run_dir, name, (y1, y2), dark=True)
+    _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop, dark=False)
+    _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop, dark=True)
     _write_cells_csv(cls, p1, p2, delta, pct, height, box1, run_dir, (y1, y2))
     gained_pop = float(delta[cls == 2].sum()); lost_pop = float(-delta[cls == 3].sum())
     stats = {"run_id": run_id, "scenario": "population-change", "name": name,
@@ -456,6 +466,138 @@ def _render_region_panel(results, run_dir, years, title):
     out = os.path.join(run_dir, "pop_islands_panel.png")
     fig.savefig(out, facecolor=bg); plt.close(fig)
     print(f"\nIslands panel: {os.path.normpath(out)}")
+
+
+# ----------------------------- infographic poster -----------------------------
+def _poster_palette(dark):
+    if dark:
+        return dict(bg="#141414", ground="#2f2f2f", present="#6d6d6d",
+                    gain="#2fe38f", loss="#ff36c0", text="#eeeeee",
+                    sub="#b9b9b9", faint="#8a8a8a")
+    return dict(bg="#f3f0ea", ground="#d7d3c8", present="#c8c4b8",
+                gain="#1a9e6a", loss="#c0247e", text="#20242a",
+                sub="#555b62", faint="#7a7f86")
+
+
+def _coarsen_sum(a, f):
+    """Block-sum an array by an integer factor (population-preserving down-sample)."""
+    if f <= 1:
+        return a
+    r = (a.shape[0] // f) * f; c = (a.shape[1] // f) * f
+    return a[:r, :c].reshape(r // f, f, c // f, f).sum(axis=(1, 3))
+
+
+def _poster_geometry(cls, height, land, box, pal):
+    """Ground-cell parallelograms + short fat cones in one oblique projection."""
+    import numpy as np
+    w, s, e, n = box
+    rows, cols = cls.shape
+    lon_span, lat_span = e - w, n - s
+    dlon, dlat = lon_span / cols, lat_span / rows
+    lons = w + (np.arange(cols) + 0.5) * dlon
+    lats = n - (np.arange(rows) + 0.5) * dlat
+    hmax = float(height.max()) if height.size else 1.0
+    hmin = float(height[cls > 0].min()) if (cls > 0).any() else 0.0
+    span = max(hmax - hmin, 1e-6)
+    tilt, shear = 0.58, 0.26
+    vscale, halfw = 0.22 * lat_span, 0.72 * dlon
+
+    def proj(lon, lat, h):
+        return lon + shear * ((lat - s) / lat_span) * lon_span, s + (lat - s) * tilt + h
+
+    gverts, sverts, scol = [], [], []
+    fg = {1: pal["present"], 2: pal["gain"], 3: pal["loss"]}
+    for r in range(rows):                       # far (north) → near (south)
+        lat = lats[r]
+        for c in range(cols):
+            if not land[r, c]:
+                continue
+            lon = lons[c]
+            gverts.append([proj(lon - dlon / 2, lat + dlat / 2, 0),
+                           proj(lon + dlon / 2, lat + dlat / 2, 0),
+                           proj(lon + dlon / 2, lat - dlat / 2, 0),
+                           proj(lon - dlon / 2, lat - dlat / 2, 0)])
+    for r in range(rows):
+        lat = lats[r]; by = s + (lat - s) * tilt
+        bxs = lons + shear * ((lat - s) / lat_span) * lon_span
+        for c in range(cols):
+            k = cls[r, c]
+            if k == 0:
+                continue
+            hn = (height[r, c] - hmin) / span
+            sverts.append([(bxs[c] - halfw, by), (bxs[c] + halfw, by),
+                           (bxs[c], by + hn * vscale)])
+            scol.append(fg[k])
+    xlim = (w - halfw, e + shear * lon_span + halfw)
+    ylim = (s - 0.03 * lat_span, s + lat_span * tilt + vscale + 0.05 * lat_span)
+    return gverts, sverts, scol, xlim, ylim, proj
+
+
+def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark):
+    """Miloš-style poster: island silhouette of cones + title/legend/footer chrome."""
+    import numpy as np
+    from matplotlib.collections import PolyCollection
+    from matplotlib.patches import Rectangle
+    plt = _plt()
+    pal = _poster_palette(dark)
+    factor = max(1, round(p1.shape[1] / 130))     # ~130 cols → fewer, fatter cones
+    q1, q2 = _coarsen_sum(p1, factor), _coarsen_sum(p2, factor)
+    cls, delta, _, height = _classify(q1, q2, neutral_pct, max(min_pop, 300))
+    land = np.maximum(q1, q2) > 0
+    gv, sv, sc, xlim, ylim, proj = _poster_geometry(cls, height, land, box, pal)
+    if not sv:
+        print("  (poster skipped: no cells above threshold)")
+        return
+
+    y1, y2 = years
+    tot1, tot2 = float(p1.sum()), float(p2.sum())
+    net = tot2 - tot1
+    verb = "gained" if net >= 0 else "lost"
+    subtitle = (f"{name.replace('_', ' ')} {verb} {abs(net)/1e6:.0f} million people "
+                f"in {y2 - y1} years.")
+
+    fig = plt.figure(figsize=(14, 8.0), dpi=150)
+    fig.patch.set_facecolor(pal["bg"])
+    ax = fig.add_axes([0.02, 0.09, 0.96, 0.56]); ax.set_facecolor(pal["bg"])
+    ax.add_collection(PolyCollection(gv, facecolors=pal["ground"],
+                                     edgecolors=pal["ground"], linewidths=0.3))
+    ax.add_collection(PolyCollection(sv, facecolors=sc, edgecolors="none"))
+    ax.set_xlim(*xlim); ax.set_ylim(*ylim)
+    ax.set_aspect(1 / math.cos(math.radians((box[1] + box[3]) / 2)))
+    ax.axis("off")
+    for nm, lo, la in CITY_LABELS.get(name.lower().replace(" ", "_"), []):
+        if box[0] <= lo <= box[2] and box[1] <= la <= box[3]:
+            X, Y = proj(lo, la, 0)
+            ax.plot([X], [Y], "o", ms=3, color=pal["text"], zorder=5)
+            ax.annotate(nm, (X, Y), textcoords="offset points", xytext=(4, 6),
+                        fontsize=9, fontweight="bold", color=pal["text"], zorder=6)
+
+    fig.text(0.035, 0.945, f"Population change, {y1}–{y2}", fontsize=15, color=pal["sub"])
+    fig.text(0.033, 0.845, name.replace("_", " ").upper(), fontsize=52,
+             fontweight="bold", color=pal["text"], family="serif")
+    fig.text(0.035, 0.785, f"{tot1/1e6:.1f} M people in {y1}   →   {tot2/1e6:.1f} M in {y2}",
+             fontsize=15, fontweight="bold", color=pal["text"])
+    fig.text(0.035, 0.755, subtitle, fontsize=12.5, color=pal["sub"])
+    lx = 0.60
+    for i, (col, lab) in enumerate([(pal["gain"], f"gained since {y1}"),
+                                     (pal["loss"], f"lost since {y1}"),
+                                     (pal["present"], "present in both years")]):
+        y = 0.94 - i * 0.032
+        fig.patches.append(Rectangle((lx, y), 0.02, 0.022, transform=fig.transFigure,
+                                     facecolor=col, edgecolor="none"))
+        fig.text(lx + 0.03, y + 0.003, lab, fontsize=12, color=pal["text"])
+    fig.text(lx, 0.815, "Spike height = larger of the two populations (log scale).",
+             fontsize=10.5, color=pal["sub"])
+    fig.text(lx, 0.79, f"Changes within ±1% stay neutral; cells under {int(max(min_pop,300))} "
+             "residents not drawn.", fontsize=10.5, color=pal["sub"])
+    fig.text(0.035, 0.02, f"Data: GHSL GHS_POP (R2023A, epochs {y1} & {y2}) — census counts "
+             "disaggregated by built-up area; epoch values are model estimates.",
+             fontsize=8.5, color=pal["faint"])
+    fig.text(0.965, 0.02, "earthchange · inspired by Miloš Popović",
+             fontsize=8.5, color=pal["faint"], ha="right")
+    out = os.path.join(run_dir, "pop_poster_dark.png" if dark else "pop_poster.png")
+    fig.savefig(out, facecolor=pal["bg"]); plt.close(fig)
+    print(f"Poster: {os.path.normpath(out)}")
 
 
 # ----------------------------- entry point -----------------------------
