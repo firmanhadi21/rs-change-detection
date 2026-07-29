@@ -164,6 +164,8 @@ def resolve_location(args):
         return None, None, None, args.name or safe_name(args.country)
     elif getattr(args, "admin", None):
         return None, None, None, args.name or safe_name(args.admin)
+    elif getattr(args, "areas", None):
+        return None, None, None, args.name or "areas"
     elif getattr(args, "bbox", None):
         w, s, e, n = (float(x) for x in args.bbox.split(","))
         return (s + n) / 2, (w + e) / 2, None, args.name or "bbox"
@@ -321,11 +323,17 @@ def _run_population_change(args, lat, lon, radius, name, run_dir, run_id, ee_key
 def _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     from . import fire_history
     fh_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
-    fire_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                     config_key=ee_key, start_year=args.start_year,
-                     end_year=args.end_year, bbox=fh_bbox,
-                     peat_file=args.peat_file, peat_thr=args.peat_thr,
-                     peat_source=args.peat_source, admin=args.admin)
+    kw = dict(backend=args.backend, lat=lat, lon=lon, radius=radius,
+              config_key=ee_key, start_year=args.start_year,
+              end_year=args.end_year, peat_file=args.peat_file,
+              peat_thr=args.peat_thr, peat_source=args.peat_source,
+              vs_baseline=args.vs_baseline)
+    if args.areas:
+        areas = [a.strip() for a in args.areas.split(",") if a.strip()]
+        fire_history._run_areas(areas, kw, run_dir, run_id)
+        return
+    fire_history.run(name=name, run_dir=run_dir, run_id=run_id,
+                     bbox=fh_bbox, admin=args.admin, **kw)
 
 
 def _run_haze(args, lat, lon, radius, name, run_dir, run_id, ee_key):
@@ -579,6 +587,13 @@ def main():
     ap.add_argument("--admin", help="fire-history/haze: admin-1 area name from FAO GAUL "
                     "(e.g. 'Riau', 'Kalimantan Tengah') — uses the real province "
                     "polygon instead of a square AOI, so figures are per-province")
+    ap.add_argument("--areas", help="fire-history: comma-separated admin names to "
+                    "run and compare, e.g. --areas 'Riau,Jambi,Sumatera Selatan' "
+                    "— writes each area plus fire_areas_comparison.png")
+    ap.add_argument("--vs-baseline", action="store_true",
+                    help="fire-history: also compare the current season to date "
+                         "against the same calendar window in every prior year "
+                         "(FIRMS hotspots) — writes fire_vs_baseline.png")
     ap.add_argument("--peat-source", choices=["soc", "peatgrids"], default="soc",
                     help="fire-history: peat layer when no --peat-file is given — "
                          "'soc' (default, OpenLandMap soil-carbon proxy) or "

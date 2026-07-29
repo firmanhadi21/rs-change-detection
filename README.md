@@ -499,7 +499,27 @@ earthchange -s fire-history --bbox 113.5,-3.0,114.5,-2.0 --start-year 2015 -n Se
 
 # Angka yang bisa disitasi: pakai peta gambut resmi (KLHK/BBSDLP)
 earthchange -s fire-history --lat 0.5 --lon 101.9 --radius 60 --peat-file gambut_klhk.geojson
+
+# Bandingkan beberapa wilayah sekaligus -> fire_areas_comparison.png
+earthchange -s fire-history --areas "Riau,Jambi,Sumatera Selatan,Kalimantan Tengah,Kalimantan Barat"
+
+# Musim berjalan vs seluruh rekaman -> fire_vs_baseline.png
+earthchange -s fire-history --admin "Kalimantan Barat" --vs-baseline
 ```
+
+**Banding antar-wilayah (`--areas`).** Daftar nama admin dipisah koma; tiap wilayah
+dijalankan ke subfoldernya sendiri, lalu dirakit satu panel: deret tahunan per
+wilayah (gambut vs mineral, skala-y masing-masing), total, porsi gambut, dan
+kurva musim yang ditumpuk. `stats.json` memuat semuanya plus peringkat luas terbakar.
+
+**Musim berjalan vs baseline (`--vs-baseline`).** Menghitung titik panas FIRMS
+untuk **jendela tanggal yang sama** (1 Jan → hari ini) di **setiap tahun**, jadi musim
+yang belum selesai dibandingkan secara adil — bukan melawan tahun penuh. Memakai
+FIRMS, bukan MCD64A1, karena luas terbakar tertinggal beberapa bulan sehingga tak
+bisa menggambarkan musim yang sedang berjalan. Grafiknya menampilkan **dua** garis
+acuan: rata-rata seluruh rekaman **dan** rata-rata dekade terakhir — penting, karena
+rezim kebakaran bergeser (pasca krisis 2015 provinsi-provinsi turun tajam, sehingga
+rata-rata panjang meremehkan seberapa anomali musim berjalan).
 
 Keluaran: **`fire_frequency_map.png`** (+ `.tif`) — peta **berapa kali tiap piksel
 terbakar** sepanjang periode, sehingga titik **berulang** (biasanya gambut terdrainase)
@@ -978,7 +998,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.45) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.46) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -986,7 +1006,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.45},
+  version   = {0.1.46},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

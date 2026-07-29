@@ -331,6 +331,90 @@ def _render_season(run_dir, name, season, years):
     print(f"Chart: {os.path.normpath(out)}")
 
 
+# ----------------------------- season vs baseline -----------------------------
+def _hotspots_to_date(aoi, years, md_end):
+    """FIRMS hotspot pixel-days for Jan 1 → `md_end` (MM-DD) in each year.
+
+    The same calendar window every year, so a part-finished season can be
+    compared honestly against history instead of against full years.
+    """
+    import ee
+    out = []
+    for y in years:
+        ic = (ee.ImageCollection(FIRMS_IC)
+              .filterDate(f"{y}-01-01", f"{y}-{md_end}").select("T21"))
+        cnt = ic.map(lambda i: i.gt(0)).sum().unmask(0)
+        out.append(cnt.reduceRegion(ee.Reducer.sum(), aoi, 1000,
+                                    maxPixels=int(1e10), bestEffort=True).get("T21"))
+    return [int(v or 0) for v in ee.List(out).getInfo()]
+
+
+def _baseline_stats(years, vals, current):
+    """Compare the current year against the full record and the recent decade.
+
+    Reported separately because fire regimes shift: after the 2015 crisis
+    Indonesian provinces dropped sharply, so a long-run mean understates how
+    anomalous a current season is.
+    """
+    import numpy as np
+    prior = [(y, v) for y, v in zip(years, vals) if y != current]
+    cur = dict(zip(years, vals)).get(current)
+    if cur is None or not prior:
+        return None
+    allp = [v for _, v in prior]
+    recent = [v for y, v in prior if y >= current - 10]
+    rank = sorted(allp + [cur], reverse=True).index(cur) + 1
+    return {"current_year": current, "current": cur,
+            "baseline_mean": round(float(np.mean(allp)), 1),
+            "baseline_years": [prior[0][0], prior[-1][0]],
+            "recent_mean": round(float(np.mean(recent)), 1) if recent else None,
+            "recent_years": [max(min(y for y, _ in prior), current - 10),
+                             current - 1],
+            "ratio_vs_baseline": round(cur / max(np.mean(allp), 1), 2),
+            "ratio_vs_recent": (round(cur / max(np.mean(recent), 1), 2)
+                                if recent else None),
+            "rank": rank, "of": len(allp) + 1}
+
+
+def _render_baseline(run_dir, name, years, vals, md_end, bs):
+    """Current season against the record: bars per year, current highlighted."""
+    import numpy as np
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(12, 5), dpi=150)
+    fig.patch.set_facecolor("#faf8f4")
+    x = np.arange(len(years))
+    cur_y = bs["current_year"]
+    cols = ["#b30000" if y == cur_y else "#8a8a8a" if y == cur_y - 1
+            else "#c8c4b8" for y in years]
+    ax.bar(x, vals, color=cols)
+    ax.axhline(bs["baseline_mean"], color="#7f2704", ls="--", lw=1.3,
+               label=f"rata-rata {bs['baseline_years'][0]}–{bs['baseline_years'][1]}"
+                     f" ({bs['baseline_mean']:,.0f})")
+    if bs["recent_mean"] is not None:
+        ax.axhline(bs["recent_mean"], color="#2f7fd1", ls=":", lw=1.5,
+                   label=f"rata-rata {bs['recent_years'][0]}–{bs['recent_years'][1]}"
+                         f" ({bs['recent_mean']:,.0f})")
+    note = f"{cur_y}: {bs['current']:,}"
+    if bs["ratio_vs_recent"] is not None:
+        note += f"  (×{bs['ratio_vs_recent']:.1f} dekade terakhir · " \
+                f"peringkat {bs['rank']}/{bs['of']})"
+    ax.annotate(note, (len(years) - 1, bs["current"]),
+                textcoords="offset points", xytext=(-6, 8), ha="right",
+                fontsize=10, fontweight="bold", color="#b30000")
+    ax.set_xticks(x); ax.set_xticklabels([str(y) for y in years],
+                                         rotation=45, fontsize=8)
+    ax.set_ylabel("titik panas (piksel-hari)")
+    ax.set_title(f"Musim berjalan vs baseline — {name}\n"
+                 f"FIRMS, 1 Jan – {md_end} (jendela tanggal sama tiap tahun)",
+                 fontsize=12, fontweight="bold")
+    ax.legend(fontsize=9, loc="upper left")
+    ax.grid(True, axis="y", ls=":", alpha=0.35)
+    fig.tight_layout()
+    out = os.path.join(run_dir, "fire_vs_baseline.png")
+    fig.savefig(out, facecolor="#faf8f4"); plt.close(fig)
+    print(f"Chart: {os.path.normpath(out)}")
+
+
 def _burned_series(aoi, years, peat, peat_file, run_dir, tif, box, name):
     """Annual burned ha (total, peat) + the recurrence GeoTIFF and its map.
 
@@ -360,10 +444,148 @@ def _burned_series(aoi, years, peat, peat_file, run_dir, tif, box, name):
     return tot, pt
 
 
+def _season_vs_baseline(aoi, start_year, run_dir, name):
+    """Current season to date vs the same calendar window in every prior year.
+
+    Uses FIRMS rather than MCD64A1 because burned area lags by months, so it
+    cannot describe a season that is still running.
+    """
+    import datetime as _dt
+    today = _dt.date.today()
+    byears = list(range(start_year, today.year + 1))
+    bvals = _hotspots_to_date(aoi, byears, today.strftime("%m-%d"))
+    bs = _baseline_stats(byears, bvals, today.year)
+    if not bs:
+        print("  (baseline skipped: no data for the current year)")
+        return None
+    bs["window"] = f"Jan 1 – {today.strftime('%b %d')}"
+    bs["hotspots_by_year"] = dict(zip(byears, bvals))
+    _render_baseline(run_dir, name, byears, bvals, today.strftime("%d %b"), bs)
+    print(f"  musim {bs['current_year']} s/d {bs['window']}: {bs['current']:,} "
+          f"titik panas · ×{bs['ratio_vs_baseline']} rata-rata panjang" +
+          (f" · ×{bs['ratio_vs_recent']} dekade terakhir"
+           if bs["ratio_vs_recent"] else "") +
+          f" · peringkat {bs['rank']}/{bs['of']}")
+    return bs
+
+
+# ----------------------------- multi-area comparison -----------------------------
+def _render_areas_panel(results, run_dir, years):
+    """One figure comparing several areas: per-area annual series + summaries."""
+    import math as _m
+    import numpy as np
+    plt = _plt()
+    names = list(results)
+    n = len(names)
+    fig = plt.figure(figsize=(15, 2.1 * n + 4.2), dpi=150)
+    fig.patch.set_facecolor("#faf8f4")
+    gs = fig.add_gridspec(n + 1, 3, height_ratios=[1] * n + [1.3],
+                          hspace=0.62, wspace=0.28)
+    x = np.arange(len(years))
+    for i, nm in enumerate(names):
+        s = results[nm]
+        tot = [s["burned_ha_by_year"][y] for y in years]
+        pt = [s["peat_burned_ha_by_year"][y] for y in years]
+        mineral = [max(a - b, 0) for a, b in zip(tot, pt)]
+        ax = fig.add_subplot(gs[i, :])
+        ax.bar(x, pt, color="#7f2704", label="Gambut (peat)")
+        ax.bar(x, mineral, bottom=pt, color="#fdae6b", label="Tanah mineral")
+        ax.set_ylim(0, max(max(tot), 1) * 1.22)     # per-panel scale
+        ax.set_xticks(x)
+        ax.set_xticklabels([str(y) if i == n - 1 else "" for y in years],
+                           rotation=45, fontsize=7.5)
+        ax.set_ylabel("ha", fontsize=8)
+        w = s["worst_year"]
+        ax.annotate(f"{w}: {s['worst_year_ha']:,.0f} ha",
+                    (years.index(w), s["worst_year_ha"]),
+                    textcoords="offset points", xytext=(0, 4), ha="center",
+                    fontsize=8, fontweight="bold", color="#7f2704")
+        ax.set_title(f"{nm} — {s['total_burned_ha']:,.0f} ha total, "
+                     f"{s['peat_share_pct']:.0f}% gambut, puncak {s['peak_month']}",
+                     fontsize=10, fontweight="bold", loc="left")
+        ax.grid(True, axis="y", ls=":", alpha=0.35)
+        if i == 0:      # figure-level legend, so it can't cover a peak label
+            fig.legend(*ax.get_legend_handles_labels(), loc="upper right",
+                       fontsize=9, ncol=2, bbox_to_anchor=(0.99, 0.995))
+
+    yy = np.arange(n)
+    tots = [results[k]["total_burned_ha"] / 1e3 for k in names]
+    peats = [results[k]["peat_burned_ha"] / 1e3 for k in names]
+    axA = fig.add_subplot(gs[n, 0])
+    axA.barh(yy, [t - p for t, p in zip(tots, peats)], left=peats, color="#fdae6b")
+    axA.barh(yy, peats, color="#7f2704")
+    axA.set_yticks(yy); axA.set_yticklabels(names, fontsize=8); axA.invert_yaxis()
+    axA.set_xlabel(f"ribu ha terbakar {years[0]}–{years[-1]}", fontsize=8)
+    axA.set_title("Total", fontsize=10, fontweight="bold", loc="left")
+    axA.grid(True, axis="x", ls=":", alpha=0.35)
+
+    axB = fig.add_subplot(gs[n, 1])
+    shares = [results[k]["peat_share_pct"] for k in names]
+    axB.barh(yy, shares, color="#7f2704")
+    axB.set_yticks(yy); axB.set_yticklabels([]); axB.invert_yaxis()
+    axB.set_xlabel("% luas terbakar di gambut", fontsize=8)
+    axB.set_title("Porsi gambut", fontsize=10, fontweight="bold", loc="left")
+    for i, v in enumerate(shares):
+        axB.text(v + 1, i, f"{v:.0f}%", va="center", fontsize=8)
+    axB.grid(True, axis="x", ls=":", alpha=0.35)
+
+    axC = fig.add_subplot(gs[n, 2])
+    for nm in names:
+        se = [results[nm]["burned_ha_by_month"][m] for m in MONTHS]
+        t = sum(se) or 1
+        axC.plot(range(12), [100 * v / t for v in se], "o-", ms=3, lw=1.5, label=nm)
+    axC.set_xticks(range(12)); axC.set_xticklabels(MONTHS, fontsize=7)
+    axC.set_ylabel("% luas terbakar", fontsize=8)
+    axC.set_title("Musim kebakaran", fontsize=10, fontweight="bold", loc="left")
+    axC.legend(fontsize=6.5); axC.grid(True, ls=":", alpha=0.35)
+
+    fig.suptitle(f"Riwayat karhutla {years[0]}–{years[-1]} — perbandingan wilayah\n"
+                 "skala-y tiap panel berbeda (bandingkan besaran di panel Total)",
+                 fontsize=14, fontweight="bold", y=0.995)
+    out = os.path.join(run_dir, "fire_areas_comparison.png")
+    fig.savefig(out, facecolor="#faf8f4", bbox_inches="tight"); plt.close(fig)
+    print(f"\nComparison: {os.path.normpath(out)}")
+
+
+def _run_areas(areas, kw, run_dir, run_id):
+    """Run fire-history for several areas, then assemble a comparison panel."""
+    results, order = {}, []
+    for a in areas:
+        sub = os.path.join(run_dir, a.replace(" ", "_"))
+        os.makedirs(sub, exist_ok=True)
+        print(f"\n=== {a} ===")
+        try:
+            st = run(**{**kw, "name": a, "run_dir": sub, "run_id": run_id,
+                        "admin": a, "bbox": None})
+            results[a] = st; order.append(a)
+        except SystemExit as e:
+            print(f"  skipped {a}: {e}")
+        except Exception as e:  # noqa: BLE001 — one bad area shouldn't kill the run
+            print(f"  skipped {a}: {e.__class__.__name__}: {e}")
+    if not results:
+        raise SystemExit("no area produced output.")
+    years = results[order[0]]["years"]
+    _render_areas_panel(results, run_dir, years)
+    agg = {"run_id": run_id, "scenario": "fire-history", "mode": "areas",
+           "areas": results,
+           "ranking_by_burned_ha": sorted(
+               ((k, v["total_burned_ha"]) for k, v in results.items()),
+               key=lambda t: -t[1])}
+    with open(os.path.join(run_dir, "stats.json"), "w") as f:
+        json.dump(agg, f, indent=2)
+    print(f"\n{'area':<22}{'burned ha':>12}{'peat%':>7}  worst  peak")
+    for k, v in agg["ranking_by_burned_ha"]:
+        s = results[k]
+        print(f"  {k:<20}{v:>12,.0f}{s['peat_share_pct']:>6.0f}%  "
+              f"{s['worst_year']}  {s['peak_month']}")
+    return agg
+
+
 # ----------------------------- entry point -----------------------------
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         start_year=DEFAULT_START, end_year=None, bbox=None,
-        peat_file=None, peat_thr=PEAT_THR, peat_source="soc", admin=None):
+        peat_file=None, peat_thr=PEAT_THR, peat_source="soc", admin=None,
+        vs_baseline=False):
     """Multi-year fire history: recurrence map + annual/seasonal charts (GEE)."""
     for mod in ("numpy", "matplotlib", "rasterio"):
         try:
@@ -401,6 +623,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     _render_year_chart(run_dir, name, years, tot, pt, hot, peat_label)
     _render_season(run_dir, name, season, years)
 
+    baseline = _season_vs_baseline(aoi, start_year, run_dir, name) if vs_baseline \
+        else None
+
     total_ha = round(sum(tot), 1)
     peat_ha = round(sum(pt), 1)
     worst = max(range(len(years)), key=lambda i: tot[i])
@@ -421,6 +646,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
              "worst_year": years[worst], "worst_year_ha": tot[worst],
              "peak_month": MONTHS[peak_m],
              "mean_annual_ha": round(total_ha / len(years), 1),
+             "season_vs_baseline": baseline,
              "note": ("burned area is summed per year; a pixel burning in several "
                       "years counts once per year, so the total exceeds the "
                       "distinct area burned")}
