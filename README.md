@@ -364,7 +364,18 @@ earthchange -s island-heat --backend gee --lat -5.85 --lon 110.42 --radius 25 \
 # Per-pulau: deret LST terpisah tiap pulau (SST & wet-bulb tetap regional)
 earthchange -s island-heat --backend gee --lat -5.7 --lon 106.55 --radius 35 \
     --island-mode per-island --islands-file pulau.geojson
+
+# Poster cerita satu halaman (dwibahasa)
+earthchange -s island-heat --lat -0.66 --lon 130.23 --radius 40 \
+    -n "Raja Ampat" --infographic --lang both
 ```
+
+**Poster cerita (`--infographic`).** Menghasilkan `island_heat_story_<id|en>.png`:
+blok judul, tiga angka utama (tren SST / LST / wet-bulb dalam °C per dekade),
+grafik tren gabungan, dan panel puncak wet-bulb tahunan terhadap ambang **28 °C
+bahaya** / **31 °C ekstrem**, plus catatan sumber & keterbatasan. Pilih bahasa
+dengan `--lang id` (default), `en`, atau `both`. Perlu `--island-mode aggregate`
+(mode per-pulau tidak punya satu deret gabungan untuk diceritakan).
 
 Pilih sensor LST dengan `--lst-source`: **`landsat`** (default; 100 m, di-mask ke
 lahan bervegetasi NDVI — memisahkan pulau kecil/tersebar dari air & daratan utama)
@@ -998,7 +1009,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.46) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.47) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -1006,7 +1017,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.46},
+  version   = {0.1.47},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

@@ -420,7 +420,8 @@ def _change_maps(aoi, bbox, years, run_dir, name):
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         island_mode="aggregate", islands_file=None, start_year=DEFAULT_START_YEAR,
-        wetbulb_thr=WETBULB_DANGER, lst_source="landsat"):
+        wetbulb_thr=WETBULB_DANGER, lst_source="landsat",
+        infographic=False, lang="id"):
     """Island SST/LST/wet-bulb trend analysis (GEE backend)."""
     for mod in ("numpy", "matplotlib", "shapely"):
         try:
@@ -450,8 +451,168 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                   "start_year": start_year, "wetbulb_threshold_c": wetbulb_thr})
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2, default=str)
+    if infographic:
+        _build_infographics(stats, run_dir, name, lang)
     _print_summary(stats)
     return stats
+
+
+# ----------------------------- infographic -----------------------------
+INFO_TEXT = {
+    "id": {
+        "kicker": "Pemanasan pulau kecil, {y0}–{y1}",
+        "sub": "Ancaman iklim pulau kecil bukan hanya naiknya muka laut —\n"
+               "tetapi naiknya panas *dan* kelembapan.",
+        "sst": "Laut sekitar (SST)", "lst": "Darat pulau (LST)",
+        "wb": "Panas lembab (wet-bulb)", "per_dec": "°C per dekade",
+        "trend_title": "Tren suhu {y0}–{y1}",
+        "peak_title": "Puncak wet-bulb tahunan vs ambang bahaya",
+        "danger": "28 °C — ambang bahaya", "extreme": "31 °C — ekstrem",
+        "yr": "Tahun", "degc": "°C",
+        "note": ("Catatan: ini data OBSERVASI (satelit + reanalisis ERA5), bukan "
+                 "proyeksi model hingga 2100. SST & wet-bulb adalah sinyal andal; "
+                 "tren LST untuk pulau <1 km bersifat indikatif. Deret wet-bulb "
+                 "memakai ERA5 global dan berakhir ~2020."),
+        "src": "Data: NOAA OISST (SST) · {lst} (LST) · ERA5 (wet-bulb, rumus Stull)",
+        "warm": "menghangat", "cool": "mendingin",
+    },
+    "en": {
+        "kicker": "Small islands are heating, {y0}–{y1}",
+        "sub": "The climate threat to small islands is not only sea-level rise —\n"
+               "it is rising heat *and* humidity.",
+        "sst": "Surrounding sea (SST)", "lst": "Island land (LST)",
+        "wb": "Humid heat (wet-bulb)", "per_dec": "°C per decade",
+        "trend_title": "Temperature trends {y0}–{y1}",
+        "peak_title": "Annual peak wet-bulb vs danger thresholds",
+        "danger": "28 °C — danger threshold", "extreme": "31 °C — extreme",
+        "yr": "Year", "degc": "°C",
+        "note": ("Note: these are OBSERVATIONS (satellite + ERA5 reanalysis), not "
+                 "model projections to 2100. SST & wet-bulb are the robust signals; "
+                 "the LST trend for sub-km islands is indicative only. The wet-bulb "
+                 "series uses global ERA5 and ends ~2020."),
+        "src": "Data: NOAA OISST (SST) · {lst} (LST) · ERA5 (wet-bulb, Stull formula)",
+        "warm": "warming", "cool": "cooling",
+    },
+}
+
+
+def _info_series(d):
+    """{'2000': v, ...} -> (years, values) with None kept for gaps."""
+    if not d:
+        return [], []
+    ys = sorted(int(k) for k in d)
+    return ys, [d[str(y)] if str(y) in d else d[y] for y in ys]
+
+
+def _render_infographic(stats, run_dir, name, lang="id"):
+    """One-page story poster: headline trends, series, peak humid heat."""
+    import numpy as np
+    plt = _plt()
+    T = INFO_TEXT.get(lang, INFO_TEXT["id"])
+    sy, sv = _info_series(stats.get("sst_series"))
+    ly, lv = _info_series(stats.get("lst_series"))
+    wy, wv = _info_series(stats.get("wetbulb_series"))
+    py, pv = _info_series(stats.get("peak_wetbulb_series"))
+    allyrs = [y for y in (sy + ly + wy) if y]
+    if not allyrs:
+        print("  (infographic skipped: no series)")
+        return
+    y0, y1 = min(allyrs), max(allyrs)
+
+    fig = plt.figure(figsize=(12, 15), dpi=150)
+    fig.patch.set_facecolor("#0d1b2a")
+    # top must clear the header block (kicker + big name + two-line subtitle)
+    gs = fig.add_gridspec(3, 3, height_ratios=[0.46, 1.0, 0.85],
+                          hspace=0.40, wspace=0.28,
+                          left=0.075, right=0.945, top=0.835, bottom=0.105)
+    ink, dim = "#f2f6fa", "#9db4c8"
+
+    fig.text(0.075, 0.965, T["kicker"].format(y0=y0, y1=y1), fontsize=15,
+             color="#7fd4ff", fontweight="bold")
+    fig.text(0.075, 0.945, name.upper(), fontsize=34, color=ink,
+             fontweight="bold", family="serif", va="top")
+    fig.text(0.075, 0.905, T["sub"], fontsize=11.5, color=dim, va="top",
+             linespacing=1.5)
+
+    # headline numbers
+    cards = [(T["sst"], stats.get("sst_trend_c_per_decade"), "#4cc9f0"),
+             (T["lst"], stats.get("lst_trend_c_per_decade"), "#f2545b"),
+             (T["wb"], stats.get("wetbulb_trend_c_per_decade"), "#c77dff")]
+    for i, (label, val, col) in enumerate(cards):
+        ax = fig.add_subplot(gs[0, i]); ax.axis("off")
+        ax.set_facecolor("none")
+        if val is None:
+            ax.text(0.5, 0.5, "n/a", ha="center", color=dim, fontsize=20)
+            continue
+        ax.text(0.5, 0.72, f"{val:+.2f}", ha="center", va="center",
+                fontsize=40, fontweight="bold", color=col)
+        ax.text(0.5, 0.40, T["per_dec"], ha="center", fontsize=10, color=dim)
+        ax.text(0.5, 0.18, label, ha="center", fontsize=11.5, color=ink,
+                fontweight="bold")
+        ax.text(0.5, 0.02, T["warm"] if val >= 0 else T["cool"], ha="center",
+                fontsize=9.5, color=col)
+
+    # trends
+    ax = fig.add_subplot(gs[1, :]); _dark_axes(ax, ink, dim)
+    for xs, ys, col, lab in ((sy, sv, "#4cc9f0", T["sst"]),
+                             (ly, lv, "#f2545b", T["lst"]),
+                             (wy, wv, "#c77dff", T["wb"])):
+        pts = [(x, v) for x, v in zip(xs, ys) if v is not None]
+        if pts:
+            ax.plot([p[0] for p in pts], [p[1] for p in pts], "o-", ms=3,
+                    lw=1.9, color=col, label=lab)
+    ax.set_title(T["trend_title"].format(y0=y0, y1=y1), color=ink,
+                 fontsize=13, fontweight="bold", loc="left")
+    ax.set_xlabel(T["yr"], color=dim); ax.set_ylabel(T["degc"], color=dim)
+    ax.legend(fontsize=9.5, facecolor="#14273b", edgecolor="#2b4459",
+              labelcolor=ink)
+
+    # peak wet-bulb vs thresholds
+    ax = fig.add_subplot(gs[2, :]); _dark_axes(ax, ink, dim)
+    pts = [(x, v) for x, v in zip(py, pv) if v is not None]
+    if pts:
+        ax.plot([p[0] for p in pts], [p[1] for p in pts], "o-", ms=3.5, lw=2.1,
+                color="#ffd166")
+        top = max(p[1] for p in pts)
+        ax.axhline(28, color="#f77f00", ls="--", lw=1.4, label=T["danger"])
+        ax.axhline(31, color="#d62828", ls="--", lw=1.4, label=T["extreme"])
+        ax.set_ylim(min(p[1] for p in pts) - 1.2, max(top, 31.6) + 0.8)
+        ax.legend(fontsize=9.5, facecolor="#14273b", edgecolor="#2b4459",
+                  labelcolor=ink, loc="upper left")
+    ax.set_title(T["peak_title"], color=ink, fontsize=13, fontweight="bold",
+                 loc="left")
+    ax.set_xlabel(T["yr"], color=dim); ax.set_ylabel(T["degc"], color=dim)
+
+    fig.text(0.075, 0.072, T["note"], fontsize=8.6, color=dim, va="top",
+             wrap=True, linespacing=1.45)
+    fig.text(0.075, 0.020,
+             T["src"].format(lst=stats.get("lst_source") or "Landsat/MODIS"),
+             fontsize=8.2, color="#6c8299")
+    fig.text(0.945, 0.020, "earthchange", fontsize=8.2, color="#6c8299",
+             ha="right")
+    out = os.path.join(run_dir, f"island_heat_story_{lang}.png")
+    fig.savefig(out, facecolor="#0d1b2a"); plt.close(fig)
+    print(f"Infographic: {os.path.normpath(out)}")
+    return out
+
+
+def _build_infographics(stats, run_dir, name, lang):
+    """Render the story poster in the requested language(s)."""
+    if stats.get("mode") == "per-island":
+        # The poster tells one island's story; per-island mode has no single
+        # aggregate series to draw.
+        print("  (infographic needs --island-mode aggregate; skipped)")
+        return
+    for lg in (["id", "en"] if lang == "both" else [lang]):
+        _render_infographic(stats, run_dir, name, lg)
+
+
+def _dark_axes(ax, ink, dim):
+    ax.set_facecolor("#14273b")
+    for s in ax.spines.values():
+        s.set_color("#2b4459")
+    ax.tick_params(colors=dim, labelsize=9)
+    ax.grid(True, ls=":", alpha=0.25, color=dim)
 
 
 def _summ(series, thr):

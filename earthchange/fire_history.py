@@ -547,6 +547,57 @@ def _render_areas_panel(results, run_dir, years):
     print(f"\nComparison: {os.path.normpath(out)}")
 
 
+def _render_areas_baseline(results, run_dir):
+    """Current season vs record for several areas, stacked on one figure."""
+    import numpy as np
+    plt = _plt()
+    have = [(k, v["season_vs_baseline"]) for k, v in results.items()
+            if v.get("season_vs_baseline")]
+    if not have:
+        return
+    n = len(have)
+    fig, axes = plt.subplots(n, 1, figsize=(13, 2.6 * n + 1.4), dpi=150,
+                             sharex=True)
+    fig.patch.set_facecolor("#faf8f4")
+    axes = np.atleast_1d(axes)
+    window = have[0][1]["window"]
+    for ax, (nm, bs) in zip(axes, have):
+        hb = bs["hotspots_by_year"]
+        years = sorted(int(y) for y in hb)
+        vals = [hb[str(y)] if str(y) in hb else hb[y] for y in years]
+        cur = bs["current_year"]
+        cols = ["#b30000" if y == cur else "#8a8a8a" if y == cur - 1
+                else "#c8c4b8" for y in years]
+        ax.bar(np.arange(len(years)), vals, color=cols)
+        ax.axhline(bs["baseline_mean"], color="#7f2704", ls="--", lw=1.2,
+                   label=f"rata-rata panjang ({bs['baseline_mean']:,.0f})")
+        # Only worth a second line when the recent decade actually differs
+        # (with a short --start-year the two means coincide).
+        if (bs["recent_mean"] is not None
+                and abs(bs["recent_mean"] - bs["baseline_mean"])
+                > 0.02 * max(bs["baseline_mean"], 1)):
+            ax.axhline(bs["recent_mean"], color="#2f7fd1", ls=":", lw=1.4,
+                       label=f"dekade terakhir ({bs['recent_mean']:,.0f})")
+        tag = f"{cur}: {bs['current']:,}"
+        if bs["ratio_vs_recent"] is not None:
+            tag += f" · ×{bs['ratio_vs_recent']:.1f} dekade terakhir"
+        tag += f" · peringkat {bs['rank']}/{bs['of']}"
+        ax.set_title(f"{nm} — {tag}", fontsize=10, fontweight="bold", loc="left")
+        ax.set_ylabel("titik panas", fontsize=8)
+        ax.legend(fontsize=7.5, loc="upper left")
+        ax.grid(True, axis="y", ls=":", alpha=0.35)
+    yrs = sorted(int(y) for y in have[0][1]["hotspots_by_year"])
+    axes[-1].set_xticks(np.arange(len(yrs)))
+    axes[-1].set_xticklabels([str(y) for y in yrs], rotation=45, fontsize=8)
+    fig.suptitle(f"Musim berjalan vs baseline — perbandingan wilayah\n"
+                 f"FIRMS, {window} (jendela tanggal sama tiap tahun)",
+                 fontsize=13, fontweight="bold", y=0.995)
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    out = os.path.join(run_dir, "fire_areas_baseline.png")
+    fig.savefig(out, facecolor="#faf8f4"); plt.close(fig)
+    print(f"Baseline comparison: {os.path.normpath(out)}")
+
+
 def _run_areas(areas, kw, run_dir, run_id):
     """Run fire-history for several areas, then assemble a comparison panel."""
     results, order = {}, []
@@ -566,6 +617,7 @@ def _run_areas(areas, kw, run_dir, run_id):
         raise SystemExit("no area produced output.")
     years = results[order[0]]["years"]
     _render_areas_panel(results, run_dir, years)
+    _render_areas_baseline(results, run_dir)      # no-op unless --vs-baseline
     agg = {"run_id": run_id, "scenario": "fire-history", "mode": "areas",
            "areas": results,
            "ranking_by_burned_ha": sorted(

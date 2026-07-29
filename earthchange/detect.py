@@ -414,7 +414,8 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                         config_key=ee_key,
                         island_mode=args.island_mode, islands_file=args.islands_file,
                         start_year=args.start_year, wetbulb_thr=args.wetbulb_thr,
-                        lst_source=args.lst_source)
+                        lst_source=args.lst_source,
+                        infographic=args.infographic, lang=args.lang)
         return True
 
     if method == "coastline":
@@ -524,6 +525,11 @@ def main():
                     help="island-heat: LST sensor — landsat 100 m (default; NDVI-masked island "
                          "land, best for small/scattered islands) or modis 1 km (cleaner/denser, "
                          "best for a large island away from the mainland)")
+    ap.add_argument("--infographic", action="store_true",
+                    help="island-heat: also render a one-page story poster "
+                         "(island_heat_story_<lang>.png)")
+    ap.add_argument("--lang", choices=["id", "en", "both"], default="id",
+                    help="--infographic language: id (default), en, or both")
     ap.add_argument("--months", help="urban-heat: restrict to a month range M0-M1 (e.g. 5-10 "
                     "for the dry season, when the surface UHI reads cleanest); default all months")
     ap.add_argument("--boundary", help="transit-access: administrative area name (e.g. "
