@@ -74,6 +74,7 @@ gratis), atau `--site NAMA`.
 | `urban-heat` | Pulau panas perkotaan (SUHII) + peta titik panas + tren dekadal | GHSL + Landsat + MODIS |
 | `forest-history` | Deforestasi multi-periode: peta tahun-kehilangan + tren luas hutan | S2 / Landsat NDVI |
 | `population-change` | Perubahan populasi 2 epoch: infografik siluet-pulau gaya Miloš + peta + ekspor forge3d | GHSL GHS_POP |
+| `haze` | Asap & kualitas udara karhutla: PM2.5 (ISPU), indeks aerosol, titik panas | CAMS + Sentinel-5P + FIRMS |
 | `fire-history` | Riwayat karhutla: luas terbakar/tahun (gambut vs mineral), peta frekuensi, musim | MODIS MCD64A1 + FIRMS |
 
 ```bash
@@ -441,6 +442,42 @@ per periode, total). Butuh `earthchange[maps]`. Atur ambang dengan
 > Beberapa periode (bukan satu pra/pasca) memberi kisah yang lebih benar. Untuk arsip
 > lama pakai GEE (paling andal). Contoh Kalteng: 56.316 → 49.802 ha (−12%, terbesar
 > pada 2000–2010).
+
+### Asap & kualitas udara saat karhutla — `haze`
+
+Kebakaran baru separuh cerita; yang dirasakan orang adalah **asapnya**. Skenario ini
+menggabungkan api dengan udara yang dihirup, hari demi hari:
+
+- **PM2.5 permukaan** dari **CAMS (ECMWF)**, diberi kategori **ISPU** Indonesia dan
+  garis **pedoman WHO 24 jam (15 µg/m³)**;
+- **indeks aerosol** Sentinel-5P TROPOMI (pelacak plume asap);
+- **titik panas FIRMS** pada jendela yang sama, jadi terlihat api penyebabnya;
+- **peta sebaran asap** untuk episode yang sedang berlangsung.
+
+```bash
+# Episode terkini di sebuah kota (45 hari terakhir)
+earthchange -s haze --lat -2.21 --lon 113.92 --radius 30 -n "Palangka Raya"
+
+# Se-provinsi, jendela tanggal sendiri
+earthchange -s haze --admin "Kalimantan Tengah" --haze-start 2026-07-01 --haze-end 2026-07-29
+```
+
+Keluaran: `haze_timeline.png` (tiga panel: PM2.5 berpita ISPU, indeks aerosol, titik
+panas), `haze_smoke_map.png`, dan `stats.json` (PM2.5 harian, jumlah hari per kategori
+ISPU, hari di atas pedoman WHO, PM2.5 terakhir & puncaknya). Butuh `earthchange[maps]`.
+Backend: **GEE**.
+
+> **Catatan penting:**
+> - **PM2.5 CAMS adalah model** (reanalisis/prakiraan), **bukan** alat ukur darat.
+>   Bagus untuk *kapan* episode mulai, seberapa parah relatifnya, dan arah trennya —
+>   bandingkan dengan data stasiun BMKG/KLHK bila perlu angka resmi.
+> - **Indeks aerosol Sentinel-5P sering gagal menangkap asap dekat permukaan.** AAI
+>   peka pada aerosol di ketinggian; asap yang terperangkap inversi di bawah sering
+>   terbaca lemah/negatif. Pada uji Palangka Raya (Juli 2026) PM2.5 melonjak ke
+>   kategori *Tidak Sehat* sementara AAI tetap negatif. Jadikan PM2.5 + titik panas
+>   sebagai sinyal utama; AAI sebagai konteks.
+> - Sumber punya **latensi berbeda** (CAMS memimpin FIRMS beberapa hari), jadi hari
+>   terakhir bisa punya PM2.5 tanpa titik panas.
 
 ### Riwayat kebakaran hutan & lahan — `fire-history`
 
@@ -941,7 +978,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.43) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.44) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -949,7 +986,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.43},
+  version   = {0.1.44},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

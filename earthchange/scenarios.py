@@ -440,6 +440,14 @@ SCENARIOS = {
         "interpretation": ("Kapan tiap piksel hutan hilang (peta) + tren luas hutan "
                            "antar-periode. Pakai --sensor landsat untuk sejak 1980-an."),
     },
+    "haze": {
+        "label": "Haze — smoke & air quality from fires: PM2.5 + aerosol index + hotspots (CAMS/S5P/FIRMS)",
+        "method": "haze",
+        "radius": 25.0, "needs": "none",
+        "interpretation": ("Kualitas udara saat karhutla: PM2.5 harian (kategori "
+                           "ISPU), indeks aerosol Sentinel-5P, titik panas, dan "
+                           "peta sebaran asap."),
+    },
     "fire-history": {
         "label": "Fire history — burned area per year, recurrence map & fire season (MODIS + FIRMS)",
         "method": "fire-history",

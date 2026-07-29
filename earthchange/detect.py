@@ -328,6 +328,14 @@ def _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key):
                      peat_source=args.peat_source, admin=args.admin)
 
 
+def _run_haze(args, lat, lon, radius, name, run_dir, run_id, ee_key):
+    from . import haze
+    hz_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+    haze.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+             config_key=ee_key, days=args.days, start=args.haze_start,
+             end=args.haze_end, admin=args.admin, bbox=hz_bbox)
+
+
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
     """Run a scenario that has its own module (not the generic optical/radar engine).
 
@@ -386,6 +394,10 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
 
     if method == "fire-history":
         _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key)
+        return True
+
+    if method == "haze":
+        _run_haze(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
     if method == "island-heat":
@@ -557,7 +569,14 @@ def main():
     ap.add_argument("--peat-file", help="fire-history: GeoJSON of peat polygons for a "
                     "citable peat/mineral split (e.g. an official KLHK/BBSDLP map); "
                     "without it peat is a soil-organic-carbon proxy")
-    ap.add_argument("--admin", help="fire-history: admin-1 area name from FAO GAUL "
+    ap.add_argument("--days", type=int, default=45,
+                    help="haze: length of the window in days, counting back from "
+                         "--haze-end (default 45)")
+    ap.add_argument("--haze-start", help="haze: window start YYYY-MM-DD "
+                    "(overrides --days)")
+    ap.add_argument("--haze-end", help="haze: window end YYYY-MM-DD "
+                    "(default today)")
+    ap.add_argument("--admin", help="fire-history/haze: admin-1 area name from FAO GAUL "
                     "(e.g. 'Riau', 'Kalimantan Tengah') — uses the real province "
                     "polygon instead of a square AOI, so figures are per-province")
     ap.add_argument("--peat-source", choices=["soc", "peatgrids"], default="soc",

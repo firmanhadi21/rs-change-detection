@@ -56,6 +56,7 @@ GeoTIFF, statistics JSON, metadata, and any maps.
 | `urban-heat` | Urban heat island (SUHII) + hot-spot map + decadal trend | GHSL + Landsat + MODIS |
 | `forest-history` | Multi-epoch deforestation: year-of-loss map + forest-area trajectory | S2 / Landsat NDVI |
 | `population-change` | Two-epoch population change: Miloš-style spike poster + map + optional true GPU 3D via forge3d | GHSL GHS_POP |
+| `haze` | Smoke & air quality during fires: PM2.5 (ISPU), aerosol index, hotspots | CAMS + Sentinel-5P + FIRMS |
 | `fire-history` | Multi-year fire record: burned area per year (peat vs mineral), recurrence map, fire season | MODIS MCD64A1 + FIRMS |
 
 ## Two backends
