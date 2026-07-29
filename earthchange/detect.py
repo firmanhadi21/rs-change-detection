@@ -162,6 +162,8 @@ def resolve_location(args):
         lat, lon = args.lat, args.lon
     elif getattr(args, "country", None):
         return None, None, None, args.name or safe_name(args.country)
+    elif getattr(args, "admin", None):
+        return None, None, None, args.name or safe_name(args.admin)
     elif getattr(args, "bbox", None):
         w, s, e, n = (float(x) for x in args.bbox.split(","))
         return (s + n) / 2, (w + e) / 2, None, args.name or "bbox"
@@ -323,7 +325,7 @@ def _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key):
                      config_key=ee_key, start_year=args.start_year,
                      end_year=args.end_year, bbox=fh_bbox,
                      peat_file=args.peat_file, peat_thr=args.peat_thr,
-                     peat_source=args.peat_source)
+                     peat_source=args.peat_source, admin=args.admin)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -555,6 +557,9 @@ def main():
     ap.add_argument("--peat-file", help="fire-history: GeoJSON of peat polygons for a "
                     "citable peat/mineral split (e.g. an official KLHK/BBSDLP map); "
                     "without it peat is a soil-organic-carbon proxy")
+    ap.add_argument("--admin", help="fire-history: admin-1 area name from FAO GAUL "
+                    "(e.g. 'Riau', 'Kalimantan Tengah') — uses the real province "
+                    "polygon instead of a square AOI, so figures are per-province")
     ap.add_argument("--peat-source", choices=["soc", "peatgrids"], default="soc",
                     help="fire-history: peat layer when no --peat-file is given — "
                          "'soc' (default, OpenLandMap soil-carbon proxy) or "

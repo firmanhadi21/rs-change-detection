@@ -47,6 +47,22 @@ def _is_raster(path):
     return bool(path) and path.lower().endswith((".tif", ".tiff", ".vrt"))
 
 
+def _resolve_aoi(admin, bbox, lon, lat, radius):
+    """AOI from an admin-1 name (FAO GAUL), a bbox, or a lat/lon square."""
+    import ee
+    from .gee_utils import square_aoi
+    if admin:
+        fc = (ee.FeatureCollection("FAO/GAUL/2015/level1")
+              .filter(ee.Filter.eq("ADM1_NAME", admin)))
+        if fc.size().getInfo() == 0:
+            raise SystemExit(f"--admin {admin!r} not found in FAO GAUL level-1. "
+                             "Use the official spelling, e.g. 'Kalimantan Tengah'.")
+        return fc.geometry()
+    if bbox:
+        return ee.Geometry.Rectangle(list(bbox))
+    return square_aoi(lon, lat, radius)
+
+
 def _peat_mask(peat_source, peat_file, peat_thr):
     """Server-side peat mask + provenance label.
 
@@ -340,7 +356,7 @@ def _burned_series(aoi, years, peat, peat_file, run_dir, tif, box, name):
 # ----------------------------- entry point -----------------------------
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         start_year=DEFAULT_START, end_year=None, bbox=None,
-        peat_file=None, peat_thr=PEAT_THR, peat_source="soc"):
+        peat_file=None, peat_thr=PEAT_THR, peat_source="soc", admin=None):
     """Multi-year fire history: recurrence map + annual/seasonal charts (GEE)."""
     for mod in ("numpy", "matplotlib", "rasterio"):
         try:
@@ -350,7 +366,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     if backend == "mpc":
         raise SystemExit("fire-history currently needs --backend gee (MODIS MCD64A1).")
     import ee
-    from .gee_utils import initialize_ee, square_aoi, download_geotiff
+    from .gee_utils import initialize_ee
     initialize_ee(config_key)
 
     import datetime as _dt
@@ -362,8 +378,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         raise SystemExit(f"--end-year must be >= {start_year}.")
     years = list(range(start_year, end_year + 1))
 
-    aoi = (ee.Geometry.Rectangle(list(bbox)) if bbox
-           else square_aoi(lon, lat, radius))
+    aoi = _resolve_aoi(admin, bbox, lon, lat, radius)
     b = aoi.bounds().coordinates().getInfo()[0]
     xs = [p[0] for p in b]; ys = [p[1] for p in b]
     box = [min(xs), min(ys), max(xs), max(ys)]
