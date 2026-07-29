@@ -629,6 +629,8 @@ def _city_spikes(clon, clat, cpop1, cpop2, cdy, box, pal, neutral_pct):
 
 ELEV_MAX_M = 3500.0               # Java's volcanoes; normalises terrain relief
 ELEV_RELIEF = 0.07                # peak terrain lift, as a fraction of lat-span
+POSTER_TERRAIN_COLS = 380         # ground/terrain lattice aims for ~this many columns
+                                  # (decoupled from the 5-km spike/catchment lattice)
 
 
 def _load_terrain(run_dir, factor, shape):
@@ -753,17 +755,28 @@ def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark
     # City totals over nearest-city catchments — not the single (often
     # saturated) peak cell, so a booming metro with a stable core reads green.
     cp1, cp2 = _city_catchments(clon, clat, q1, q2, box)
-    elev = _load_terrain(run_dir, factor, q1.shape)
-    land = np.maximum(q1, q2) > 0
+
+    # Ground/terrain on its own, finer lattice (population logic stays on the
+    # 5-km lattice above; only the basemap gets the extra resolution).
+    tfac = max(1, round(p1.shape[1] / POSTER_TERRAIN_COLS))
+    t1, t2 = _coarsen_sum(p1, tfac), _coarsen_sum(p2, tfac)
+    rt = min(t1.shape[0], t2.shape[0]); ct = min(t1.shape[1], t2.shape[1])
+    t1, t2 = t1[:rt, :ct], t2[:rt, :ct]
+    land = np.maximum(t1, t2) > 0
+    elev = _load_terrain(run_dir, tfac, land.shape)
     if elev is not None:
         land = land | (elev > 1.0)               # unpopulated mountains are still land
     if clip_mask is not None:                    # drop neighbouring countries' terrain
-        qm = _coarsen_sum(clip_mask.astype("float64"), factor) > 0
+        qm = _coarsen_sum(clip_mask.astype("float64"), tfac) > 0
         rm = min(qm.shape[0], land.shape[0]); cm = min(qm.shape[1], land.shape[1])
         land[:rm, :cm] &= qm[:rm, :cm]
         land[rm:, :] = False; land[:, cm:] = False
     gv, gc, dy = _ground_quads(land, box, elev=elev, pal=pal)
-    cdy = dy[crow, ccol]
+    # Spike bases sit on the terrain: sample the lift grid at each city's lon/lat.
+    w_, s_, e_, n_ = box
+    jt = np.clip(((clon - w_) / (e_ - w_) * dy.shape[1]).astype(int), 0, dy.shape[1] - 1)
+    it = np.clip(((n_ - clat) / (n_ - s_) * dy.shape[0]).astype(int), 0, dy.shape[0] - 1)
+    cdy = dy[it, jt]
     body_v, tip_v, tip_c, xlim, ylim, proj, hn, vscale, tilt, shear = \
         _city_spikes(clon, clat, cp1, cp2, cdy, box, pal, neutral_pct)
 
