@@ -74,6 +74,7 @@ gratis), atau `--site NAMA`.
 | `urban-heat` | Pulau panas perkotaan (SUHII) + peta titik panas + tren dekadal | GHSL + Landsat + MODIS |
 | `forest-history` | Deforestasi multi-periode: peta tahun-kehilangan + tren luas hutan | S2 / Landsat NDVI |
 | `population-change` | Perubahan populasi 2 epoch: infografik siluet-pulau gaya Miloš + peta + ekspor forge3d | GHSL GHS_POP |
+| `fire-history` | Riwayat karhutla: luas terbakar/tahun (gambut vs mineral), peta frekuensi, musim | MODIS MCD64A1 + FIRMS |
 
 ```bash
 # Sintaks umum
@@ -440,6 +441,44 @@ per periode, total). Butuh `earthchange[maps]`. Atur ambang dengan
 > Beberapa periode (bukan satu pra/pasca) memberi kisah yang lebih benar. Untuk arsip
 > lama pakai GEE (paling andal). Contoh Kalteng: 56.316 → 49.802 ha (−12%, terbesar
 > pada 2000–2010).
+
+### Riwayat kebakaran hutan & lahan — `fire-history`
+
+Berbeda dari `burn` (severity **satu** kejadian via dNBR), skenario ini membangun
+**rekaman panjang**: di mana area terbakar, **kapan** dalam setahun, dan **seberapa
+sering**. Sumber: **MODIS MCD64A1** (luas terbakar bulanan, 500 m, sejak 2000-11)
+dan **FIRMS** (titik panas aktif).
+
+```bash
+# Riwayat karhutla Riau 2001–2024 (jantung lahan gambut)
+earthchange -s fire-history --lat 0.5 --lon 101.9 --radius 60 -n Riau
+
+# Rentang tahun & kotak batas sendiri
+earthchange -s fire-history --bbox 113.5,-3.0,114.5,-2.0 --start-year 2015 -n Sebangau
+
+# Angka yang bisa disitasi: pakai peta gambut resmi (KLHK/BBSDLP)
+earthchange -s fire-history --lat 0.5 --lon 101.9 --radius 60 --peat-file gambut_klhk.geojson
+```
+
+Keluaran: **`fire_frequency_map.png`** (+ `.tif`) — peta **berapa kali tiap piksel
+terbakar** sepanjang periode, sehingga titik **berulang** (biasanya gambut terdrainase)
+menonjol dari kebakaran sekali-jalan; **`fire_by_year.png`** — batang luas terbakar per
+tahun **dipisah gambut vs tanah mineral**, ditumpuk dengan garis titik panas FIRMS;
+**`fire_season.png`** — luas terbakar per bulan sepanjang semua tahun (musim kebakaran);
+dan `stats.json` (per tahun, per bulan, total, %-gambut, tahun terparah, bulan puncak).
+Butuh `earthchange[maps]`. Backend: **GEE**.
+
+**Definisi gambut.** Tanpa `--peat-file`, gambut adalah **proxy**: karbon organik tanah
+OpenLandMap (10 cm) ≥ `--peat-thr` (default 30, satuan mentah). Dikalibrasi terhadap
+Riau (**3,8 Mha** vs ±4,0 Mha peta resmi) dan Jawa Barat (±0 — benar). Di Kalimantan
+proxy ini **melebih-lebihkan** (6,5 Mha vs ±3,0 Mha resmi) karena peta resmi hanya
+menghitung gambut >50 cm. Untuk angka yang disitasi, pakai `--peat-file`.
+
+> **Catatan:** MCD64A1 beresolusi 500 m dan **cenderung meremehkan** kebakaran gambut
+> Indonesia — banyak api gambut membara di bawah permukaan dan tertutup asap/awan.
+> Angka ini bagus untuk **pola** (di mana berulang, kapan puncaknya, tren antar-tahun),
+> bukan untuk audit luas yang presisi. Luas per tahun dijumlahkan, jadi piksel yang
+> terbakar di beberapa tahun terhitung sekali per tahun — total > luas area unik.
 
 ### Perubahan populasi sebagai hutan paku 3D — `population-change`
 
@@ -862,7 +901,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.40) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.41) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -870,7 +909,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.40},
+  version   = {0.1.41},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

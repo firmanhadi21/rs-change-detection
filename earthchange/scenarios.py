@@ -440,6 +440,14 @@ SCENARIOS = {
         "interpretation": ("Kapan tiap piksel hutan hilang (peta) + tren luas hutan "
                            "antar-periode. Pakai --sensor landsat untuk sejak 1980-an."),
     },
+    "fire-history": {
+        "label": "Fire history — burned area per year, recurrence map & fire season (MODIS + FIRMS)",
+        "method": "fire-history",
+        "radius": 30.0, "needs": "none",
+        "interpretation": ("Riwayat karhutla: luas terbakar per tahun (gambut vs "
+                           "mineral), peta berapa kali tiap piksel terbakar, dan "
+                           "musim kebakaran (puncak kemarau)."),
+    },
     "population-change": {
         "label": "Population change — two GHSL epochs, gained/lost/present map + 3D spike forest (GHS_POP)",
         "method": "population-change",

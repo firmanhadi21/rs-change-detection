@@ -316,6 +316,15 @@ def _run_population_change(args, lat, lon, radius, name, run_dir, run_id, ee_key
                           forge3d_prep_only=args.forge3d_prep_only)
 
 
+def _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key):
+    from . import fire_history
+    fh_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+    fire_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                     config_key=ee_key, start_year=args.start_year,
+                     end_year=args.end_year, bbox=fh_bbox,
+                     peat_file=args.peat_file, peat_thr=args.peat_thr)
+
+
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
     """Run a scenario that has its own module (not the generic optical/radar engine).
 
@@ -370,6 +379,10 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
 
     if method == "population-change":
         _run_population_change(args, lat, lon, radius, name, run_dir, run_id, ee_key)
+        return True
+
+    if method == "fire-history":
+        _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
     if method == "island-heat":
@@ -535,6 +548,16 @@ def main():
                     help="population-change: also render a true GPU 3D spike map with "
                          "forge3d (needs 'pip install earthchange[forge3d]' + a WebGPU GPU); "
                          "writes pop_spikes_3d.png plus the height/overlay inputs")
+    ap.add_argument("--end-year", type=int,
+                    help="fire-history: last year of the record (default: last "
+                         "complete calendar year)")
+    ap.add_argument("--peat-file", help="fire-history: GeoJSON of peat polygons for a "
+                    "citable peat/mineral split (e.g. an official KLHK/BBSDLP map); "
+                    "without it peat is a soil-organic-carbon proxy")
+    ap.add_argument("--peat-thr", type=float, default=30.0,
+                    help="fire-history: peat proxy threshold on OpenLandMap soil "
+                         "organic carbon at 10 cm, raw units (default 30 — calibrated "
+                         "on Riau; raise it to be stricter)")
     ap.add_argument("--forge3d-prep-only", action="store_true",
                     help="population-change: write only the forge3d inputs (height TIFF + "
                          "class overlay), skip the GPU render — to render later on a GPU box")
