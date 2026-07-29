@@ -474,8 +474,12 @@ Malaysia (di Borneo) dan PNG (di Papua) tidak ikut terhitung.
 Keluaran: **`pop_poster.png` + `pop_poster_dark.png`** — **infografik gaya Miloš per
 kota**: tiap **kota** (puncak populasi lokal) jadi satu paku; **tinggi paku ∝
 populasi kota** (log — kota terbesar tertinggi), badan **abu = level 1990**, dan
-**ujung** menandai perubahan — **hijau kalau tumbuh, merah kalau menyusut**. Wilayah
-berpenghuni yang bukan pusat kota digambar **abu datar** sebagai siluet pulau. Plus
+**ujung** menandai perubahan — **hijau kalau tumbuh, merah kalau menyusut**.
+Perubahan dihitung atas **catchment kota** (semua sel berpenduduk dalam 25 km dari
+puncaknya, ditetapkan ke kota terdekat) — bukan sel puncak saja, sehingga metro yang
+intinya jenuh (Jakarta, Bandung) tetap terbaca tumbuh. Pulau digambar sebagai
+**basemap terrain ber-hillshade** (SRTM, diunduh otomatis sebagai `terrain.tif`)
+dengan relief halus. Plus
 blok judul, legenda, label kota, dan catatan sumber (terang & gelap). Juga
 `pop_change_map.png` (peta 2D tambah/kurang/tetap), `pop_change_class.tif`
 (raster kelas), `pop_<y1>.tif`/`pop_<y2>.tif` (grid populasi), **`pop_cells.csv`**
@@ -858,7 +862,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.37) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.38) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -866,7 +870,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.37},
+  version   = {0.1.38},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

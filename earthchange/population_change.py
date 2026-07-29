@@ -391,6 +391,22 @@ def _write_class_raster(cls, src_tif, box1, run_dir):
         print(f"  (class raster skipped: {e.__class__.__name__})")
 
 
+def _fetch_terrain(box, cell_m, run_dir):
+    """Download an SRTM elevation grid on the same grid, for the poster's
+    hillshaded terrain basemap. Best-effort — the poster falls back to a flat
+    silhouette if this fails."""
+    import ee
+    out = os.path.join(run_dir, "terrain.tif")
+    if os.path.exists(out):
+        return out
+    try:
+        dem = ee.Image("CGIAR/SRTM90_V4").select("elevation")
+        return _download_agg(dem, box, cell_m, out)
+    except Exception as e:  # noqa: BLE001
+        print(f"  (terrain basemap skipped: {e.__class__.__name__})")
+        return None
+
+
 def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_id,
                   clip_gj=None, forge3d=False, forge3d_prep_only=False):
     """Download two epochs over `box`, classify, optionally clip to a country outline,
@@ -405,6 +421,7 @@ def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_i
     if _download_agg(img1, box, cell_m, tif1) is None or \
        _download_agg(img2, box, cell_m, tif2) is None:
         return None
+    _fetch_terrain(box, cell_m, run_dir)
     p1, box1 = _read(tif1)
     p2, _ = _read(tif2)
     r = min(p1.shape[0], p2.shape[0]); c = min(p1.shape[1], p2.shape[1])
@@ -508,7 +525,7 @@ def _coarsen_sum(a, f):
 
 
 def _detect_cities(p1, p2, box):
-    """Cities = local population maxima. Returns arrays (lon, lat, pop1, pop2)."""
+    """Cities = local population maxima. Returns (lon, lat, row, col, thr)."""
     import numpy as np
     from scipy.ndimage import maximum_filter
     w, s, e, n = box
@@ -521,11 +538,40 @@ def _detect_cities(p1, p2, box):
     peaks = (bigger == maximum_filter(bigger, size=PEAK_FOOTPRINT, mode="constant")) \
         & (bigger >= thr)
     pr, pc = np.where(peaks)
-    return lons[pc], lats[pr], p1[pr, pc], p2[pr, pc], int(thr)
+    return lons[pc], lats[pr], pr, pc, int(thr)
 
 
-def _city_spikes(clon, clat, cpop1, cpop2, box, pal, neutral_pct):
-    """Two-tone spikes (grey body to 1990 level, coloured tip for the change)."""
+def _city_catchments(clon, clat, p1, p2, box, max_km=25.0):
+    """Sum each city's population over its catchment for both epochs.
+
+    Every populated cell is assigned to its nearest city (within max_km), so a
+    city's growth is judged on the whole urban area — not the single peak cell,
+    whose saturated core can read "stable" while the city booms around it
+    (e.g. Jakarta, Bandung).
+    """
+    import numpy as np
+    from scipy.spatial import cKDTree
+    w, s, e, n = box
+    rows, cols = p1.shape
+    kx = 111.32 * max(math.cos(math.radians((s + n) / 2)), 0.1)
+    lons = w + (np.arange(cols) + 0.5) * (e - w) / cols
+    lats = n - (np.arange(rows) + 0.5) * (n - s) / rows
+    tree = cKDTree(np.c_[clon * kx, clat * 110.57])
+    rr, cc = np.where((p1 > 0) | (p2 > 0))
+    pts = np.c_[lons[cc] * kx, lats[rr] * 110.57]
+    dist, idx = tree.query(pts, distance_upper_bound=max_km)
+    ok = np.isfinite(dist)
+    csum1 = np.zeros(clon.size); csum2 = np.zeros(clon.size)
+    np.add.at(csum1, idx[ok], p1[rr[ok], cc[ok]])
+    np.add.at(csum2, idx[ok], p2[rr[ok], cc[ok]])
+    return csum1, csum2
+
+
+def _city_spikes(clon, clat, cpop1, cpop2, cdy, box, pal, neutral_pct):
+    """Two-tone spikes (grey body to 1990 level, coloured tip for the change).
+
+    `cdy` lifts each spike base by its cell's terrain height in axis units.
+    """
     import numpy as np
     w, s, e, n = box
     lon_span, lat_span = e - w, n - s
@@ -536,33 +582,68 @@ def _city_spikes(clon, clat, cpop1, cpop2, box, pal, neutral_pct):
         return min(1.0, max(0.0, (math.log10(max(x, 1)) - lo) / max(hi - lo, 1e-6)))
 
     tilt, shear = 0.58, 0.26
-    vscale, halfw = 0.34 * lat_span, 0.006 * lon_span
+    vscale, halfw = 0.34 * lat_span, 0.008 * lon_span
     body_v, tip_v, tip_c = [], [], []
     for k in np.argsort(cbig):                    # small first, big drawn in front
-        by = s + (clat[k] - s) * tilt
+        by = s + (clat[k] - s) * tilt + cdy[k]
         bx = clon[k] + shear * ((clat[k] - s) / lat_span) * lon_span
         h_max = hn(cbig[k]) * vscale
         h_min = hn(min(cpop1[k], cpop2[k])) * vscale
-        hw = (lambda h: halfw * (1 - h / h_max)) if h_max > 0 else (lambda h: halfw)
-        body_v.append([(bx - halfw, by), (bx + halfw, by),
-                       (bx + hw(h_min), by + h_min), (bx - hw(h_min), by + h_min)])
         pct = 100.0 * (cpop2[k] - cpop1[k]) / max(cpop1[k], 1)
         col = (pal["body"] if abs(pct) <= neutral_pct
                else pal["gain"] if pct > 0 else pal["loss"])
+        if col != pal["body"]:
+            # The log scale squeezes a +35% change to a sliver at the top of a
+            # tall spike, and the cone tapers to a few pixels there — keep
+            # changed tips at least the top 30% so the colour reads.
+            h_min = min(h_min, 0.70 * h_max)
+        hw = (lambda h: halfw * (1 - h / h_max)) if h_max > 0 else (lambda h: halfw)
+        body_v.append([(bx - halfw, by), (bx + halfw, by),
+                       (bx + hw(h_min), by + h_min), (bx - hw(h_min), by + h_min)])
         tip_c.append(col)
         tip_v.append([(bx - hw(h_min), by + h_min), (bx + hw(h_min), by + h_min),
                       (bx, by + h_max)])
     xlim = (w - halfw, e + shear * lon_span + halfw)
-    ylim = (s - 0.03 * lat_span, s + lat_span * tilt + vscale + 0.06 * lat_span)
+    ylim = (s - 0.03 * lat_span,
+            s + lat_span * tilt + vscale + 0.10 * lat_span)
 
     def proj(lon, lat, h):
         return lon + shear * ((lat - s) / lat_span) * lon_span, s + (lat - s) * tilt + h
     return body_v, tip_v, tip_c, xlim, ylim, proj, hn, vscale, tilt, shear
 
 
-def _ground_quads(land, box):
-    """Grey parallelograms for every populated (non-sea) cell — the island shape."""
+ELEV_MAX_M = 3500.0               # Java's volcanoes; normalises terrain relief
+ELEV_RELIEF = 0.07                # peak terrain lift, as a fraction of lat-span
+
+
+def _load_terrain(run_dir, factor, shape):
+    """Terrain grid coarsened (mean) to the poster grid, or None."""
     import numpy as np
+    path = os.path.join(run_dir, "terrain.tif")
+    if not os.path.exists(path):
+        return None
+    try:
+        te, _ = _read(path)
+        te = _coarsen_sum(te, factor) / max(factor * factor, 1)
+        r = min(te.shape[0], shape[0]); c = min(te.shape[1], shape[1])
+        out = np.zeros(shape, dtype="float64")
+        out[:r, :c] = np.maximum(te[:r, :c], 0.0)
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"  (terrain read skipped: {e.__class__.__name__})")
+        return None
+
+
+def _ground_quads(land, box, elev=None, pal=None):
+    """Ground parallelograms + facecolors + per-cell lift.
+
+    With `elev`, the ground is a hillshaded terrain basemap: each land cell is
+    lifted by its elevation and shaded (LightSource from the NW), so the
+    island's relief reads. Without it, a flat grey silhouette. Returns
+    (quads, colors, dy) where dy is the per-cell lift grid in axis units.
+    """
+    import numpy as np
+    from matplotlib.colors import LightSource, to_rgb
     w, s, e, n = box
     rows, cols = land.shape
     lon_span, lat_span = e - w, n - s
@@ -571,28 +652,46 @@ def _ground_quads(land, box):
     lats = n - (np.arange(rows) + 0.5) * dlat
     tilt, shear = 0.58, 0.26
 
-    def proj(lon, lat):
-        return lon + shear * ((lat - s) / lat_span) * lon_span, s + (lat - s) * tilt
-    quads = []
-    for i in range(rows):
+    dy = np.zeros((rows, cols))
+    shade = None
+    if elev is not None:
+        try:
+            from scipy.ndimage import gaussian_filter
+            elev = gaussian_filter(elev, sigma=1.2)   # soften stair-step banding
+        except Exception:  # noqa: BLE001
+            pass
+        dy = np.clip(elev / ELEV_MAX_M, 0, 1) * ELEV_RELIEF * lat_span
+        cell_m = dlon * 111320.0 * max(math.cos(math.radians((s + n) / 2)), 0.1)
+        ls = LightSource(azdeg=315, altdeg=45)
+        shade = ls.hillshade(elev, vert_exag=6.0, dx=cell_m, dy=cell_m)
+    base = np.array(to_rgb(pal["ground"]))
+
+    def proj(lon, lat, h):
+        return lon + shear * ((lat - s) / lat_span) * lon_span, s + (lat - s) * tilt + h
+    quads, colors = [], []
+    for i in range(rows):                          # far (north) → near (south)
         lat = lats[i]
         for j in range(cols):
-            if land[i, j]:
-                lon = lons[j]
-                quads.append([proj(lon - dlon / 2, lat + dlat / 2),
-                              proj(lon + dlon / 2, lat + dlat / 2),
-                              proj(lon + dlon / 2, lat - dlat / 2),
-                              proj(lon - dlon / 2, lat - dlat / 2)])
-    return quads
+            if not land[i, j]:
+                continue
+            lon, h = lons[j], dy[i, j]
+            hx, hy = dlon * 0.53, dlat * 0.53      # slight overlap: no cracks on lift
+            quads.append([proj(lon - hx, lat + hy, h), proj(lon + hx, lat + hy, h),
+                          proj(lon + hx, lat - hy, h), proj(lon - hx, lat - hy, h)])
+            if shade is not None:
+                colors.append(tuple(np.clip(base * (0.62 + 0.55 * shade[i, j]), 0, 1)))
+            else:
+                colors.append(tuple(base))
+    return quads, colors, dy
 
 
-def _poster_labels(ax, clon, clat, cpop1, cpop2, name, box, pal, proj, hn, vscale):
+def _poster_labels(ax, clon, clat, cpop1, cpop2, cdy, name, box, pal, proj, hn, vscale):
     """Label known cities by attaching each name to its nearest city spike."""
     import numpy as np
     labels = CITY_LABELS.get(name.lower().replace(" ", "_"), [])
     if not labels or clon.size == 0:
         return
-    s = box[1]; cbig = np.maximum(cpop1, cpop2)
+    cbig = np.maximum(cpop1, cpop2)
     matched = []
     for nm, lo_, la_ in labels:
         k = int(np.argmin((clon - lo_) ** 2 + (clat - la_) ** 2))
@@ -605,7 +704,7 @@ def _poster_labels(ax, clon, clat, cpop1, cpop2, name, box, pal, proj, hn, vscal
             continue
         placed.append(k)
         bx, _by = proj(clon[k], clat[k], 0)
-        ytop = box[1] + (clat[k] - box[1]) * 0.58 + hn(cbig[k]) * vscale
+        ytop = box[1] + (clat[k] - box[1]) * 0.58 + cdy[k] + hn(cbig[k]) * vscale
         ax.annotate(nm, (bx, ytop), textcoords="offset points", xytext=(0, 4),
                     ha="center", fontsize=9, fontweight="bold", color=pal["text"], zorder=8)
 
@@ -627,27 +726,34 @@ def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark
     q1, q2 = _coarsen_sum(p1, factor), _coarsen_sum(p2, factor)
     r = min(q1.shape[0], q2.shape[0]); c = min(q1.shape[1], q2.shape[1])
     q1, q2 = q1[:r, :c], q2[:r, :c]
-    clon, clat, cp1, cp2, thr = _detect_cities(q1, q2, box)
+    clon, clat, crow, ccol, thr = _detect_cities(q1, q2, box)
     if clon.size == 0:
         print("  (poster skipped: no city centres above threshold)")
         return
+    # City totals over nearest-city catchments — not the single (often
+    # saturated) peak cell, so a booming metro with a stable core reads green.
+    cp1, cp2 = _city_catchments(clon, clat, q1, q2, box)
+    elev = _load_terrain(run_dir, factor, q1.shape)
+    land = np.maximum(q1, q2) > 0
+    if elev is not None:
+        land = land | (elev > 1.0)               # unpopulated mountains are still land
+    gv, gc, dy = _ground_quads(land, box, elev=elev, pal=pal)
+    cdy = dy[crow, ccol]
     body_v, tip_v, tip_c, xlim, ylim, proj, hn, vscale, tilt, shear = \
-        _city_spikes(clon, clat, cp1, cp2, box, pal, neutral_pct)
-    gv = _ground_quads(np.maximum(q1, q2) > 0, box)
+        _city_spikes(clon, clat, cp1, cp2, cdy, box, pal, neutral_pct)
 
     y1, y2 = years
     tot1, tot2 = float(p1.sum()), float(p2.sum())
     fig = plt.figure(figsize=(14, 8.0), dpi=150)
     fig.patch.set_facecolor(pal["bg"])
     ax = fig.add_axes([0.02, 0.09, 0.96, 0.56]); ax.set_facecolor(pal["bg"])
-    ax.add_collection(PolyCollection(gv, facecolors=pal["ground"], edgecolors=pal["ground"],
-                                     linewidths=0.3))
+    ax.add_collection(PolyCollection(gv, facecolors=gc, edgecolors=gc, linewidths=0.3))
     ax.add_collection(PolyCollection(body_v, facecolors=pal["body"], edgecolors="none"))
     ax.add_collection(PolyCollection(tip_v, facecolors=tip_c, edgecolors="none"))
     ax.set_xlim(*xlim); ax.set_ylim(*ylim)
     ax.set_aspect(1 / math.cos(math.radians((box[1] + box[3]) / 2)))
     ax.axis("off")
-    _poster_labels(ax, clon, clat, cp1, cp2, name, box, pal, proj, hn, vscale)
+    _poster_labels(ax, clon, clat, cp1, cp2, cdy, name, box, pal, proj, hn, vscale)
 
     fig.text(0.035, 0.945, f"Population change by city, {y1}–{y2}", fontsize=15, color=pal["sub"])
     fig.text(0.033, 0.845, name.replace("_", " ").upper(), fontsize=52,
@@ -664,10 +770,12 @@ def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark
         fig.patches.append(Rectangle((lx, y), 0.02, 0.022, transform=fig.transFigure,
                                      facecolor=col, edgecolor="none"))
         fig.text(lx + 0.03, y + 0.003, lab, fontsize=12, color=pal["text"])
-    fig.text(lx, 0.80, "Grey land is populated area that is not a city centre.",
-             fontsize=10.5, color=pal["sub"])
-    fig.text(0.035, 0.02, f"Data: GHSL GHS_POP (R2023A, {y1} & {y2}). Cities = local "
-             f"population peaks ≥ {thr:,}.", fontsize=8.5, color=pal["faint"])
+    fig.text(lx, 0.80, "Ground: shaded terrain. Tip colour = change of the whole city\n"
+             "(every cell within 25 km of its peak), not just the centre cell.",
+             fontsize=10.5, color=pal["sub"], linespacing=1.4, va="top")
+    fig.text(0.035, 0.02, f"Data: GHSL GHS_POP (R2023A, {y1} & {y2}) + SRTM terrain. "
+             f"Cities = local population peaks ≥ {thr:,}; change summed over "
+             "nearest-city catchments.", fontsize=8.5, color=pal["faint"])
     fig.text(0.965, 0.02, "earthchange · inspired by Miloš Popović",
              fontsize=8.5, color=pal["faint"], ha="right")
     out = os.path.join(run_dir, "pop_poster_dark.png" if dark else "pop_poster.png")

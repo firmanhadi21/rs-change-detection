@@ -29,6 +29,9 @@ TARGET_CRS = "EPSG:3857"          # metric, global; fine near the equator
 CLIP_PERCENTILE = 99.0            # tame one giant city cell (as forge3d's example does)
 # Colours match the matplotlib poster (present / gained / lost).
 OVERLAY_RGB = {1: (154, 151, 141), 2: (26, 158, 106), 3: (210, 31, 31)}
+GROUND_RGB = (205, 201, 190)      # light grey plateau (the island surface)
+FLOOR_FRAC = 0.05                 # every land cell rises to ≥ this × the tallest
+BASE_PCT = 75                     # land percentile treated as flat rural baseline
 BG_COLOR = [0.02, 0.02, 0.025]
 
 
@@ -64,7 +67,7 @@ def _reproject(arr, src_transform, src_crs, resampling):
     return out, dst_transform
 
 
-def _prep(tif1, tif2, run_dir, neutral_pct, min_pop):
+def _prep(tif1, tif2, run_dir, neutral_pct, min_pop, floor_frac=FLOOR_FRAC):
     """Write the height DEM + class overlay. Returns (dem_path, overlay_path, meta)."""
     import numpy as np
     import rasterio
@@ -83,21 +86,40 @@ def _prep(tif1, tif2, run_dir, neutral_pct, min_pop):
     height, dst_t = _reproject(height[:r, :c], src_transform, src_crs, Resampling.bilinear)
     cls_rp, _ = _reproject(cls[:r, :c], src_transform, src_crs, Resampling.nearest)
 
+    # Continuous landmass: fill small gaps so the island reads as a solid plateau
+    # (like Miloš's country surface) instead of floating spikes.
+    land = height > 0
+    try:
+        from scipy.ndimage import binary_closing, binary_fill_holes
+        land = binary_fill_holes(binary_closing(land, iterations=2))
+    except Exception:  # noqa: BLE001 — scipy optional; fall back to raw populated mask
+        pass
+
     valid = height > 0
-    if valid.any():
-        clip_max = float(np.percentile(height[valid], CLIP_PERCENTILE))
-        height = np.clip(height, 0.0, clip_max)
-    else:
-        clip_max = 1.0
+    clip_max = float(np.percentile(height[valid], CLIP_PERCENTILE)) if valid.any() else 1.0
+    height = np.clip(height, 0.0, clip_max)
+    # Rural baseline: on a uniformly dense island (Java) every rural cell has
+    # population, which would bury the plateau in spikes. Subtract the median
+    # land value so only *above-rural* population rises off the plateau —
+    # rural land stays flat grey and cities spike, like the benchmark.
+    base = float(np.percentile(height[valid], BASE_PCT)) if valid.any() else 0.0
+    relief = np.maximum(height - base, 0.0)
+    # Floor: every land cell sits on a low plateau (floor_frac of the tallest
+    # relief) so the island reads as one solid slab with spikes on top.
+    rmax = float(relief.max()) if relief.size else 1.0
+    floor = floor_frac * max(rmax, 1.0)
+    height = np.where(land, floor + relief, 0.0).astype("float32")
+    clip_max = float(height.max()) if land.any() else 1.0
 
     dem = os.path.join(run_dir, "pop_height_3857.tif")
     Image.fromarray(np.ascontiguousarray(height, dtype="float32")).save(
         dem, format="TIFF", compression="raw")   # viewer needs uncompressed float32
 
-    overlay = np.zeros((*cls_rp.shape, 4), dtype="uint8")
-    for k, (rr, gg, bb) in OVERLAY_RGB.items():
-        m = cls_rp == k
-        overlay[m] = (rr, gg, bb, 255)
+    # Overlay: grey plateau over all land; green where gained, red where lost.
+    overlay = np.zeros((*height.shape, 4), dtype="uint8")
+    overlay[land] = (*GROUND_RGB, 255)
+    overlay[cls_rp == 2] = (*OVERLAY_RGB[2], 255)
+    overlay[cls_rp == 3] = (*OVERLAY_RGB[3], 255)
     ov = os.path.join(run_dir, "pop_overlay_3d.png")
     Image.fromarray(overlay).save(ov)
     meta = {"clip_max": clip_max, "px_m": abs(dst_t.a),
@@ -159,14 +181,14 @@ def _ipc_render(dem, overlay, out_png, meta, size, zscale, camera):
 
 
 def render(tif1, tif2, run_dir, name, years, neutral_pct=1.0, min_pop=150,
-           size=4096, prep_only=False, phi=62.0, theta=50.0, fov=30.0,
-           zscale_frac=0.30, radius_mult=3.2):
+           size=4096, prep_only=False, phi=48.0, theta=52.0, fov=30.0,
+           zscale_frac=0.35, radius_mult=2.6, floor_frac=FLOOR_FRAC):
     """Produce pop_spikes_3d.png via forge3d. Returns the path, or None on failure.
 
     `prep_only=True` writes just the DEM + overlay (no GPU) — useful for
     inspecting inputs or rendering later on a GPU box. Camera angle (`phi`,
-    `theta`, `fov`), vertical exaggeration (`zscale_frac`) and framing distance
-    (`radius_mult`) are tunable.
+    `theta`, `fov`), vertical exaggeration (`zscale_frac`), framing distance
+    (`radius_mult`) and plateau `floor_frac` are tunable.
     """
     for mod in ("numpy", "rasterio", "PIL"):
         try:
@@ -174,7 +196,7 @@ def render(tif1, tif2, run_dir, name, years, neutral_pct=1.0, min_pop=150,
         except ImportError:
             print(f"  (forge3d prep needs {mod}: pip install 'earthchange[maps]')")
             return None
-    dem, overlay, meta = _prep(tif1, tif2, run_dir, neutral_pct, min_pop)
+    dem, overlay, meta = _prep(tif1, tif2, run_dir, neutral_pct, min_pop, floor_frac)
     print(f"  forge3d inputs: {os.path.basename(dem)} + {os.path.basename(overlay)} "
           f"({meta['cols']}×{meta['rows']}, px≈{meta['px_m']:.0f} m)")
     if prep_only:
