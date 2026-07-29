@@ -530,7 +530,7 @@ def main():
     ap.add_argument("--regions", choices=["indonesia"],
                     help="population-change: run per main island group and assemble a "
                          "combined panel (needs --country); 'indonesia' = Sumatera, Jawa, "
-                         "Bali, Nusa Tenggara, Kalimantan, Sulawesi, Maluku, Papua")
+                         "Bali, NTB, NTT, Kalimantan, Sulawesi, Maluku, Papua")
     ap.add_argument("--forge3d", action="store_true",
                     help="population-change: also render a true GPU 3D spike map with "
                          "forge3d (needs 'pip install earthchange[forge3d]' + a WebGPU GPU); "

@@ -57,20 +57,31 @@ CITY_LABELS = {
              ("Cilacap", 109.02, -7.73), ("Banyuwangi", 114.37, -8.22)],
     "sumatera": [("Medan", 98.67, 3.59), ("Padang", 100.37, -0.95),
                  ("Palembang", 104.76, -2.98), ("Pekanbaru", 101.45, 0.51),
-                 ("Bandar Lampung", 105.27, -5.43), ("Banda Aceh", 95.32, 5.55)],
+                 ("Bandar Lampung", 105.27, -5.43), ("Banda Aceh", 95.32, 5.55),
+                 ("Jambi", 103.61, -1.61), ("Bengkulu", 102.26, -3.79),
+                 ("Batam", 104.03, 1.13), ("Pematangsiantar", 99.06, 2.96)],
     "kalimantan": [("Pontianak", 109.34, -0.02), ("Banjarmasin", 114.59, -3.32),
                    ("Samarinda", 117.15, -0.50), ("Balikpapan", 116.83, -1.24),
-                   ("Palangkaraya", 113.92, -2.21)],
+                   ("Palangkaraya", 113.92, -2.21), ("Tarakan", 117.59, 3.30),
+                   ("Singkawang", 108.98, 0.91)],
     "sulawesi": [("Makassar", 119.42, -5.15), ("Manado", 124.85, 1.49),
                  ("Palu", 119.87, -0.90), ("Kendari", 122.51, -3.99),
-                 ("Gorontalo", 123.06, 0.54)],
+                 ("Gorontalo", 123.06, 0.54), ("Parepare", 119.62, -4.01),
+                 ("Baubau", 122.61, -5.47)],
     "papua": [("Jayapura", 140.72, -2.53), ("Sorong", 131.25, -0.88),
               ("Manokwari", 134.06, -0.86), ("Merauke", 140.40, -8.49),
-              ("Timika", 136.89, -4.55)],
+              ("Timika", 136.89, -4.55), ("Nabire", 135.51, -3.36),
+              ("Biak", 136.08, -1.18), ("Wamena", 138.94, -4.10)],
     "bali": [("Denpasar", 115.22, -8.67), ("Singaraja", 115.10, -8.11)],
     "nusa_tenggara": [("Mataram", 116.12, -8.58), ("Kupang", 123.61, -10.18),
                       ("Bima", 118.73, -8.46)],
-    "maluku": [("Ambon", 128.19, -3.70), ("Ternate", 127.38, 0.79)],
+    "nusa_tenggara_barat": [("Mataram", 116.12, -8.58), ("Bima", 118.73, -8.46),
+                            ("Sumbawa Besar", 117.43, -8.50), ("Praya", 116.27, -8.71)],
+    "nusa_tenggara_timur": [("Kupang", 123.61, -10.18), ("Ende", 121.66, -8.84),
+                            ("Maumere", 122.21, -8.62), ("Waingapu", 120.26, -9.65),
+                            ("Labuan Bajo", 119.89, -8.49), ("Atambua", 124.89, -9.11)],
+    "maluku": [("Ambon", 128.19, -3.70), ("Ternate", 127.38, 0.79),
+               ("Tual", 132.75, -5.63)],
     "indonesia": [("Jakarta", 106.85, -6.20), ("Surabaya", 112.75, -7.25),
                   ("Bandung", 107.61, -6.91), ("Medan", 98.67, 3.59),
                   ("Semarang", 110.42, -6.97), ("Makassar", 119.42, -5.15),
@@ -364,14 +375,15 @@ def _write_cells_csv(cls, p1, p2, delta, pct, height, bbox, run_dir, years):
 # disjoint; each is clipped to the country outline so neighbours (Malaysia on
 # Borneo, PNG on New Guinea) drop out.
 INDONESIA_REGIONS = {
-    "Sumatera":      (95.0, -6.0, 106.2, 6.1),
-    "Jawa":          (105.0, -8.9, 114.6, -5.8),
-    "Bali":          (114.4, -8.9, 115.8, -8.0),
-    "Nusa_Tenggara": (115.8, -11.0, 125.2, -8.0),
-    "Kalimantan":    (108.8, -4.2, 119.0, 3.5),
-    "Sulawesi":      (118.8, -6.1, 125.2, 2.1),
-    "Maluku":        (125.2, -8.5, 130.9, 2.6),
-    "Papua":         (130.9, -9.2, 141.1, 0.9),
+    "Sumatera":             (95.0, -6.0, 106.2, 6.1),
+    "Jawa":                 (105.0, -8.9, 114.6, -5.8),
+    "Bali":                 (114.4, -8.9, 115.8, -8.0),
+    "Nusa_Tenggara_Barat":  (115.8, -9.3, 119.3, -8.0),
+    "Nusa_Tenggara_Timur":  (118.9, -11.1, 125.2, -7.9),
+    "Kalimantan":           (108.8, -4.2, 119.0, 3.5),
+    "Sulawesi":             (118.8, -6.1, 125.2, 2.1),
+    "Maluku":               (125.2, -8.5, 130.9, 2.6),
+    "Papua":                (130.9, -9.2, 141.1, 0.9),
 }
 REGION_PRESETS = {"indonesia": INDONESIA_REGIONS}
 
@@ -426,6 +438,7 @@ def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_i
     p2, _ = _read(tif2)
     r = min(p1.shape[0], p2.shape[0]); c = min(p1.shape[1], p2.shape[1])
     p1, p2 = p1[:r, :c], p2[:r, :c]
+    mask = None
     if clip_gj is not None:                       # keep only cells inside the country
         mask = _rasterize_mask(clip_gj, box1, p1.shape)
         if mask is not None:
@@ -434,8 +447,10 @@ def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_i
     _write_class_raster(cls, tif1, box1, run_dir)
     tot1, tot2 = float(p1.sum()), float(p2.sum())
     _render_flat_map(cls, box1, run_dir, name, (y1, y2), (tot1, tot2))
-    _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop, dark=False)
-    _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop, dark=True)
+    _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop,
+                   dark=False, clip_mask=mask)
+    _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop,
+                   dark=True, clip_mask=mask)
     _write_cells_csv(cls, p1, p2, delta, pct, height, box1, run_dir, (y1, y2))
     if forge3d or forge3d_prep_only:
         from . import forge3d_render
@@ -709,8 +724,13 @@ def _poster_labels(ax, clon, clat, cpop1, cpop2, cdy, name, box, pal, proj, hn, 
                     ha="center", fontsize=9, fontweight="bold", color=pal["text"], zorder=8)
 
 
-def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark):
-    """Miloš-style poster: one two-tone spike per city on a grey island silhouette."""
+def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark,
+                   clip_mask=None):
+    """Miloš-style poster: one two-tone spike per city on a terrain basemap.
+
+    `clip_mask` (full-res bool, True inside the country) also clips the terrain
+    ground so neighbouring countries don't render as part of the island.
+    """
     try:
         import numpy as np  # noqa: F401
         from scipy.ndimage import maximum_filter  # noqa: F401
@@ -737,6 +757,11 @@ def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark
     land = np.maximum(q1, q2) > 0
     if elev is not None:
         land = land | (elev > 1.0)               # unpopulated mountains are still land
+    if clip_mask is not None:                    # drop neighbouring countries' terrain
+        qm = _coarsen_sum(clip_mask.astype("float64"), factor) > 0
+        rm = min(qm.shape[0], land.shape[0]); cm = min(qm.shape[1], land.shape[1])
+        land[:rm, :cm] &= qm[:rm, :cm]
+        land[rm:, :] = False; land[:, cm:] = False
     gv, gc, dy = _ground_quads(land, box, elev=elev, pal=pal)
     cdy = dy[crow, ccol]
     body_v, tip_v, tip_c, xlim, ylim, proj, hn, vscale, tilt, shear = \
@@ -756,7 +781,9 @@ def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark
     _poster_labels(ax, clon, clat, cp1, cp2, cdy, name, box, pal, proj, hn, vscale)
 
     fig.text(0.035, 0.945, f"Population change by city, {y1}–{y2}", fontsize=15, color=pal["sub"])
-    fig.text(0.033, 0.845, name.replace("_", " ").upper(), fontsize=52,
+    title = name.replace("_", " ").upper()
+    tfs = 52 if len(title) <= 12 else max(28, int(52 * 12 / len(title)))
+    fig.text(0.033, 0.845, title, fontsize=tfs,
              fontweight="bold", color=pal["text"], family="serif")
     fig.text(0.035, 0.785, f"{tot1/1e6:.1f} M people in {y1}   →   {tot2/1e6:.1f} M in {y2}",
              fontsize=15, fontweight="bold", color=pal["text"])
