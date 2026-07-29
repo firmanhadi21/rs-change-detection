@@ -48,3 +48,4 @@ dist/
 # API docs are generated in CI (pdoc) and deployed by the docs workflow
 docs/api/
 grok_understand.md
+.gstack/

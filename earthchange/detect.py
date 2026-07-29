@@ -312,7 +312,8 @@ def _run_population_change(args, lat, lon, radius, name, run_dir, run_id, ee_key
                           config_key=ee_key, country=args.country, bbox=pc_bbox,
                           years=pc_years, cell_km=args.cell_km,
                           neutral_pct=args.neutral_pct, min_pop=args.min_pop,
-                          regions=pc_regions)
+                          regions=pc_regions, forge3d=args.forge3d,
+                          forge3d_prep_only=args.forge3d_prep_only)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -530,6 +531,13 @@ def main():
                     help="population-change: run per main island group and assemble a "
                          "combined panel (needs --country); 'indonesia' = Sumatera, Jawa, "
                          "Bali, Nusa Tenggara, Kalimantan, Sulawesi, Maluku, Papua")
+    ap.add_argument("--forge3d", action="store_true",
+                    help="population-change: also render a true GPU 3D spike map with "
+                         "forge3d (needs 'pip install earthchange[forge3d]' + a WebGPU GPU); "
+                         "writes pop_spikes_3d.png plus the height/overlay inputs")
+    ap.add_argument("--forge3d-prep-only", action="store_true",
+                    help="population-change: write only the forge3d inputs (height TIFF + "
+                         "class overlay), skip the GPU render — to render later on a GPU box")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
     ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")

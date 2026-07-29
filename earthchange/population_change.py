@@ -336,7 +336,11 @@ def _place_spikes(ax, coll, xlim, ylim, bbox):
 
 
 def _write_cells_csv(cls, p1, p2, delta, pct, height, bbox, run_dir, years):
-    """One row per drawn cell — feed this to forge3d for a true 3-D spike render."""
+    """One row per drawn cell — a generic per-cell table for custom 3-D tools.
+
+    (The built-in forge3d GPU render, --forge3d, uses the height GeoTIFF + class
+    overlay written by forge3d_render.py, not this CSV.)
+    """
     import numpy as np
     w, s, e, n = bbox
     rows, colsN = cls.shape
@@ -351,8 +355,8 @@ def _write_cells_csv(cls, p1, p2, delta, pct, height, bbox, run_dir, years):
             f.write(f"{lon[c]:.5f},{lat[r]:.5f},{p1[r,c]:.1f},{p2[r,c]:.1f},"
                     f"{delta[r,c]:.1f},{pct[r,c]:.2f},{label[int(cls[r,c])]},"
                     f"{height[r,c]:.4f}\n")
-    print(f"Cells: {os.path.normpath(out)}  ({int((cls>0).sum()):,} spikes) "
-          "— ready for forge3d")
+    print(f"Cells: {os.path.normpath(out)}  ({int((cls>0).sum()):,} cells) "
+          "— per-cell table for custom 3D tools (built-in GPU render: --forge3d)")
     return out
 
 
@@ -388,7 +392,7 @@ def _write_class_raster(cls, src_tif, box1, run_dir):
 
 
 def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_id,
-                  clip_gj=None):
+                  clip_gj=None, forge3d=False, forge3d_prep_only=False):
     """Download two epochs over `box`, classify, optionally clip to a country outline,
     and write per-area outputs. Returns a result dict, or None if the download fails.
     """
@@ -416,6 +420,11 @@ def _process_area(box, cell_m, years, neutral_pct, min_pop, run_dir, name, run_i
     _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop, dark=False)
     _render_poster(p1, p2, box1, run_dir, name, (y1, y2), neutral_pct, min_pop, dark=True)
     _write_cells_csv(cls, p1, p2, delta, pct, height, box1, run_dir, (y1, y2))
+    if forge3d or forge3d_prep_only:
+        from . import forge3d_render
+        forge3d_render.render(tif1, tif2, run_dir, name, (y1, y2),
+                              neutral_pct=neutral_pct, min_pop=min_pop,
+                              prep_only=forge3d_prep_only)
     gained_pop = float(delta[cls == 2].sum()); lost_pop = float(-delta[cls == 3].sum())
     stats = {"run_id": run_id, "scenario": "population-change", "name": name,
              "dataset": "GHSL GHS_POP P2023A", "epochs": [ep1, ep2],
@@ -705,11 +714,13 @@ def _run_regions(regions, country, years, cell_km, neutral_pct, min_pop,
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         country=None, bbox=None, years=DEFAULT_YEARS, cell_km=None,
-        neutral_pct=NEUTRAL_PCT, min_pop=MIN_POP, dark=False, regions=None):
-    """Two-epoch GHSL population change: flat map + 3-D spike forest + forge3d export.
+        neutral_pct=NEUTRAL_PCT, min_pop=MIN_POP, dark=False, regions=None,
+        forge3d=False, forge3d_prep_only=False):
+    """Two-epoch GHSL population change: poster + map + optional forge3d GPU 3-D.
 
     `regions` (a name→bbox dict, e.g. INDONESIA_REGIONS) runs the scenario per
     island group and assembles a combined panel instead of one national frame.
+    `forge3d` also renders a true GPU 3-D spike map via the forge3d library.
     """
     for mod in ("numpy", "matplotlib", "rasterio"):
         try:
@@ -740,7 +751,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
           f"cell={cell_m/1000:.1f} km")
     gj = _country_geojson(aoi) if country else None
     res = _process_area(box, cell_m, (y1, y2), neutral_pct, min_pop,
-                        run_dir, name, run_id, clip_gj=gj)
+                        run_dir, name, run_id, clip_gj=gj,
+                        forge3d=forge3d, forge3d_prep_only=forge3d_prep_only)
     if res is None:
         raise SystemExit("GHS_POP download failed — try a larger --cell-km or smaller area.")
     print(f"\nPopulation {res['ep1']}→{res['ep2']} [{name}]: {res['tot1']/1e6:.2f} M → "
