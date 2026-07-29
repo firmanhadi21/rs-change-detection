@@ -48,16 +48,23 @@ def _is_raster(path):
 
 
 def _resolve_aoi(admin, bbox, lon, lat, radius):
-    """AOI from an admin-1 name (FAO GAUL), a bbox, or a lat/lon square."""
+    """AOI from an admin name (FAO GAUL level-1, else level-2), bbox, or square.
+
+    Tries provinces first, then falls back to regencies/districts, so
+    --admin works for both "Kalimantan Barat" and "Kubu Raya".
+    """
     import ee
     from .gee_utils import square_aoi
     if admin:
-        fc = (ee.FeatureCollection("FAO/GAUL/2015/level1")
-              .filter(ee.Filter.eq("ADM1_NAME", admin)))
-        if fc.size().getInfo() == 0:
-            raise SystemExit(f"--admin {admin!r} not found in FAO GAUL level-1. "
-                             "Use the official spelling, e.g. 'Kalimantan Tengah'.")
-        return fc.geometry()
+        for lvl, field in (("level1", "ADM1_NAME"), ("level2", "ADM2_NAME")):
+            fc = (ee.FeatureCollection(f"FAO/GAUL/2015/{lvl}")
+                  .filter(ee.Filter.eq(field, admin)))
+            if fc.size().getInfo() > 0:
+                print(f"  admin: {admin} [GAUL {lvl}]")
+                return fc.geometry()
+        raise SystemExit(f"--admin {admin!r} not found in FAO GAUL level-1 or "
+                         "level-2. Use the official spelling, e.g. "
+                         "'Kalimantan Tengah' or 'Kubu Raya'.")
     if bbox:
         return ee.Geometry.Rectangle(list(bbox))
     return square_aoi(lon, lat, radius)

@@ -50,6 +50,21 @@ def _days(start, end):
     return [a + dt.timedelta(days=i) for i in range((b - a).days + 1)]
 
 
+def _safe_mean(ic, band):
+    """Mean of a collection that may be empty on a given day.
+
+    An empty collection averages to a band-less image, and reducing that
+    returns an empty dictionary whose .get() raises. Merging a fully-masked
+    filler keeps the band present (contributing no pixels), so an empty day
+    yields {band: None} instead of an error. Gaps are routine for Sentinel-5P
+    (orbit and cloud screening).
+    """
+    import ee
+    filler = (ee.Image.constant(0).rename(band)
+              .updateMask(ee.Image.constant(0)).toFloat())
+    return ic.merge(ee.ImageCollection([filler])).mean()
+
+
 def _safe_sum(ic, band):
     """Sum a collection that may be empty for a given day.
 
@@ -69,7 +84,8 @@ def _pm25_series(aoi, days, scale=40000):
 
     def one(d):
         s = ee.Date(d.isoformat())
-        im = coll.filterDate(s, s.advance(1, "day")).mean().multiply(1e9)
+        ic = coll.filterDate(s, s.advance(1, "day"))
+        im = _safe_mean(ic, CAMS_PM25).multiply(1e9)
         return im.reduceRegion(ee.Reducer.mean(), aoi, scale,
                                bestEffort=True).get(CAMS_PM25)
     return [None if v is None else round(v, 1)
@@ -85,7 +101,8 @@ def _aai_series(aoi, days, scale=10000):
 
     def one(d):
         s = ee.Date(d.isoformat())
-        im = coll.filterDate(s, s.advance(1, "day")).filterBounds(aoi).mean()
+        ic = coll.filterDate(s, s.advance(1, "day")).filterBounds(aoi)
+        im = _safe_mean(ic, "absorbing_aerosol_index")
         return im.reduceRegion(ee.Reducer.mean(), aoi, scale,
                                bestEffort=True).get("absorbing_aerosol_index")
     return [None if v is None else round(v, 2)
