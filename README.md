@@ -471,10 +471,13 @@ Cocok untuk kepulauan yang tersebar — jauh lebih terbaca daripada satu bingkai
 nasional selebar 46°. Tiap kotak pulau di-clip ke garis negara (LSIB) sehingga
 Malaysia (di Borneo) dan PNG (di Papua) tidak ikut terhitung.
 
-Keluaran: **`pop_poster.png` + `pop_poster_dark.png`** — **infografik gaya Miloš**:
-siluet pulau (dari sel berpenghuni) sebagai bidang tanah abu, ditumbuhi kerucut
-pendek berwarna, plus blok judul, legenda, label kota, dan catatan sumber (terang &
-gelap). Juga `pop_change_map.png` (peta 2D tambah/kurang/tetap), `pop_change_class.tif`
+Keluaran: **`pop_poster.png` + `pop_poster_dark.png`** — **infografik gaya Miloš per
+kota**: tiap **kota** (puncak populasi lokal) jadi satu paku; **tinggi paku ∝
+populasi kota** (log — kota terbesar tertinggi), badan **abu = level 1990**, dan
+**ujung** menandai perubahan — **hijau kalau tumbuh, merah kalau menyusut**. Wilayah
+berpenghuni yang bukan pusat kota digambar **abu datar** sebagai siluet pulau. Plus
+blok judul, legenda, label kota, dan catatan sumber (terang & gelap). Juga
+`pop_change_map.png` (peta 2D tambah/kurang/tetap), `pop_change_class.tif`
 (raster kelas), `pop_<y1>.tif`/`pop_<y2>.tif` (grid populasi), **`pop_cells.csv`**
 (satu baris per sel: lon, lat, pop tiap epoch, delta, %, kelas, tinggi — **siap
 dirender 3D di [forge3d](https://github.com)**), dan `stats.json`. Butuh
@@ -483,9 +486,15 @@ dirender 3D di [forge3d](https://github.com)**), dan `stats.json`. Butuh
 otomatis di-tile agar tidak melampaui batas komputasi Earth Engine).
 
 Poster paling terbaca untuk **satu pulau ringkas** (mis. `-n Jawa` dengan kotak Jawa)
-— siluetnya jelas dan kotanya berlabel, seperti contoh *POLAND* Miloš. Label kota
-otomatis muncul untuk Jawa, Sumatera, Kalimantan, Sulawesi, Papua, Bali, Nusa
-Tenggara, Maluku, dan Indonesia.
+— siluetnya jelas, tiap kota jadi paku, seperti contoh *POLAND* Miloš. Kota dideteksi
+sebagai puncak populasi lokal (ambang diskala ke ukuran sel); label kota otomatis
+muncul untuk Jawa, Sumatera, Kalimantan, Sulawesi, Papua, Bali, Nusa Tenggara,
+Maluku, dan Indonesia.
+
+```bash
+# Poster per-kota Jawa (paling mirip contoh Miloš)
+earthchange -s population-change --bbox 105,-8.9,114.6,-5.8 --cell-km 5 -n Jawa
+```
 
 > **Catatan:** GHS_POP adalah **model** (sensus di-disagregasi ke grid terbangun),
 > bukan cacah langsung; nilai antar-epoch adalah estimasi model. Baik untuk pola
@@ -831,7 +840,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 
 **APA**
 
-> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.35) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose satellite change detection* (Versi 0.1.36) [Perangkat lunak]. Universitas Diponegoro. https://doi.org/10.5281/zenodo.21370696
 
 **BibTeX**
 
@@ -839,7 +848,7 @@ DOI (semua versi): [10.5281/zenodo.21370696](https://doi.org/10.5281/zenodo.2137
 @software{hadi_earthchange_2026,
   author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
   title     = {earthchange: Multipurpose satellite change detection},
-  version   = {0.1.35},
+  version   = {0.1.36},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21370696},

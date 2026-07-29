@@ -46,10 +46,15 @@ C_LOST = "#b0217a"
 
 # City labels for the poster, keyed by AOI name (lower-case, spaces→_). (name, lon, lat)
 CITY_LABELS = {
-    "jawa": [("Jakarta", 106.85, -6.20), ("Bandung", 107.61, -6.91),
-             ("Semarang", 110.42, -6.97), ("Surabaya", 112.75, -7.25),
-             ("Yogyakarta", 110.37, -7.80), ("Surakarta", 110.83, -7.56),
-             ("Cirebon", 108.55, -6.73), ("Malang", 112.63, -7.98)],
+    "jawa": [("Jakarta", 106.85, -6.20), ("Bekasi", 106.99, -6.24),
+             ("Bogor", 106.80, -6.60), ("Tangerang", 106.63, -6.18),
+             ("Bandung", 107.61, -6.91), ("Cirebon", 108.55, -6.73),
+             ("Tegal", 109.14, -6.87), ("Pekalongan", 109.68, -6.89),
+             ("Semarang", 110.42, -6.97), ("Yogyakarta", 110.37, -7.80),
+             ("Surakarta", 110.83, -7.56), ("Surabaya", 112.75, -7.25),
+             ("Malang", 112.63, -7.98), ("Kediri", 112.01, -7.82),
+             ("Madiun", 111.52, -7.63), ("Jember", 113.70, -8.17),
+             ("Cilacap", 109.02, -7.73), ("Banyuwangi", 114.37, -8.22)],
     "sumatera": [("Medan", 98.67, 3.59), ("Padang", 100.37, -0.95),
                  ("Palembang", 104.76, -2.98), ("Pekanbaru", 101.45, 0.51),
                  ("Bandar Lampung", 105.27, -5.43), ("Banda Aceh", 95.32, 5.55)],
@@ -469,13 +474,19 @@ def _render_region_panel(results, run_dir, years, title):
 
 
 # ----------------------------- infographic poster -----------------------------
+# Cities per epoch grid cell (~5 km) below this population are not a "city centre".
+POSTER_CELL_KM = 5.0
+CITY_MIN = 45000
+PEAK_FOOTPRINT = 5
+
+
 def _poster_palette(dark):
     if dark:
-        return dict(bg="#141414", ground="#2f2f2f", present="#6d6d6d",
-                    gain="#2fe38f", loss="#ff36c0", text="#eeeeee",
+        return dict(bg="#141414", ground="#333333", body="#8a8a8a",
+                    gain="#2fe38f", loss="#ff3b3b", text="#eeeeee",
                     sub="#b9b9b9", faint="#8a8a8a")
-    return dict(bg="#f3f0ea", ground="#d7d3c8", present="#c8c4b8",
-                gain="#1a9e6a", loss="#c0247e", text="#20242a",
+    return dict(bg="#f3f0ea", ground="#d7d3c8", body="#9a978d",
+                gain="#1a9e6a", loss="#d21f1f", text="#20242a",
                 sub="#555b62", faint="#7a7f86")
 
 
@@ -487,112 +498,167 @@ def _coarsen_sum(a, f):
     return a[:r, :c].reshape(r // f, f, c // f, f).sum(axis=(1, 3))
 
 
-def _poster_geometry(cls, height, land, box, pal):
-    """Ground-cell parallelograms + short fat cones in one oblique projection."""
+def _detect_cities(p1, p2, box):
+    """Cities = local population maxima. Returns arrays (lon, lat, pop1, pop2)."""
+    import numpy as np
+    from scipy.ndimage import maximum_filter
+    w, s, e, n = box
+    rows, cols = p1.shape
+    lons = w + (np.arange(cols) + 0.5) * (e - w) / cols
+    lats = n - (np.arange(rows) + 0.5) * (n - s) / rows
+    cell_km = (e - w) / cols * 111.0 * max(math.cos(math.radians((s + n) / 2)), 0.1)
+    thr = CITY_MIN * (cell_km / POSTER_CELL_KM) ** 2      # scale threshold to cell area
+    bigger = np.maximum(p1, p2)
+    peaks = (bigger == maximum_filter(bigger, size=PEAK_FOOTPRINT, mode="constant")) \
+        & (bigger >= thr)
+    pr, pc = np.where(peaks)
+    return lons[pc], lats[pr], p1[pr, pc], p2[pr, pc], int(thr)
+
+
+def _city_spikes(clon, clat, cpop1, cpop2, box, pal, neutral_pct):
+    """Two-tone spikes (grey body to 1990 level, coloured tip for the change)."""
     import numpy as np
     w, s, e, n = box
-    rows, cols = cls.shape
+    lon_span, lat_span = e - w, n - s
+    cbig = np.maximum(cpop1, cpop2)
+    lo, hi = math.log10(max(cbig.min(), 1)), math.log10(max(cbig.max(), 1))
+
+    def hn(x):
+        return min(1.0, max(0.0, (math.log10(max(x, 1)) - lo) / max(hi - lo, 1e-6)))
+
+    tilt, shear = 0.58, 0.26
+    vscale, halfw = 0.34 * lat_span, 0.006 * lon_span
+    body_v, tip_v, tip_c = [], [], []
+    for k in np.argsort(cbig):                    # small first, big drawn in front
+        by = s + (clat[k] - s) * tilt
+        bx = clon[k] + shear * ((clat[k] - s) / lat_span) * lon_span
+        h_max = hn(cbig[k]) * vscale
+        h_min = hn(min(cpop1[k], cpop2[k])) * vscale
+        hw = (lambda h: halfw * (1 - h / h_max)) if h_max > 0 else (lambda h: halfw)
+        body_v.append([(bx - halfw, by), (bx + halfw, by),
+                       (bx + hw(h_min), by + h_min), (bx - hw(h_min), by + h_min)])
+        pct = 100.0 * (cpop2[k] - cpop1[k]) / max(cpop1[k], 1)
+        col = (pal["body"] if abs(pct) <= neutral_pct
+               else pal["gain"] if pct > 0 else pal["loss"])
+        tip_c.append(col)
+        tip_v.append([(bx - hw(h_min), by + h_min), (bx + hw(h_min), by + h_min),
+                      (bx, by + h_max)])
+    xlim = (w - halfw, e + shear * lon_span + halfw)
+    ylim = (s - 0.03 * lat_span, s + lat_span * tilt + vscale + 0.06 * lat_span)
+
+    def proj(lon, lat, h):
+        return lon + shear * ((lat - s) / lat_span) * lon_span, s + (lat - s) * tilt + h
+    return body_v, tip_v, tip_c, xlim, ylim, proj, hn, vscale, tilt, shear
+
+
+def _ground_quads(land, box):
+    """Grey parallelograms for every populated (non-sea) cell — the island shape."""
+    import numpy as np
+    w, s, e, n = box
+    rows, cols = land.shape
     lon_span, lat_span = e - w, n - s
     dlon, dlat = lon_span / cols, lat_span / rows
     lons = w + (np.arange(cols) + 0.5) * dlon
     lats = n - (np.arange(rows) + 0.5) * dlat
-    hmax = float(height.max()) if height.size else 1.0
-    hmin = float(height[cls > 0].min()) if (cls > 0).any() else 0.0
-    span = max(hmax - hmin, 1e-6)
     tilt, shear = 0.58, 0.26
-    vscale, halfw = 0.22 * lat_span, 0.72 * dlon
 
-    def proj(lon, lat, h):
-        return lon + shear * ((lat - s) / lat_span) * lon_span, s + (lat - s) * tilt + h
+    def proj(lon, lat):
+        return lon + shear * ((lat - s) / lat_span) * lon_span, s + (lat - s) * tilt
+    quads = []
+    for i in range(rows):
+        lat = lats[i]
+        for j in range(cols):
+            if land[i, j]:
+                lon = lons[j]
+                quads.append([proj(lon - dlon / 2, lat + dlat / 2),
+                              proj(lon + dlon / 2, lat + dlat / 2),
+                              proj(lon + dlon / 2, lat - dlat / 2),
+                              proj(lon - dlon / 2, lat - dlat / 2)])
+    return quads
 
-    gverts, sverts, scol = [], [], []
-    fg = {1: pal["present"], 2: pal["gain"], 3: pal["loss"]}
-    for r in range(rows):                       # far (north) → near (south)
-        lat = lats[r]
-        for c in range(cols):
-            if not land[r, c]:
-                continue
-            lon = lons[c]
-            gverts.append([proj(lon - dlon / 2, lat + dlat / 2, 0),
-                           proj(lon + dlon / 2, lat + dlat / 2, 0),
-                           proj(lon + dlon / 2, lat - dlat / 2, 0),
-                           proj(lon - dlon / 2, lat - dlat / 2, 0)])
-    for r in range(rows):
-        lat = lats[r]; by = s + (lat - s) * tilt
-        bxs = lons + shear * ((lat - s) / lat_span) * lon_span
-        for c in range(cols):
-            k = cls[r, c]
-            if k == 0:
-                continue
-            hn = (height[r, c] - hmin) / span
-            sverts.append([(bxs[c] - halfw, by), (bxs[c] + halfw, by),
-                           (bxs[c], by + hn * vscale)])
-            scol.append(fg[k])
-    xlim = (w - halfw, e + shear * lon_span + halfw)
-    ylim = (s - 0.03 * lat_span, s + lat_span * tilt + vscale + 0.05 * lat_span)
-    return gverts, sverts, scol, xlim, ylim, proj
+
+def _poster_labels(ax, clon, clat, cpop1, cpop2, name, box, pal, proj, hn, vscale):
+    """Label known cities by attaching each name to its nearest city spike."""
+    import numpy as np
+    labels = CITY_LABELS.get(name.lower().replace(" ", "_"), [])
+    if not labels or clon.size == 0:
+        return
+    s = box[1]; cbig = np.maximum(cpop1, cpop2)
+    matched = []
+    for nm, lo_, la_ in labels:
+        k = int(np.argmin((clon - lo_) ** 2 + (clat - la_) ** 2))
+        if (clon[k] - lo_) ** 2 + (clat[k] - la_) ** 2 <= 0.25 ** 2:
+            matched.append((nm, k, float(cbig[k])))
+    matched.sort(key=lambda m: -m[2])
+    placed = []
+    for nm, k, _ in matched:
+        if any((clon[k] - clon[j]) ** 2 + (clat[k] - clat[j]) ** 2 < 0.30 ** 2 for j in placed):
+            continue
+        placed.append(k)
+        bx, _by = proj(clon[k], clat[k], 0)
+        ytop = box[1] + (clat[k] - box[1]) * 0.58 + hn(cbig[k]) * vscale
+        ax.annotate(nm, (bx, ytop), textcoords="offset points", xytext=(0, 4),
+                    ha="center", fontsize=9, fontweight="bold", color=pal["text"], zorder=8)
 
 
 def _render_poster(p1, p2, box, run_dir, name, years, neutral_pct, min_pop, dark):
-    """Miloš-style poster: island silhouette of cones + title/legend/footer chrome."""
+    """Miloš-style poster: one two-tone spike per city on a grey island silhouette."""
+    try:
+        import numpy as np  # noqa: F401
+        from scipy.ndimage import maximum_filter  # noqa: F401
+    except ImportError:
+        print("  (poster skipped: needs scipy — pip install 'earthchange[maps]')")
+        return
     import numpy as np
     from matplotlib.collections import PolyCollection
     from matplotlib.patches import Rectangle
     plt = _plt()
     pal = _poster_palette(dark)
-    factor = max(1, round(p1.shape[1] / 130))     # ~130 cols → fewer, fatter cones
+    factor = max(1, round(POSTER_CELL_KM / (((box[2] - box[0]) / p1.shape[1]) * 111.0)))
     q1, q2 = _coarsen_sum(p1, factor), _coarsen_sum(p2, factor)
-    cls, delta, _, height = _classify(q1, q2, neutral_pct, max(min_pop, 300))
-    land = np.maximum(q1, q2) > 0
-    gv, sv, sc, xlim, ylim, proj = _poster_geometry(cls, height, land, box, pal)
-    if not sv:
-        print("  (poster skipped: no cells above threshold)")
+    r = min(q1.shape[0], q2.shape[0]); c = min(q1.shape[1], q2.shape[1])
+    q1, q2 = q1[:r, :c], q2[:r, :c]
+    clon, clat, cp1, cp2, thr = _detect_cities(q1, q2, box)
+    if clon.size == 0:
+        print("  (poster skipped: no city centres above threshold)")
         return
+    body_v, tip_v, tip_c, xlim, ylim, proj, hn, vscale, tilt, shear = \
+        _city_spikes(clon, clat, cp1, cp2, box, pal, neutral_pct)
+    gv = _ground_quads(np.maximum(q1, q2) > 0, box)
 
     y1, y2 = years
     tot1, tot2 = float(p1.sum()), float(p2.sum())
-    net = tot2 - tot1
-    verb = "gained" if net >= 0 else "lost"
-    subtitle = (f"{name.replace('_', ' ')} {verb} {abs(net)/1e6:.0f} million people "
-                f"in {y2 - y1} years.")
-
     fig = plt.figure(figsize=(14, 8.0), dpi=150)
     fig.patch.set_facecolor(pal["bg"])
     ax = fig.add_axes([0.02, 0.09, 0.96, 0.56]); ax.set_facecolor(pal["bg"])
-    ax.add_collection(PolyCollection(gv, facecolors=pal["ground"],
-                                     edgecolors=pal["ground"], linewidths=0.3))
-    ax.add_collection(PolyCollection(sv, facecolors=sc, edgecolors="none"))
+    ax.add_collection(PolyCollection(gv, facecolors=pal["ground"], edgecolors=pal["ground"],
+                                     linewidths=0.3))
+    ax.add_collection(PolyCollection(body_v, facecolors=pal["body"], edgecolors="none"))
+    ax.add_collection(PolyCollection(tip_v, facecolors=tip_c, edgecolors="none"))
     ax.set_xlim(*xlim); ax.set_ylim(*ylim)
     ax.set_aspect(1 / math.cos(math.radians((box[1] + box[3]) / 2)))
     ax.axis("off")
-    for nm, lo, la in CITY_LABELS.get(name.lower().replace(" ", "_"), []):
-        if box[0] <= lo <= box[2] and box[1] <= la <= box[3]:
-            X, Y = proj(lo, la, 0)
-            ax.plot([X], [Y], "o", ms=3, color=pal["text"], zorder=5)
-            ax.annotate(nm, (X, Y), textcoords="offset points", xytext=(4, 6),
-                        fontsize=9, fontweight="bold", color=pal["text"], zorder=6)
+    _poster_labels(ax, clon, clat, cp1, cp2, name, box, pal, proj, hn, vscale)
 
-    fig.text(0.035, 0.945, f"Population change, {y1}–{y2}", fontsize=15, color=pal["sub"])
+    fig.text(0.035, 0.945, f"Population change by city, {y1}–{y2}", fontsize=15, color=pal["sub"])
     fig.text(0.033, 0.845, name.replace("_", " ").upper(), fontsize=52,
              fontweight="bold", color=pal["text"], family="serif")
     fig.text(0.035, 0.785, f"{tot1/1e6:.1f} M people in {y1}   →   {tot2/1e6:.1f} M in {y2}",
              fontsize=15, fontweight="bold", color=pal["text"])
-    fig.text(0.035, 0.755, subtitle, fontsize=12.5, color=pal["sub"])
-    lx = 0.60
-    for i, (col, lab) in enumerate([(pal["gain"], f"gained since {y1}"),
-                                     (pal["loss"], f"lost since {y1}"),
-                                     (pal["present"], "present in both years")]):
+    fig.text(0.035, 0.755, f"{clon.size} cities · each spike = a city, height ∝ its "
+             "population (log).", fontsize=12.5, color=pal["sub"])
+    lx = 0.62
+    for i, (col, lab) in enumerate([(pal["gain"], f"grew since {y1} (green tip)"),
+                                     (pal["loss"], f"shrank since {y1} (red tip)"),
+                                     (pal["body"], f"{y1} level (grey)")]):
         y = 0.94 - i * 0.032
         fig.patches.append(Rectangle((lx, y), 0.02, 0.022, transform=fig.transFigure,
                                      facecolor=col, edgecolor="none"))
         fig.text(lx + 0.03, y + 0.003, lab, fontsize=12, color=pal["text"])
-    fig.text(lx, 0.815, "Spike height = larger of the two populations (log scale).",
+    fig.text(lx, 0.80, "Grey land is populated area that is not a city centre.",
              fontsize=10.5, color=pal["sub"])
-    fig.text(lx, 0.79, f"Changes within ±1% stay neutral; cells under {int(max(min_pop,300))} "
-             "residents not drawn.", fontsize=10.5, color=pal["sub"])
-    fig.text(0.035, 0.02, f"Data: GHSL GHS_POP (R2023A, epochs {y1} & {y2}) — census counts "
-             "disaggregated by built-up area; epoch values are model estimates.",
-             fontsize=8.5, color=pal["faint"])
+    fig.text(0.035, 0.02, f"Data: GHSL GHS_POP (R2023A, {y1} & {y2}). Cities = local "
+             f"population peaks ≥ {thr:,}.", fontsize=8.5, color=pal["faint"])
     fig.text(0.965, 0.02, "earthchange · inspired by Miloš Popović",
              fontsize=8.5, color=pal["faint"], ha="right")
     out = os.path.join(run_dir, "pop_poster_dark.png" if dark else "pop_poster.png")
