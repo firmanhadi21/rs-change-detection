@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Earth Engine dengan JavaScript — Workshop 90 Menit</title>
+<meta name="description" content="Workshop 90 menit untuk pemula: memakai Google Earth Engine lewat Code Editor JavaScript, dari nol sampai membuat peta deteksi perubahan vegetasi dan mengekspornya. Bahasa Indonesia.">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1a1d21; --muted:#5b6570; --line:#e5e8ec;
+    --accent:#1a7f4b; --accent2:#0b5cad; --code-bg:#f6f8fa; --code-fg:#24292f;
+    --card:#f9fafb; --warn-bg:#fff8e6; --warn-line:#e9c46a; --sidebar:#f7f9fb;
+    --js:#c9a227;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0f1216; --fg:#e6e9ee; --muted:#9aa4b0; --line:#242a31;
+      --accent:#4cc38a; --accent2:#5aa2e6; --code-bg:#161b22; --code-fg:#d6dde6;
+      --card:#151a20; --warn-bg:#2a2410; --warn-line:#7a6320; --sidebar:#0c0f13;
+      --js:#e3c14f;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--accent2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{display:grid;grid-template-columns:270px 1fr;max-width:1200px;margin:0 auto}
+  nav.side{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;
+    padding:24px 18px;border-right:1px solid var(--line);background:var(--sidebar)}
+  nav.side h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 8px}
+  nav.side a{display:block;color:var(--fg);padding:4px 8px;border-radius:6px;font-size:14.5px}
+  nav.side a:hover{background:var(--card);text-decoration:none}
+  nav.side .brand{font-weight:700;font-size:16px;margin-bottom:4px}
+  nav.side .brand span{color:var(--js)}
+  nav.side .mnt{color:var(--muted);font-size:12.5px;float:right}
+  main{padding:36px 42px;min-width:0;max-width:820px}
+  h1{font-size:34px;line-height:1.15;margin:.2em 0 .3em}
+  h2{font-size:25px;margin:1.8em 0 .5em;padding-top:.4em;border-top:1px solid var(--line)}
+  h3{font-size:19px;margin:1.5em 0 .4em}
+  .lede{font-size:18.5px;color:var(--muted)}
+  code{background:var(--code-bg);color:var(--code-fg);padding:.15em .4em;border-radius:5px;
+    font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto}
+  pre code{background:none;padding:0;color:var(--code-fg);font-size:13px}
+  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;display:block;overflow-x:auto}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--card)}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+  .badge{font-size:12.5px;color:var(--muted);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 11px}
+  .callout{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:10px;padding:12px 16px;margin:1.2em 0;font-size:14.5px}
+  .callout.tip{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+  .callout.tugas{border-color:var(--accent2);background:color-mix(in srgb,var(--accent2) 9%,transparent)}
+  .callout b.lbl{display:block;margin-bottom:.3em}
+  .note{color:var(--muted);font-size:14px}
+  .durasi{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--accent);
+    border-radius:999px;padding:2px 12px;vertical-align:middle;margin-left:10px}
+  figure{margin:1.4em 0}
+  figure img{width:100%;border:1px solid var(--line);border-radius:10px;display:block}
+  figcaption{color:var(--muted);font-size:13.5px;margin-top:6px;text-align:center}
+  .steps{counter-reset:step;list-style:none;padding-left:0}
+  .steps>li{counter-increment:step;position:relative;padding:2px 0 2px 42px;margin:14px 0}
+  .steps>li::before{content:counter(step);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+  .panel{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:1.2em 0}
+  .panel div{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;font-size:14px}
+  .panel b{display:block;color:var(--accent)}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0;color:var(--muted);font-size:13.5px}
+  @media (max-width:860px){
+    .wrap{grid-template-columns:1fr}
+    nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line)}
+    main{padding:24px 18px}
+    h1{font-size:28px}
+    .panel{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="side">
+  <div class="brand"><span>&#9670;</span> GEE JavaScript</div>
+  <div class="note">Workshop 90 menit &middot; pemula</div>
+  <h2>Sebelum mulai</h2>
+  <a href="#persiapan">0 &middot; Persiapan</a>
+  <a href="#rundown">Rundown 90 menit</a>
+  <h2>Sesi</h2>
+  <a href="#kenapa">1 &middot; Kenapa GEE <span class="mnt">10&#8242;</span></a>
+  <a href="#editor">2 &middot; Tur Code Editor <span class="mnt">10&#8242;</span></a>
+  <a href="#javascript">3 &middot; JavaScript secukupnya <span class="mnt">15&#8242;</span></a>
+  <a href="#citra">4 &middot; Citra pertama <span class="mnt">15&#8242;</span></a>
+  <a href="#koleksi">5 &middot; ImageCollection <span class="mnt">15&#8242;</span></a>
+  <a href="#perubahan">6 &middot; Deteksi perubahan <span class="mnt">15&#8242;</span></a>
+  <a href="#ekspor">7 &middot; Ekspor &amp; grafik <span class="mnt">10&#8242;</span></a>
+  <h2>Rujukan</h2>
+  <a href="#skrip">Skrip lengkap</a>
+  <a href="#error">Error yang sering muncul</a>
+  <a href="#lanjut">Setelah workshop</a>
+  <h2>Tautan</h2>
+  <a href="../">&larr; Tutorial earthchange (Python)</a>
+  <a href="https://code.earthengine.google.com/">Code Editor &#8599;</a>
+  <a href="https://developers.google.com/earth-engine">Dokumentasi GEE &#8599;</a>
+</nav>
+
+<main>
+  <h1>Google Earth Engine dengan JavaScript</h1>
+  <p class="lede">Workshop 90 menit untuk pemula. Dari belum pernah membuka Code Editor,
+  sampai punya satu skrip utuh yang mendeteksi kehilangan vegetasi dari citra Sentinel-2
+  dan mengekspornya sebagai GeoTIFF.</p>
+
+  <div class="badges">
+    <span class="badge">90 menit</span>
+    <span class="badge">JavaScript</span>
+    <span class="badge">Tanpa instalasi</span>
+    <span class="badge">Sentinel-2</span>
+    <span class="badge">Gratis untuk riset &amp; pendidikan</span>
+  </div>
+
+  <p>Halaman ini berbeda dari <a href="../">tutorial utama repositori ini</a>, yang memakai
+  Python dan paket <code>earthchange</code>. Di sini kita tidak memasang apa pun. Semua
+  dikerjakan di dalam peramban, lewat <b>Code Editor</b> milik Google Earth Engine.</p>
+
+  <p>Kenapa JavaScript, padahal repositori ini Python? Karena untuk orang yang baru pertama
+  kali menyentuh penginderaan jauh berbasis awan, Code Editor jauh lebih ramah: tidak ada
+  instalasi, tidak ada <i>environment</i> yang bentrok, tidak ada autentikasi yang gagal di
+  menit ketiga. Anda buka tautan, ketik, tekan <b>Run</b>, dan petanya langsung muncul di
+  bawah. Konsepnya sama persis dengan versi Python — yang berbeda hanya tempat mengetiknya.</p>
+
+  <p>Di akhir 90 menit, kita akan lihat bahwa skrip yang kita bangun bersama-sama itulah
+  yang diotomatiskan oleh <code>earthchange</code> menjadi satu baris perintah.</p>
+
+  <h2 id="persiapan">0 &middot; Persiapan <span class="note">— kerjakan sebelum kelas</span></h2>
+
+  <div class="callout">
+    <b class="lbl">&#9888; Ini bagian yang paling sering merusak jadwal</b>
+    Pendaftaran Earth Engine <b>tidak instan</b> — perlu membuat proyek Google Cloud dan
+    persetujuannya bisa memakan waktu. Kalau peserta baru mendaftar saat kelas dimulai,
+    Sesi 2 bisa molor 20–30 menit dan seluruh rundown berantakan.
+    <br><br>
+    Kirim langkah 1–3 di bawah ke peserta <b>minimal sehari sebelumnya</b>, dan minta mereka
+    membalas dengan tangkapan layar Code Editor yang sudah terbuka.
+  </div>
+
+  <ol class="steps">
+    <li><b>Akun Google.</b> Akun kampus (<code>@students.undip.ac.id</code> dan sejenisnya)
+      biasanya bisa. Kalau ditolak organisasinya, pakai akun pribadi.</li>
+    <li><b>Daftar Earth Engine</b> di <a href="https://code.earthengine.google.com/">code.earthengine.google.com</a>.
+      Anda akan diminta memilih atau membuat <b>Cloud Project</b>, lalu memilih jenis
+      penggunaan. Untuk kuliah dan riset, pilih yang <b>non-commercial / academic</b> —
+      gratis.</li>
+    <li><b>Pastikan Code Editor terbuka</b> dan Anda melihat peta dunia di bagian bawah
+      layar. Kalau sampai di sini, persiapan selesai.</li>
+    <li><b>Peramban.</b> Chrome paling mulus. Code Editor jalan di Firefox dan Safari,
+      tapi beberapa panel kadang berperilaku aneh.</li>
+    <li><b>Koneksi.</b> Semua perhitungan terjadi di server Google, jadi yang dikirim
+      bolak-balik hanya gambar peta. Tidak butuh internet kencang, tapi butuh yang
+      <i>stabil</i>.</li>
+  </ol>
+
+  <h2 id="rundown">Rundown 90 menit</h2>
+
+  <p>Untuk pemateri. Alokasi ini sudah termasuk waktu peserta mengetik — dan peserta pemula
+  mengetik jauh lebih lambat daripada dugaan kita.</p>
+
+  <table>
+    <tr><th>Menit</th><th>Sesi</th><th>Peserta selesai dengan</th></tr>
+    <tr><td>0–10</td><td>1 &middot; Kenapa GEE</td><td>Paham kenapa tidak perlu mengunduh citra</td></tr>
+    <tr><td>10–20</td><td>2 &middot; Tur Code Editor</td><td><code>print('Halo GEE')</code> jalan</td></tr>
+    <tr><td>20–35</td><td>3 &middot; JavaScript secukupnya</td><td>Paham beda klien vs server</td></tr>
+    <tr><td>35–50</td><td>4 &middot; Citra pertama</td><td>Satu citra tampil di peta</td></tr>
+    <tr><td>50–65</td><td>5 &middot; ImageCollection</td><td>Komposit median bebas awan</td></tr>
+    <tr><td>65–80</td><td>6 &middot; Deteksi perubahan</td><td>Peta kehilangan vegetasi + luas (ha)</td></tr>
+    <tr><td>80–90</td><td>7 &middot; Ekspor &amp; grafik</td><td>Tugas ekspor berjalan di tab Tasks</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <b class="lbl">Saran dari pengalaman</b>
+    Tempel <a href="#skrip">skrip lengkap</a> di layar besar atau bagikan tautannya sejak
+    awal. Peserta yang tertinggal bisa menyalin dan menyusul, alih-alih menyerah diam-diam
+    di menit ke-40. Tujuan workshop ini adalah <i>paham</i>, bukan lomba mengetik.
+  </div>
+
+  <h2 id="kenapa">1 &middot; Kenapa Earth Engine <span class="durasi">10 menit</span></h2>
+
+  <p>Mulai dengan pertanyaan ke peserta: <i>kalau ingin melihat perubahan tutupan lahan satu
+  kabupaten selama sepuluh tahun, apa yang harus dilakukan?</i></p>
+
+  <p>Jawaban cara lama: cari citra di katalog, unduh satu per satu, tiap scene ratusan MB,
+  koreksi atmosfer, mozaik, potong, baru analisis. Untuk sepuluh tahun satu kabupaten,
+  itu bisa ratusan gigabyte dan berminggu-minggu kerja — sebelum satu pun kesimpulan lahir.</p>
+
+  <p>Earth Engine membalik urutannya. <b>Datanya tidak pindah ke Anda; kode Anda yang pindah
+  ke datanya.</b> Seluruh arsip Landsat sejak 1984, Sentinel sejak 2015, MODIS sejak 2000,
+  ditambah ratusan dataset lain, sudah duduk di server Google. Anda menuliskan apa yang ingin
+  dihitung, Google yang mengerjakan, dan yang dikirim balik ke layar Anda cuma gambar
+  petanya.</p>
+
+  <table>
+    <tr><th></th><th>Cara lama</th><th>Earth Engine</th></tr>
+    <tr><td>Unduhan</td><td>Ratusan GB</td><td>Nol</td></tr>
+    <tr><td>Perangkat keras</td><td>Komputer kuat + penyimpanan</td><td>Peramban</td></tr>
+    <tr><td>Waktu ke hasil pertama</td><td>Berhari-hari</td><td>Menit</td></tr>
+    <tr><td>Menambah 10 tahun lagi</td><td>Ulangi semuanya</td><td>Ubah satu tanggal</td></tr>
+    <tr><td>Biaya</td><td>Waktu &amp; penyimpanan</td><td>Gratis untuk riset &amp; pendidikan</td></tr>
+  </table>
+
+  <p>Yang perlu ditegaskan sejak awal supaya tidak menimbulkan salah paham nanti: gratisnya
+  untuk penggunaan <b>non-komersial</b> — riset, pendidikan, dan sebagian besar kerja lembaga
+  publik. Penggunaan komersial berbayar. Dan "gratis" bukan berarti "tanpa batas": ada kuota
+  memori dan waktu komputasi, yang akan kita temui sendiri di Sesi 6.</p>
+
+  <div class="callout tip">
+    <b class="lbl">Yang akan kita bangun hari ini</b>
+    Satu skrip yang membandingkan tutupan vegetasi di sebuah kawasan tambang nikel di
+    Konawe Utara, Sulawesi Tenggara, antara <b>2023</b> dan <b>2026</b> — lalu menghitung
+    berapa hektar vegetasi yang hilang, dan mengekspor hasilnya sebagai GeoTIFF.
+    <br><br>
+    Skripnya tumbuh sedikit demi sedikit di tiap sesi. Tidak ada langkah yang dibuang.
+  </div>
+
+  <h2 id="editor">2 &middot; Tur Code Editor <span class="durasi">10 menit</span></h2>
+
+  <p>Buka <a href="https://code.earthengine.google.com/">code.earthengine.google.com</a>.
+  Sekilas layarnya padat, tapi sebetulnya hanya ada empat bagian yang perlu dikenali hari ini.</p>
+
+  <div class="panel">
+    <div><b>Kiri — Scripts / Docs / Assets</b>
+      <b style="color:var(--muted);font-weight:400">Scripts</b> menyimpan skrip Anda.
+      <b style="color:var(--muted);font-weight:400">Docs</b> adalah dokumentasi lengkap semua
+      fungsi — ini yang paling sering dilupakan pemula, padahal isinya jawaban dari 90%
+      pertanyaan. <b style="color:var(--muted);font-weight:400">Assets</b> untuk data Anda
+      sendiri, misalnya shapefile batas wilayah.</div>
+    <div><b>Tengah — Editor kode</b>
+      Tempat mengetik. Tombol <b>Run</b> menjalankan seluruh skrip dari atas ke bawah.
+      Tombol <b>Save</b> menyimpan. <b>Get Link</b> membuat URL yang berisi skrip Anda —
+      cara terbaik membagikan pekerjaan ke rekan atau ke dosen pembimbing.</div>
+    <div><b>Kanan — Console / Inspector / Tasks</b>
+      <b style="color:var(--muted);font-weight:400">Console</b> menampilkan hasil
+      <code>print()</code>. <b style="color:var(--muted);font-weight:400">Inspector</b>
+      membaca nilai piksel saat Anda mengklik peta — alat debug paling berguna di GEE.
+      <b style="color:var(--muted);font-weight:400">Tasks</b> tempat ekspor dijalankan.</div>
+    <div><b>Bawah — Peta</b>
+      Setiap <code>Map.addLayer()</code> menambah satu lapisan di sini. Panel
+      <b>Layers</b> di pojok kanan atas peta bisa dipakai mengatur transparansi dan
+      mematikan lapisan — sangat membantu saat membandingkan sebelum/sesudah.</div>
+  </div>
+
+  <p>Sekarang, baris pertama. Ketik ini di editor tengah, lalu tekan <b>Run</b>:</p>
+
+<pre><code>print('Halo GEE');</code></pre>
+
+  <p>Lihat ke panel <b>Console</b> di kanan. Kalau muncul <code>Halo GEE</code>, semuanya siap.</p>
+
+  <p>Sekarang coba yang sedikit berbeda — perhatikan hasilnya:</p>
+
+<pre><code>print(ee.Number(2).add(3));</code></pre>
+
+  <p>Console menampilkan <code>5</code>. Tapi ada yang penting terjadi di balik layar:
+  penjumlahan itu <b>tidak dikerjakan oleh peramban Anda</b>. Ia dikirim ke server Google,
+  dihitung di sana, lalu hasilnya dikirim balik. Untuk 2+3 ini terdengar berlebihan — dan
+  memang berlebihan — tapi mekanisme yang sama persis itulah yang nanti memproses ribuan
+  citra tanpa mengunduh satu pun.</p>
+
+  <div class="callout tugas">
+    <b class="lbl">Tugas 1 &middot; 2 menit</b>
+    Simpan skrip ini (<b>Save</b>, beri nama <code>workshop-gee</code>), lalu klik
+    <b>Get Link</b> dan tempel tautannya di grup kelas. Kita akan pakai skrip ini terus
+    sampai akhir.
+  </div>
+
+  <h2 id="javascript">3 &middot; JavaScript secukupnya <span class="durasi">15 menit</span></h2>
+
+  <p>Kabar baiknya: Anda tidak perlu bisa JavaScript untuk memakai Earth Engine. Yang
+  dibutuhkan cuma sekitar enam hal, dan semuanya muat di satu layar.</p>
+
+<pre><code>// Komentar diawali dua garis miring — server mengabaikannya.
+
+var angka = 5;                       // variabel: selalu diawali 'var'
+var teks = 'Konawe Utara';           // teks pakai kutip tunggal
+var daftar = [1, 2, 3];              // daftar (list)
+var kamus = {min: 0, max: 3000};     // kamus (dictionary) — sangat sering dipakai
+
+function tambah(a, b) {              // fungsi
+  return a + b;
+}
+
+print(tambah(2, 3));                 // 5
+</code></pre>
+
+  <p>Itu saja. Titik koma di akhir baris sebetulnya opsional, tapi biasakan menulisnya —
+  ia menghindarkan sejumlah kesalahan yang sulit dilacak.</p>
+
+  <p>Perhatikan <code>kamus</code> di atas. Bentuk <code>{nama: nilai}</code> itu akan
+  muncul terus, karena hampir semua fungsi Earth Engine menerima pengaturannya dalam
+  bentuk itu.</p>
+
+  <h3>Bagian terpenting seluruh workshop: klien vs server</h3>
+
+  <p>Kalau dari 90 menit ini hanya satu hal yang diingat peserta, buat itu bagian ini.
+  Hampir semua kebingungan pemula di GEE berakar di sini.</p>
+
+  <p>Ada <b>dua dunia</b> yang hidup berdampingan di dalam satu skrip:</p>
+
+  <table>
+    <tr><th></th><th>Klien (peramban Anda)</th><th>Server (Google)</th></tr>
+    <tr><td>Contoh</td><td><code>var a = 5;</code></td><td><code>var b = ee.Number(5);</code></td></tr>
+    <tr><td>Ciri</td><td>JavaScript biasa</td><td>Selalu diawali <code>ee.</code></td></tr>
+    <tr><td>Dihitung di</td><td>Laptop Anda</td><td>Data center Google</td></tr>
+    <tr><td>Boleh pakai <code>if</code>/<code>for</code>?</td><td>Boleh</td><td><b>Tidak</b></td></tr>
+  </table>
+
+  <p>Kenapa <code>if</code> tidak boleh dipakai pada objek server? Contoh ini yang paling
+  jelas menunjukkannya:</p>
+
+<pre><code>var b = ee.Number(1);
+
+if (b.gt(3)) {
+  print('lebih besar dari 3');       // ini TETAP tercetak!
+}
+</code></pre>
+
+  <p>Padahal 1 jelas tidak lebih besar dari 3. Kenapa tetap tercetak?</p>
+
+  <p>Karena <code>b.gt(3)</code> tidak mengembalikan <code>true</code> atau <code>false</code>.
+  Ia mengembalikan sebuah <b>objek</b> <code>ee.Number</code> — perintah yang belum dijalankan,
+  yang baru akan dievaluasi di server nanti. Dan di JavaScript, objek apa pun dianggap
+  "benar". Jadi blok <code>if</code> itu selalu jalan, apa pun isinya.</p>
+
+  <p>Ini bukan bug. Ini konsekuensi dari kenyataan bahwa peramban Anda <i>belum tahu</i>
+  nilainya — dan tidak akan tahu sampai server menghitungnya.</p>
+
+  <p>Hal yang sama berlaku untuk perulangan. Jangan pernah menulis <code>for</code> untuk
+  memproses isi sebuah koleksi citra:</p>
+
+<pre><code>// SALAH — for-loop tidak bisa menyentuh isi ImageCollection
+for (var i = 0; i &lt; koleksi.size(); i++) { ... }
+
+// BENAR — .map() menyuruh server melakukannya untuk setiap citra
+var hasil = koleksi.map(function(citra) {
+  return citra.normalizedDifference(['B8', 'B4']);
+});
+</code></pre>
+
+  <p><code>.map()</code> adalah cara Earth Engine berkata "kerjakan fungsi ini pada setiap
+  elemen, di sisimu, secara paralel". Untuk ribuan citra, bedanya bukan soal gaya
+  penulisan — <code>for</code> memang tidak akan berhasil sama sekali.</p>
+
+  <div class="callout">
+    <b class="lbl">&#9888; <code>getInfo()</code> — pakai sehemat mungkin</b>
+    <code>getInfo()</code> memaksa hasil dari server pindah ke peramban <i>sekarang juga</i>,
+    dan peramban akan membeku sampai selesai.
+    <br><br>
+    <code>print(koleksi.size());</code> &nbsp;&larr; benar, <code>print</code> menanganinya secara asinkron<br>
+    <code>var n = koleksi.size().getInfo();</code> &nbsp;&larr; jalan, tapi memblokir; hindari kecuali benar-benar perlu
+  </div>
+
+  <div class="callout tugas">
+    <b class="lbl">Tugas 2 &middot; 3 menit</b>
+    Ubah <code>ee.Number(1)</code> di contoh <code>if</code> tadi menjadi
+    <code>ee.Number(10)</code>. Jalankan. Apakah hasilnya berubah? Kenapa tidak?
+    <br><br>
+    Lalu perbaiki dengan cara Earth Engine — pakai <code>ee.Algorithms.If()</code>, atau
+    yang lebih lazim, hindari percabangan sama sekali dan pakai <i>mask</i>. Kita akan
+    memakai mask di Sesi 5.
+  </div>
+
+  <h2 id="citra">4 &middot; Citra pertama <span class="durasi">15 menit</span></h2>
+
+  <p>Mulai dari yang paling sederhana dan paling pasti ada: model elevasi digital SRTM.
+  Satu citra, satu band, tersedia untuk hampir seluruh daratan bumi.</p>
+
+<pre><code>// Titik pusat kawasan yang akan kita amati:
+// Mandiodo, Konawe Utara, Sulawesi Tenggara
+var titik = ee.Geometry.Point([122.25, -3.333]);
+var area  = titik.buffer(6000);      // radius 6 km, satuannya METER
+
+Map.centerObject(area, 12);          // 12 = tingkat perbesaran
+
+var dem = ee.Image('USGS/SRTMGL1_003');
+Map.addLayer(dem, {min: 0, max: 800}, 'Elevasi');
+</code></pre>
+
+  <p>Tekan <b>Run</b>. Peta bergeser ke Sulawesi Tenggara dan muncul lapisan abu-abu:
+  gelap untuk rendah, terang untuk tinggi.</p>
+
+  <p>Tiga hal yang perlu diperhatikan dari potongan kode itu:</p>
+
+  <ul>
+    <li><b>Urutan koordinat adalah <code>[bujur, lintang]</code></b> — longitude dulu, baru
+      latitude. Ini kebalikan dari kebiasaan menyebut "lintang-bujur", dan menjadi salah
+      satu kesalahan paling sering. Kalau peta Anda melompat ke tengah laut, periksa ini
+      lebih dulu.</li>
+    <li><b><code>buffer()</code> memakai satuan meter</b>, bukan derajat.</li>
+    <li><b><code>{min:0, max:800}</code> adalah parameter visualisasi</b> — ia hanya mengatur
+      tampilan, tidak mengubah data. Kalau petanya tampak putih semua atau hitam semua,
+      hampir selalu inilah penyebabnya, bukan datanya.</li>
+  </ul>
+
+  <p>Sekarang beralih ke citra optik. Alih-alih menghafal ID satu citra tertentu, kita ambil
+  citra pertama dari koleksi yang sudah disaring — cara yang lebih aman dan sekaligus
+  memperkenalkan penyaringan:</p>
+
+<pre><code>var satuCitra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(area)
+  .filterDate('2026-01-01', '2026-06-30')
+  .sort('CLOUDY_PIXEL_PERCENTAGE')   // paling sedikit awan di urutan pertama
+  .first();
+
+print('Citra terpilih:', satuCitra);
+
+// Warna asli: merah, hijau, biru
+Map.addLayer(satuCitra, {bands: ['B4', 'B3', 'B2'], min: 0, max: 3000}, 'Warna asli');
+
+// Warna semu: inframerah-dekat sebagai merah — vegetasi jadi merah menyala
+Map.addLayer(satuCitra, {bands: ['B8', 'B4', 'B3'], min: 0, max: 3000}, 'Warna semu');
+</code></pre>
+
+  <p>Matikan dan nyalakan kedua lapisan itu bergantian lewat panel <b>Layers</b>. Pada
+  komposit warna semu, vegetasi sehat menyala merah terang — karena daun memantulkan
+  inframerah-dekat jauh lebih kuat daripada cahaya tampak. Sifat inilah yang akan kita
+  manfaatkan di Sesi 6.</p>
+
+  <p>Klik tab <b>Inspector</b>, lalu klik satu titik di peta. Panel itu menampilkan nilai
+  setiap band di titik tersebut. Biasakan memakai Inspector — kalau nanti hasil analisis
+  terasa janggal, di sinilah tempat memeriksanya.</p>
+
+  <div class="callout">
+    <b class="lbl">Kenapa <code>max: 3000</code>, bukan 255?</b>
+    Sentinel-2 Level-2A menyimpan pantulan permukaan dalam bilangan bulat yang dikalikan
+    10.000. Jadi nilai 3000 berarti pantulan 0,30 alias 30% — kira-kira batas atas yang wajar
+    untuk vegetasi dan tanah. Kalau citra tampak terlalu gelap, naikkan; terlalu terang,
+    turunkan.
+  </div>
+
+  <h2 id="koleksi">5 &middot; ImageCollection dan komposit median <span class="durasi">15 menit</span></h2>
+
+  <p>Satu citra jarang cukup di Indonesia — dan peserta biasanya sudah tahu alasannya
+  sebelum kita menyebutkannya. <b>Awan.</b></p>
+
+  <p>Coba tampilkan citra tunggal tadi dan cari bagian yang tertutup awan. Selalu ada.
+  Menunggu satu citra yang benar-benar bersih di atas Sulawesi bisa berarti menunggu
+  berbulan-bulan.</p>
+
+  <p>Solusinya bukan mencari citra sempurna, melainkan <b>menggabungkan banyak citra tidak
+  sempurna</b>. Untuk setiap piksel, buang yang tertutup awan, lalu ambil nilai tengah
+  (median) dari sisanya. Awan di citra A ditambal piksel bersih dari citra F, dan seterusnya
+  — otomatis, per piksel.</p>
+
+<pre><code>// Fungsi untuk membuang piksel awan dengan band SCL (klasifikasi scene)
+function maskAwan(citra) {
+  var scl = citra.select('SCL');
+  var bersih = scl.neq(3)      // 3  = bayangan awan
+    .and(scl.neq(8))           // 8  = awan probabilitas sedang
+    .and(scl.neq(9))           // 9  = awan probabilitas tinggi
+    .and(scl.neq(10))          // 10 = cirrus tipis
+    .and(scl.neq(11));         // 11 = salju / es
+  return citra.updateMask(bersih);
+}
+
+// Fungsi pembantu: satu komposit median untuk satu rentang tanggal
+function komposit(mulai, selesai) {
+  return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+    .filterBounds(area)
+    .filterDate(mulai, selesai)
+    .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 60))
+    .map(maskAwan)
+    .median();
+}
+
+var sebelum  = komposit('2023-01-01', '2023-12-31');
+var sesudah  = komposit('2026-01-01', '2026-06-30');
+
+Map.addLayer(sebelum.clip(area), {bands:['B4','B3','B2'], min:0, max:3000}, 'Sebelum 2023');
+Map.addLayer(sesudah.clip(area), {bands:['B4','B3','B2'], min:0, max:3000}, 'Sesudah 2026');
+</code></pre>
+
+  <p>Jalankan, lalu bandingkan kedua lapisan dengan menyalakan-mematikannya. Perbedaannya
+  seharusnya sudah terlihat dengan mata telanjang.</p>
+
+  <p>Beberapa catatan tentang kode di atas:</p>
+
+  <ul>
+    <li><code>.filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 60))</code> membuang scene yang
+      lebih dari 60% berawan. Ini penyaringan <i>per scene</i>; <code>maskAwan</code>
+      bekerja <i>per piksel</i>. Keduanya saling melengkapi.</li>
+    <li><code>.map(maskAwan)</code> — inilah <code>.map()</code> dari Sesi 3, dipakai sungguhan.</li>
+    <li><code>.median()</code> meruntuhkan seluruh koleksi menjadi satu citra. Bisa juga
+      <code>.mean()</code>, tapi median lebih tahan terhadap sisa awan yang lolos dari mask.</li>
+    <li><code>.clip(area)</code> hanya untuk kerapian tampilan.</li>
+  </ul>
+
+  <p>Ingin tahu berapa citra yang dipakai? Tambahkan ini:</p>
+
+<pre><code>var koleksi2023 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(area).filterDate('2023-01-01', '2023-12-31');
+print('Jumlah citra 2023:', koleksi2023.size());
+</code></pre>
+
+  <div class="callout tip">
+    <b class="lbl">Konsekuensi yang sering terlewat</b>
+    Komposit median bukan foto satu tanggal — ia nilai <i>tengah periode</i>. Untuk
+    pertanyaan seperti "bagaimana kondisi vegetasi sepanjang 2023", itu justru lebih baik
+    daripada satu tanggal sembarang.
+    <br><br>
+    Tapi untuk kejadian sesaat seperti banjir, cara ini keliru: genangan tiga hari akan
+    tenggelam tanpa bekas di median satu tahun. Untuk kasus seperti itu, pakai satu scene,
+    atau pakai radar yang menembus awan.
+  </div>
+
+  <h2 id="perubahan">6 &middot; Deteksi perubahan <span class="durasi">15 menit</span></h2>
+
+  <p>Sekarang inti workshop. Dan idenya sesungguhnya sederhana: <b>hitung kehijauan pada dua
+  waktu, lalu kurangkan.</b></p>
+
+  <p>Ukuran kehijauan yang paling umum adalah NDVI, yang membandingkan inframerah-dekat
+  (band B8, sangat dipantulkan daun sehat) dengan merah (band B4, banyak diserap klorofil):</p>
+
+<pre><code>var ndviSebelum = sebelum.normalizedDifference(['B8', 'B4']).rename('NDVI');
+var ndviSesudah = sesudah.normalizedDifference(['B8', 'B4']).rename('NDVI');
+
+var selisih = ndviSesudah.subtract(ndviSebelum);
+
+Map.addLayer(selisih.clip(area),
+  {min: -0.4, max: 0.4, palette: ['red', 'white', 'green']},
+  'Selisih NDVI');
+</code></pre>
+
+  <p><code>normalizedDifference</code> menghitung (B8 − B4) / (B8 + B4), menghasilkan nilai
+  antara −1 dan 1. Vegetasi rapat biasanya di atas 0,6; tanah terbuka sekitar 0,1–0,2; air
+  bernilai negatif.</p>
+
+  <p>Pada peta selisih, <b>merah berarti kehijauan berkurang</b> dan hijau berarti bertambah.
+  Kawasan tambang akan terlihat sebagai bercak merah yang tegas.</p>
+
+  <p>Peta gradasi itu bagus untuk melihat pola, tapi belum bisa dihitung. Untuk itu kita perlu
+  mengambil keputusan: seberapa besar penurunan yang kita sebut "hilang"?</p>
+
+<pre><code>var AMBANG = -0.15;                  // turun lebih dari 0,15 dianggap kehilangan
+var hilang = selisih.lt(AMBANG);
+
+Map.addLayer(hilang.selfMask().clip(area), {palette: ['red']}, 'Kehilangan vegetasi');
+</code></pre>
+
+  <p><code>.selfMask()</code> menyembunyikan piksel bernilai nol, sehingga yang tergambar
+  hanya area yang benar-benar berubah.</p>
+
+  <div class="callout">
+    <b class="lbl">&#9888; Angka −0,15 itu pilihan, bukan kebenaran</b>
+    Tidak ada yang menurunkannya dari langit. Ia nilai yang masuk akal, bukan konstanta alam.
+    Ubah menjadi −0,10 dan area merah melebar; −0,25 dan ia menyempit.
+    <br><br>
+    Karena itu, saat melaporkan hasil, <b>selalu sebutkan ambang yang dipakai</b>. Pernyataan
+    "wilayah A dua kali wilayah B pada ambang yang sama" jauh lebih kokoh daripada
+    "wilayah A rusak 37,2%".
+  </div>
+
+  <p>Terakhir, ubah peta menjadi angka — bagian yang biasanya paling ditunggu:</p>
+
+<pre><code>var luas = hilang.multiply(ee.Image.pixelArea())   // luas tiap piksel, m2
+  .divide(10000)                                   // m2 -> hektar
+  .reduceRegion({
+    reducer:   ee.Reducer.sum(),
+    geometry:  area,
+    scale:     20,                                 // meter per piksel
+    maxPixels: 1e10
+  });
+
+print('Luas kehilangan vegetasi (ha):', luas);
+</code></pre>
+
+  <p><code>reduceRegion</code> meringkas seluruh piksel dalam sebuah wilayah menjadi satu
+  angka. Parameter <code>scale</code> menentukan resolusi perhitungan — dan ia berpengaruh
+  besar pada waktu proses. Untuk latihan, 20 m sudah memadai.</p>
+
+  <div class="callout tugas">
+    <b class="lbl">Tugas 3 &middot; 5 menit</b>
+    <b>a.</b> Ganti <code>AMBANG</code> menjadi −0,10 lalu −0,25. Catat luasnya masing-masing.
+    Seberapa besar pengaruh satu keputusan kecil itu terhadap angka yang akan Anda kutip?
+    <br><br>
+    <b>b.</b> Ganti koordinat ke wilayah Anda sendiri. Cari di Google Maps, klik kanan,
+    salin koordinatnya — lalu <b>ingat membaliknya</b> menjadi <code>[bujur, lintang]</code>.
+  </div>
+
+  <p>Untuk pemateri — hasil yang seharusnya muncul, sudah diuji lebih dulu pada AOI seluas
+  <b>11.175 ha</b> (30 citra pada 2023, 13 citra pada 2026):</p>
+
+  <table>
+    <tr><th>Ambang</th><th>Luas terdeteksi</th><th>Porsi AOI</th></tr>
+    <tr><td>−0,10</td><td>1.681 ha</td><td>15,0%</td></tr>
+    <tr><td><b>−0,15</b> (nilai di skrip)</td><td><b>1.178 ha</b></td><td><b>10,5%</b></td></tr>
+    <tr><td>−0,25</td><td>560 ha</td><td>5,0%</td></tr>
+  </table>
+
+  <p>Inilah inti Tugas 3, dan sebaiknya ditulis di papan: menggeser satu angka dari −0,10 ke
+  −0,25 mengubah jawaban <b>tiga kali lipat</b> — 1.681 ha versus 560 ha — pada data yang sama
+  persis. Tidak ada yang keliru, tidak ada bug. Yang berubah cuma satu keputusan yang biasanya
+  tidak pernah disebutkan dalam laporan.</p>
+
+  <p>Kalau angka Anda meleset agak jauh dari tabel ini, penyebabnya kemungkinan besar arsip
+  yang bertambah — citra 2026 masih terus masuk — bukan kesalahan pengetikan.</p>
+
+  <h2 id="ekspor">7 &middot; Ekspor dan grafik <span class="durasi">10 menit</span></h2>
+
+  <p>Peta di layar bagus untuk diskusi, tapi cepat atau lambat hasilnya perlu masuk QGIS,
+  ArcGIS, atau lampiran laporan. Untuk itu ada <code>Export</code>.</p>
+
+<pre><code>Export.image.toDrive({
+  image:       hilang.selfMask().toByte(),
+  description: 'kehilangan_vegetasi_konawe',
+  folder:      'GEE_workshop',
+  region:      area,
+  scale:       20,
+  maxPixels:   1e10
+});
+</code></pre>
+
+  <p>Jalankan skripnya. Perhatikan: <b>tidak ada yang terjadi</b> — belum. Buka tab
+  <b>Tasks</b> di panel kanan, dan Anda akan melihat satu tugas menunggu dengan tombol
+  <b>RUN</b> di sebelahnya. Klik tombol itu, dan ekspor baru benar-benar berjalan.</p>
+
+  <p>Ini sering membingungkan pemula. <code>Export</code> di dalam skrip hanya <i>mendaftarkan</i>
+  tugas; Andalah yang harus menjalankannya. Hasilnya masuk ke Google Drive, di folder yang
+  disebutkan, sebagai GeoTIFF bergeoreferensi yang siap dibuka di QGIS.</p>
+
+  <p>Untuk area seukuran latihan ini, prosesnya beberapa menit. Untuk satu provinsi, bisa
+  berjam-jam — dan itu wajar; ekspor berjalan di latar belakang, Anda boleh menutup
+  perambannya.</p>
+
+  <h3>Grafik deret waktu</h3>
+
+  <p>Satu hal lagi yang cepat dan berkesan: melihat kehijauan berubah sepanjang waktu.</p>
+
+<pre><code>var deret = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(area)
+  .filterDate('2019-01-01', '2026-06-30')
+  .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 40))
+  .map(maskAwan)
+  .map(function(citra) {
+    return citra.normalizedDifference(['B8', 'B4']).rename('NDVI')
+                .copyProperties(citra, ['system:time_start']);
+  });
+
+var grafik = ui.Chart.image.series({
+  imageCollection: deret,
+  region:  area,
+  reducer: ee.Reducer.mean(),
+  scale:   100
+}).setOptions({
+  title:  'Rata-rata NDVI, 2019-2026',
+  vAxis:  {title: 'NDVI'},
+  hAxis:  {title: 'Tanggal'},
+  lineWidth: 1,
+  pointSize: 3
+});
+
+print(grafik);
+</code></pre>
+
+  <p>Grafiknya muncul di Console. Garisnya bergerigi — itu sisa pengaruh awan dan perbedaan
+  sudut matahari — tapi kecenderungan jangka panjangnya terbaca jelas.</p>
+
+  <p>Perhatikan <code>copyProperties(citra, ['system:time_start'])</code>. Tanpa itu, citra
+  hasil perhitungan kehilangan stempel waktunya dan grafik tidak tahu harus meletakkannya
+  di mana pada sumbu tanggal. Ini kesalahan klasik yang menghabiskan banyak waktu orang.</p>
+
+  <h2 id="skrip">Skrip lengkap</h2>
+
+  <p>Seluruh workshop dalam satu potong. Bagikan ini di awal kelas supaya peserta yang
+  tertinggal bisa menyusul.</p>
+
+<pre><code>// =====================================================================
+//  Workshop GEE JavaScript - deteksi kehilangan vegetasi
+//  Mandiodo, Konawe Utara, Sulawesi Tenggara
+// =====================================================================
+
+// --- 1. Wilayah kajian ------------------------------------------------
+var titik = ee.Geometry.Point([122.25, -3.333]);   // [BUJUR, LINTANG]
+var area  = titik.buffer(6000);                    // radius 6 km, meter
+Map.centerObject(area, 12);
+
+// --- 2. Buang piksel awan --------------------------------------------
+function maskAwan(citra) {
+  var scl = citra.select('SCL');
+  var bersih = scl.neq(3)      // bayangan awan
+    .and(scl.neq(8))           // awan sedang
+    .and(scl.neq(9))           // awan tinggi
+    .and(scl.neq(10))          // cirrus
+    .and(scl.neq(11));         // salju/es
+  return citra.updateMask(bersih);
+}
+
+// --- 3. Komposit median per periode ----------------------------------
+function komposit(mulai, selesai) {
+  return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+    .filterBounds(area)
+    .filterDate(mulai, selesai)
+    .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 60))
+    .map(maskAwan)
+    .median();
+}
+
+var sebelum = komposit('2023-01-01', '2023-12-31');
+var sesudah = komposit('2026-01-01', '2026-06-30');
+
+Map.addLayer(sebelum.clip(area), {bands:['B4','B3','B2'], min:0, max:3000}, 'Sebelum 2023');
+Map.addLayer(sesudah.clip(area), {bands:['B4','B3','B2'], min:0, max:3000}, 'Sesudah 2026');
+
+// --- 4. NDVI dan selisihnya ------------------------------------------
+var ndviSebelum = sebelum.normalizedDifference(['B8','B4']).rename('NDVI');
+var ndviSesudah = sesudah.normalizedDifference(['B8','B4']).rename('NDVI');
+var selisih     = ndviSesudah.subtract(ndviSebelum);
+
+Map.addLayer(selisih.clip(area),
+  {min:-0.4, max:0.4, palette:['red','white','green']}, 'Selisih NDVI');
+
+// --- 5. Ambang batas dan luas ----------------------------------------
+var AMBANG = -0.15;                 // pilihan, bukan kebenaran - sebutkan saat melapor
+var hilang = selisih.lt(AMBANG);
+
+Map.addLayer(hilang.selfMask().clip(area), {palette:['red']}, 'Kehilangan vegetasi');
+
+var luas = hilang.multiply(ee.Image.pixelArea()).divide(10000)
+  .reduceRegion({
+    reducer:   ee.Reducer.sum(),
+    geometry:  area,
+    scale:     20,
+    maxPixels: 1e10
+  });
+print('Luas kehilangan vegetasi (ha):', luas);
+
+// --- 6. Ekspor --------------------------------------------------------
+Export.image.toDrive({
+  image:       hilang.selfMask().toByte(),
+  description: 'kehilangan_vegetasi_konawe',
+  folder:      'GEE_workshop',
+  region:      area,
+  scale:       20,
+  maxPixels:   1e10
+});
+
+// --- 7. Grafik deret waktu -------------------------------------------
+var deret = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(area)
+  .filterDate('2019-01-01', '2026-06-30')
+  .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 40))
+  .map(maskAwan)
+  .map(function(citra) {
+    return citra.normalizedDifference(['B8','B4']).rename('NDVI')
+                .copyProperties(citra, ['system:time_start']);
+  });
+
+print(ui.Chart.image.series({
+  imageCollection: deret,
+  region:  area,
+  reducer: ee.Reducer.mean(),
+  scale:   100
+}).setOptions({title:'Rata-rata NDVI, 2019-2026', vAxis:{title:'NDVI'}}));
+</code></pre>
+
+  <h2 id="error">Error yang sering muncul</h2>
+
+  <p>Kumpulan pesan kesalahan yang hampir pasti muncul di kelas, beserta artinya. Ada
+  baiknya menyiapkan halaman ini terbuka di tab terpisah saat mengajar.</p>
+
+  <table>
+    <tr><th>Pesan / gejala</th><th>Artinya</th><th>Perbaikan</th></tr>
+    <tr>
+      <td>Peta lompat ke tengah laut</td>
+      <td>Koordinat tertukar</td>
+      <td>Urutannya <code>[bujur, lintang]</code> — longitude dulu</td>
+    </tr>
+    <tr>
+      <td>Lapisan putih polos atau hitam polos</td>
+      <td>Parameter visualisasi tidak cocok</td>
+      <td>Sesuaikan <code>min</code>/<code>max</code>; untuk S2 coba 0–3000</td>
+    </tr>
+    <tr>
+      <td><code>Image.select: Pattern 'B8' did not match any bands</code></td>
+      <td>Nama band salah untuk koleksi itu</td>
+      <td>Landsat memakai <code>SR_B5</code>, bukan <code>B8</code>. Periksa di tab <b>Docs</b></td>
+    </tr>
+    <tr>
+      <td><code>User memory limit exceeded</code></td>
+      <td>Wilayah atau resolusi terlalu berat</td>
+      <td>Perbesar <code>scale</code>, perkecil <code>area</code>, atau ekspor alih-alih <code>print</code></td>
+    </tr>
+    <tr>
+      <td><code>Computation timed out</code></td>
+      <td>Perhitungan interaktif terlalu lama</td>
+      <td>Pakai <code>Export</code> — ekspor punya batas waktu jauh lebih longgar</td>
+    </tr>
+    <tr>
+      <td><code>Collection query aborted after accumulating over 5000 elements</code></td>
+      <td>Koleksi belum disaring</td>
+      <td>Tambahkan <code>filterBounds</code> dan <code>filterDate</code> lebih dulu</td>
+    </tr>
+    <tr>
+      <td>Blok <code>if</code> selalu jalan</td>
+      <td>Kebingungan klien vs server</td>
+      <td>Lihat <a href="#javascript">Sesi 3</a>. Pakai mask, bukan percabangan</td>
+    </tr>
+    <tr>
+      <td>Grafik kosong atau semua titik menumpuk</td>
+      <td>Stempel waktu hilang saat <code>.map()</code></td>
+      <td>Tambahkan <code>.copyProperties(citra, ['system:time_start'])</code></td>
+    </tr>
+    <tr>
+      <td>Ekspor tidak jalan</td>
+      <td>Tugas belum dijalankan</td>
+      <td>Buka tab <b>Tasks</b>, klik <b>RUN</b></td>
+    </tr>
+    <tr>
+      <td>Peramban membeku</td>
+      <td><code>getInfo()</code> pada objek besar</td>
+      <td>Pakai <code>print()</code>, bukan <code>getInfo()</code></td>
+    </tr>
+  </table>
+
+  <h2 id="lanjut">Setelah workshop</h2>
+
+  <p>Skrip yang kita bangun tadi berjalan untuk <b>satu wilayah</b> dan <b>satu pasang
+  periode</b>. Selama kebutuhannya sebatas itu, Code Editor sudah lebih dari cukup, dan
+  banyak penelitian selesai tanpa pernah beranjak dari sana.</p>
+
+  <p>Persoalan muncul ketika pertanyaannya berubah menjadi: <i>bagaimana kalau untuk lima
+  provinsi sekaligus? Dua puluh empat tahun? Dengan pemisahan lahan gambut? Sambil mencatat
+  sumber data tiap angkanya supaya bisa dikutip?</i> Menyalin-tempel skrip untuk tiap wilayah
+  adalah cara tercepat menghasilkan hasil yang tidak bisa direproduksi.</p>
+
+  <p>Di titik itulah pendekatan berbasis skrip Python jadi masuk akal — dan itulah yang
+  dikerjakan <code>earthchange</code>, paket yang menjadi isi utama repositori ini. Seluruh
+  logika yang kita tulis hari ini (saring, mask awan, komposit, NDVI, selisih, ambang, luas,
+  ekspor) menjadi satu baris:</p>
+
+<pre><code>earthchange -s deforestation --lat -3.333 --lon 122.25 --radius 6</code></pre>
+
+  <p>Konsepnya persis sama. Yang bertambah: tujuh belas skenario siap pakai, statistik yang
+  otomatis mencatat sumber datanya, dan kemampuan menjalankan banyak wilayah dalam satu
+  perintah.</p>
+
+  <div class="callout tip">
+    <b class="lbl">Urutan belajar yang saya sarankan</b>
+    Mulai dari Code Editor sampai Anda benar-benar paham apa yang terjadi di tiap langkah —
+    persis seperti hari ini. Baru pindah ke Python ketika pengulangan mulai terasa
+    menjengkelkan. Melompat ke Python sebelum paham konsepnya hanya memindahkan kebingungan
+    ke tempat yang lebih sulit di-debug.
+  </div>
+
+  <h3>Bacaan lanjut</h3>
+  <ul>
+    <li><a href="https://developers.google.com/earth-engine/guides">Panduan resmi Earth Engine</a>
+      — rujukan utama, lengkap dengan contoh yang bisa langsung dijalankan.</li>
+    <li><a href="https://developers.google.com/earth-engine/datasets/">Katalog dataset</a>
+      — cari dataset, lihat nama band dan rentang tanggalnya. Kunjungi ini sebelum menulis
+      kode apa pun.</li>
+    <li><a href="https://eefabook.org/">Cloud-Based Remote Sensing with Google Earth Engine</a>
+      — buku gratis, sangat baik untuk pendalaman setelah workshop.</li>
+    <li><a href="../">Tutorial <code>earthchange</code></a> — langkah berikutnya, versi Python.</li>
+  </ul>
+
+  <footer>
+    Materi workshop untuk repositori
+    <a href="https://github.com/firmanhadi21/rs-change-detection">rs-change-detection</a>.
+    Lisensi MIT — silakan pakai dan ubah untuk kelas Anda sendiri.
+    <br>
+    Semua kode di halaman ini ditulis untuk Code Editor Earth Engine (JavaScript), diuji
+    dengan koleksi <code>COPERNICUS/S2_SR_HARMONIZED</code>.
+  </footer>
+</main>
+</div>
+</body>
+</html>
