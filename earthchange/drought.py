@@ -491,6 +491,14 @@ def _rain_map(aoi, run_dir, name, end, months, base):
     xs = [p[0] for p in coords[0]]
     ys = [p[1] for p in coords[0]]
     box = [min(xs), min(ys), max(xs), max(ys)]
+    # CHIRPS pixels are ~5.5 km. Below roughly 15 of them across, the map is a
+    # blocky rectangle with no internal landmarks -- the GeoTIFF is still valid
+    # data, but the PNG misleads more than it informs, so say so.
+    span_km = (box[2] - box[0]) * 111.0
+    if span_km < 15 * CHIRPS_SCALE / 1000:
+        print(f"  (AOI ~{span_km:.0f} km: terlalu kecil untuk peta CHIRPS 5,5 km — "
+              f"peta tetap dibuat tetapi sangat kasar; pakai --radius >50 km "
+              f"atau --admin untuk peta yang berarti)")
     try:
         got = download_geotiff(_rain_pct_image(aoi, end, months, base).toFloat(),
                                coords, tif, scale=CHIRPS_SCALE)
