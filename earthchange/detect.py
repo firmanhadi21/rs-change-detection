@@ -344,6 +344,14 @@ def _run_haze(args, lat, lon, radius, name, run_dir, run_id, ee_key):
              end=args.haze_end, admin=args.admin, bbox=hz_bbox)
 
 
+def _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key):
+    from . import drought
+    dr_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+    drought.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                config_key=ee_key, months=args.spi_months, end=args.drought_end,
+                admin=args.admin, bbox=dr_bbox, start_year=args.start_year)
+
+
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
     """Run a scenario that has its own module (not the generic optical/radar engine).
 
@@ -406,6 +414,10 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
 
     if method == "haze":
         _run_haze(args, lat, lon, radius, name, run_dir, run_id, ee_key)
+        return True
+
+    if method == "drought":
+        _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
     if method == "island-heat":
@@ -590,6 +602,11 @@ def main():
                     "(overrides --days)")
     ap.add_argument("--haze-end", help="haze: window end YYYY-MM-DD "
                     "(default today)")
+    ap.add_argument("--spi-months", type=int, default=3,
+                    help="drought: rainfall accumulation window in months "
+                         "(3 = agricultural drought, 6-12 = hydrological; default 3)")
+    ap.add_argument("--drought-end", help="drought: window end YYYY-MM-DD "
+                    "(default: latest CHIRPS image, which lags ~5 weeks)")
     ap.add_argument("--admin", help="fire-history/haze: admin-1 area name from FAO GAUL "
                     "(e.g. 'Riau', 'Kalimantan Tengah') — uses the real province "
                     "polygon instead of a square AOI, so figures are per-province")

@@ -448,6 +448,14 @@ SCENARIOS = {
                            "ISPU), indeks aerosol Sentinel-5P, titik panas, dan "
                            "peta sebaran asap."),
     },
+    "drought": {
+        "label": "Drought — rainfall deficit (CHIRPS), vegetation health (MODIS VCI/TCI/VHI) & ENSO state (OISST)",
+        "method": "drought",
+        "radius": 40.0, "needs": "none",
+        "interpretation": ("Kekeringan: anomali hujan terstandar per tahun, "
+                           "kesehatan vegetasi (VCI/TCI/VHI), dan kondisi "
+                           "El Nino/La Nina dari indeks Nino 3.4."),
+    },
     "fire-history": {
         "label": "Fire history — burned area per year, recurrence map & fire season (MODIS + FIRMS)",
         "method": "fire-history",
