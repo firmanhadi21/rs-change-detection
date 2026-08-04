@@ -378,6 +378,132 @@ def _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi, meta):
     return out
 
 
+def _rain_pct_image(aoi, end, months, base):
+    """Per-pixel rainfall as % of the baseline normal for the same window.
+
+    The area-mean z-score answers "how dry overall"; this answers "dry WHERE",
+    which is the part that survives being screenshotted into a discussion.
+    """
+    start = _shift_months(end, months)
+    import ee
+    hist = []
+    for y in range(base[0], base[1] + 1):
+        off = y - end.year
+        try:
+            a, b = start.replace(year=start.year + off), end.replace(year=y)
+        except ValueError:
+            a, b = start.replace(year=start.year + off), end.replace(year=y, day=28)
+        hist.append(_rain_total(aoi, a, b))
+    normal = ee.ImageCollection(hist).mean()
+    return (_rain_total(aoi, start, end).divide(normal).multiply(100)
+            .clip(aoi).rename("pct"))
+
+
+def _rings(geom):
+    """Every coordinate ring in a GeoJSON geometry, whatever shape it takes
+    (Polygon / MultiPolygon / GeometryCollection all occur in FAO GAUL)."""
+    if not isinstance(geom, dict):
+        return
+    if geom.get("type") == "GeometryCollection":
+        for g in geom.get("geometries", []):
+            yield from _rings(g)
+        return
+    stack = [geom.get("coordinates") or []]
+    while stack:
+        node = stack.pop()
+        if (isinstance(node, list) and node and isinstance(node[0], list)
+                and node[0] and isinstance(node[0][0], (int, float))):
+            yield node
+        elif isinstance(node, list):
+            stack.extend(n for n in node if isinstance(n, list))
+
+
+def _draw_admin(ax, box):
+    """Province outlines for context; silently skipped if the lookup fails."""
+    import ee
+    import numpy as np
+    try:
+        fc = (ee.FeatureCollection("FAO/GAUL/2015/level1")
+              .filterBounds(ee.Geometry.Rectangle(box)))
+        feats = fc.getInfo()["features"]
+    except Exception:
+        return
+    for f in feats:
+        for ring in _rings(f.get("geometry")):
+            r = np.asarray(ring, dtype="float64")
+            ax.plot(r[:, 0], r[:, 1], color="#333", lw=.55, alpha=.65)
+
+
+def _render_rain_map(run_dir, name, tif, box, meta):
+    """Map of rainfall as % of normal, from the GeoTIFF just downloaded."""
+    import numpy as np
+    import rasterio
+    from matplotlib.colors import TwoSlopeNorm
+    plt = _plt()
+
+    with rasterio.open(tif) as src:
+        arr = src.read(1).astype("float32")
+        b = src.bounds
+    arr[arr <= 0] = np.nan
+    if not np.isfinite(arr).any():
+        return None
+
+    # Shape the canvas to the AOI: a wide thin island like Java in a square
+    # figure is mostly empty background.
+    span_x, span_y = box[2] - box[0], box[3] - box[1]
+    aspect = span_x / span_y if span_y else 1.0
+    height = min(11.0, max(4.2, 11.0 / max(aspect, .35) + 2.0))
+    fig, ax = plt.subplots(figsize=(11, height), dpi=150)
+    fig.patch.set_facecolor("#faf8f4")
+    ax.set_facecolor("#faf8f4")
+    im = ax.imshow(arr, cmap="BrBG", norm=TwoSlopeNorm(vmin=50, vcenter=100, vmax=150),
+                   extent=[b.left, b.right, b.bottom, b.top])
+    _draw_admin(ax, box)
+    ax.set_xlim(box[0], box[2])
+    ax.set_ylim(box[1], box[3])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_title(f"Curah hujan {name} — {meta['months']} bulan s/d {meta['rain_end']}\n"
+                 f"% dari normal {CHIRPS_BASE[0]}–{CHIRPS_BASE[1]}",
+                 fontsize=13, fontweight="bold", loc="left")
+    cb = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=.046,
+                      pad=.04, ticks=[50, 75, 100, 125, 150])
+    cb.set_label("% dari normal  (coklat = lebih kering, hijau = lebih basah)",
+                 fontsize=9.5)
+    cb.ax.tick_params(labelsize=8.5)
+    fig.text(.01, .015, "Sumber: CHIRPS harian (UCSB-CHG), batas provinsi FAO GAUL 2015. "
+             "Dihitung dengan earthchange -s drought.", fontsize=8, color="#777")
+    fig.tight_layout(rect=[0, .03, 1, 1])
+    out = os.path.join(run_dir, f"{name}_peta_hujan.png")
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out
+
+
+def _rain_map(aoi, run_dir, name, end, months, base):
+    """Download the % of normal field and render it. Best effort: the charts are
+    the primary output, so a map failure must not sink the run."""
+    from .gee_utils import download_geotiff
+    tif = os.path.join(run_dir, f"{name}_hujan_pct.tif")
+    coords = aoi.bounds().getInfo()["coordinates"]
+    xs = [p[0] for p in coords[0]]
+    ys = [p[1] for p in coords[0]]
+    box = [min(xs), min(ys), max(xs), max(ys)]
+    try:
+        got = download_geotiff(_rain_pct_image(aoi, end, months, base).toFloat(),
+                               coords, tif, scale=CHIRPS_SCALE)
+        if not got:
+            return None, None
+        png = _render_rain_map(run_dir, name, got, box,
+                               {"months": months, "rain_end": end.isoformat()})
+        return png, got
+    except Exception as exc:
+        print(f"  (peta hujan dilewati: {str(exc)[:70]})")
+        return None, None
+
+
 def _export_vhi(vhi, aoi, run_dir, name):
     """Best-effort GeoTIFF of the VHI field; the panel is the primary output."""
     from .gee_utils import download_geotiff
@@ -436,6 +562,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                         {"months": months, "rain_end": rain_end.isoformat(),
                          "current_year": rain_end.year})
     tif = _export_vhi(vhi_img, aoi, run_dir, name)
+    map_png, map_tif = _rain_map(aoi, run_dir, name, rain_end, months, CHIRPS_BASE)
 
     z = rain["z"]
     ranked = sorted((v for v in zs if v is not None))
@@ -465,6 +592,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                 "event_threshold_c": IOD_EVENT_C,
                 "monthly": dict(zip(labels, dmi))},
         "outputs": {"panel": os.path.basename(png),
+                    "rainfall_map": os.path.basename(map_png) if map_png else None,
+                    "rainfall_geotiff": os.path.basename(map_tif) if map_tif else None,
                     "vhi_geotiff": os.path.basename(tif) if tif else None},
         "note": ("rainfall_z is a z-score of accumulated rainfall against the same "
                  "calendar window in each baseline year, NOT a gamma-fitted SPI; the "
