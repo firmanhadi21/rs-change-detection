@@ -34,6 +34,12 @@ SST_SCALE = 27830
 CHIRPS_BASE = (1991, 2020)             # WMO 30-year climate normal
 MODIS_BASE = (2001, 2020)              # MODIS starts 2000; 2001 is the first full year
 NINO34_BOX = [-170, -5, -120, 5]       # standard Nino 3.4 region
+# Indian Ocean Dipole poles (Saji et al. 1999). For Indonesia the IOD matters as
+# much as ENSO: a positive dipole means cool water off Sumatra/Java, less
+# convection, and suppressed rainfall -- and the two can compound.
+IOD_WEST_BOX = [50, -10, 70, 10]
+IOD_EAST_BOX = [90, -10, 110, 0]
+IOD_EVENT_C = 0.4                      # conventional |DMI| event threshold
 
 # McKee et al. (1993), the conventional SPI class boundaries.
 SPI_CLASSES = [
@@ -60,6 +66,11 @@ ENSO_CLASSES = [
     (1.0, "El Nino sedang"), (0.5, "El Nino lemah"),
     (-0.5, "Netral"), (-1.0, "La Nina lemah"),
     (-1.5, "La Nina sedang"), (-99.0, "La Nina kuat"),
+]
+
+IOD_CLASSES = [
+    (IOD_EVENT_C, "IOD positif"), (-IOD_EVENT_C, "Netral"),
+    (-99.0, "IOD negatif"),
 ]
 
 
@@ -220,27 +231,50 @@ def _vhi(aoi, end, window, base):
     return vhi, {k: (round(v, 1) if v is not None else None) for k, v in vals.items()}
 
 
-def _nino34_series(end, months=24):
-    """Monthly Nino 3.4 SST anomaly against the 1991-2020 climatology."""
+def _sst_mean(box, a, b):
     import ee
-    box = ee.Geometry.Rectangle(NINO34_BOX)
     sst = ee.ImageCollection(SST_IC).select("sst")
+    return _mean_over(sst.filterDate(a.isoformat(), b.isoformat()).mean()
+                      .multiply(0.01), ee.Geometry.Rectangle(box),
+                      SST_SCALE, "sst")
 
-    def monthly(a, b):
-        return _mean_over(sst.filterDate(a.isoformat(), b.isoformat()).mean()
-                          .multiply(0.01), box, SST_SCALE, "sst")
 
-    labels, cur, clim = [], [], []
+def _sst_anomaly(box, m0, m1):
+    """One month's SST anomaly for a box, against the 1991-2020 climatology."""
+    import ee
+    clim = ee.List([_sst_mean(box, m0.replace(year=y),
+                              m1.replace(year=y + (m1.year - m0.year)))
+                    for y in range(CHIRPS_BASE[0], CHIRPS_BASE[1] + 1)])
+    return _sst_mean(box, m0, m1).subtract(ee.Number(clim.reduce(ee.Reducer.mean())))
+
+
+def _months_back(end, months):
+    """[(label, month_start, next_month_start), ...] oldest first."""
+    out = []
     for i in range(months - 1, -1, -1):
         m0 = _shift_months(end.replace(day=1), i)
-        m1 = _shift_months(m0, -1)
-        labels.append(m0.strftime("%Y-%m"))
-        cur.append(monthly(m0, m1))
-        yrs = [monthly(m0.replace(year=y), m1.replace(year=y + (m1.year - m0.year)))
-               for y in range(CHIRPS_BASE[0], CHIRPS_BASE[1] + 1)]
-        clim.append(ee.Number(ee.List(yrs).reduce(ee.Reducer.mean())))
-    anom = ee.List([ee.Number(c).subtract(k) for c, k in zip(cur, clim)]).getInfo()
-    return labels, [round(v, 2) if v is not None else None for v in anom]
+        out.append((m0.strftime("%Y-%m"), m0, _shift_months(m0, -1)))
+    return out
+
+
+def _climate_modes(end, months=24):
+    """Monthly Nino 3.4 and IOD Dipole Mode Index, resolved in one round trip.
+
+    DMI = western-pole anomaly minus eastern-pole anomaly (Saji et al. 1999).
+    Both are computed from the same OISST collection and the same climatology,
+    so they are directly comparable on one axis.
+    """
+    import ee
+    wins = _months_back(end, months)
+    nino = [_sst_anomaly(NINO34_BOX, m0, m1) for _, m0, m1 in wins]
+    dmi = [_sst_anomaly(IOD_WEST_BOX, m0, m1).subtract(
+           _sst_anomaly(IOD_EAST_BOX, m0, m1)) for _, m0, m1 in wins]
+    both = ee.List([ee.List(nino), ee.List(dmi)]).getInfo()
+
+    def clean(seq):
+        return [round(v, 2) if v is not None else None for v in seq]
+
+    return [w[0] for w in wins], clean(both[0]), clean(both[1])
 
 
 def _plt():
@@ -288,27 +322,34 @@ def _panel_health(ax, hv):
                  fontsize=10, loc="left")
 
 
-def _panel_enso(ax, labels, anom):
+def _panel_enso(ax, labels, nino, dmi):
+    """ENSO and IOD on one axis: for Indonesia the two compound, and reading
+    either one alone is how forecasts get over-claimed."""
     import numpy as np
     x = np.arange(len(labels))
-    vals = [0 if v is None else v for v in anom]
-    ax.plot(x, vals, color="#1a1a1a", lw=1.4, marker="o", ms=3)
-    ax.fill_between(x, 0, vals, where=[v > 0 for v in vals],
-                    color="#e34a33", alpha=.45, interpolate=True)
-    ax.fill_between(x, 0, vals, where=[v < 0 for v in vals],
-                    color="#4a90d9", alpha=.45, interpolate=True)
-    for thr in (0.5, -0.5):
-        ax.axhline(thr, color="#666", lw=.7, ls="--")
+    nv = [0 if v is None else v for v in nino]
+    dv = [0 if v is None else v for v in dmi]
+    ax.plot(x, nv, color="#1a1a1a", lw=1.5, marker="o", ms=3, label="Nino 3.4 (ENSO)")
+    ax.fill_between(x, 0, nv, where=[v > 0 for v in nv],
+                    color="#e34a33", alpha=.35, interpolate=True)
+    ax.fill_between(x, 0, nv, where=[v < 0 for v in nv],
+                    color="#4a90d9", alpha=.35, interpolate=True)
+    ax.plot(x, dv, color="#6a3d9a", lw=1.5, ls="--", marker="s", ms=3,
+            label="DMI (IOD)")
+    for thr, col in ((0.5, "#666"), (-0.5, "#666"),
+                     (IOD_EVENT_C, "#6a3d9a"), (-IOD_EVENT_C, "#6a3d9a")):
+        ax.axhline(thr, color=col, lw=.7, ls=":", alpha=.8)
     ax.axhline(0, color="#333", lw=.8)
     step = max(1, len(labels) // 12)
     ax.set_xticks(x[::step])
     ax.set_xticklabels(labels[::step], rotation=45, fontsize=8)
     ax.set_ylabel("Anomali SST (°C)", fontsize=9)
-    ax.set_title("Kondisi ENSO — indeks Nino 3.4 (>+0,5 °C = El Nino)",
-                 fontsize=10, loc="left")
+    ax.legend(fontsize=8, frameon=False, ncol=2, loc="upper left")
+    ax.set_title("Mode iklim — Nino 3.4 (>+0,5 °C = El Nino) & "
+                 "IOD/DMI (>+0,4 °C = IOD positif)", fontsize=10, loc="left")
 
 
-def _render_panel(run_dir, name, years, zs, hv, labels, anom, meta):
+def _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi, meta):
     plt = _plt()
     fig, axes = plt.subplots(3, 1, figsize=(11, 12), dpi=150)
     fig.patch.set_facecolor("#faf8f4")
@@ -318,7 +359,7 @@ def _render_panel(run_dir, name, years, zs, hv, labels, anom, meta):
             ax.spines[s].set_visible(False)
     _panel_rain(axes[0], years, zs, meta["current_year"])
     _panel_health(axes[1], hv)
-    _panel_enso(axes[2], labels, anom)
+    _panel_enso(axes[2], labels, nino, dmi)
     fig.suptitle(f"Kekeringan — {name}", fontsize=15, fontweight="bold",
                  x=.02, ha="left", y=.985)
     fig.text(.02, .955,
@@ -328,7 +369,7 @@ def _render_panel(run_dir, name, years, zs, hv, labels, anom, meta):
              fontsize=9, color="#555")
     fig.text(.02, .012,
              "Sumber: CHIRPS (hujan) · MODIS MOD13A2/MOD11A2 (VCI/TCI) · "
-             "NOAA OISST (Nino 3.4). Anomali hujan = z-score, bukan SPI gamma.",
+             "NOAA OISST (Nino 3.4 & DMI/IOD). Anomali hujan = z-score, bukan SPI gamma.",
              fontsize=8, color="#777")
     fig.tight_layout(rect=[0, .025, 1, .945])
     out = os.path.join(run_dir, f"{name}_kekeringan.png")
@@ -389,9 +430,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     # only days while CHIRPS lags weeks, and "is it El Nino right now" is usually
     # the question being asked.
     sst_end = _latest(SST_IC, "sst")
-    labels, anom = _nino34_series(sst_end)
+    labels, nino, dmi = _climate_modes(sst_end)
 
-    png = _render_panel(run_dir, name, years, zs, hv, labels, anom,
+    png = _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi,
                         {"months": months, "rain_end": rain_end.isoformat(),
                          "current_year": rain_end.year})
     tif = _export_vhi(vhi_img, aoi, run_dir, name)
@@ -399,7 +440,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     z = rain["z"]
     ranked = sorted((v for v in zs if v is not None))
     rank = ranked.index(z) + 1 if z in ranked else None
-    enso_now = next((v for v in reversed(anom) if v is not None), None)
+    enso_now = next((v for v in reversed(nino) if v is not None), None)
+    iod_now = next((v for v in reversed(dmi) if v is not None), None)
 
     stats = {
         "run_id": run_id, "scenario": "drought", "name": name,
@@ -409,14 +451,19 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "sources": {
             "rainfall": f"CHIRPS daily ({CHIRPS_IC}), baseline {CHIRPS_BASE[0]}-{CHIRPS_BASE[1]}",
             "vegetation": f"MODIS {NDVI_IC} + {LST_IC}, baseline {MODIS_BASE[0]}-{MODIS_BASE[1]}",
-            "enso": f"NOAA OISST ({SST_IC}), Nino 3.4 region {NINO34_BOX}"},
+            "enso": f"NOAA OISST ({SST_IC}), Nino 3.4 region {NINO34_BOX}",
+            "iod": (f"NOAA OISST ({SST_IC}), DMI = west {IOD_WEST_BOX} minus "
+                    f"east {IOD_EAST_BOX} (Saji et al. 1999)")},
         "rainfall": {**rain, "class": _spi_label(z)[0]},
         "rainfall_z_by_year": dict(zip([str(y) for y in years], zs)),
         "rank_driest_of_record": rank, "years_in_record": len(ranked),
         "vegetation": {**hv, "class": _classify(hv["vhi"], VHI_CLASSES)[0]},
         "enso": {"nino34_anomaly_c": enso_now,
                  "class": _classify(enso_now, ENSO_CLASSES),
-                 "monthly": dict(zip(labels, anom))},
+                 "monthly": dict(zip(labels, nino))},
+        "iod": {"dmi_c": iod_now, "class": _classify(iod_now, IOD_CLASSES),
+                "event_threshold_c": IOD_EVENT_C,
+                "monthly": dict(zip(labels, dmi))},
         "outputs": {"panel": os.path.basename(png),
                     "vhi_geotiff": os.path.basename(tif) if tif else None},
         "note": ("rainfall_z is a z-score of accumulated rainfall against the same "
@@ -438,4 +485,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     if enso_now is not None:
         print(f"  Nino 3.4 {enso_now:+.2f} °C ({sst_end}) → "
               f"{_classify(enso_now, ENSO_CLASSES)}")
+    if iod_now is not None:
+        print(f"  IOD/DMI  {iod_now:+.2f} °C ({sst_end}) → "
+              f"{_classify(iod_now, IOD_CLASSES)}")
     return stats
