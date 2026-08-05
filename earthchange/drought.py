@@ -66,17 +66,24 @@ MODIS_BASE = (2001, 2020)              # MODIS starts 2000; 2001 is the first fu
 RAIN_SOURCES = {
     "chirps": {"ic": CHIRPS_IC, "band": "precipitation", "factor": 1.0,
                "scale": CHIRPS_SCALE, "base": (1991, 2020), "archive": 1981,
-               "label": "CHIRPS daily (UCSB-CHG), gauge+satellite",
-               "lag": "~5 minggu"},
+               "label": {"id": "CHIRPS harian (UCSB-CHG), penakar+satelit",
+                         "en": "CHIRPS daily (UCSB-CHG), gauge+satellite"},
+               "lag": {"id": "~5 minggu", "en": "~5 weeks"}},
     "era5": {"ic": "ECMWF/ERA5_LAND/DAILY_AGGR", "band": "total_precipitation_sum",
              "factor": 1000.0, "scale": 11132, "base": (1991, 2020), "archive": 1950,
-             "label": "ERA5-Land daily (ECMWF reanalysis)", "lag": "~8 hari"},
+             "label": {"id": "ERA5-Land harian (reanalisis ECMWF)",
+                       "en": "ERA5-Land daily (ECMWF reanalysis)"},
+             "lag": {"id": "~8 hari", "en": "~8 days"}},
     "imerg": {"ic": "NASA/GPM_L3/IMERG_V07", "band": "precipitation",
               "factor": 0.5, "scale": 11132, "base": (2001, 2020), "archive": 1998,
-              "label": "GPM IMERG V07 (satelit, near-real-time)", "lag": "~1 hari"},
+              "label": {"id": "GPM IMERG V07 (satelit, near-real-time)",
+                        "en": "GPM IMERG V07 (satellite, near-real-time)"},
+              "lag": {"id": "~1 hari", "en": "~1 day"}},
     "gsmap": {"ic": "JAXA/GPM_L3/GSMaP/v8/operational", "band": "hourlyPrecipRate",
               "factor": 1.0, "scale": 11132, "base": (2001, 2020), "archive": 1998,
-              "label": "GSMaP v8 operational (JAXA, satelit)", "lag": "~1 hari"},
+              "label": {"id": "GSMaP v8 operational (JAXA, satelit)",
+                        "en": "GSMaP v8 operational (JAXA, satellite)"},
+              "lag": {"id": "~1 hari", "en": "~1 day"}},
 }
 DEFAULT_RAIN_SOURCE = "chirps"
 NINO34_BOX = [-170, -5, -120, 5]       # standard Nino 3.4 region
@@ -87,51 +94,139 @@ IOD_WEST_BOX = [50, -10, 70, 10]
 IOD_EAST_BOX = [90, -10, 110, 0]
 IOD_EVENT_C = 0.4                      # conventional |DMI| event threshold
 
+# Class tables carry BOTH labels so a language switch can never desynchronise a
+# chart legend from the value written to stats.json.
 # McKee et al. (1993), the conventional SPI class boundaries.
 SPI_CLASSES = [
-    (2.0, "Sangat basah", "#0b5cad"),
-    (1.5, "Basah", "#4a90d9"),
-    (1.0, "Agak basah", "#9ecae1"),
-    (-1.0, "Normal", "#d9d9d9"),
-    (-1.5, "Kering sedang", "#fdae61"),
-    (-2.0, "Kering parah", "#e34a33"),
-    (-99.0, "Kering ekstrem", "#7f0000"),
+    (2.0, {"id": "Sangat basah", "en": "Extremely wet"}, "#0b5cad"),
+    (1.5, {"id": "Basah", "en": "Very wet"}, "#4a90d9"),
+    (1.0, {"id": "Agak basah", "en": "Moderately wet"}, "#9ecae1"),
+    (-1.0, {"id": "Normal", "en": "Near normal"}, "#d9d9d9"),
+    (-1.5, {"id": "Kering sedang", "en": "Moderately dry"}, "#fdae61"),
+    (-2.0, {"id": "Kering parah", "en": "Severely dry"}, "#e34a33"),
+    (-99.0, {"id": "Kering ekstrem", "en": "Extremely dry"}, "#7f0000"),
 ]
 
 # Kogan (1995) vegetation-health classes.
 VHI_CLASSES = [
-    (40.0, "Tidak kekeringan", "#1a9850"),
-    (30.0, "Kekeringan ringan", "#fee08b"),
-    (20.0, "Kekeringan sedang", "#fdae61"),
-    (10.0, "Kekeringan parah", "#e34a33"),
-    (-1.0, "Kekeringan ekstrem", "#7f0000"),
+    (40.0, {"id": "Tidak kekeringan", "en": "No drought"}, "#1a9850"),
+    (30.0, {"id": "Kekeringan ringan", "en": "Mild drought"}, "#fee08b"),
+    (20.0, {"id": "Kekeringan sedang", "en": "Moderate drought"}, "#fdae61"),
+    (10.0, {"id": "Kekeringan parah", "en": "Severe drought"}, "#e34a33"),
+    (-1.0, {"id": "Kekeringan ekstrem", "en": "Extreme drought"}, "#7f0000"),
 ]
 
 ENSO_CLASSES = [
-    (2.0, "El Nino sangat kuat"), (1.5, "El Nino kuat"),
-    (1.0, "El Nino sedang"), (0.5, "El Nino lemah"),
-    (-0.5, "Netral"), (-1.0, "La Nina lemah"),
-    (-1.5, "La Nina sedang"), (-99.0, "La Nina kuat"),
+    (2.0, {"id": "El Nino sangat kuat", "en": "Very strong El Nino"}),
+    (1.5, {"id": "El Nino kuat", "en": "Strong El Nino"}),
+    (1.0, {"id": "El Nino sedang", "en": "Moderate El Nino"}),
+    (0.5, {"id": "El Nino lemah", "en": "Weak El Nino"}),
+    (-0.5, {"id": "Netral", "en": "Neutral"}),
+    (-1.0, {"id": "La Nina lemah", "en": "Weak La Nina"}),
+    (-1.5, {"id": "La Nina sedang", "en": "Moderate La Nina"}),
+    (-99.0, {"id": "La Nina kuat", "en": "Strong La Nina"}),
 ]
 
 IOD_CLASSES = [
-    (IOD_EVENT_C, "IOD positif"), (-IOD_EVENT_C, "Netral"),
-    (-99.0, "IOD negatif"),
+    (IOD_EVENT_C, {"id": "IOD positif", "en": "Positive IOD"}),
+    (-IOD_EVENT_C, {"id": "Netral", "en": "Neutral"}),
+    (-99.0, {"id": "IOD negatif", "en": "Negative IOD"}),
 ]
 
+UNKNOWN = {"id": "tidak diketahui", "en": "unknown"}
 
-def _classify(value, table):
-    """First label whose threshold the value clears (tables run high -> low)."""
+TEXT = {
+    "id": {
+        "title": "Kekeringan — {name}",
+        "sub": ("Jendela {months} bulan berakhir {end} · baseline hujan "
+                "{b0}–{b1}, vegetasi {m0}–{m1}"),
+        "src": ("Sumber: {src} (hujan) · MODIS MOD13A2/MOD11A2 (VCI/TCI) · "
+                "NOAA OISST (Nino 3.4 & DMI/IOD). Anomali hujan = z-score, "
+                "bukan SPI gamma."),
+        "rain_ax": "Anomali hujan (z)",
+        "rain_title": "Kekeringan meteorologis — anomali hujan terstandar per tahun",
+        "health_ax": "Indeks (0–100)",
+        "health_title": "Kesehatan vegetasi — di bawah 40 menandakan tekanan kekeringan",
+        "vci": "VCI\n(vegetasi)", "tci": "TCI\n(suhu)", "vhi": "VHI\n(gabungan)",
+        "modes_ax": "Anomali SST (°C)",
+        "modes_title": ("Mode iklim — Nino 3.4 (>+0,5 °C = El Nino) & "
+                        "IOD/DMI (>+0,4 °C = IOD positif)"),
+        "nino_lbl": "Nino 3.4 (ENSO)", "dmi_lbl": "DMI (IOD)",
+        "map_rain_title": "Curah hujan {name} — {months} bulan s/d {end}",
+        "map_rain_sub": "% dari normal {b0}–{b1} ({src})",
+        "map_rain_cb": "% dari normal  (coklat = lebih kering, hijau = lebih basah)",
+        "map_rain_src": ("Sumber: {src}, batas provinsi FAO GAUL 2015. "
+                         "Dihitung dengan earthchange -s drought."),
+        "map_vhi_title": "Sebaran kekeringan vegetasi — {name}",
+        "map_vhi_sub": "VHI (MODIS 1 km), {end}",
+        "map_vhi_src": ("VHI = 0,5·VCI + 0,5·TCI (Kogan 1995); di bawah 40 = "
+                        "tekanan kekeringan. Sumber: MODIS MOD13A2 + MOD11A2."),
+        "resampled": ("Sel asli {native:.0f} km, ditampilkan pada {shown:.0f} km "
+                      "(interpolasi bilinear — hanya untuk keterbacaan, tidak "
+                      "menambah informasi). Hanya daratan."),
+        "sum_title": "Kekeringan {name} — {months} bulan s/d {end}",
+        "sum_rain": ("hujan {mm:.0f} mm ({pct:.0f}% dari normal {normal:.0f} mm)"
+                     " · z {z:+.2f} → {cls}"),
+        "sum_rank": "peringkat terkering ke-{rank} dari {n} tahun",
+        "sum_vhi": "VHI {vhi:.0f} (VCI {vci:.0f} · TCI {tci:.0f}) → {cls}",
+        "extent": "luas terdampak: {pct:.0f}% dari AOI di bawah VHI 40",
+    },
+    "en": {
+        "title": "Drought — {name}",
+        "sub": ("{months}-month window ending {end} · rainfall baseline "
+                "{b0}–{b1}, vegetation {m0}–{m1}"),
+        "src": ("Source: {src} (rainfall) · MODIS MOD13A2/MOD11A2 (VCI/TCI) · "
+                "NOAA OISST (Nino 3.4 & DMI/IOD). Rainfall anomaly is a "
+                "z-score, not a gamma-fitted SPI."),
+        "rain_ax": "Rainfall anomaly (z)",
+        "rain_title": "Meteorological drought — standardized rainfall anomaly by year",
+        "health_ax": "Index (0–100)",
+        "health_title": "Vegetation health — below 40 indicates drought stress",
+        "vci": "VCI\n(vegetation)", "tci": "TCI\n(thermal)", "vhi": "VHI\n(combined)",
+        "modes_ax": "SST anomaly (°C)",
+        "modes_title": ("Climate modes — Nino 3.4 (>+0.5 °C = El Nino) & "
+                        "IOD/DMI (>+0.4 °C = positive IOD)"),
+        "nino_lbl": "Nino 3.4 (ENSO)", "dmi_lbl": "DMI (IOD)",
+        "map_rain_title": "Rainfall {name} — {months} months to {end}",
+        "map_rain_sub": "% of the {b0}–{b1} normal ({src})",
+        "map_rain_cb": "% of normal  (brown = drier, green = wetter)",
+        "map_rain_src": ("Source: {src}, province boundaries FAO GAUL 2015. "
+                         "Computed with earthchange -s drought."),
+        "map_vhi_title": "Vegetation drought extent — {name}",
+        "map_vhi_sub": "VHI (MODIS 1 km), {end}",
+        "map_vhi_src": ("VHI = 0.5·VCI + 0.5·TCI (Kogan 1995); below 40 = "
+                        "drought stress. Source: MODIS MOD13A2 + MOD11A2."),
+        "resampled": ("Native cell {native:.0f} km, displayed at {shown:.0f} km "
+                      "(bilinear interpolation — for legibility only, it adds no "
+                      "information). Land only."),
+        "sum_title": "Drought {name} — {months} months to {end}",
+        "sum_rain": ("rainfall {mm:.0f} mm ({pct:.0f}% of normal {normal:.0f} mm)"
+                     " · z {z:+.2f} → {cls}"),
+        "sum_rank": "{rank}th driest of {n} years",
+        "sum_vhi": "VHI {vhi:.0f} (VCI {vci:.0f} · TCI {tci:.0f}) → {cls}",
+        "extent": "area affected: {pct:.0f}% of AOI below VHI 40",
+    },
+}
+
+
+def _label(row, lang):
+    return row[1].get(lang, row[1]["id"])
+
+
+def _classify(value, table, lang="id"):
+    """First label whose threshold the value clears (tables run high -> low).
+
+    Returns (label, colour) for tables that carry a colour, else just the label.
+    """
+    has_colour = len(table[0]) == 3
     if value is None:
-        return ("tidak diketahui", "#999999") if len(table[0]) == 3 else "tidak diketahui"
-    for row in table:
-        if value >= row[0]:
-            return row[1:] if len(row) == 3 else row[1]
-    return table[-1][1:] if len(table[0]) == 3 else table[-1][1]
+        return (UNKNOWN[lang], "#999999") if has_colour else UNKNOWN[lang]
+    row = next((r for r in table if value >= r[0]), table[-1])
+    return (_label(row, lang), row[2]) if has_colour else _label(row, lang)
 
 
-def _spi_label(z):
-    return _classify(z, SPI_CLASSES)
+def _spi_label(z, lang="id"):
+    return _classify(z, SPI_CLASSES, lang)
 
 
 def _shift_months(d, n):
@@ -333,7 +428,7 @@ def _plt():
     return plt
 
 
-def _panel_rain(ax, years, zs, cur_year):
+def _panel_rain(ax, years, zs, cur_year, T):
     import numpy as np
     x = np.arange(len(years))
     cols = []
@@ -350,15 +445,15 @@ def _panel_rain(ax, years, zs, cur_year):
         ax.axhline(thr, color="#7f0000", lw=.8, ls=style, alpha=.7)
     ax.set_xticks(x[::2])
     ax.set_xticklabels([str(y) for y in years][::2], rotation=45, fontsize=8)
-    ax.set_ylabel("Anomali hujan (z)", fontsize=9)
-    ax.set_title("Kekeringan meteorologis — anomali hujan terstandar per tahun",
-                 fontsize=10, loc="left")
+    ax.set_ylabel(T["rain_ax"], fontsize=9)
+    ax.set_title(T["rain_title"], fontsize=10, loc="left")
 
 
-def _panel_health(ax, hv):
-    labels = ["VCI\n(vegetasi)", "TCI\n(suhu)", "VHI\n(gabungan)"]
+def _panel_health(ax, hv, T, lang):
+    labels = [T["vci"], T["tci"], T["vhi"]]
     vals = [hv["vci"], hv["tci"], hv["vhi"]]
-    cols = [_classify(v, VHI_CLASSES)[1] if v is not None else "#cccccc" for v in vals]
+    cols = [_classify(v, VHI_CLASSES, lang)[1] if v is not None else "#cccccc"
+            for v in vals]
     ax.bar(labels, [v or 0 for v in vals], color=cols, width=.55)
     for i, v in enumerate(vals):
         if v is not None:
@@ -366,25 +461,24 @@ def _panel_health(ax, hv):
     for thr in (10, 20, 30, 40):
         ax.axhline(thr, color="#999", lw=.6, ls=":")
     ax.set_ylim(0, 105)
-    ax.set_ylabel("Indeks (0–100)", fontsize=9)
-    ax.set_title("Kesehatan vegetasi — di bawah 40 menandakan tekanan kekeringan",
-                 fontsize=10, loc="left")
+    ax.set_ylabel(T["health_ax"], fontsize=9)
+    ax.set_title(T["health_title"], fontsize=10, loc="left")
 
 
-def _panel_enso(ax, labels, nino, dmi):
+def _panel_enso(ax, labels, nino, dmi, T):
     """ENSO and IOD on one axis: for Indonesia the two compound, and reading
     either one alone is how forecasts get over-claimed."""
     import numpy as np
     x = np.arange(len(labels))
     nv = [0 if v is None else v for v in nino]
     dv = [0 if v is None else v for v in dmi]
-    ax.plot(x, nv, color="#1a1a1a", lw=1.5, marker="o", ms=3, label="Nino 3.4 (ENSO)")
+    ax.plot(x, nv, color="#1a1a1a", lw=1.5, marker="o", ms=3, label=T["nino_lbl"])
     ax.fill_between(x, 0, nv, where=[v > 0 for v in nv],
                     color="#e34a33", alpha=.35, interpolate=True)
     ax.fill_between(x, 0, nv, where=[v < 0 for v in nv],
                     color="#4a90d9", alpha=.35, interpolate=True)
     ax.plot(x, dv, color="#6a3d9a", lw=1.5, ls="--", marker="s", ms=3,
-            label="DMI (IOD)")
+            label=T["dmi_lbl"])
     for thr, col in ((0.5, "#666"), (-0.5, "#666"),
                      (IOD_EVENT_C, "#6a3d9a"), (-IOD_EVENT_C, "#6a3d9a")):
         ax.axhline(thr, color=col, lw=.7, ls=":", alpha=.8)
@@ -392,13 +486,13 @@ def _panel_enso(ax, labels, nino, dmi):
     step = max(1, len(labels) // 12)
     ax.set_xticks(x[::step])
     ax.set_xticklabels(labels[::step], rotation=45, fontsize=8)
-    ax.set_ylabel("Anomali SST (°C)", fontsize=9)
+    ax.set_ylabel(T["modes_ax"], fontsize=9)
     ax.legend(fontsize=8, frameon=False, ncol=2, loc="upper left")
-    ax.set_title("Mode iklim — Nino 3.4 (>+0,5 °C = El Nino) & "
-                 "IOD/DMI (>+0,4 °C = IOD positif)", fontsize=10, loc="left")
+    ax.set_title(T["modes_title"], fontsize=10, loc="left")
 
 
-def _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi, meta):
+def _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi, meta,
+                  lang="id"):
     plt = _plt()
     fig, axes = plt.subplots(3, 1, figsize=(11, 12), dpi=150)
     fig.patch.set_facecolor("#faf8f4")
@@ -406,32 +500,45 @@ def _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi, meta):
         ax.set_facecolor("#faf8f4")
         for s in ("top", "right"):
             ax.spines[s].set_visible(False)
-    _panel_rain(axes[0], years, zs, meta["current_year"])
-    _panel_health(axes[1], hv)
-    _panel_enso(axes[2], labels, nino, dmi)
-    fig.suptitle(f"Kekeringan — {name}", fontsize=15, fontweight="bold",
+    T = TEXT.get(lang, TEXT["id"])
+    _panel_rain(axes[0], years, zs, meta["current_year"], T)
+    _panel_health(axes[1], hv, T, lang)
+    _panel_enso(axes[2], labels, nino, dmi, T)
+    fig.suptitle(T["title"].format(name=name), fontsize=15, fontweight="bold",
                  x=.02, ha="left", y=.985)
     fig.text(.02, .955,
-             f"Jendela {meta['months']} bulan berakhir {meta['rain_end']} · "
-             f"baseline hujan {meta['base'][0]}–{meta['base'][1]}, "
-             f"vegetasi {MODIS_BASE[0]}–{MODIS_BASE[1]}",
+             T["sub"].format(months=meta["months"], end=meta["rain_end"],
+                             b0=meta["base"][0], b1=meta["base"][1],
+                             m0=MODIS_BASE[0], m1=MODIS_BASE[1]),
              fontsize=9, color="#555")
-    fig.text(.02, .012,
-             f"Sumber: {meta['source']} (hujan) · MODIS MOD13A2/MOD11A2 (VCI/TCI) · "
-             "NOAA OISST (Nino 3.4 & DMI/IOD). Anomali hujan = z-score, bukan SPI gamma.",
+    fig.text(.02, .012, T["src"].format(src=meta["source"]),
              fontsize=8, color="#777")
     fig.tight_layout(rect=[0, .025, 1, .945])
-    out = os.path.join(run_dir, f"{name}_kekeringan.png")
+    out = os.path.join(run_dir, f"{name}_drought_{lang}.png"
+                       if lang != "id" else f"{name}_kekeringan.png")
     fig.savefig(out, facecolor=fig.get_facecolor())
     plt.close(fig)
     return out
 
 
-def _rain_pct_image(aoi, end, months, src):
+def _rain_pct_image(aoi, end, months, src, downscale_m=None):
     """Per-pixel rainfall as % of the baseline normal for the same window.
 
     The area-mean z-score answers "how dry overall"; this answers "dry WHERE",
     which is the part that survives being screenshotted into a discussion.
+
+    Two display decisions, both mattering most for the satellite products:
+
+    LAND ONLY. IMERG and GSMaP cover the ocean; CHIRPS does not. On a map of a
+    long thin island the sea then fills most of the frame, and because the ocean
+    ratio is computed over a different rainfall regime it can render as a solid
+    dark block that swamps the land signal. Masked with SRTM, which is void over
+    open sea (the same trick `flood` uses).
+
+    RESAMPLED. IMERG cells are ~11 km; over Java that is a coarse mosaic. The
+    ratio field is far smoother than raw rainfall, so bilinear resampling to a
+    finer grid is the conventional delta-method display. It adds NO information
+    -- it only stops the blocks hiding the pattern -- and the caption says so.
     """
     start = _shift_months(end, months)
     import ee
@@ -440,8 +547,17 @@ def _rain_pct_image(aoi, end, months, src):
         a, b = _same_window(start, end, y)
         hist.append(_rain_total(aoi, a, b, src))
     normal = ee.ImageCollection(hist).mean()
-    return (_rain_total(aoi, start, end, src).divide(normal).multiply(100)
-            .clip(aoi).rename("pct"))
+    pct = _rain_total(aoi, start, end, src).divide(normal).multiply(100)
+    if downscale_m:
+        pct = pct.resample("bilinear").reproject(crs="EPSG:4326",
+                                                 scale=downscale_m)
+    # Land mask from GAUL country polygons, NOT from SRTM. SRTM's mask is 30 m;
+    # reprojected to a kilometre grid it neither survives cleanly nor lines up,
+    # and it punches holes wherever a tile is absent. Vector land gives a crisp
+    # coastline at any display scale.
+    land = ee.Image.constant(1).clip(
+        ee.FeatureCollection("FAO/GAUL/2015/level0").filterBounds(aoi)).mask()
+    return pct.updateMask(land).clip(aoi).rename("pct")
 
 
 def _rings(geom):
@@ -479,7 +595,7 @@ def _draw_admin(ax, box):
             ax.plot(r[:, 0], r[:, 1], color="#333", lw=.55, alpha=.65)
 
 
-def _render_rain_map(run_dir, name, tif, box, meta):
+def _render_rain_map(run_dir, name, tif, box, meta, lang="id"):
     """Map of rainfall as % of normal, from the GeoTIFF just downloaded."""
     import numpy as np
     import rasterio
@@ -501,7 +617,17 @@ def _render_rain_map(run_dir, name, tif, box, meta):
     fig, ax = plt.subplots(figsize=(11, height), dpi=150)
     fig.patch.set_facecolor("#faf8f4")
     ax.set_facecolor("#faf8f4")
-    im = ax.imshow(arr, cmap="BrBG", norm=TwoSlopeNorm(vmin=50, vcenter=100, vmax=150),
+    # A fixed 50-150 scale saturates when a whole region is far from normal: at
+    # 47% of normal every land pixel renders the same dark brown and the internal
+    # pattern disappears. Stretch to the data (5th-95th percentile) while keeping
+    # 100% as the neutral midpoint, so colour still means the same thing.
+    lo = float(np.nanpercentile(arr, 5))
+    hi = float(np.nanpercentile(arr, 95))
+    vmin = max(0.0, min(lo, 90.0))
+    vmax = max(hi, 110.0)
+    ticks = [round(v) for v in np.linspace(vmin, vmax, 5)]
+    im = ax.imshow(arr, cmap="BrBG",
+                   norm=TwoSlopeNorm(vmin=vmin, vcenter=100.0, vmax=vmax),
                    extent=[b.left, b.right, b.bottom, b.top])
     _draw_admin(ax, box)
     ax.set_xlim(box[0], box[2])
@@ -510,28 +636,35 @@ def _render_rain_map(run_dir, name, tif, box, meta):
     ax.set_yticks([])
     for s in ax.spines.values():
         s.set_visible(False)
-    ax.set_title(f"Curah hujan {name} — {meta['months']} bulan s/d {meta['rain_end']}\n"
-                 f"% dari normal {meta['base'][0]}–{meta['base'][1]} ({meta['source']})",
+    T = TEXT.get(lang, TEXT["id"])
+    ax.set_title(T["map_rain_title"].format(name=name, months=meta["months"],
+                                            end=meta["rain_end"]) + "\n"
+                 + T["map_rain_sub"].format(b0=meta["base"][0], b1=meta["base"][1],
+                                            src=meta["source"]),
                  fontsize=13, fontweight="bold", loc="left")
     cb = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=.046,
-                      pad=.04, ticks=[50, 75, 100, 125, 150])
-    cb.set_label("% dari normal  (coklat = lebih kering, hijau = lebih basah)",
-                 fontsize=9.5)
+                      pad=.04, ticks=ticks)
+    cb.set_label(T["map_rain_cb"], fontsize=9.5)
     cb.ax.tick_params(labelsize=8.5)
-    fig.text(.01, .015, "Sumber: CHIRPS harian (UCSB-CHG), batas provinsi FAO GAUL 2015. "
-             "Dihitung dengan earthchange -s drought.", fontsize=8, color="#777")
+    note = T["map_rain_src"].format(src=meta["source"])
+    if meta.get("shown_km") and meta["shown_km"] < meta.get("native_km", 0):
+        note += " " + T["resampled"].format(native=meta["native_km"],
+                                            shown=meta["shown_km"])
+    fig.text(.01, .015, note, fontsize=8, color="#777", wrap=True)
     fig.tight_layout(rect=[0, .03, 1, 1])
-    out = os.path.join(run_dir, f"{name}_peta_hujan.png")
+    out = os.path.join(run_dir, f"{name}_rainfall_map_{lang}.png"
+                       if lang != "id" else f"{name}_peta_hujan.png")
     fig.savefig(out, facecolor=fig.get_facecolor())
     plt.close(fig)
     return out
 
 
-def _rain_map(aoi, run_dir, name, end, months, src):
+def _rain_map(aoi, run_dir, name, end, months, src, lang="id"):
     """Download the % of normal field and render it. Best effort: the charts are
     the primary output, so a map failure must not sink the run."""
     from .gee_utils import download_geotiff
-    tif = os.path.join(run_dir, f"{name}_hujan_pct.tif")
+    tif = os.path.join(run_dir, f"{name}_rainfall_pct.tif"
+                       if lang != "id" else f"{name}_hujan_pct.tif")
     coords = aoi.bounds().getInfo()["coordinates"]
     xs = [p[0] for p in coords[0]]
     ys = [p[1] for p in coords[0]]
@@ -539,19 +672,29 @@ def _rain_map(aoi, run_dir, name, end, months, src):
     # Rainfall pixels are 5-11 km depending on source. Below roughly 15 of them
     # across, the map is a blocky rectangle with no internal landmarks -- the
     # GeoTIFF is still valid data, but the PNG misleads more than it informs.
+    # Resample for display only when the native cell is coarse (IMERG/GSMaP/
+     # ERA5 at 11 km); CHIRPS at 5.5 km already reads acceptably.
+    # Half the native cell: enough to soften the mosaic without blurring the
+    # pattern away, which a quarter-cell bilinear does.
+    ds = max(4000, src["scale"] // 2) if src["scale"] >= 10000 else None
     span_km = (box[2] - box[0]) * 111.0
     if span_km < 15 * src["scale"] / 1000:
         print(f"  (AOI ~{span_km:.0f} km: terlalu kecil untuk peta "
               f"{src['scale'] / 1000:.0f} km — peta tetap dibuat tetapi sangat "
               f"kasar; pakai --radius >50 km atau --admin)")
     try:
-        got = download_geotiff(_rain_pct_image(aoi, end, months, src).toFloat(),
-                               coords, tif, scale=src["scale"])
+        got = download_geotiff(
+            _rain_pct_image(aoi, end, months, src, ds).toFloat(),
+            coords, tif, scale=ds or src["scale"])
         if not got:
             return None, None
         png = _render_rain_map(run_dir, name, got, box,
                                {"months": months, "rain_end": end.isoformat(),
-                                "base": src["base"], "source": src["label"]})
+                                "base": src["base"],
+                                "source": src["label"].get(lang, src["label"]["id"]),
+                                "native_km": src["scale"] / 1000,
+                                "shown_km": (ds or src["scale"]) / 1000},
+                               lang)
         return png, got
     except Exception as exc:
         print(f"  (peta hujan dilewati: {str(exc)[:70]})")
@@ -568,7 +711,7 @@ def _vhi_class_image(vhi):
             .rename("cls").toByte())
 
 
-def _vhi_class_areas(vhi, aoi):
+def _vhi_class_areas(vhi, aoi, lang="id"):
     """Hectares in each drought class -- the answer to 'where', as a number.
 
     One grouped reduction rather than five, so this costs a single round trip.
@@ -580,7 +723,7 @@ def _vhi_class_areas(vhi, aoi):
                                                             groupName="cls"),
                              geometry=aoi, scale=MODIS_SCALE,
                              maxPixels=int(1e10), bestEffort=True).getInfo())
-    labels = [r[1] for r in reversed(VHI_CLASSES)]      # index 0..4
+    labels = [_label(r, lang) for r in reversed(VHI_CLASSES)]   # index 0..4
     out = {lab: 0.0 for lab in labels}
     for g in grouped.get("groups", []):
         i = int(g["cls"])
@@ -590,7 +733,7 @@ def _vhi_class_areas(vhi, aoi):
     return out, {k: round(v / total * 100, 1) for k, v in out.items()}
 
 
-def _render_vhi_map(run_dir, name, tif, box, meta, pct):
+def _render_vhi_map(run_dir, name, tif, box, meta, pct, lang="id"):
     """Classified drought map: which parts of the AOI are stressed, not just how
     stressed it is on average."""
     import numpy as np
@@ -605,7 +748,8 @@ def _render_vhi_map(run_dir, name, tif, box, meta, pct):
     if not np.isfinite(arr).any():
         return None
 
-    labels = [r[1] for r in VHI_CLASSES]                # ekstrem -> tidak
+    T = TEXT.get(lang, TEXT["id"])
+    labels = [_label(r, lang) for r in VHI_CLASSES]     # extreme -> none
     colours = [r[2] for r in VHI_CLASSES]
     cmap = ListedColormap(list(reversed(colours)))
     norm = BoundaryNorm([0, 10, 20, 30, 40, 100], cmap.N)
@@ -625,8 +769,8 @@ def _render_vhi_map(run_dir, name, tif, box, meta, pct):
     ax.set_yticks([])
     for s in ax.spines.values():
         s.set_visible(False)
-    ax.set_title(f"Sebaran kekeringan vegetasi — {name}\n"
-                 f"VHI (MODIS 1 km), {meta['vegetation_end']}",
+    ax.set_title(T["map_vhi_title"].format(name=name) + "\n"
+                 + T["map_vhi_sub"].format(end=meta["vegetation_end"]),
                  fontsize=13, fontweight="bold", loc="left")
     # One decimal: a class holding tens of thousands of hectares still rounds to
     # "0%" of a large AOI, which reads as "nothing here" when it is not.
@@ -635,16 +779,16 @@ def _render_vhi_map(run_dir, name, tif, box, meta, pct):
                for lab, c in zip(labels, colours)]
     ax.legend(handles=handles, fontsize=9, frameon=False, ncol=3,
               loc="upper center", bbox_to_anchor=(.5, -.02))
-    fig.text(.01, .015, "VHI = 0,5·VCI + 0,5·TCI (Kogan 1995); di bawah 40 = tekanan "
-             "kekeringan. Sumber: MODIS MOD13A2 + MOD11A2.", fontsize=8, color="#777")
+    fig.text(.01, .015, T["map_vhi_src"], fontsize=8, color="#777")
     fig.tight_layout(rect=[0, .05, 1, 1])
-    out = os.path.join(run_dir, f"{name}_peta_kekeringan.png")
+    out = os.path.join(run_dir, f"{name}_drought_map_{lang}.png"
+                       if lang != "id" else f"{name}_peta_kekeringan.png")
     fig.savefig(out, facecolor=fig.get_facecolor())
     plt.close(fig)
     return out
 
 
-def _drought_extent(vhi, aoi, run_dir, name, veg_end):
+def _drought_extent(vhi, aoi, run_dir, name, veg_end, lang="id"):
     """GeoTIFF + classified map + area per drought class.
 
     Best effort: the charts are the primary output, so a failure here prints a
@@ -657,11 +801,11 @@ def _drought_extent(vhi, aoi, run_dir, name, veg_end):
     ys = [p[1] for p in coords[0]]
     box = [min(xs), min(ys), max(xs), max(ys)]
     try:
-        ha, pct = _vhi_class_areas(vhi, aoi)
+        ha, pct = _vhi_class_areas(vhi, aoi, lang)
         tif = download_geotiff(vhi.clip(aoi).toFloat(), coords, path,
                                scale=MODIS_SCALE)
         png = (_render_vhi_map(run_dir, name, tif, box,
-                               {"vegetation_end": veg_end.isoformat()}, pct)
+                               {"vegetation_end": veg_end.isoformat()}, pct, lang)
                if tif else None)
         return tif, png, ha, pct
     except Exception as exc:
@@ -669,16 +813,40 @@ def _drought_extent(vhi, aoi, run_dir, name, veg_end):
         return None, None, {}, {}
 
 
-def _print_extent(cls_ha, cls_pct):
+def _print_extent(cls_ha, cls_pct, lang="id"):
     """Where the drought is, as a breakdown -- the average alone hides it."""
     if not cls_pct:
         return
-    in_drought = sum(v for k, v in cls_pct.items() if k != "Tidak kekeringan")
-    print(f"  luas terdampak: {in_drought:.0f}% dari AOI di bawah VHI 40")
+    none_lab = _label(VHI_CLASSES[0], lang)
+    in_drought = sum(v for k, v in cls_pct.items() if k != none_lab)
+    print("  " + TEXT.get(lang, TEXT["id"])["extent"].format(pct=in_drought))
     for row in VHI_CLASSES:
-        lab = row[1]
+        lab = _label(row, lang)
         if cls_ha.get(lab):
             print(f"    {lab:22s} {cls_ha[lab]:>12,.0f} ha  ({cls_pct[lab]:5.1f}%)")
+
+
+def _print_summary(name, months, rain_end, rain, z, rank, n_years, hv,
+                   cls_ha, cls_pct, enso_now, iod_now, sst_end, lang):
+    """Console summary in the requested language."""
+    T = TEXT.get(lang, TEXT["id"])
+    print("\n" + T["sum_title"].format(name=name, months=months,
+                                       end=rain_end))
+    print("  " + T["sum_rain"].format(
+        mm=rain["current_mm"], pct=rain["pct_of_normal"],
+        normal=rain["normal_mm"], z=z, cls=_spi_label(z, lang)[0]))
+    if rank:
+        print("  " + T["sum_rank"].format(rank=rank, n=n_years))
+    print("  " + T["sum_vhi"].format(
+        vhi=hv["vhi"], vci=hv["vci"], tci=hv["tci"],
+        cls=_classify(hv["vhi"], VHI_CLASSES, lang)[0]))
+    _print_extent(cls_ha, cls_pct, lang)
+    if enso_now is not None:
+        print(f"  Nino 3.4 {enso_now:+.2f} °C ({sst_end}) → "
+              f"{_classify(enso_now, ENSO_CLASSES, lang)}")
+    if iod_now is not None:
+        print(f"  IOD/DMI  {iod_now:+.2f} °C ({sst_end}) → "
+              f"{_classify(iod_now, IOD_CLASSES, lang)}")
 
 
 def _record_years(start_year, src, last_year):
@@ -692,7 +860,31 @@ def _record_years(start_year, src, last_year):
     return list(range(first, last_year + 1))
 
 
-def _warn_if_stale(rain_source, rain_end):
+NOTE = {
+    "en": ("rainfall_z is a z-score of accumulated rainfall against the same "
+           "calendar window in each baseline year, NOT a gamma-fitted SPI; the "
+           "two agree for >=3-month windows in the humid tropics but diverge in "
+           "the dry season. Meteorological drought leads agricultural drought, "
+           "so a large deficit with healthy VHI means impact has not landed yet."),
+    "id": ("rainfall_z adalah z-score curah hujan terakumulasi terhadap jendela "
+           "kalender yang sama pada tiap tahun baseline, BUKAN SPI gamma; "
+           "keduanya sepakat untuk jendela >=3 bulan di tropis basah tetapi "
+           "berbeda pada musim kemarau. Kekeringan meteorologis mendahului "
+           "kekeringan pertanian, jadi defisit besar dengan VHI sehat berarti "
+           "dampaknya belum tiba."),
+}
+
+STALE_WARN = {
+    "id": ("  ⚠ jendela hujan tertinggal {n} hari dari hari ini. Untuk musim "
+           "yang sedang berjalan coba --rain-source era5 (lag ~8 hari) atau "
+           "imerg (~1 hari)."),
+    "en": ("  ⚠ the rainfall window is {n} days behind today. For a season "
+           "still in progress try --rain-source era5 (~8 day lag) or imerg "
+           "(~1 day)."),
+}
+
+
+def _warn_if_stale(rain_source, rain_end, lang="id"):
     """A stale window reports "Normal" for a season that has already turned.
 
     Over Central Java in August 2026, CHIRPS (to 30 Jun) said 101% of normal
@@ -701,9 +893,7 @@ def _warn_if_stale(rain_source, rain_end):
     """
     stale = (dt.date.today() - rain_end).days
     if rain_source == "chirps" and stale > 21:
-        print(f"  ⚠ jendela hujan tertinggal {stale} hari dari hari ini. Untuk "
-              f"musim yang sedang berjalan coba --rain-source era5 (lag ~8 hari) "
-              f"atau imerg (~1 hari).")
+        print(STALE_WARN.get(lang, STALE_WARN["id"]).format(n=stale))
 
 
 def _resolve_source(name):
@@ -723,7 +913,7 @@ def _resolve_end(explicit, src):
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         months=3, end=None, admin=None, bbox=None, start_year=1991,
-        vhi_window=48, rain_source=DEFAULT_RAIN_SOURCE):
+        vhi_window=48, rain_source=DEFAULT_RAIN_SOURCE, lang="id"):
     """Drought: rainfall deficit, vegetation health, and ENSO context."""
     for mod in ("numpy", "matplotlib"):
         try:
@@ -742,10 +932,17 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     ndvi_end = _latest(NDVI_IC, "NDVI")
     aoi = _resolve_aoi(admin, bbox, lon, lat, radius)
 
-    print(f"  hujan s/d {rain_end} ({rain_source}, lag {src['lag']}) · "
-          f"vegetasi s/d {ndvi_end} (MODIS)")
+    prim = "id" if lang in ("id", "both") else lang
+    src_label = src["label"].get(prim, src["label"]["id"])
+    src_lag = src["lag"].get(prim, src["lag"]["id"])
+    print(f"  {'rainfall to' if prim == 'en' else 'hujan s/d'} {rain_end} "
+          f"({rain_source}, lag {src_lag}) · "
+          f"{'vegetation to' if prim == 'en' else 'vegetasi s/d'} "
+          f"{ndvi_end} (MODIS)")
     _warn_if_stale(rain_source, rain_end)
-    print(f"  jendela {months} bulan · baseline hujan "
+    print(f"  {'window' if prim == 'en' else 'jendela'} {months} "
+          f"{'months' if prim == 'en' else 'bulan'} · "
+          f"{'rainfall baseline' if prim == 'en' else 'baseline hujan'} "
           f"{src['base'][0]}–{src['base'][1]}")
 
     rain = _rainfall_z(aoi, rain_end, months, src)
@@ -759,13 +956,20 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     sst_end = _latest(SST_IC, "sst")
     labels, nino, dmi = _climate_modes(sst_end)
 
-    png = _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi,
-                        {"months": months, "rain_end": rain_end.isoformat(),
-                         "current_year": rain_end.year, "base": src["base"],
-                         "source": src["label"]})
+    panels = {}
+    for lg in (["id", "en"] if lang == "both" else [lang]):
+        panels[lg] = _render_panel(
+            run_dir, name, years, zs, hv, labels, nino, dmi,
+            {"months": months, "rain_end": rain_end.isoformat(),
+             "current_year": rain_end.year, "base": src["base"],
+             "source": src["label"].get(lg, src["label"]["id"])}, lg)
+    png = panels[list(panels)[0]]
     tif, vhi_png, cls_ha, cls_pct = _drought_extent(vhi_img, aoi, run_dir, name,
-                                                    ndvi_end)
-    map_png, map_tif = _rain_map(aoi, run_dir, name, rain_end, months, src)
+                                                    ndvi_end, prim)
+    map_png, map_tif = _rain_map(aoi, run_dir, name, rain_end, months, src, prim)
+    if lang == "both":
+        _drought_extent(vhi_img, aoi, run_dir, name, ndvi_end, "en")
+        _rain_map(aoi, run_dir, name, rain_end, months, src, "en")
 
     z = rain["z"]
     ranked = sorted((v for v in zs if v is not None))
@@ -778,55 +982,41 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "window": {"months": months, "rain_end": rain_end.isoformat(),
                    "vegetation_end": ndvi_end.isoformat(),
                    "enso_end": sst_end.isoformat(),
-                   "rain_source": rain_source,
+                   "rain_source": rain_source, "lang": lang,
                    "rain_baseline": list(src["base"])},
         "sources": {
-            "rainfall": (f"{src['label']} ({src['ic']}), baseline "
-                         f"{src['base'][0]}-{src['base'][1]}, lag {src['lag']}"),
+            "rainfall": (f"{src_label} ({src['ic']}), baseline "
+                         f"{src['base'][0]}-{src['base'][1]}, lag {src_lag}"),
             "vegetation": f"MODIS {NDVI_IC} + {LST_IC}, baseline {MODIS_BASE[0]}-{MODIS_BASE[1]}",
             "enso": f"NOAA OISST ({SST_IC}), Nino 3.4 region {NINO34_BOX}",
             "iod": (f"NOAA OISST ({SST_IC}), DMI = west {IOD_WEST_BOX} minus "
                     f"east {IOD_EAST_BOX} (Saji et al. 1999)")},
-        "rainfall": {**rain, "class": _spi_label(z)[0]},
+        "rainfall": {**rain, "class": _spi_label(z, prim)[0]},
         "rainfall_z_by_year": dict(zip([str(y) for y in years], zs)),
         "rank_driest_of_record": rank, "years_in_record": len(ranked),
-        "vegetation": {**hv, "class": _classify(hv["vhi"], VHI_CLASSES)[0],
+        "vegetation": {**hv, "class": _classify(hv["vhi"], VHI_CLASSES, prim)[0],
                        "area_ha_by_class": cls_ha, "area_pct_by_class": cls_pct,
                        "area_pct_in_drought": round(
                            sum(v for k, v in cls_pct.items()
                                if k != "Tidak kekeringan"), 1)},
         "enso": {"nino34_anomaly_c": enso_now,
-                 "class": _classify(enso_now, ENSO_CLASSES),
+                 "class": _classify(enso_now, ENSO_CLASSES, prim),
                  "monthly": dict(zip(labels, nino))},
-        "iod": {"dmi_c": iod_now, "class": _classify(iod_now, IOD_CLASSES),
+        "iod": {"dmi_c": iod_now, "class": _classify(iod_now, IOD_CLASSES, prim),
                 "event_threshold_c": IOD_EVENT_C,
                 "monthly": dict(zip(labels, dmi))},
         "outputs": {"panel": os.path.basename(png),
+                    "panels_by_lang": {k: os.path.basename(v)
+                                       for k, v in panels.items()},
                     "drought_map": os.path.basename(vhi_png) if vhi_png else None,
                     "rainfall_map": os.path.basename(map_png) if map_png else None,
                     "rainfall_geotiff": os.path.basename(map_tif) if map_tif else None,
                     "vhi_geotiff": os.path.basename(tif) if tif else None},
-        "note": ("rainfall_z is a z-score of accumulated rainfall against the same "
-                 "calendar window in each baseline year, NOT a gamma-fitted SPI; the "
-                 "two agree for >=3-month windows in the humid tropics but diverge in "
-                 "the dry season. Meteorological drought leads agricultural drought, "
-                 "so a large deficit with healthy VHI means impact has not landed yet."),
+        "note": NOTE.get(prim, NOTE["id"]),
     }
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
 
-    print(f"\nKekeringan {name} — {months} bulan s/d {rain_end}")
-    print(f"  hujan {rain['current_mm']:.0f} mm ({rain['pct_of_normal']:.0f}% dari "
-          f"normal {rain['normal_mm']:.0f} mm) · z {z:+.2f} → {_spi_label(z)[0]}")
-    if rank:
-        print(f"  peringkat terkering ke-{rank} dari {len(ranked)} tahun")
-    print(f"  VHI {hv['vhi']:.0f} (VCI {hv['vci']:.0f} · TCI {hv['tci']:.0f}) → "
-          f"{_classify(hv['vhi'], VHI_CLASSES)[0]}")
-    _print_extent(cls_ha, cls_pct)
-    if enso_now is not None:
-        print(f"  Nino 3.4 {enso_now:+.2f} °C ({sst_end}) → "
-              f"{_classify(enso_now, ENSO_CLASSES)}")
-    if iod_now is not None:
-        print(f"  IOD/DMI  {iod_now:+.2f} °C ({sst_end}) → "
-              f"{_classify(iod_now, IOD_CLASSES)}")
+    _print_summary(name, months, rain_end, rain, z, rank, len(ranked), hv,
+                   cls_ha, cls_pct, enso_now, iod_now, sst_end, prim)
     return stats

@@ -361,7 +361,7 @@ def _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     drought.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                 config_key=ee_key, months=args.spi_months, end=args.drought_end,
                 admin=args.admin, bbox=dr_bbox, start_year=args.start_year,
-                rain_source=args.rain_source)
+                rain_source=args.rain_source, lang=args.lang)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -562,7 +562,8 @@ def main():
                     help="island-heat: also render a one-page story poster "
                          "(island_heat_story_<lang>.png)")
     ap.add_argument("--lang", choices=["id", "en", "both"], default="id",
-                    help="--infographic language: id (default), en, or both")
+                    help="output language for island-heat infographics and drought "
+                         "charts/maps: id (default), en, or both")
     ap.add_argument("--months", help="urban-heat: restrict to a month range M0-M1 (e.g. 5-10 "
                     "for the dry season, when the surface UHI reads cleanest); default all months")
     ap.add_argument("--boundary", help="transit-access: administrative area name (e.g. "
