@@ -361,7 +361,8 @@ def _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     drought.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                 config_key=ee_key, months=args.spi_months, end=args.drought_end,
                 admin=args.admin, bbox=dr_bbox, start_year=args.start_year,
-                rain_source=args.rain_source, lang=args.lang, cdi=args.cdi)
+                rain_source=args.rain_source, lang=args.lang, cdi=args.cdi,
+                cdi_scale=args.cdi_scale)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -637,6 +638,11 @@ def main():
                          "— meteorological, agricultural and hydrological on one "
                          "classified map plus a styled GeoTIFF. Adds ERA5-Land "
                          "soil moisture and runoff, so it costs extra compute")
+    ap.add_argument("--cdi-scale", type=int,
+                    help="drought: pixel size in metres for the CDI map and "
+                         "GeoTIFF. Defaults to the data floor (~11 km, set by "
+                         "ERA5-Land soil moisture). A smaller value renders "
+                         "smoother but adds no information, and is warned about")
     ap.add_argument("--rain-source", default="chirps",
                     choices=["chirps", "era5", "imerg", "gsmap"],
                     help="drought: rainfall product. chirps = gauge-blended, "

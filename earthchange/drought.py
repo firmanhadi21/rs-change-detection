@@ -992,6 +992,44 @@ def _pixel_z(ic_id, band, aoi, end, months, reducer="mean", factor=1.0,
             .divide(hist.reduce(ee.Reducer.stdDev())).rename("z"))
 
 
+def _cdi_floor(src):
+    """Finest pixel the CDI can honestly be drawn at.
+
+    The indicator is only as sharp as its coarsest input, and that input is soil
+    moisture. Measured native scales: CHIRPS 5,566 m, IMERG/GSMaP 11,132 m,
+    ERA5-Land 11,132 m, SMAP 10,593 m, GLDAS 27,830 m, MODIS vegetation 927 m.
+
+    So the floor is set by ERA5-Land, not by the rainfall product. Drawing below
+    it does not add information -- and for a CLASSIFIED raster it is worse than
+    merely cosmetic, because interpolated class boundaries are boundaries the
+    classification never produced.
+
+    Genuinely finer would need a finer soil-moisture field. None exists globally;
+    it would have to be downscaled with terrain and land-cover covariates, which
+    is a modelling exercise, not a resampling option.
+    """
+    return max(src["scale"], ERA5_SCALE)
+
+
+def _resolve_cdi_scale(requested, src, lang):
+    floor = _cdi_floor(src)
+    if not requested:
+        return floor
+    if requested < floor:
+        msg = {
+            "id": (f"  ⚠ --cdi-scale {requested} m di bawah batas data "
+                   f"({floor} m, ditentukan lengas tanah ERA5-Land). Peta akan "
+                   f"terlihat lebih halus tetapi TIDAK menambah informasi; batas "
+                   f"kelas hasil interpolasi tidak pernah dihitung."),
+            "en": (f"  ⚠ --cdi-scale {requested} m is below the data floor "
+                   f"({floor} m, set by ERA5-Land soil moisture). The map will "
+                   f"look smoother but carries NO extra information; interpolated "
+                   f"class boundaries were never computed."),
+        }
+        print(msg.get(lang, msg["id"]))
+    return requested
+
+
 def _cdi_layers(aoi, rain_end, era5_end, months, src):
     """The three per-pixel fields the indicator is built from, plus hydrological."""
     met = _pixel_z(src["ic"], src["band"], aoi, rain_end, months, "sum",
@@ -1123,10 +1161,11 @@ def _style_cdi_tif(path, lang):
 
 
 def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
-             vhi_img, lang):
+             vhi_img, lang, scale=None):
     """Compute, map and export the Combined Drought Indicator. Best effort."""
     from .gee_utils import download_geotiff
     try:
+        px = _resolve_cdi_scale(scale, src, lang)
         met, agri, hydro = _cdi_layers(aoi, rain_end, era5_end, months, src)
         cdi = _cdi_classify(met, agri, vhi_img)
         land = _land_mask(aoi)
@@ -1137,8 +1176,12 @@ def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
         ys = [p[1] for p in coords[0]]
         box = [min(xs), min(ys), max(xs), max(ys)]
         tif = os.path.join(run_dir, f"{name}_cdi.tif")
-        got = download_geotiff(cdi.updateMask(land).clip(aoi).toFloat(), coords,
-                               tif, scale=ERA5_SCALE)
+        # Nearest-neighbour reprojection only: a class raster must never be
+        # interpolated, whatever pixel size is asked for.
+        out = cdi.updateMask(land).clip(aoi)
+        if px != _cdi_floor(src):
+            out = out.reproject(crs="EPSG:4326", scale=px)
+        got = download_geotiff(out.toFloat(), coords, tif, scale=px)
         png = None
         if got:
             _style_cdi_tif(got, lang)
@@ -1152,7 +1195,8 @@ def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
             "hydrological_z": _round(_mean_over(hydro, aoi, ERA5_SCALE, "z")),
         }
         return {"area_ha_by_class": ha, "area_pct_by_class": pct,
-                "indices": idx, "map": os.path.basename(png) if png else None,
+                "indices": idx, "scale_m": px, "data_floor_m": _cdi_floor(src),
+                "map": os.path.basename(png) if png else None,
                 "geotiff": os.path.basename(got) if got else None}
     except Exception as exc:
         print(f"  (CDI dilewati / skipped: {str(exc)[:70]})")
@@ -1182,7 +1226,7 @@ def _resolve_end(explicit, src):
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         months=3, end=None, admin=None, bbox=None, start_year=1991,
         vhi_window=48, rain_source=DEFAULT_RAIN_SOURCE, lang="id",
-        cdi=False):
+        cdi=False, cdi_scale=None):
     """Drought: rainfall deficit, vegetation health, and ENSO context."""
     for mod in ("numpy", "matplotlib"):
         try:
@@ -1242,7 +1286,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         era5_end = _latest(ERA5_IC, SOIL_ROOT)
         print(f"  CDI: ERA5-Land {'to' if prim == 'en' else 's/d'} {era5_end}")
         cdi_out = _run_cdi(aoi, run_dir, name, rain_end, era5_end, ndvi_end,
-                           months, src, vhi_img, prim)
+                           months, src, vhi_img, prim, cdi_scale)
     if lang == "both":
         _drought_extent(vhi_img, aoi, run_dir, name, ndvi_end, "en")
         _rain_map(aoi, run_dir, name, rain_end, months, src, "en")
