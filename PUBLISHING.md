@@ -20,9 +20,16 @@ pip install --upgrade build twine
 ## 1. Build the distributions
 
 ```bash
+rm -rf dist                       # see the warning below
 python -m build          # writes dist/earthchange-0.1.0.tar.gz and .whl
 python -m twine check dist/*
 ```
+
+> **Clear `dist/` first, and upload by filename.** `dist/` accumulates every
+> build ever made, including artifacts from when this package was still called
+> `satchange`. `twine upload dist/*` would try to push all of them — re-uploading
+> old versions, and pushing `satchange` files at a project they don't belong to.
+> Name the two files you actually mean (see step 3).
 
 ## 2. Test on TestPyPI first
 
@@ -37,8 +44,13 @@ earthchange --list
 ## 3. Upload to the real PyPI
 
 ```bash
-python -m twine upload dist/*
+python -m twine upload dist/earthchange-<VERSION>-py3-none-any.whl \
+                      dist/earthchange-<VERSION>.tar.gz
 ```
+
+A `403 Forbidden` here means the API token in `~/.pypirc` is expired, revoked,
+or scoped to a different project — not that anything is wrong with the build.
+Mint a fresh token at https://pypi.org/manage/account/token/ and retry.
 
 Then anyone can:
 
