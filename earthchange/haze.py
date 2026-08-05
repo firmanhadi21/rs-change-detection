@@ -28,6 +28,7 @@ S5P_AAI = "COPERNICUS/S5P/OFFL/L3_AER_AI"
 S5P_AAI_NRT = "COPERNICUS/S5P/NRTI/L3_AER_AI"
 FIRMS_IC = "FIRMS"
 WHO_24H = 15.0                       # WHO 2021 24-hour PM2.5 guideline, ug/m3
+CAMS_SCALE = 40_000                  # CAMS NRT native grid, ~0.4 degrees
 SMOKE_BUFFER_M = 250_000             # smoke map frame around the AOI (regional)
 # Indonesian ISPU PM2.5 breakpoints (PermenLHK P.14/2020), ug/m3
 ISPU = [(15.5, "Baik", "#2e9e4f"), (55.4, "Sedang", "#2f7fd1"),
@@ -184,44 +185,140 @@ def _render_timeline(run_dir, name, days, pm, aai, hot):
     print(f"Chart: {os.path.normpath(out)}")
 
 
-def _render_smoke_map(aai_tif, fire_tif, bbox, run_dir, name, window):
-    """Mean aerosol index over the episode, with active-fire pixels on top."""
+def _fire_points(fire_tif):
+    """Active-fire pixel centres as lon/lat.
+
+    Placed from the fire raster's OWN bounds. It is downloaded at 2 km while
+    PM2.5 comes at 40 km, so the two grids snap to different extents and
+    borrowing the concentration panel's frame would shift every hotspot by up
+    to half a coarse pixel — tens of kilometres.
+    """
+    import numpy as np
+    import rasterio
+    if not (fire_tif and os.path.exists(fire_tif)):
+        return None, None
+    with rasterio.open(fire_tif) as ds:
+        f = ds.read(1).astype("float64")
+        b = ds.bounds
+    rows, cols = f.shape
+    yy, xx = np.where(f > 0)
+    if not yy.size:
+        return None, None
+    lon = b.left + (xx + 0.5) * (b.right - b.left) / cols
+    lat = b.top - (yy + 0.5) * (b.top - b.bottom) / rows
+    return lon, lat
+
+
+def _ispu_scale(pm):
+    """ISPU colours and class boundaries for a PM2.5 field.
+
+    A continuous ramp makes the reader do the arithmetic. The Indonesian
+    standard already defines where the meaningful steps are, so use them.
+    """
+    import numpy as np
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    edges = [0.0] + [hi for hi, _, _ in ISPU[:-1]]        # 0 .. 250.4
+    hi = float(np.nanmax(pm)) if np.isfinite(pm).any() else 0.0
+    # BoundaryNorm needs strictly increasing edges, so the open-ended top class
+    # gets a cap just above the last breakpoint even when the data never reach it.
+    edges.append(max(hi, edges[-1] * 1.05))
+    cmap = ListedColormap([c for _, _, c in ISPU])
+    return cmap, BoundaryNorm(edges, cmap.N), edges
+
+
+def _panel_pm25(ax, pm, extent, fires, plt):
+    """Left: how bad the air is, with the fires that are producing it."""
+    cmap, norm, edges = _ispu_scale(pm)
+    im = ax.imshow(pm, extent=extent, origin="upper", cmap=cmap, norm=norm)
+    # Tick the band CENTRES and name the class. Boundary numbers alone make the
+    # reader do the lookup that the ISPU table already did.
+    centres = [(edges[i] + edges[i + 1]) / 2 for i in range(len(ISPU))]
+    labels = [f"{nm}\n>{edges[i]:g}" if i == len(ISPU) - 1 else f"{nm}\n≤{hi:g}"
+              for i, (hi, nm, _) in enumerate(ISPU)]
+    cb = plt.colorbar(im, ax=ax, shrink=.72, ticks=centres)
+    cb.ax.set_yticklabels(labels, fontsize=7.5)
+    cb.set_label("PM2.5 permukaan (µg/m³) — kelas ISPU", fontsize=9)
+    if fires[0] is not None:
+        ax.plot(*fires, ".", color="#39ff14", ms=2.5, alpha=.9,
+                label="titik panas FIRMS")
+        ax.legend(loc="lower left", fontsize=9, framealpha=.85)
+    ax.set_title("PM2.5 + titik panas", fontsize=11, fontweight="bold")
+
+
+def _panel_context(ax, extent, fires, bbox):
+    """Right: where the fires are on the ground, and whose district that is."""
+    from matplotlib.lines import Line2D
+    from .mapmaker import _add_basemap
+    # Set limits BEFORE the basemap: contextily picks its zoom level from the
+    # axes extent, and an unset one downloads the whole world at zoom 0.
+    ax.set_xlim(extent[0], extent[1])
+    ax.set_ylim(extent[2], extent[3])
+    _add_basemap(ax)
+    handles = []
+    try:
+        from .drought import _draw_admin
+        _draw_admin(ax, list(bbox))
+        handles.append(Line2D([], [], color="#333", lw=.55, label="batas provinsi"))
+    except Exception as exc:                                       # noqa: BLE001
+        print(f"  (admin boundaries skipped: {exc.__class__.__name__})")
+    if fires[0] is not None:
+        ax.plot(*fires, ".", color="#e8271e", ms=3.0, alpha=.85)
+        handles.append(Line2D([], [], ls="", marker=".", color="#e8271e",
+                              label="titik panas FIRMS"))
+    if handles:
+        ax.legend(handles=handles, loc="lower left", fontsize=9, framealpha=.85)
+    ax.set_title("Titik panas, batas administrasi & peta dasar OSM",
+                 fontsize=11, fontweight="bold")
+
+
+def _render_smoke_map(pm_tif, fire_tif, bbox, run_dir, name, window):
+    """Two panels over the episode.
+
+    Left answers 'how bad is the air', right answers 'where is it coming from
+    and whose district is that'. Side by side rather than stacked, because a
+    tile basemap and a concentration ramp competing for the same pixels leaves
+    both unreadable.
+    """
     import numpy as np
     import rasterio
     plt = _plt()
-    with rasterio.open(aai_tif) as ds:
-        a = ds.read(1, masked=True).astype("float64").filled(np.nan)
-        ab = ds.bounds
-    w, s, e, n = ab.left, ab.bottom, ab.right, ab.top     # smoke frame, not AOI
-    fig, ax = plt.subplots(figsize=(11, 10), dpi=150)
-    # AAI is routinely negative over bright land; scale to the data, not to 0.
-    finite = a[np.isfinite(a)]
-    vmin, vmax = ((np.nanpercentile(finite, 2), np.nanpercentile(finite, 98))
-                  if finite.size else (-1.0, 1.0))
-    if vmax - vmin < 0.2:
-        vmin, vmax = vmin - 0.1, vmax + 0.1
-    im = ax.imshow(a, extent=[w, e, s, n], origin="upper", cmap="inferno",
-                   vmin=vmin, vmax=vmax)
-    plt.colorbar(im, ax=ax, shrink=0.7,
-                 label="Indeks aerosol absorbing (asap)")
-    if fire_tif and os.path.exists(fire_tif):
-        with rasterio.open(fire_tif) as ds:
-            f = ds.read(1).astype("float64")
-        rows, cols = f.shape
-        yy, xx = np.where(f > 0)
-        lon = w + (xx + 0.5) * (e - w) / cols
-        lat = n - (yy + 0.5) * (n - s) / rows
-        ax.plot(lon, lat, ".", color="#39ff14", ms=2.5, alpha=0.9,
-                label="titik panas FIRMS")
-        ax.legend(loc="lower left", fontsize=9, framealpha=0.85)
-    ax.set_xlim(w, e); ax.set_ylim(s, n)
-    ax.set_title(f"Sebaran asap & titik api — {name}\n{window}",
-                 fontsize=13, fontweight="bold")
-    ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
-    ax.grid(True, ls=":", alpha=0.3)
-    fig.tight_layout()
+
+    with rasterio.open(pm_tif) as ds:
+        pm = ds.read(1, masked=True).astype("float64").filled(np.nan)
+        b = ds.bounds
+    w, s, e, n = b.left, b.bottom, b.right, b.top     # smoke frame, not AOI
+    extent = [w, e, s, n]
+    fires = _fire_points(fire_tif)
+
+    # The colourbar eats into the left column. Without compensating, equal
+    # aspect then shrinks the left map and the same extent is drawn at two
+    # different scales, which reads as two different areas.
+    fig, axes = plt.subplots(1, 2, figsize=(19, 9.5), dpi=150,
+                             gridspec_kw={"width_ratios": [1.2, 1]})
+    _panel_pm25(axes[0], pm, extent, fires, plt)
+    _panel_context(axes[1], extent, fires, bbox)
+    for ax in axes:
+        ax.set_xlim(w, e)
+        ax.set_ylim(s, n)
+        # imshow already forces equal aspect on the left; without this the
+        # basemap panel stretches and the same area is drawn a different shape
+        # in each half, which reads as a data difference.
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel("Longitude")
+        ax.grid(True, ls=":", alpha=.3)
+    axes[0].set_ylabel("Latitude")
+    fig.suptitle(f"Sebaran asap & titik api — {name}\n{window}",
+                 fontsize=14, fontweight="bold")
+    fig.text(.008, .012,
+             "PM2.5: ECMWF CAMS NRT (~40 km) — model, bukan pengukuran stasiun; "
+             "kelas ISPU PermenLHK P.14/2020. Titik panas: FIRMS (MODIS, 1 km). "
+             "Batas: FAO GAUL 2015. Peta dasar © OpenStreetMap.",
+             fontsize=8, color="#777")
+    # Reserve enough bottom margin that the axis labels clear the footer.
+    fig.tight_layout(rect=[0, .045, 1, .94])
     out = os.path.join(run_dir, "haze_smoke_map.png")
-    fig.savefig(out); plt.close(fig)
+    fig.savefig(out)
+    plt.close(fig)
     print(f"Map: {os.path.normpath(out)}")
 
 
@@ -242,7 +339,7 @@ def _episode_days(dd, pm):
 
 
 def _smoke_map(aoi, box, dd, pm, run_dir, name):
-    """Aerosol index + hotspots over the current episode, on a regional frame."""
+    """PM2.5 + hotspots over the current episode, on a regional frame."""
     import datetime as dt
     import ee
     from .gee_utils import download_geotiff
@@ -251,21 +348,29 @@ def _smoke_map(aoi, box, dd, pm, run_dir, name):
         return
     w0 = min(peak_days).isoformat()
     w1 = (max(peak_days) + dt.timedelta(days=1)).isoformat()
-    coll = (ee.ImageCollection(S5P_AAI).select("absorbing_aerosol_index")
-            .merge(ee.ImageCollection(S5P_AAI_NRT)
-                   .select("absorbing_aerosol_index")))
-    # Smoke is regional: a 7 km sensor over a city-sized box yields no pixels.
+    # Smoke is regional: a coarse sensor over a city-sized box yields no pixels.
     smoke_aoi = aoi.buffer(SMOKE_BUFFER_M).bounds()
-    aai_img = coll.filterDate(w0, w1).filterBounds(smoke_aoi).mean().clip(smoke_aoi)
+    # CAMS stores PM2.5 as kg/m3; the ISPU breakpoints are in ug/m3.
+    pm_img = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
+              .filterDate(w0, w1).filterBounds(smoke_aoi)
+              .mean().multiply(1e9).clip(smoke_aoi))
+    aai_img = (ee.ImageCollection(S5P_AAI).select("absorbing_aerosol_index")
+               .merge(ee.ImageCollection(S5P_AAI_NRT)
+                      .select("absorbing_aerosol_index"))
+               .filterDate(w0, w1).filterBounds(smoke_aoi).mean().clip(smoke_aoi))
+    pt = os.path.join(run_dir, "haze_pm25.tif")
     at = os.path.join(run_dir, "haze_aai.tif")
     ft = os.path.join(run_dir, "haze_fires.tif")
     fire_ic = (ee.ImageCollection(FIRMS_IC).select("T21")
                .filterDate(w0, w1).map(lambda i: i.gt(0)))
     fire_img = _safe_sum(fire_ic, "T21").unmask(0).clip(smoke_aoi)
-    ok = download_geotiff(aai_img, smoke_aoi, at, scale=7000) is not None
+    ok = download_geotiff(pm_img, smoke_aoi, pt, scale=CAMS_SCALE) is not None
+    # The aerosol index is not drawn any more but is still exported: at 7 km it
+    # resolves the plume far better than 40 km PM2.5, and it costs one request.
+    download_geotiff(aai_img, smoke_aoi, at, scale=7000)
     download_geotiff(fire_img.toByte(), smoke_aoi, ft, scale=2000)
     if ok:
-        _render_smoke_map(at, ft, box, run_dir, name,
+        _render_smoke_map(pt, ft, box, run_dir, name,
                           f"episode {w0} → {max(peak_days).isoformat()}")
 
 
