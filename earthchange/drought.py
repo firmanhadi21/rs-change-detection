@@ -164,6 +164,24 @@ TEXT = {
         "resampled": ("Sel asli {native:.0f} km, ditampilkan pada {shown:.0f} km "
                       "(interpolasi bilinear — hanya untuk keterbacaan, tidak "
                       "menambah informasi). Hanya daratan."),
+        "met_title": "Kekeringan meteorologis — {name}",
+        "met_sub": "anomali hujan terstandar, {months} bulan s/d {rain_end}",
+        "met_src": ("Defisit hujan terhadap jendela kalender yang sama pada tiap "
+                    "tahun baseline. Kelas mengikuti batas SPI (McKee dkk. 1993). "
+                    "Ini pemicu rantai kekeringan, bukan dampaknya."),
+        "agri_title": "Kekeringan pertanian — {name}",
+        "agri_sub": "anomali lengas tanah zona akar (7–28 cm), s/d {era5_end}",
+        "agri_src": ("Lengas tanah ERA5-Land, bukan kesehatan vegetasi: tanah "
+                     "adalah mekanismenya, vegetasi hanya gejala yang muncul "
+                     "beberapa minggu kemudian. Keluaran model, bukan pengukuran "
+                     "lapangan."),
+        "hydro_title": "Kekeringan hidrologis — {name}",
+        "hydro_sub": ("anomali simpanan dalam (100–289 cm) + limpasan, "
+                      "3 bulan s/d {era5_end}"),
+        "hydro_src": ("PENDEKATAN. Tidak ada data debit sungai, muka air waduk, "
+                      "atau sumur pantau di sini — hanya proksi simpanan "
+                      "ERA5-Land. Untuk pernyataan resmi soal pasokan air, angka "
+                      "PJT/BBWS jauh lebih berwenang."),
         "cdi_title": "Indikator Kekeringan Gabungan — {name}",
         "cdi_sub": ("hujan s/d {rain} · lengas tanah s/d {era5} · "
                     "vegetasi s/d {veg}"),
@@ -207,6 +225,24 @@ TEXT = {
         "resampled": ("Native cell {native:.0f} km, displayed at {shown:.0f} km "
                       "(bilinear interpolation — for legibility only, it adds no "
                       "information). Land only."),
+        "met_title": "Meteorological drought — {name}",
+        "met_sub": "standardized rainfall anomaly, {months} months to {rain_end}",
+        "met_src": ("Rainfall deficit against the same calendar window in each "
+                    "baseline year. Classes follow the SPI boundaries (McKee et "
+                    "al. 1993). This is the trigger of the drought chain, not its "
+                    "impact."),
+        "agri_title": "Agricultural drought — {name}",
+        "agri_sub": "root-zone soil moisture anomaly (7–28 cm), to {era5_end}",
+        "agri_src": ("ERA5-Land soil moisture, not vegetation health: soil is the "
+                     "mechanism, vegetation only the symptom that appears weeks "
+                     "later. Model output, not field measurement."),
+        "hydro_title": "Hydrological drought — {name}",
+        "hydro_sub": ("deep storage (100–289 cm) + runoff anomaly, "
+                      "3 months to {era5_end}"),
+        "hydro_src": ("APPROXIMATION. No river discharge, reservoir level or "
+                      "monitoring-well data is involved here — only ERA5-Land "
+                      "storage proxies. For official statements about water "
+                      "supply, PJT/BBWS figures are far more authoritative."),
         "cdi_title": "Combined Drought Indicator — {name}",
         "cdi_sub": ("rainfall to {rain} · soil moisture to {era5} · "
                     "vegetation to {veg}"),
@@ -1076,6 +1112,114 @@ def _cdi_areas(cdi, aoi, lang):
     return ha, {k: round(v / total * 100, 1) for k, v in ha.items()}
 
 
+def _z_class_image(z):
+    """z -> 0..6 using the McKee SPI boundaries, driest first.
+
+    0 extremely dry · 1 severely dry · 2 moderately dry · 3 near normal
+    4 moderately wet · 5 very wet · 6 extremely wet
+    """
+    return (z.gte(-2).add(z.gte(-1.5)).add(z.gte(-1))
+            .add(z.gte(1)).add(z.gte(1.5)).add(z.gte(2))
+            .rename("cls").toByte())
+
+
+def _z_class_areas(cls, aoi, lang):
+    """Hectares per SPI class. Integrated at 1 km for the same reason as the
+    CDI: an 11 km coastal cell that is half sea would otherwise count whole."""
+    import ee
+    grouped = (ee.Image.pixelArea().divide(1e4).addBands(cls)
+               .reduceRegion(reducer=ee.Reducer.sum().group(groupField=1,
+                                                            groupName="cls"),
+                             geometry=aoi, scale=MODIS_SCALE,
+                             maxPixels=int(1e10), bestEffort=True).getInfo())
+    labels = [_label(r, lang) for r in reversed(SPI_CLASSES)]   # index 0..6
+    ha = {lab: 0.0 for lab in labels}
+    for g in grouped.get("groups", []):
+        i = int(g["cls"])
+        if 0 <= i < len(labels):
+            ha[labels[i]] = round(g["sum"], 1)
+    total = sum(ha.values()) or 1.0
+    return ha, {k: round(v / total * 100, 1) for k, v in ha.items()}
+
+
+def _render_z_map(run_dir, name, tif, box, meta, pct, lang, kind):
+    """One drought type as a classified map.
+
+    All three types share the McKee SPI class boundaries and one colour ramp, so
+    the maps can be read side by side: the same colour means the same standard
+    deviation everywhere. Only the underlying variable differs.
+    """
+    import numpy as np
+    import rasterio
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.patches import Patch
+    plt = _plt()
+
+    with rasterio.open(tif) as src:
+        arr = src.read(1).astype("float32")
+        b = src.bounds
+    arr[arr == CDI_NODATA] = np.nan
+    if not np.isfinite(arr).any():
+        return None
+
+    T = TEXT.get(lang, TEXT["id"])
+    rows = list(reversed(SPI_CLASSES))                 # driest -> wettest
+    cmap = ListedColormap([r[2] for r in rows])
+    span_x, span_y = box[2] - box[0], box[3] - box[1]
+    aspect = span_x / span_y if span_y else 1.0
+    height = min(11.0, max(4.8, 11.0 / max(aspect, .35) + 2.4))
+    fig, ax = plt.subplots(figsize=(11, height), dpi=150)
+    fig.patch.set_facecolor("#faf8f4")
+    ax.set_facecolor("#faf8f4")
+    ax.imshow(np.ma.masked_invalid(arr), cmap=cmap,
+              norm=BoundaryNorm(np.arange(-.5, 7.5), 7),
+              extent=[b.left, b.right, b.bottom, b.top], interpolation="nearest")
+    _draw_admin(ax, box)
+    ax.set_xlim(box[0], box[2])
+    ax.set_ylim(box[1], box[3])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_title(T[f"{kind}_title"].format(name=name) + "\n"
+                 + T[f"{kind}_sub"].format(**meta),
+                 fontsize=13, fontweight="bold", loc="left")
+    # legend driest-first, and only classes that actually occur
+    handles = [Patch(facecolor=r[2], label=f"{_label(r, lang)} — "
+                                          f"{pct.get(_label(r, lang), 0):.1f}%")
+               for r in rows if pct.get(_label(r, lang), 0) > 0]
+    ax.legend(handles=handles, fontsize=8.5, frameon=False, ncol=4,
+              loc="upper center", bbox_to_anchor=(.5, -.02))
+    fig.text(.01, .015, T[f"{kind}_src"], fontsize=8, color="#777", wrap=True)
+    fig.tight_layout(rect=[0, .10, 1, 1])
+    out = os.path.join(run_dir, f"{name}_{kind}_{lang}.png"
+                       if lang != "id" else f"{name}_{kind}.png")
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out
+
+
+def _layer_map(z_img, aoi, run_dir, name, meta, lang, kind, px, coords, box):
+    """Classify one drought type, export it, and draw it. Best effort."""
+    from .gee_utils import download_geotiff
+    try:
+        cls = _z_class_image(z_img).updateMask(_land_mask(aoi))
+        ha, pct = _z_class_areas(cls, aoi, lang)
+        tif = os.path.join(run_dir, f"{name}_{kind}.tif")
+        got = download_geotiff(cls.clip(aoi).reproject(crs="EPSG:4326", scale=px)
+                               .toFloat(), coords, tif, scale=px)
+        png = None
+        if got:
+            _style_class_tif(got, lang, SPI_CLASSES, reverse=True)
+            png = _render_z_map(run_dir, name, got, box, meta, pct, lang, kind)
+        return {"area_ha_by_class": ha, "area_pct_by_class": pct,
+                "map": os.path.basename(png) if png else None,
+                "geotiff": os.path.basename(got) if got else None}
+    except Exception as exc:
+        print(f"  ({kind} map skipped: {str(exc)[:60]})")
+        return None
+
+
 def _render_cdi_map(run_dir, name, tif, box, meta, pct, lang):
     """Classified CDI map. Only the class raster is drawn, at native resolution:
     a categorical field must never be interpolated."""
@@ -1130,7 +1274,7 @@ def _render_cdi_map(run_dir, name, tif, box, meta, pct, lang):
     return out
 
 
-def _style_cdi_tif(path, lang):
+def _style_class_tif(path, lang, table=None, reverse=False):
     """Re-write the downloaded class raster as styled uint8: colour table, class
     names, and a warning that it must not be interpolated."""
     import numpy as np
@@ -1144,17 +1288,21 @@ def _style_cdi_tif(path, lang):
     out = np.where(bad, CDI_NODATA, np.rint(arr)).astype("uint8")
     prof.update(dtype="uint8", nodata=CDI_NODATA, compress="deflate",
                 tiled=True, blockxsize=256, blockysize=256)
-    tags = {f"CLASS_{r[0]}": _label(r, lang) for r in CDI_CLASSES}
+    rows = list(reversed(table)) if reverse else (table or CDI_CLASSES)
+    codes = (list(range(len(rows))) if table is not None
+             else [r[0] for r in rows])
+    tags = {f"CLASS_{c}": _label(r, lang) for c, r in zip(codes, rows)}
     tags["NODATA"] = str(CDI_NODATA)
     tags["WARNING"] = ("Categorical raster - resample with NEAREST NEIGHBOUR "
                        "only. Interpolating class codes invents classes that "
                        "were never computed.")
     with rasterio.open(path, "w", **prof) as dst:
         dst.write(out, 1)
-        dst.write_colormap(1, {r[0]: tuple(int(r[2][i:i + 2], 16)
-                                           for i in (1, 3, 5))
-                               for r in CDI_CLASSES} | {CDI_NODATA: (0, 0, 0)})
-        dst.set_band_description(1, "CDI class")
+        dst.write_colormap(1, {c: tuple(int(r[2][i:i + 2], 16)
+                                        for i in (1, 3, 5))
+                               for c, r in zip(codes, rows)}
+                           | {CDI_NODATA: (0, 0, 0)})
+        dst.set_band_description(1, "drought class")
         dst.update_tags(**tags)
         dst.colorinterp = [ColorInterp.palette]
     return path
@@ -1184,7 +1332,7 @@ def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
         got = download_geotiff(out.toFloat(), coords, tif, scale=px)
         png = None
         if got:
-            _style_cdi_tif(got, lang)
+            _style_class_tif(got, lang)
             png = _render_cdi_map(run_dir, name, got, box,
                                   {"rain_end": rain_end.isoformat(),
                                    "era5_end": era5_end.isoformat(),
@@ -1194,7 +1342,15 @@ def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
             "agricultural_z": _round(_mean_over(agri, aoi, ERA5_SCALE, "z")),
             "hydrological_z": _round(_mean_over(hydro, aoi, ERA5_SCALE, "z")),
         }
-        return {"area_ha_by_class": ha, "area_pct_by_class": pct,
+        lmeta = {"months": months, "rain_end": rain_end.isoformat(),
+                 "era5_end": era5_end.isoformat()}
+        layers = {
+            kind: _layer_map(img, aoi, run_dir, name, lmeta, lang, kind,
+                             px, coords, box)
+            for kind, img in (("met", met), ("agri", agri), ("hydro", hydro))
+        }
+        return {"layers": layers,
+                "area_ha_by_class": ha, "area_pct_by_class": pct,
                 "indices": idx, "scale_m": px, "data_floor_m": _cdi_floor(src),
                 "map": os.path.basename(png) if png else None,
                 "geotiff": os.path.basename(got) if got else None}
