@@ -47,8 +47,38 @@ CHIRPS_SCALE = 5566                    # native CHIRPS resolution, metres
 MODIS_SCALE = 1000
 SST_SCALE = 27830
 
-CHIRPS_BASE = (1991, 2020)             # WMO 30-year climate normal
+CLIM_BASE = (1991, 2020)               # WMO normal, used for the SST climatology
 MODIS_BASE = (2001, 2020)              # MODIS starts 2000; 2001 is the first full year
+
+# Rainfall products, trading latency against archive depth and calibration.
+# CHIRPS is gauge-blended and authoritative but lags ~5 weeks, which is useless
+# for a season in progress; the others see the last few days.
+#
+# `factor` converts each product's native storage to MILLIMETRES:
+#   CHIRPS/ERA5 store a per-image TOTAL (ERA5 in metres, hence 1000)
+#   IMERG/GSMaP store a RATE in mm/hr, so each image counts for its own
+#   duration -- 0.5 h for half-hourly IMERG, 1 h for hourly GSMaP.
+#
+# NEVER mix products inside one anomaly. Over Semarang, Apr-Jun 2026 totals were
+# CHIRPS 500 mm, IMERG 403, GSMaP 363, ERA5 312 -- a real 60-100% spread between
+# products. A current window from one and a climatology from another would turn
+# that bias straight into a fake anomaly. Each source carries its own baseline.
+RAIN_SOURCES = {
+    "chirps": {"ic": CHIRPS_IC, "band": "precipitation", "factor": 1.0,
+               "scale": CHIRPS_SCALE, "base": (1991, 2020),
+               "label": "CHIRPS daily (UCSB-CHG), gauge+satellite",
+               "lag": "~5 minggu"},
+    "era5": {"ic": "ECMWF/ERA5_LAND/DAILY_AGGR", "band": "total_precipitation_sum",
+             "factor": 1000.0, "scale": 11132, "base": (1991, 2020),
+             "label": "ERA5-Land daily (ECMWF reanalysis)", "lag": "~8 hari"},
+    "imerg": {"ic": "NASA/GPM_L3/IMERG_V07", "band": "precipitation",
+              "factor": 0.5, "scale": 11132, "base": (2001, 2020),
+              "label": "GPM IMERG V07 (satelit, near-real-time)", "lag": "~1 hari"},
+    "gsmap": {"ic": "JAXA/GPM_L3/GSMaP/v8/operational", "band": "hourlyPrecipRate",
+              "factor": 1.0, "scale": 11132, "base": (2001, 2020),
+              "label": "GSMaP v8 operational (JAXA, satelit)", "lag": "~1 hari"},
+}
+DEFAULT_RAIN_SOURCE = "chirps"
 NINO34_BOX = [-170, -5, -120, 5]       # standard Nino 3.4 region
 # Indian Ocean Dipole poles (Saji et al. 1999). For Indonesia the IOD matters as
 # much as ENSO: a positive dipole means cool water off Sumatra/Java, less
@@ -126,35 +156,42 @@ def _mean_over(img, region, scale, band):
         maxPixels=int(1e10), bestEffort=True).get(band))
 
 
-def _rain_total(aoi, start, end):
+def _rain_total(aoi, start, end, src):
+    """Accumulated rainfall in MILLIMETRES for one window, whatever the source."""
     import ee
-    return (ee.ImageCollection(CHIRPS_IC).select("precipitation")
-            .filterDate(start.isoformat(), end.isoformat()).sum())
+    return (ee.ImageCollection(src["ic"]).select(src["band"])
+            .filterDate(start.isoformat(), end.isoformat())
+            .sum().multiply(src["factor"]))
 
 
-def _rain_window_totals(aoi, end, months, base):
+def _same_window(start, end, year):
+    """The same calendar window in another year, tolerating 29 February."""
+    off = year - end.year
+    try:
+        return start.replace(year=start.year + off), end.replace(year=year)
+    except ValueError:
+        return start.replace(year=start.year + off), end.replace(year=year, day=28)
+
+
+def _rain_window_totals(aoi, end, months, src):
     """Accumulated rainfall for the target window and the same window each
     baseline year. Returns (current_mm, [baseline_mm, ...]) as ee.Numbers."""
     import ee
     start = _shift_months(end, months)
-    cur = _mean_over(_rain_total(aoi, start, end), aoi, CHIRPS_SCALE, "precipitation")
+    band, scale = src["band"], src["scale"]
+    cur = _mean_over(_rain_total(aoi, start, end, src), aoi, scale, band)
     hist = []
-    for y in range(base[0], base[1] + 1):
-        off = y - end.year
-        try:
-            a, b = start.replace(year=start.year + off), end.replace(year=y)
-        except ValueError:                      # 29 Feb in a non-leap baseline year
-            a, b = start.replace(year=start.year + off), end.replace(year=y, day=28)
-        hist.append(_mean_over(_rain_total(aoi, a, b), aoi,
-                               CHIRPS_SCALE, "precipitation"))
+    for y in range(src["base"][0], src["base"][1] + 1):
+        a, b = _same_window(start, end, y)
+        hist.append(_mean_over(_rain_total(aoi, a, b, src), aoi, scale, band))
     return cur, ee.List(hist)
 
 
-def _rainfall_z(aoi, end, months, base):
+def _rainfall_z(aoi, end, months, src):
     """Standardized rainfall anomaly. See the module docstring on why this is a
     z-score and not a gamma-fitted SPI."""
     import ee
-    cur, hist = _rain_window_totals(aoi, end, months, base)
+    cur, hist = _rain_window_totals(aoi, end, months, src)
     mean = ee.Number(hist.reduce(ee.Reducer.mean()))
     sd = ee.Number(hist.reduce(ee.Reducer.stdDev()))
     out = ee.Dictionary({
@@ -166,23 +203,19 @@ def _rainfall_z(aoi, end, months, base):
             for k, v in out.items()}
 
 
-def _rain_z_by_year(aoi, end, months, base, years):
+def _rain_z_by_year(aoi, end, months, src, years):
     """Rainfall z for the same calendar window in each of `years`, so the current
     season can be ranked against the record rather than judged in isolation."""
     import ee
-    _cur, hist = _rain_window_totals(aoi, end, months, base)
+    _cur, hist = _rain_window_totals(aoi, end, months, src)
     mean = ee.Number(hist.reduce(ee.Reducer.mean()))
     sd = ee.Number(hist.reduce(ee.Reducer.stdDev()))
     start = _shift_months(end, months)
     per = []
     for y in years:
-        off = y - end.year
-        try:
-            a, b = start.replace(year=start.year + off), end.replace(year=y)
-        except ValueError:
-            a, b = start.replace(year=start.year + off), end.replace(year=y, day=28)
-        per.append(_mean_over(_rain_total(aoi, a, b), aoi,
-                              CHIRPS_SCALE, "precipitation"))
+        a, b = _same_window(start, end, y)
+        per.append(_mean_over(_rain_total(aoi, a, b, src), aoi,
+                              src["scale"], src["band"]))
     zs = ee.List(per).map(
         lambda v: ee.Number(v).subtract(mean).divide(sd))
     return [None if v is None else round(v, 2) for v in zs.getInfo()]
@@ -260,7 +293,7 @@ def _sst_anomaly(box, m0, m1):
     import ee
     clim = ee.List([_sst_mean(box, m0.replace(year=y),
                               m1.replace(year=y + (m1.year - m0.year)))
-                    for y in range(CHIRPS_BASE[0], CHIRPS_BASE[1] + 1)])
+                    for y in range(CLIM_BASE[0], CLIM_BASE[1] + 1)])
     return _sst_mean(box, m0, m1).subtract(ee.Number(clim.reduce(ee.Reducer.mean())))
 
 
@@ -380,11 +413,11 @@ def _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi, meta):
                  x=.02, ha="left", y=.985)
     fig.text(.02, .955,
              f"Jendela {meta['months']} bulan berakhir {meta['rain_end']} · "
-             f"baseline hujan {CHIRPS_BASE[0]}–{CHIRPS_BASE[1]}, "
+             f"baseline hujan {meta['base'][0]}–{meta['base'][1]}, "
              f"vegetasi {MODIS_BASE[0]}–{MODIS_BASE[1]}",
              fontsize=9, color="#555")
     fig.text(.02, .012,
-             "Sumber: CHIRPS (hujan) · MODIS MOD13A2/MOD11A2 (VCI/TCI) · "
+             f"Sumber: {meta['source']} (hujan) · MODIS MOD13A2/MOD11A2 (VCI/TCI) · "
              "NOAA OISST (Nino 3.4 & DMI/IOD). Anomali hujan = z-score, bukan SPI gamma.",
              fontsize=8, color="#777")
     fig.tight_layout(rect=[0, .025, 1, .945])
@@ -394,7 +427,7 @@ def _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi, meta):
     return out
 
 
-def _rain_pct_image(aoi, end, months, base):
+def _rain_pct_image(aoi, end, months, src):
     """Per-pixel rainfall as % of the baseline normal for the same window.
 
     The area-mean z-score answers "how dry overall"; this answers "dry WHERE",
@@ -403,15 +436,11 @@ def _rain_pct_image(aoi, end, months, base):
     start = _shift_months(end, months)
     import ee
     hist = []
-    for y in range(base[0], base[1] + 1):
-        off = y - end.year
-        try:
-            a, b = start.replace(year=start.year + off), end.replace(year=y)
-        except ValueError:
-            a, b = start.replace(year=start.year + off), end.replace(year=y, day=28)
-        hist.append(_rain_total(aoi, a, b))
+    for y in range(src["base"][0], src["base"][1] + 1):
+        a, b = _same_window(start, end, y)
+        hist.append(_rain_total(aoi, a, b, src))
     normal = ee.ImageCollection(hist).mean()
-    return (_rain_total(aoi, start, end).divide(normal).multiply(100)
+    return (_rain_total(aoi, start, end, src).divide(normal).multiply(100)
             .clip(aoi).rename("pct"))
 
 
@@ -482,7 +511,7 @@ def _render_rain_map(run_dir, name, tif, box, meta):
     for s in ax.spines.values():
         s.set_visible(False)
     ax.set_title(f"Curah hujan {name} — {meta['months']} bulan s/d {meta['rain_end']}\n"
-                 f"% dari normal {CHIRPS_BASE[0]}–{CHIRPS_BASE[1]}",
+                 f"% dari normal {meta['base'][0]}–{meta['base'][1]} ({meta['source']})",
                  fontsize=13, fontweight="bold", loc="left")
     cb = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=.046,
                       pad=.04, ticks=[50, 75, 100, 125, 150])
@@ -498,7 +527,7 @@ def _render_rain_map(run_dir, name, tif, box, meta):
     return out
 
 
-def _rain_map(aoi, run_dir, name, end, months, base):
+def _rain_map(aoi, run_dir, name, end, months, src):
     """Download the % of normal field and render it. Best effort: the charts are
     the primary output, so a map failure must not sink the run."""
     from .gee_utils import download_geotiff
@@ -507,21 +536,22 @@ def _rain_map(aoi, run_dir, name, end, months, base):
     xs = [p[0] for p in coords[0]]
     ys = [p[1] for p in coords[0]]
     box = [min(xs), min(ys), max(xs), max(ys)]
-    # CHIRPS pixels are ~5.5 km. Below roughly 15 of them across, the map is a
-    # blocky rectangle with no internal landmarks -- the GeoTIFF is still valid
-    # data, but the PNG misleads more than it informs, so say so.
+    # Rainfall pixels are 5-11 km depending on source. Below roughly 15 of them
+    # across, the map is a blocky rectangle with no internal landmarks -- the
+    # GeoTIFF is still valid data, but the PNG misleads more than it informs.
     span_km = (box[2] - box[0]) * 111.0
-    if span_km < 15 * CHIRPS_SCALE / 1000:
-        print(f"  (AOI ~{span_km:.0f} km: terlalu kecil untuk peta CHIRPS 5,5 km — "
-              f"peta tetap dibuat tetapi sangat kasar; pakai --radius >50 km "
-              f"atau --admin untuk peta yang berarti)")
+    if span_km < 15 * src["scale"] / 1000:
+        print(f"  (AOI ~{span_km:.0f} km: terlalu kecil untuk peta "
+              f"{src['scale'] / 1000:.0f} km — peta tetap dibuat tetapi sangat "
+              f"kasar; pakai --radius >50 km atau --admin)")
     try:
-        got = download_geotiff(_rain_pct_image(aoi, end, months, base).toFloat(),
-                               coords, tif, scale=CHIRPS_SCALE)
+        got = download_geotiff(_rain_pct_image(aoi, end, months, src).toFloat(),
+                               coords, tif, scale=src["scale"])
         if not got:
             return None, None
         png = _render_rain_map(run_dir, name, got, box,
-                               {"months": months, "rain_end": end.isoformat()})
+                               {"months": months, "rain_end": end.isoformat(),
+                                "base": src["base"], "source": src["label"]})
         return png, got
     except Exception as exc:
         print(f"  (peta hujan dilewati: {str(exc)[:70]})")
@@ -651,16 +681,38 @@ def _print_extent(cls_ha, cls_pct):
             print(f"    {lab:22s} {cls_ha[lab]:>12,.0f} ha  ({cls_pct[lab]:5.1f}%)")
 
 
-def _resolve_end(explicit):
-    """Align to the latest CHIRPS image unless the caller pinned a date."""
+def _warn_if_stale(rain_source, rain_end):
+    """A stale window reports "Normal" for a season that has already turned.
+
+    Over Central Java in August 2026, CHIRPS (to 30 Jun) said 101% of normal
+    while ERA5, IMERG and GSMaP -- all seeing into late July -- independently
+    said 67-71%. The default must not hide that silently.
+    """
+    stale = (dt.date.today() - rain_end).days
+    if rain_source == "chirps" and stale > 21:
+        print(f"  ⚠ jendela hujan tertinggal {stale} hari dari hari ini. Untuk "
+              f"musim yang sedang berjalan coba --rain-source era5 (lag ~8 hari) "
+              f"atau imerg (~1 hari).")
+
+
+def _resolve_source(name):
+    if name not in RAIN_SOURCES:
+        raise SystemExit(f"--rain-source harus salah satu dari "
+                         f"{', '.join(RAIN_SOURCES)} (diberikan: {name})")
+    return RAIN_SOURCES[name]
+
+
+def _resolve_end(explicit, src):
+    """Align to the freshest image of the chosen source unless the caller pinned
+    a date. Each product has a different lag, so this cannot be a constant."""
     if explicit:
         return dt.date.fromisoformat(explicit)
-    return _latest(CHIRPS_IC, "precipitation")
+    return _latest(src["ic"], src["band"])
 
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         months=3, end=None, admin=None, bbox=None, start_year=1991,
-        vhi_window=48):
+        vhi_window=48, rain_source=DEFAULT_RAIN_SOURCE):
     """Drought: rainfall deficit, vegetation health, and ENSO context."""
     for mod in ("numpy", "matplotlib"):
         try:
@@ -674,16 +726,20 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     from .fire_history import _resolve_aoi
     initialize_ee(config_key)
 
-    rain_end = _resolve_end(end)
+    src = _resolve_source(rain_source)
+    rain_end = _resolve_end(end, src)
     ndvi_end = _latest(NDVI_IC, "NDVI")
     aoi = _resolve_aoi(admin, bbox, lon, lat, radius)
 
-    print(f"  hujan s/d {rain_end} (CHIRPS) · vegetasi s/d {ndvi_end} (MODIS)")
-    print(f"  jendela {months} bulan · baseline {CHIRPS_BASE[0]}–{CHIRPS_BASE[1]}")
+    print(f"  hujan s/d {rain_end} ({rain_source}, lag {src['lag']}) · "
+          f"vegetasi s/d {ndvi_end} (MODIS)")
+    _warn_if_stale(rain_source, rain_end)
+    print(f"  jendela {months} bulan · baseline hujan "
+          f"{src['base'][0]}–{src['base'][1]}")
 
-    rain = _rainfall_z(aoi, rain_end, months, CHIRPS_BASE)
-    years = list(range(max(start_year, 1981), rain_end.year + 1))
-    zs = _rain_z_by_year(aoi, rain_end, months, CHIRPS_BASE, years)
+    rain = _rainfall_z(aoi, rain_end, months, src)
+    years = list(range(max(start_year, src["base"][0] - 10), rain_end.year + 1))
+    zs = _rain_z_by_year(aoi, rain_end, months, src, years)
 
     vhi_img, hv = _vhi(aoi, ndvi_end, vhi_window, MODIS_BASE)
     # ENSO is anchored to the freshest SST, not to the rainfall window: OISST lags
@@ -694,10 +750,11 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
     png = _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi,
                         {"months": months, "rain_end": rain_end.isoformat(),
-                         "current_year": rain_end.year})
+                         "current_year": rain_end.year, "base": src["base"],
+                         "source": src["label"]})
     tif, vhi_png, cls_ha, cls_pct = _drought_extent(vhi_img, aoi, run_dir, name,
                                                     ndvi_end)
-    map_png, map_tif = _rain_map(aoi, run_dir, name, rain_end, months, CHIRPS_BASE)
+    map_png, map_tif = _rain_map(aoi, run_dir, name, rain_end, months, src)
 
     z = rain["z"]
     ranked = sorted((v for v in zs if v is not None))
@@ -709,9 +766,12 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "run_id": run_id, "scenario": "drought", "name": name,
         "window": {"months": months, "rain_end": rain_end.isoformat(),
                    "vegetation_end": ndvi_end.isoformat(),
-                   "enso_end": sst_end.isoformat()},
+                   "enso_end": sst_end.isoformat(),
+                   "rain_source": rain_source,
+                   "rain_baseline": list(src["base"])},
         "sources": {
-            "rainfall": f"CHIRPS daily ({CHIRPS_IC}), baseline {CHIRPS_BASE[0]}-{CHIRPS_BASE[1]}",
+            "rainfall": (f"{src['label']} ({src['ic']}), baseline "
+                         f"{src['base'][0]}-{src['base'][1]}, lag {src['lag']}"),
             "vegetation": f"MODIS {NDVI_IC} + {LST_IC}, baseline {MODIS_BASE[0]}-{MODIS_BASE[1]}",
             "enso": f"NOAA OISST ({SST_IC}), Nino 3.4 region {NINO34_BOX}",
             "iod": (f"NOAA OISST ({SST_IC}), DMI = west {IOD_WEST_BOX} minus "

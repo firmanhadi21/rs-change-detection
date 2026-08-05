@@ -349,7 +349,8 @@ def _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     dr_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
     drought.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                 config_key=ee_key, months=args.spi_months, end=args.drought_end,
-                admin=args.admin, bbox=dr_bbox, start_year=args.start_year)
+                admin=args.admin, bbox=dr_bbox, start_year=args.start_year,
+                rain_source=args.rain_source)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -609,7 +610,14 @@ def main():
                          "crops, 6-12 tracks reservoirs and groundwater "
                          "(default 3)")
     ap.add_argument("--drought-end", help="drought: window end YYYY-MM-DD "
-                    "(default: latest CHIRPS image, which lags ~5 weeks)")
+                    "(default: freshest image of the chosen --rain-source)")
+    ap.add_argument("--rain-source", default="chirps",
+                    choices=["chirps", "era5", "imerg", "gsmap"],
+                    help="drought: rainfall product. chirps = gauge-blended, "
+                         "1981-, but lags ~5 weeks; era5 = reanalysis, 1950-, "
+                         "lags ~8 days; imerg/gsmap = satellite, 1998-, lag "
+                         "~1 day. Use era5/imerg to see a season still in "
+                         "progress (default: chirps)")
     ap.add_argument("--admin", help="fire-history/haze: admin-1 area name from FAO GAUL "
                     "(e.g. 'Riau', 'Kalimantan Tengah') — uses the real province "
                     "polygon instead of a square AOI, so figures are per-province")
