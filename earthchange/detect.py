@@ -71,18 +71,28 @@ OUTPUT_ROOT = os.path.join(os.getcwd(), "output")
 CONFIG_KEY = os.path.join(os.getcwd(), "scripts", "config", "ee-geodetic.json")
 
 
-def new_run_dir(scenario, name):
-    """Create output/<timestamp>_<scenario>_<name>_<token>/ and return it."""
+def new_run_dir(scenario, name, out_dir=None):
+    """Create the run folder and return (run_id, path).
+
+    Default is output/<timestamp>_<scenario>_<name>_<token>/, which keeps every
+    run separate. With --out-dir the files go straight into the folder given, so
+    re-running the same scenario and name overwrites in place — usually what you
+    want when refreshing a figure, but worth knowing.
+    """
     run_id = (f"{datetime.now():%Y%m%d-%H%M%S}_{scenario}_{name}"
               f"_{uuid.uuid4().hex[:6]}")
-    run_dir = os.path.join(OUTPUT_ROOT, run_id)
+    run_dir = os.path.abspath(out_dir) if out_dir else os.path.join(OUTPUT_ROOT, run_id)
     os.makedirs(run_dir, exist_ok=True)
     return run_id, run_dir
 
 
 def list_outputs(run_dir):
     """Print the run folder and everything written to it."""
-    print(f"\nAll outputs → output/{os.path.basename(run_dir)}/")
+    try:
+        shown = os.path.relpath(run_dir, os.getcwd())
+    except ValueError:                      # different drive on Windows
+        shown = run_dir
+    print(f"\nAll outputs → {shown}/")
     for f in sorted(os.listdir(run_dir)):
         print(f"  {f}")
 
@@ -324,7 +334,8 @@ def _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     from . import fire_history
     fh_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
     kw = dict(backend=args.backend, lat=lat, lon=lon, radius=radius,
-              config_key=ee_key, start_year=args.start_year,
+              config_key=ee_key,
+              start_year=args.start_year or fire_history.DEFAULT_START,
               end_year=args.end_year, peat_file=args.peat_file,
               peat_thr=args.peat_thr, peat_source=args.peat_source,
               vs_baseline=args.vs_baseline)
@@ -426,7 +437,8 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         island_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                         config_key=ee_key,
                         island_mode=args.island_mode, islands_file=args.islands_file,
-                        start_year=args.start_year, wetbulb_thr=args.wetbulb_thr,
+                        start_year=args.start_year or island_heat.DEFAULT_START_YEAR,
+                        wetbulb_thr=args.wetbulb_thr,
                         lst_source=args.lst_source,
                         infographic=args.infographic, lang=args.lang)
         return True
@@ -455,6 +467,10 @@ def main():
     ap.add_argument("-l", "--location", help="'lat,lon' (use -l=-3.3,122.2 if lat<0)")
     ap.add_argument("--lat", type=float)
     ap.add_argument("--lon", type=float)
+    ap.add_argument("-o", "--out-dir",
+                    help="write outputs straight into this folder instead of "
+                         "creating output/<timestamp>_<scenario>_<name>/. "
+                         "Re-running the same scenario and name overwrites in place.")
     ap.add_argument("--city", help="place name to geocode instead of --lat/--lon, "
                     "e.g. --city 'Jakarta, Indonesia' (free OpenStreetMap Nominatim)")
     ap.add_argument("--site", help="named preset from sites.py")
@@ -529,8 +545,12 @@ def main():
                          "or a per-island LST series (needs --islands-file)")
     ap.add_argument("--islands-file", help="island-heat per-island: GeoJSON polygons of the "
                     "individual islands")
-    ap.add_argument("--start-year", type=int, default=2000,
-                    help="island-heat: first year of the time series (default 2000; LST from 2013)")
+    ap.add_argument("--start-year", type=int, default=None,
+                    help="first year of the time series, for island-heat, "
+                         "fire-history and drought. Left unset, each uses the "
+                         "start of its own archive (island-heat 2000, "
+                         "fire-history 2001, drought the rainfall product's "
+                         "own record) rather than one shared number")
     ap.add_argument("--wetbulb-thr", type=float, default=28.0,
                     help="island-heat: wet-bulb danger threshold in °C for heat-day counts "
                          "(default 28)")
@@ -674,8 +694,8 @@ def main():
     landsat = cfg.get("method") == "trend" or cfg.get("index") in THERMAL_METHODS
     provider = "Landsat C2-L2 (USGS/NASA)" if landsat else "Copernicus Sentinel (ESA)"
 
-    run_id, run_dir = new_run_dir(args.scenario, name)
-    print(f"Output folder: output/{run_id}/\n")
+    run_id, run_dir = new_run_dir(args.scenario, name, args.out_dir)
+    print(f"Output folder: {run_dir}\n")
 
     if dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
         list_outputs(run_dir)

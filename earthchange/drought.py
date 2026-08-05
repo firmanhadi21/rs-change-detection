@@ -65,17 +65,17 @@ MODIS_BASE = (2001, 2020)              # MODIS starts 2000; 2001 is the first fu
 # that bias straight into a fake anomaly. Each source carries its own baseline.
 RAIN_SOURCES = {
     "chirps": {"ic": CHIRPS_IC, "band": "precipitation", "factor": 1.0,
-               "scale": CHIRPS_SCALE, "base": (1991, 2020),
+               "scale": CHIRPS_SCALE, "base": (1991, 2020), "archive": 1981,
                "label": "CHIRPS daily (UCSB-CHG), gauge+satellite",
                "lag": "~5 minggu"},
     "era5": {"ic": "ECMWF/ERA5_LAND/DAILY_AGGR", "band": "total_precipitation_sum",
-             "factor": 1000.0, "scale": 11132, "base": (1991, 2020),
+             "factor": 1000.0, "scale": 11132, "base": (1991, 2020), "archive": 1950,
              "label": "ERA5-Land daily (ECMWF reanalysis)", "lag": "~8 hari"},
     "imerg": {"ic": "NASA/GPM_L3/IMERG_V07", "band": "precipitation",
-              "factor": 0.5, "scale": 11132, "base": (2001, 2020),
+              "factor": 0.5, "scale": 11132, "base": (2001, 2020), "archive": 1998,
               "label": "GPM IMERG V07 (satelit, near-real-time)", "lag": "~1 hari"},
     "gsmap": {"ic": "JAXA/GPM_L3/GSMaP/v8/operational", "band": "hourlyPrecipRate",
-              "factor": 1.0, "scale": 11132, "base": (2001, 2020),
+              "factor": 1.0, "scale": 11132, "base": (2001, 2020), "archive": 1998,
               "label": "GSMaP v8 operational (JAXA, satelit)", "lag": "~1 hari"},
 }
 DEFAULT_RAIN_SOURCE = "chirps"
@@ -681,6 +681,17 @@ def _print_extent(cls_ha, cls_pct):
             print(f"    {lab:22s} {cls_ha[lab]:>12,.0f} ha  ({cls_pct[lab]:5.1f}%)")
 
 
+def _record_years(start_year, src, last_year):
+    """Years to rank the current season against.
+
+    Defaults to the product's OWN archive rather than a number inherited from
+    another scenario: "driest of 27 years" and "driest of 36" are different
+    claims, and that difference must not come from an unrelated flag's default.
+    """
+    first = max(start_year or src["archive"], src["archive"])
+    return list(range(first, last_year + 1))
+
+
 def _warn_if_stale(rain_source, rain_end):
     """A stale window reports "Normal" for a season that has already turned.
 
@@ -738,7 +749,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
           f"{src['base'][0]}–{src['base'][1]}")
 
     rain = _rainfall_z(aoi, rain_end, months, src)
-    years = list(range(max(start_year, src["base"][0] - 10), rain_end.year + 1))
+    years = _record_years(start_year, src, rain_end.year)
     zs = _rain_z_by_year(aoi, rain_end, months, src, years)
 
     vhi_img, hv = _vhi(aoi, ndvi_end, vhi_window, MODIS_BASE)
