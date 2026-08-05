@@ -362,7 +362,9 @@ def _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key):
                 config_key=ee_key, months=args.spi_months, end=args.drought_end,
                 admin=args.admin, bbox=dr_bbox, start_year=args.start_year,
                 rain_source=args.rain_source, lang=args.lang, cdi=args.cdi,
-                cdi_scale=args.cdi_scale)
+                cdi_scale=args.cdi_scale, cdi_mask=args.cdi_mask,
+                cdi_grid=args.cdi_grid, cdi_basemap=args.cdi_basemap,
+                cdi_mask_name=args.cdi_mask_name)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -643,6 +645,27 @@ def main():
                          "GeoTIFF. Defaults to the data floor (~11 km, set by "
                          "ERA5-Land soil moisture). A smaller value renders "
                          "smoother but adds no information, and is warned about")
+    ap.add_argument("--cdi-mask", metavar="FILE",
+                    help="drought: restrict the CDI to a categorical raster "
+                         "mask (EPSG:4326; any non-zero, non-nodata pixel is "
+                         "inside). Draws the classes over a basemap and reports "
+                         "exact hectares per class, counted at the MASK's pixel "
+                         "size — so a 50 m rice layer keeps its area even though "
+                         "the classes come from an ~11 km field. Needs --cdi")
+    ap.add_argument("--cdi-grid", type=float, default=500.0, metavar="METRES",
+                    help="drought: display grid for the --cdi-mask map "
+                         "(default 500). This sets how finely the mask is drawn, "
+                         "not the drought classes, which stay at --cdi-scale")
+    ap.add_argument("--cdi-mask-name", metavar="LABEL",
+                    help="drought: what to call the masked area in the title and "
+                         "legend, e.g. 'rice fields' (default: the file's name)")
+    # Deliberately not the shared --basemap: that one feeds mapmaker.render_map
+    # and only knows osm/gray/none. Scoped like the other --cdi-* flags.
+    ap.add_argument("--cdi-basemap", default="osm",
+                    choices=["osm", "positron", "voyager", "imagery", "none"],
+                    help="drought: tile basemap under the --cdi-mask map. osm "
+                         "shows roads and settlements; positron is quieter under "
+                         "a colour ramp; imagery is aerial (default: osm)")
     ap.add_argument("--rain-source", default="chirps",
                     choices=["chirps", "era5", "imerg", "gsmap"],
                     help="drought: rainfall product. chirps = gauge-blended, "

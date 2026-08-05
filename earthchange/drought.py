@@ -38,6 +38,13 @@ import json
 import os
 import datetime as dt
 
+# Remove a stale external PROJ override (e.g. an OTB install exporting PROJ_LIB
+# at a PROJ 6-era proj.db) which shadows the one rasterio/pyproj ship and breaks
+# every CRS lookup — including the tile reprojection contextily does for the
+# --cdi-mask basemap. Must happen before any geo import.
+os.environ.pop("PROJ_LIB", None)
+os.environ.pop("PROJ_DATA", None)
+
 CHIRPS_IC = "UCSB-CHG/CHIRPS/DAILY"
 NDVI_IC = "MODIS/061/MOD13A2"          # 1 km, 16-day, from 2000-02
 LST_IC = "MODIS/061/MOD11A2"           # 1 km, 8-day, from 2000-02
@@ -190,6 +197,14 @@ TEXT = {
                     "vegetasi (MODIS VHI). Hidrologis dilaporkan terpisah karena "
                     "berjalan pada skala musim, bukan minggu."),
         "cdi_extent": "kekeringan gabungan: {pct:.0f}% dari AOI di atas Normal",
+        "mask_title": "Indikator Kekeringan Gabungan pada {mask} — {name}",
+        "mask_sub": ("mask {mask_m:.0f} m pada grid {grid_m:.0f} m · "
+                     "kelas dari CDI {cdi_km:.0f} km"),
+        "mask_src": ("Kelas CDI: GPM IMERG / CHIRPS · ERA5-Land · MODIS VHI. "
+                     "Luas dihitung per piksel mask, bukan per sel tampilan. "
+                     "Peta dasar © {basemap}."),
+        "mask_total": "  {mask}: {ha:,.0f} ha di dalam mask",
+        "mask_none": "  (mask tidak beririsan dengan CDI; peta dilewati)",
         "sum_title": "Kekeringan {name} — {months} bulan s/d {end}",
         "sum_rain": ("hujan {mm:.0f} mm ({pct:.0f}% dari normal {normal:.0f} mm)"
                      " · z {z:+.2f} → {cls}"),
@@ -251,6 +266,14 @@ TEXT = {
                     "(ERA5-Land) → vegetation (MODIS VHI). Hydrological is "
                     "reported separately because it runs on seasons, not weeks."),
         "cdi_extent": "combined drought: {pct:.0f}% of AOI beyond Normal",
+        "mask_title": "Combined Drought Indicator on {mask} — {name}",
+        "mask_sub": ("mask {mask_m:.0f} m on a {grid_m:.0f} m grid · "
+                     "classes from the {cdi_km:.0f} km CDI"),
+        "mask_src": ("CDI classes: GPM IMERG / CHIRPS · ERA5-Land · MODIS VHI. "
+                     "Areas are counted per mask pixel, not per display cell. "
+                     "Basemap © {basemap}."),
+        "mask_total": "  {mask}: {ha:,.0f} ha inside the mask",
+        "mask_none": "  (mask does not intersect the CDI; map skipped)",
         "sum_title": "Drought {name} — {months} months to {end}",
         "sum_rain": ("rainfall {mm:.0f} mm ({pct:.0f}% of normal {normal:.0f} mm)"
                      " · z {z:+.2f} → {cls}"),
@@ -1308,8 +1331,293 @@ def _style_class_tif(path, lang, table=None, reverse=False):
     return path
 
 
+# A categorical overlay competes with a strongly coloured basemap. Positron is
+# the quietest and is what the rest of the package uses; OSM Mapnik is the
+# default here because a drought map is usually read alongside roads and
+# settlements, which Mapnik labels and Positron mostly does not.
+BASEMAPS = {
+    "osm": ("OpenStreetMap.Mapnik", "OpenStreetMap"),
+    "positron": ("CartoDB.Positron", "CartoDB Positron"),
+    "voyager": ("CartoDB.Voyager", "CartoDB Voyager"),
+    "imagery": ("Esri.WorldImagery", "Esri World Imagery"),
+}
+MASK_PAINT_FRAC = 0.02      # a display cell is painted once 2% of it is masked
+MASK_MAX_CELLS = 60_000_000  # refuse to allocate a display grid beyond this
+
+
+def _basemap_source(which):
+    import contextily as cx
+    path, label = BASEMAPS[which]
+    obj = cx.providers
+    for part in path.split("."):
+        obj = getattr(obj, part)
+    return obj, label
+
+
+def _read_cdi_field(cdi_tif):
+    """The coarse class field, with nodata as NaN so it never enters a sum."""
+    import numpy as np
+    import rasterio
+
+    with rasterio.open(cdi_tif) as c:
+        arr = c.read(1).astype("float32")
+        arr[arr == (c.nodata if c.nodata is not None else CDI_NODATA)] = np.nan
+        return arr, c.transform, c.height, c.width, abs(c.transform.a) * 111.0
+
+
+def _mask_geometry(src, grid_m):
+    """Mask bounds and the display grid derived from them, with the checks that
+    have to happen before anything is allocated."""
+    # is_geographic, not a substring test on the WKT: a projected CRS carries a
+    # geographic base, so "4326" appears inside the WKT of an equal-area raster
+    # too and a naive test would send a CEA grid down the lon/lat path. Nor
+    # to_epsg() == 4326: a plain WGS 84 GEOGCS often has no authority code, and
+    # rejecting it would turn away a perfectly valid mask.
+    if not (src.crs and src.crs.is_geographic):
+        raise SystemExit(
+            f"--cdi-mask must be in geographic (lon/lat) coordinates, got "
+            f"{src.crs.to_string() if src.crs else 'no CRS'}. Reproject first: "
+            f"gdalwarp -t_srs EPSG:4326 -r near IN OUT")
+    lt = src.transform
+    dlon, dlat = abs(lt.a), abs(lt.e)
+    w0, n0 = lt.c, lt.f
+    e0, s0 = w0 + src.width * dlon, n0 - src.height * dlat
+
+    deg = grid_m / 111_000.0
+    dw = max(50, int(round((e0 - w0) / deg)))
+    dh = max(50, int(round((n0 - s0) / deg)))
+    if dw * dh > MASK_MAX_CELLS:
+        raise SystemExit(
+            f"--cdi-grid {grid_m:.0f} m over this mask needs {dw * dh:,} "
+            f"display cells (limit {MASK_MAX_CELLS:,}). Use a coarser grid.")
+    return dlon, dlat, (w0, e0, s0, n0), dw, dh
+
+
+def _accumulate_mask(src, cdi, ct, CH, CW, dlon, dlat, bounds, dw, dh):
+    """Walk the mask in row blocks, accumulating exact areas per CDI class and
+    painting the display grid. Chunked so a national mask does not have to fit
+    in memory at once."""
+    import math
+    import numpy as np
+    import rasterio
+
+    m_lat = (math.pi / 180) * 6_371_008.8
+    w0, e0, s0, n0 = bounds
+    ddx, ddy = (e0 - w0) / dw, (n0 - s0) / dh
+    disp = np.full((dh, dw), np.nan, dtype="float32")
+    masked_ha = np.zeros((dh, dw), dtype="float32")
+    by_cls = np.zeros(len(CDI_CLASSES))
+    nodata = src.nodata
+
+    lon = w0 + (np.arange(src.width) + 0.5) * dlon
+    ccol = np.clip(np.floor((lon - ct.c) / ct.a).astype("int64"), 0, CW - 1)
+    dcol = np.clip(np.floor((lon - w0) / ddx).astype("int64"), 0, dw - 1)
+
+    for r0 in range(0, src.height, 512):
+        n = min(512, src.height - r0)
+        arr = src.read(1, window=rasterio.windows.Window(0, r0, src.width, n))
+        lats = n0 - (np.arange(r0, r0 + n) + 0.5) * dlat
+        crow = np.clip(np.floor((ct.f - lats) / abs(ct.e)).astype("int64"), 0, CH - 1)
+        drow = np.clip(np.floor((n0 - lats) / ddy).astype("int64"), 0, dh - 1)
+        # Pixel area shrinks with latitude; at Indonesian latitudes ignoring
+        # this is ~1%, but the same code runs anywhere.
+        px_ha = (dlon * m_lat * np.cos(np.radians(lats))) * (dlat * m_lat) / 1e4
+        sel_all = arr != 0
+        if nodata is not None:
+            sel_all &= arr != nodata
+        for i in np.where(sel_all.any(axis=1))[0]:
+            sel = sel_all[i]
+            cls = cdi[crow[i], ccol[sel]]
+            ok = np.isfinite(cls)
+            if ok.any():
+                np.add.at(by_cls, cls[ok].astype(int), px_ha[i])
+            np.add.at(masked_ha[drow[i]], dcol[sel], px_ha[i])
+            disp[drow[i], dcol[sel]] = cls
+    return disp, masked_ha, by_cls, ddx, ddy
+
+
+def _crop_to_mask(shown, bounds, ddx, ddy):
+    """Frame on the mask. Keeping the mask's full bounding box lets an outlying
+    island with almost no rice dominate the canvas."""
+    import numpy as np
+
+    w0, e0, s0, n0 = bounds
+    dh, dw = shown.shape
+    occupied = np.isfinite(shown)
+    rows = np.where(occupied.any(axis=1))[0]
+    cols = np.where(occupied.any(axis=0))[0]
+    if not (rows.size and cols.size):
+        return shown, [w0, e0, s0, n0]
+    pad_r, pad_c = max(2, int(.03 * dh)), max(2, int(.03 * dw))
+    r0i, r1i = max(0, rows[0] - pad_r), min(dh, rows[-1] + pad_r + 1)
+    c0i, c1i = max(0, cols[0] - pad_c), min(dw, cols[-1] + pad_c + 1)
+    n1 = n0 - r0i * ddy
+    w1 = w0 + c0i * ddx
+    return (shown[r0i:r1i, c0i:c1i],
+            [w1, w1 + (c1i - c0i) * ddx, n1 - (r1i - r0i) * ddy, n1])
+
+
+def _mask_grid(mask_path, cdi_tif, grid_m):
+    """Overlay a fine categorical mask on the coarse CDI.
+
+    Two separate resolutions are combined here and conflating them is the whole
+    trap. Areas are accumulated at the MASK's native pixel size, with a
+    latitude correction, so the hectare totals are exact. The display grid is
+    only for drawing: aggregating the mask by averaging would quietly lose most
+    of a sparse class (a 222x decimation lost 47% of the rice), and the class
+    field itself is categorical, so it is carried by nearest lookup and never
+    interpolated.
+    """
+    import numpy as np
+    import rasterio
+
+    cdi, ct, CH, CW, cdi_km = _read_cdi_field(cdi_tif)
+    with rasterio.open(mask_path) as src:
+        dlon, dlat, bounds, dw, dh = _mask_geometry(src, grid_m)
+        disp, masked_ha, by_cls, ddx, ddy = _accumulate_mask(
+            src, cdi, ct, CH, CW, dlon, dlat, bounds, dw, dh)
+
+    total = float(by_cls.sum())
+    if total <= 0:
+        return None
+    cell_ha = (grid_m / 100.0) ** 2
+    shown = np.where(masked_ha > cell_ha * MASK_PAINT_FRAC, disp, np.nan)
+    shown, extent = _crop_to_mask(shown, bounds, ddx, ddy)
+
+    return {"grid": shown, "extent": extent, "total_ha": total,
+            "by_class_ha": by_cls, "cdi_km": cdi_km,
+            "mask_m": dlon * 111_000.0}
+
+
+def _render_mask_map(run_dir, name, got, lang, basemap, mask_label, grid_m):
+    """Draw the CDI restricted to a mask, over a tile basemap."""
+    import numpy as np
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.patches import Patch
+    plt = _plt()
+
+    T = TEXT.get(lang, TEXT["id"])
+    w0, e0, s0, n0 = got["extent"]
+    labels = [_label(r, lang) for r in CDI_CLASSES]
+    cols = [r[2] for r in CDI_CLASSES]
+    total = got["total_ha"]
+    ha = got["by_class_ha"]
+
+    aspect = (e0 - w0) / (n0 - s0) if n0 > s0 else 1.0
+    # Equal-aspect axes letterbox a tall province inside the canvas instead of
+    # stretching the figure to 20+ inches, so cap both dimensions.
+    MAP_MAX, LEGEND_IN, MIN_W = 12.0, 2.6, 12.0
+    if aspect >= 1:
+        map_w, map_h = MAP_MAX, MAP_MAX / aspect
+    else:
+        map_h, map_w = MAP_MAX, MAP_MAX * aspect
+    fig, ax = plt.subplots(figsize=(max(MIN_W, map_w), map_h + LEGEND_IN), dpi=165)
+    fig.patch.set_facecolor("#faf8f4")
+    ax.set_xlim(w0, e0)
+    ax.set_ylim(s0, n0)
+
+    src_name = "—"
+    if basemap != "none":
+        try:
+            import contextily as cx
+            obj, src_name = _basemap_source(basemap)
+            cx.add_basemap(ax, crs="EPSG:4326", source=obj,
+                           attribution_size=5, zorder=1)
+        except Exception as exc:                                   # noqa: BLE001
+            print(f"  (basemap skipped: {exc.__class__.__name__})")
+    ax.imshow(np.ma.masked_invalid(got["grid"]), cmap=ListedColormap(cols),
+              norm=BoundaryNorm([-.5, .5, 1.5, 2.5, 3.5, 4.5], 5),
+              extent=[w0, e0, s0, n0], interpolation="nearest",
+              alpha=.82, zorder=2)
+    ax.set_xlim(w0, e0)
+    ax.set_ylim(s0, n0)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(False)
+    # The basemap credit lives in the footer; in the title it overflows a
+    # narrow portrait canvas.
+    ax.set_title(T["mask_title"].format(mask=mask_label, name=name) + "\n"
+                 + T["mask_sub"].format(mask_m=got["mask_m"], grid_m=grid_m,
+                                        cdi_km=got["cdi_km"]),
+                 fontsize=12.5, fontweight="bold", loc="left")
+    ax.legend(handles=[Patch(facecolor=cols[i], alpha=.82,
+                             label=f"{labels[i]} — {ha[i]:,.0f} ha "
+                                   f"({ha[i] / total * 100:.1f}%)")
+                       for i in (1, 2, 3, 4, 0)],
+              fontsize=8.5, frameon=False, ncol=2 if aspect < 1 else 3,
+              loc="upper center", bbox_to_anchor=(.5, -.02))
+    fig.text(.008, .02, T["mask_src"].format(basemap=src_name),
+             fontsize=8, color="#777")
+    fig.tight_layout(rect=[0, .115, 1, .95])
+    out = os.path.join(run_dir, f"{name}_cdi_mask_{lang}.png"
+                       if lang != "id" else f"{name}_cdi_mask.png")
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out
+
+
+def _run_cdi_mask(run_dir, name, cdi_tif, mask_path, grid_m, basemap,
+                  mask_label, lang):
+    """CDI restricted to a land mask: map plus exact areas. Best effort."""
+    T = TEXT.get(lang, TEXT["id"])
+    try:
+        got = _mask_grid(mask_path, cdi_tif, grid_m)
+        if got is None:
+            print(T["mask_none"])
+            return None
+        png = _render_mask_map(run_dir, name, got, lang, basemap,
+                               mask_label, grid_m)
+        total = got["total_ha"]
+        labels = [_label(r, lang) for r in CDI_CLASSES]
+        print(T["mask_total"].format(mask=mask_label, ha=total))
+        for i in (1, 2, 3, 4):
+            print(f"    {labels[i]}: {got['by_class_ha'][i]:,.0f} ha "
+                  f"({got['by_class_ha'][i] / total * 100:.1f}%)")
+        return {
+            "mask": os.path.basename(mask_path),
+            "mask_label": mask_label,
+            "mask_px_m": round(got["mask_m"], 1),
+            "grid_m": grid_m, "basemap": basemap,
+            "total_ha": round(total, 1),
+            "area_ha_by_class": {labels[i]: round(float(got["by_class_ha"][i]), 1)
+                                 for i in range(len(labels))},
+            "area_pct_by_class": {labels[i]: round(
+                float(got["by_class_ha"][i]) / total * 100, 1)
+                for i in range(len(labels))},
+            "map": os.path.basename(png) if png else None,
+        }
+    except SystemExit:
+        raise
+    except Exception as exc:                                       # noqa: BLE001
+        print(f"  (CDI mask dilewati / skipped: {str(exc)[:70]})")
+        return None
+
+
+def _check_mask_opts(cdi, cdi_mask, basemap):
+    """Validate before any Earth Engine work: the CDI runs several minutes in,
+    and a typo in a path should not cost that."""
+    if basemap not in BASEMAPS and basemap != "none":
+        raise SystemExit(f"--basemap must be one of "
+                         f"{', '.join(BASEMAPS)}, none (given: {basemap})")
+    if not cdi_mask:
+        return
+    if not cdi:
+        raise SystemExit("--cdi-mask needs --cdi")
+    if not os.path.exists(cdi_mask):
+        raise SystemExit(f"--cdi-mask not found: {cdi_mask}")
+    if basemap == "none":
+        return
+    try:
+        import contextily                                          # noqa: F401
+    except ImportError:
+        raise SystemExit("--cdi-mask needs contextily for the basemap: "
+                         "pip install contextily (or pass --basemap none)")
+
+
 def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
-             vhi_img, lang, scale=None):
+             vhi_img, lang, scale=None, mask=None, grid_m=500.0,
+             basemap="osm", mask_label=None):
     """Compute, map and export the Combined Drought Indicator. Best effort."""
     from .gee_utils import download_geotiff
     try:
@@ -1349,7 +1657,12 @@ def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
                              px, coords, box)
             for kind, img in (("met", met), ("agri", agri), ("hydro", hydro))
         }
-        return {"layers": layers,
+        masked = None
+        if mask and got:
+            masked = _run_cdi_mask(run_dir, name, got, mask, grid_m, basemap,
+                                   mask_label or os.path.splitext(
+                                       os.path.basename(mask))[0], lang)
+        return {"layers": layers, "masked": masked,
                 "area_ha_by_class": ha, "area_pct_by_class": pct,
                 "indices": idx, "scale_m": px, "data_floor_m": _cdi_floor(src),
                 "map": os.path.basename(png) if png else None,
@@ -1382,7 +1695,8 @@ def _resolve_end(explicit, src):
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         months=3, end=None, admin=None, bbox=None, start_year=1991,
         vhi_window=48, rain_source=DEFAULT_RAIN_SOURCE, lang="id",
-        cdi=False, cdi_scale=None):
+        cdi=False, cdi_scale=None, cdi_mask=None, cdi_grid=500.0,
+        cdi_basemap="osm", cdi_mask_name=None):
     """Drought: rainfall deficit, vegetation health, and ENSO context."""
     for mod in ("numpy", "matplotlib"):
         try:
@@ -1391,6 +1705,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
             raise SystemExit(f"drought needs {mod}: pip install 'earthchange[maps]'")
     if backend == "mpc":
         raise SystemExit("drought currently needs --backend gee (CHIRPS + MODIS + OISST).")
+    _check_mask_opts(cdi, cdi_mask, cdi_basemap)
 
     from .gee_utils import initialize_ee
     from .fire_history import _resolve_aoi
@@ -1442,11 +1757,13 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         era5_end = _latest(ERA5_IC, SOIL_ROOT)
         print(f"  CDI: ERA5-Land {'to' if prim == 'en' else 's/d'} {era5_end}")
         cdi_out = _run_cdi(aoi, run_dir, name, rain_end, era5_end, ndvi_end,
-                           months, src, vhi_img, prim, cdi_scale)
+                           months, src, vhi_img, prim, cdi_scale,
+                           cdi_mask, cdi_grid, cdi_basemap, cdi_mask_name)
     if lang == "both":
         _drought_extent(vhi_img, aoi, run_dir, name, ndvi_end, "en")
         _rain_map(aoi, run_dir, name, rain_end, months, src, "en")
 
+    cdi_masked = (cdi_out or {}).get("masked") or {}
     z = rain["z"]
     ranked = sorted((v for v in zs if v is not None))
     rank = ranked.index(z) + 1 if z in ranked else None
@@ -1485,6 +1802,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "outputs": {"panel": os.path.basename(png),
                     "cdi_map": cdi_out["map"] if cdi_out else None,
                     "cdi_geotiff": cdi_out["geotiff"] if cdi_out else None,
+                    "cdi_mask_map": cdi_masked.get("map"),
                     "panels_by_lang": {k: os.path.basename(v)
                                        for k, v in panels.items()},
                     "drought_map": os.path.basename(vhi_png) if vhi_png else None,
