@@ -8,8 +8,24 @@ disagree and the disagreement is informative:
   2. Are plants suffering yet? MODIS NDVI + LST  -> VCI / TCI / VHI
   3. Is ENSO driving it?       NOAA OISST        -> Nino 3.4 anomaly
 
-Meteorological drought leads agricultural drought by weeks to months, so a large
-rainfall deficit with still-healthy VHI means the impact has not landed *yet*.
+Which drought types this covers, in the Wilhite & Glantz (1985) sense:
+
+  METEOROLOGICAL  rainfall_z, fully covered. Note this stays meteorological at
+                  ANY --spi-months; the window changes what it is relevant to,
+                  not what it measures.
+  AGRICULTURAL    VCI/TCI/VHI, covered as an OBSERVED PROXY -- vegetation stress
+                  is the symptom, not root-zone soil moisture itself.
+  HYDROLOGICAL    only approximated, via --spi-months 6-12. There is no
+                  streamflow, reservoir or groundwater data here. Do not report
+                  a long-window rainfall index as a hydrological drought
+                  assessment.
+  SOCIOECONOMIC   not covered, and not derivable from satellites: it depends on
+                  demand, allocation and infrastructure.
+
+The types form a chain, each lagging the one before: rainfall deficit -> soil
+and crops -> rivers and reservoirs -> people. So a large rainfall deficit with
+a still-healthy VHI means the impact has not landed *yet*, not that it is
+harmless -- and a recovered VHI does not mean reservoirs have refilled.
 
 IMPORTANT on naming: the rainfall index here is a z-score of accumulated rainfall
 against the same calendar window in each baseline year -- NOT a gamma-fitted SPI.

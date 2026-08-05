@@ -603,8 +603,11 @@ def main():
     ap.add_argument("--haze-end", help="haze: window end YYYY-MM-DD "
                     "(default today)")
     ap.add_argument("--spi-months", type=int, default=3,
-                    help="drought: rainfall accumulation window in months "
-                         "(3 = agricultural drought, 6-12 = hydrological; default 3)")
+                    help="drought: rainfall accumulation window in months. This "
+                         "is always a METEOROLOGICAL index; the window only sets "
+                         "what it is relevant to — 3 tracks soil moisture and "
+                         "crops, 6-12 tracks reservoirs and groundwater "
+                         "(default 3)")
     ap.add_argument("--drought-end", help="drought: window end YYYY-MM-DD "
                     "(default: latest CHIRPS image, which lags ~5 weeks)")
     ap.add_argument("--admin", help="fire-history/haze: admin-1 area name from FAO GAUL "
