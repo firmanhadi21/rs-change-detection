@@ -512,17 +512,127 @@ def _rain_map(aoi, run_dir, name, end, months, base):
         return None, None
 
 
-def _export_vhi(vhi, aoi, run_dir, name):
-    """Best-effort GeoTIFF of the VHI field; the panel is the primary output."""
+def _vhi_class_image(vhi):
+    """VHI -> 0..4 (ekstrem, parah, sedang, ringan, tidak kekeringan).
+
+    Boundaries are the Kogan (1995) ones already used for the bar labels, so the
+    map and the summary bar cannot drift apart.
+    """
+    return (vhi.gte(10).add(vhi.gte(20)).add(vhi.gte(30)).add(vhi.gte(40))
+            .rename("cls").toByte())
+
+
+def _vhi_class_areas(vhi, aoi):
+    """Hectares in each drought class -- the answer to 'where', as a number.
+
+    One grouped reduction rather than five, so this costs a single round trip.
+    """
+    import ee
+    cls = _vhi_class_image(vhi)
+    grouped = (ee.Image.pixelArea().divide(1e4).addBands(cls)
+               .reduceRegion(reducer=ee.Reducer.sum().group(groupField=1,
+                                                            groupName="cls"),
+                             geometry=aoi, scale=MODIS_SCALE,
+                             maxPixels=int(1e10), bestEffort=True).getInfo())
+    labels = [r[1] for r in reversed(VHI_CLASSES)]      # index 0..4
+    out = {lab: 0.0 for lab in labels}
+    for g in grouped.get("groups", []):
+        i = int(g["cls"])
+        if 0 <= i < len(labels):
+            out[labels[i]] = round(g["sum"], 1)
+    total = sum(out.values()) or 1.0
+    return out, {k: round(v / total * 100, 1) for k, v in out.items()}
+
+
+def _render_vhi_map(run_dir, name, tif, box, meta, pct):
+    """Classified drought map: which parts of the AOI are stressed, not just how
+    stressed it is on average."""
+    import numpy as np
+    import rasterio
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.patches import Patch
+    plt = _plt()
+
+    with rasterio.open(tif) as src:
+        arr = src.read(1).astype("float32")
+        b = src.bounds
+    if not np.isfinite(arr).any():
+        return None
+
+    labels = [r[1] for r in VHI_CLASSES]                # ekstrem -> tidak
+    colours = [r[2] for r in VHI_CLASSES]
+    cmap = ListedColormap(list(reversed(colours)))
+    norm = BoundaryNorm([0, 10, 20, 30, 40, 100], cmap.N)
+
+    span_x, span_y = box[2] - box[0], box[3] - box[1]
+    aspect = span_x / span_y if span_y else 1.0
+    height = min(11.0, max(4.6, 11.0 / max(aspect, .35) + 2.2))
+    fig, ax = plt.subplots(figsize=(11, height), dpi=150)
+    fig.patch.set_facecolor("#faf8f4")
+    ax.set_facecolor("#faf8f4")
+    ax.imshow(arr, cmap=cmap, norm=norm,
+              extent=[b.left, b.right, b.bottom, b.top])
+    _draw_admin(ax, box)
+    ax.set_xlim(box[0], box[2])
+    ax.set_ylim(box[1], box[3])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_title(f"Sebaran kekeringan vegetasi — {name}\n"
+                 f"VHI (MODIS 1 km), {meta['vegetation_end']}",
+                 fontsize=13, fontweight="bold", loc="left")
+    # One decimal: a class holding tens of thousands of hectares still rounds to
+    # "0%" of a large AOI, which reads as "nothing here" when it is not.
+    handles = [Patch(facecolor=c, edgecolor="none",
+                     label=f"{lab} — {pct.get(lab, 0):.1f}%")
+               for lab, c in zip(labels, colours)]
+    ax.legend(handles=handles, fontsize=9, frameon=False, ncol=3,
+              loc="upper center", bbox_to_anchor=(.5, -.02))
+    fig.text(.01, .015, "VHI = 0,5·VCI + 0,5·TCI (Kogan 1995); di bawah 40 = tekanan "
+             "kekeringan. Sumber: MODIS MOD13A2 + MOD11A2.", fontsize=8, color="#777")
+    fig.tight_layout(rect=[0, .05, 1, 1])
+    out = os.path.join(run_dir, f"{name}_peta_kekeringan.png")
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out
+
+
+def _drought_extent(vhi, aoi, run_dir, name, veg_end):
+    """GeoTIFF + classified map + area per drought class.
+
+    Best effort: the charts are the primary output, so a failure here prints a
+    note and the run still completes.
+    """
     from .gee_utils import download_geotiff
     path = os.path.join(run_dir, f"{name}_vhi.tif")
+    coords = aoi.bounds().getInfo()["coordinates"]
+    xs = [p[0] for p in coords[0]]
+    ys = [p[1] for p in coords[0]]
+    box = [min(xs), min(ys), max(xs), max(ys)]
     try:
-        return download_geotiff(vhi.clip(aoi).toFloat(),
-                                aoi.bounds().getInfo()["coordinates"],
-                                path, scale=MODIS_SCALE)
+        ha, pct = _vhi_class_areas(vhi, aoi)
+        tif = download_geotiff(vhi.clip(aoi).toFloat(), coords, path,
+                               scale=MODIS_SCALE)
+        png = (_render_vhi_map(run_dir, name, tif, box,
+                               {"vegetation_end": veg_end.isoformat()}, pct)
+               if tif else None)
+        return tif, png, ha, pct
     except Exception as exc:
         print(f"  (peta VHI dilewati: {str(exc)[:70]})")
-        return None
+        return None, None, {}, {}
+
+
+def _print_extent(cls_ha, cls_pct):
+    """Where the drought is, as a breakdown -- the average alone hides it."""
+    if not cls_pct:
+        return
+    in_drought = sum(v for k, v in cls_pct.items() if k != "Tidak kekeringan")
+    print(f"  luas terdampak: {in_drought:.0f}% dari AOI di bawah VHI 40")
+    for row in VHI_CLASSES:
+        lab = row[1]
+        if cls_ha.get(lab):
+            print(f"    {lab:22s} {cls_ha[lab]:>12,.0f} ha  ({cls_pct[lab]:5.1f}%)")
 
 
 def _resolve_end(explicit):
@@ -569,7 +679,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     png = _render_panel(run_dir, name, years, zs, hv, labels, nino, dmi,
                         {"months": months, "rain_end": rain_end.isoformat(),
                          "current_year": rain_end.year})
-    tif = _export_vhi(vhi_img, aoi, run_dir, name)
+    tif, vhi_png, cls_ha, cls_pct = _drought_extent(vhi_img, aoi, run_dir, name,
+                                                    ndvi_end)
     map_png, map_tif = _rain_map(aoi, run_dir, name, rain_end, months, CHIRPS_BASE)
 
     z = rain["z"]
@@ -592,7 +703,11 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "rainfall": {**rain, "class": _spi_label(z)[0]},
         "rainfall_z_by_year": dict(zip([str(y) for y in years], zs)),
         "rank_driest_of_record": rank, "years_in_record": len(ranked),
-        "vegetation": {**hv, "class": _classify(hv["vhi"], VHI_CLASSES)[0]},
+        "vegetation": {**hv, "class": _classify(hv["vhi"], VHI_CLASSES)[0],
+                       "area_ha_by_class": cls_ha, "area_pct_by_class": cls_pct,
+                       "area_pct_in_drought": round(
+                           sum(v for k, v in cls_pct.items()
+                               if k != "Tidak kekeringan"), 1)},
         "enso": {"nino34_anomaly_c": enso_now,
                  "class": _classify(enso_now, ENSO_CLASSES),
                  "monthly": dict(zip(labels, nino))},
@@ -600,6 +715,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                 "event_threshold_c": IOD_EVENT_C,
                 "monthly": dict(zip(labels, dmi))},
         "outputs": {"panel": os.path.basename(png),
+                    "drought_map": os.path.basename(vhi_png) if vhi_png else None,
                     "rainfall_map": os.path.basename(map_png) if map_png else None,
                     "rainfall_geotiff": os.path.basename(map_tif) if map_tif else None,
                     "vhi_geotiff": os.path.basename(tif) if tif else None},
@@ -619,6 +735,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         print(f"  peringkat terkering ke-{rank} dari {len(ranked)} tahun")
     print(f"  VHI {hv['vhi']:.0f} (VCI {hv['vci']:.0f} · TCI {hv['tci']:.0f}) → "
           f"{_classify(hv['vhi'], VHI_CLASSES)[0]}")
+    _print_extent(cls_ha, cls_pct)
     if enso_now is not None:
         print(f"  Nino 3.4 {enso_now:+.2f} °C ({sst_end}) → "
               f"{_classify(enso_now, ENSO_CLASSES)}")
