@@ -164,6 +164,14 @@ TEXT = {
         "resampled": ("Sel asli {native:.0f} km, ditampilkan pada {shown:.0f} km "
                       "(interpolasi bilinear — hanya untuk keterbacaan, tidak "
                       "menambah informasi). Hanya daratan."),
+        "cdi_title": "Indikator Kekeringan Gabungan — {name}",
+        "cdi_sub": ("hujan s/d {rain} · lengas tanah s/d {era5} · "
+                    "vegetasi s/d {veg}"),
+        "cdi_src": ("Klasifikasi mengikuti logika Combined Drought Indicator (EDO): "
+                    "hujan (IMERG/CHIRPS) → lengas tanah zona akar (ERA5-Land) → "
+                    "vegetasi (MODIS VHI). Hidrologis dilaporkan terpisah karena "
+                    "berjalan pada skala musim, bukan minggu."),
+        "cdi_extent": "kekeringan gabungan: {pct:.0f}% dari AOI di atas Normal",
         "sum_title": "Kekeringan {name} — {months} bulan s/d {end}",
         "sum_rain": ("hujan {mm:.0f} mm ({pct:.0f}% dari normal {normal:.0f} mm)"
                      " · z {z:+.2f} → {cls}"),
@@ -199,6 +207,14 @@ TEXT = {
         "resampled": ("Native cell {native:.0f} km, displayed at {shown:.0f} km "
                       "(bilinear interpolation — for legibility only, it adds no "
                       "information). Land only."),
+        "cdi_title": "Combined Drought Indicator — {name}",
+        "cdi_sub": ("rainfall to {rain} · soil moisture to {era5} · "
+                    "vegetation to {veg}"),
+        "cdi_src": ("Classification follows the EDO Combined Drought Indicator "
+                    "logic: rainfall (IMERG/CHIRPS) → root-zone soil moisture "
+                    "(ERA5-Land) → vegetation (MODIS VHI). Hydrological is "
+                    "reported separately because it runs on seasons, not weeks."),
+        "cdi_extent": "combined drought: {pct:.0f}% of AOI beyond Normal",
         "sum_title": "Drought {name} — {months} months to {end}",
         "sum_rain": ("rainfall {mm:.0f} mm ({pct:.0f}% of normal {normal:.0f} mm)"
                      " · z {z:+.2f} → {cls}"),
@@ -555,9 +571,19 @@ def _rain_pct_image(aoi, end, months, src, downscale_m=None):
     # reprojected to a kilometre grid it neither survives cleanly nor lines up,
     # and it punches holes wherever a tile is absent. Vector land gives a crisp
     # coastline at any display scale.
-    land = ee.Image.constant(1).clip(
+    return pct.updateMask(_land_mask(aoi)).clip(aoi).rename("pct")
+
+
+def _land_mask(aoi):
+    """Land from GAUL country polygons.
+
+    NOT from SRTM: that mask is 30 m, does not survive reprojection to a
+    kilometre grid, and punches holes wherever a tile is absent. Vector land
+    gives a crisp coastline at any display scale.
+    """
+    import ee
+    return ee.Image.constant(1).clip(
         ee.FeatureCollection("FAO/GAUL/2015/level0").filterBounds(aoi)).mask()
-    return pct.updateMask(land).clip(aoi).rename("pct")
 
 
 def _rings(geom):
@@ -849,6 +875,25 @@ def _print_summary(name, months, rain_end, rain, z, rank, n_years, hv,
               f"{_classify(iod_now, IOD_CLASSES, lang)}")
 
 
+def _print_cdi(cdi_out, lang):
+    """Console breakdown of the combined indicator."""
+    if not cdi_out:
+        return
+    T = TEXT.get(lang, TEXT["id"])
+    pct, ha = cdi_out["area_pct_by_class"], cdi_out["area_ha_by_class"]
+    normal = _label(CDI_CLASSES[0], lang)
+    beyond = sum(v for k, v in pct.items() if k != normal)
+    print("  " + T["cdi_extent"].format(pct=beyond))
+    for row in CDI_CLASSES[1:] + [CDI_CLASSES[0]]:
+        lab = _label(row, lang)
+        if ha.get(lab):
+            print(f"    {lab:44s} {ha[lab]:>12,.0f} ha  ({pct[lab]:5.1f}%)")
+    idx = cdi_out["indices"]
+    print(f"    z: met {idx['meteorological_z']:+.2f} · "
+          f"agri {idx['agricultural_z']:+.2f} · "
+          f"hydro {idx['hydrological_z']:+.2f}")
+
+
 def _record_years(start_year, src, last_year):
     """Years to rank the current season against.
 
@@ -896,6 +941,229 @@ def _warn_if_stale(rain_source, rain_end, lang="id"):
         print(STALE_WARN.get(lang, STALE_WARN["id"]).format(n=stale))
 
 
+# ---------------------------------------------------------------------------
+# Combined Drought Indicator
+#
+# Classifies rather than averages. Averaging the three types destroys the very
+# thing worth reporting: a region can be meteorologically dry, agriculturally
+# marginal and hydrologically fine at the same time, and the mean of those is a
+# middling number that says nothing. The EDO scheme instead reads the chain --
+# rain fails, then soil dries, then plants show it -- and reports how far it got.
+#
+# Hydrological is computed and reported but deliberately NOT folded into the
+# class: it runs on seasons rather than weeks, so mixing it in would blur two
+# different questions.
+# ---------------------------------------------------------------------------
+ERA5_IC = "ECMWF/ERA5_LAND/DAILY_AGGR"
+ERA5_SCALE = 11132
+SOIL_ROOT = "volumetric_soil_water_layer_2"        # 7-28 cm, the crop root zone
+SOIL_DEEP = "volumetric_soil_water_layer_4"        # 100-289 cm, storage proxy
+RUNOFF = "runoff_sum"
+
+CDI_CLASSES = [
+    (0, {"id": "Normal", "en": "Normal"}, "#c8dcc0"),
+    (1, {"id": "Waspada — defisit hujan saja",
+         "en": "Watch — rainfall deficit only"}, "#fee08b"),
+    (2, {"id": "Peringatan — hujan + tanah",
+         "en": "Warning — rainfall + soil"}, "#fdae61"),
+    (3, {"id": "Awas — hujan + tanah + vegetasi",
+         "en": "Alert — rainfall + soil + vegetation"}, "#7f0000"),
+    (4, {"id": "Defisit tanah saja, tanpa pemicu hujan",
+         "en": "Soil deficit only, no rainfall trigger"}, "#9ecae1"),
+]
+CDI_NODATA = 255
+
+
+def _pixel_z(ic_id, band, aoi, end, months, reducer="mean", factor=1.0,
+             base=CLIM_BASE):
+    """Per-pixel z of a window statistic against the same window each baseline
+    year. `sum` for a flux (rainfall, runoff), `mean` for a state (soil water)."""
+    import ee
+    start = _shift_months(end, months)
+
+    def stat(a, b):
+        ic = ee.ImageCollection(ic_id).select(band).filterDate(
+            a.isoformat(), b.isoformat())
+        return (ic.sum() if reducer == "sum" else ic.mean()).multiply(factor)
+
+    hist = ee.ImageCollection([stat(*_same_window(start, end, y))
+                               for y in range(base[0], base[1] + 1)])
+    return (stat(start, end).subtract(hist.mean())
+            .divide(hist.reduce(ee.Reducer.stdDev())).rename("z"))
+
+
+def _cdi_layers(aoi, rain_end, era5_end, months, src):
+    """The three per-pixel fields the indicator is built from, plus hydrological."""
+    met = _pixel_z(src["ic"], src["band"], aoi, rain_end, months, "sum",
+                   src["factor"], src["base"])
+    agri = _pixel_z(ERA5_IC, SOIL_ROOT, aoi, era5_end, 1)
+    deep = _pixel_z(ERA5_IC, SOIL_DEEP, aoi, era5_end, 3)
+    runoff = _pixel_z(ERA5_IC, RUNOFF, aoi, era5_end, 3, "sum", 1000.0)
+    return met, agri, deep.add(runoff).divide(2).rename("z")
+
+
+def _cdi_classify(met, agri, vhi):
+    """0 normal · 1 watch · 2 warning · 3 alert · 4 soil-only."""
+    import ee
+    dry_rain, dry_soil, stressed = met.lt(-1), agri.lt(-1), vhi.lt(40)
+    return (ee.Image(0)
+            .where(dry_rain, 1)
+            .where(dry_rain.And(dry_soil), 2)
+            .where(dry_rain.And(dry_soil).And(stressed), 3)
+            .where(dry_rain.Not().And(dry_soil.Or(stressed)), 4)
+            .rename("cdi").toByte())
+
+
+def _cdi_areas(cdi, aoi, lang):
+    """Hectares per class, in one grouped reduction.
+
+    Measured at MODIS_SCALE (1 km), not at the 11 km grid the classes are
+    computed on. At 11 km a coastal cell that is half sea is counted whole, and
+    over a long thin island like Java that inflated the total by more than 20%
+    (16.0 Mha against a true land area near 13.1 Mha). The classification stays
+    at its native resolution; only the area integration is finer.
+    """
+    import ee
+    grouped = (ee.Image.pixelArea().divide(1e4).addBands(cdi)
+               .reduceRegion(reducer=ee.Reducer.sum().group(groupField=1,
+                                                            groupName="cdi"),
+                             geometry=aoi, scale=MODIS_SCALE,
+                             maxPixels=int(1e10), bestEffort=True).getInfo())
+    ha = {_label(r, lang): 0.0 for r in CDI_CLASSES}
+    for g in grouped.get("groups", []):
+        i = int(g["cdi"])
+        if 0 <= i < len(CDI_CLASSES):
+            ha[_label(CDI_CLASSES[i], lang)] = round(g["sum"], 1)
+    total = sum(ha.values()) or 1.0
+    return ha, {k: round(v / total * 100, 1) for k, v in ha.items()}
+
+
+def _render_cdi_map(run_dir, name, tif, box, meta, pct, lang):
+    """Classified CDI map. Only the class raster is drawn, at native resolution:
+    a categorical field must never be interpolated."""
+    import numpy as np
+    import rasterio
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.patches import Patch
+    plt = _plt()
+
+    with rasterio.open(tif) as src:
+        arr = src.read(1).astype("float32")
+        b = src.bounds
+    arr[arr == CDI_NODATA] = np.nan
+    if not np.isfinite(arr).any():
+        return None
+
+    T = TEXT.get(lang, TEXT["id"])
+    cmap = ListedColormap([r[2] for r in CDI_CLASSES])
+    span_x, span_y = box[2] - box[0], box[3] - box[1]
+    aspect = span_x / span_y if span_y else 1.0
+    height = min(11.0, max(4.8, 11.0 / max(aspect, .35) + 2.4))
+    fig, ax = plt.subplots(figsize=(11, height), dpi=150)
+    fig.patch.set_facecolor("#faf8f4")
+    ax.set_facecolor("#faf8f4")
+    ax.imshow(np.ma.masked_invalid(arr), cmap=cmap,
+              norm=BoundaryNorm([-.5, .5, 1.5, 2.5, 3.5, 4.5], 5),
+              extent=[b.left, b.right, b.bottom, b.top], interpolation="nearest")
+    _draw_admin(ax, box)
+    ax.set_xlim(box[0], box[2])
+    ax.set_ylim(box[1], box[3])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_title(T["cdi_title"].format(name=name) + "\n"
+                 + T["cdi_sub"].format(rain=meta["rain_end"], era5=meta["era5_end"],
+                                       veg=meta["veg_end"]),
+                 fontsize=13, fontweight="bold", loc="left")
+    order = [1, 2, 3, 4, 0]                       # severity first, Normal last
+    ax.legend(handles=[Patch(facecolor=CDI_CLASSES[i][2],
+                             label=f"{_label(CDI_CLASSES[i], lang)} — "
+                                   f"{pct.get(_label(CDI_CLASSES[i], lang), 0):.1f}%")
+                       for i in order],
+              fontsize=8.5, frameon=False, ncol=2, loc="upper center",
+              bbox_to_anchor=(.5, -.02))
+    fig.text(.01, .015, T["cdi_src"], fontsize=8, color="#777", wrap=True)
+    fig.tight_layout(rect=[0, .10, 1, 1])
+    out = os.path.join(run_dir, f"{name}_cdi_{lang}.png"
+                       if lang != "id" else f"{name}_cdi.png")
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out
+
+
+def _style_cdi_tif(path, lang):
+    """Re-write the downloaded class raster as styled uint8: colour table, class
+    names, and a warning that it must not be interpolated."""
+    import numpy as np
+    import rasterio
+    from rasterio.enums import ColorInterp
+
+    with rasterio.open(path) as src:
+        arr = src.read(1)
+        prof = src.profile
+    bad = ~np.isfinite(arr)
+    out = np.where(bad, CDI_NODATA, np.rint(arr)).astype("uint8")
+    prof.update(dtype="uint8", nodata=CDI_NODATA, compress="deflate",
+                tiled=True, blockxsize=256, blockysize=256)
+    tags = {f"CLASS_{r[0]}": _label(r, lang) for r in CDI_CLASSES}
+    tags["NODATA"] = str(CDI_NODATA)
+    tags["WARNING"] = ("Categorical raster - resample with NEAREST NEIGHBOUR "
+                       "only. Interpolating class codes invents classes that "
+                       "were never computed.")
+    with rasterio.open(path, "w", **prof) as dst:
+        dst.write(out, 1)
+        dst.write_colormap(1, {r[0]: tuple(int(r[2][i:i + 2], 16)
+                                           for i in (1, 3, 5))
+                               for r in CDI_CLASSES} | {CDI_NODATA: (0, 0, 0)})
+        dst.set_band_description(1, "CDI class")
+        dst.update_tags(**tags)
+        dst.colorinterp = [ColorInterp.palette]
+    return path
+
+
+def _run_cdi(aoi, run_dir, name, rain_end, era5_end, veg_end, months, src,
+             vhi_img, lang):
+    """Compute, map and export the Combined Drought Indicator. Best effort."""
+    from .gee_utils import download_geotiff
+    try:
+        met, agri, hydro = _cdi_layers(aoi, rain_end, era5_end, months, src)
+        cdi = _cdi_classify(met, agri, vhi_img)
+        land = _land_mask(aoi)
+        ha, pct = _cdi_areas(cdi.updateMask(land), aoi, lang)
+
+        coords = aoi.bounds().getInfo()["coordinates"]
+        xs = [p[0] for p in coords[0]]
+        ys = [p[1] for p in coords[0]]
+        box = [min(xs), min(ys), max(xs), max(ys)]
+        tif = os.path.join(run_dir, f"{name}_cdi.tif")
+        got = download_geotiff(cdi.updateMask(land).clip(aoi).toFloat(), coords,
+                               tif, scale=ERA5_SCALE)
+        png = None
+        if got:
+            _style_cdi_tif(got, lang)
+            png = _render_cdi_map(run_dir, name, got, box,
+                                  {"rain_end": rain_end.isoformat(),
+                                   "era5_end": era5_end.isoformat(),
+                                   "veg_end": veg_end.isoformat()}, pct, lang)
+        idx = {
+            "meteorological_z": _round(_mean_over(met, aoi, src["scale"], "z")),
+            "agricultural_z": _round(_mean_over(agri, aoi, ERA5_SCALE, "z")),
+            "hydrological_z": _round(_mean_over(hydro, aoi, ERA5_SCALE, "z")),
+        }
+        return {"area_ha_by_class": ha, "area_pct_by_class": pct,
+                "indices": idx, "map": os.path.basename(png) if png else None,
+                "geotiff": os.path.basename(got) if got else None}
+    except Exception as exc:
+        print(f"  (CDI dilewati / skipped: {str(exc)[:70]})")
+        return None
+
+
+def _round(num):
+    v = num.getInfo()
+    return round(v, 2) if v is not None else None
+
+
 def _resolve_source(name):
     if name not in RAIN_SOURCES:
         raise SystemExit(f"--rain-source harus salah satu dari "
@@ -913,7 +1181,8 @@ def _resolve_end(explicit, src):
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         months=3, end=None, admin=None, bbox=None, start_year=1991,
-        vhi_window=48, rain_source=DEFAULT_RAIN_SOURCE, lang="id"):
+        vhi_window=48, rain_source=DEFAULT_RAIN_SOURCE, lang="id",
+        cdi=False):
     """Drought: rainfall deficit, vegetation health, and ENSO context."""
     for mod in ("numpy", "matplotlib"):
         try:
@@ -967,6 +1236,13 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     tif, vhi_png, cls_ha, cls_pct = _drought_extent(vhi_img, aoi, run_dir, name,
                                                     ndvi_end, prim)
     map_png, map_tif = _rain_map(aoi, run_dir, name, rain_end, months, src, prim)
+
+    cdi_out = None
+    if cdi:
+        era5_end = _latest(ERA5_IC, SOIL_ROOT)
+        print(f"  CDI: ERA5-Land {'to' if prim == 'en' else 's/d'} {era5_end}")
+        cdi_out = _run_cdi(aoi, run_dir, name, rain_end, era5_end, ndvi_end,
+                           months, src, vhi_img, prim)
     if lang == "both":
         _drought_extent(vhi_img, aoi, run_dir, name, ndvi_end, "en")
         _rain_map(aoi, run_dir, name, rain_end, months, src, "en")
@@ -1005,7 +1281,10 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "iod": {"dmi_c": iod_now, "class": _classify(iod_now, IOD_CLASSES, prim),
                 "event_threshold_c": IOD_EVENT_C,
                 "monthly": dict(zip(labels, dmi))},
+        "cdi": cdi_out,
         "outputs": {"panel": os.path.basename(png),
+                    "cdi_map": cdi_out["map"] if cdi_out else None,
+                    "cdi_geotiff": cdi_out["geotiff"] if cdi_out else None,
                     "panels_by_lang": {k: os.path.basename(v)
                                        for k, v in panels.items()},
                     "drought_map": os.path.basename(vhi_png) if vhi_png else None,
@@ -1019,4 +1298,5 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
     _print_summary(name, months, rain_end, rain, z, rank, len(ranked), hv,
                    cls_ha, cls_pct, enso_now, iod_now, sst_end, prim)
+    _print_cdi(cdi_out, prim)
     return stats

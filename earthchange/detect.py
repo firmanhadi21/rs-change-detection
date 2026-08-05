@@ -361,7 +361,7 @@ def _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     drought.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                 config_key=ee_key, months=args.spi_months, end=args.drought_end,
                 admin=args.admin, bbox=dr_bbox, start_year=args.start_year,
-                rain_source=args.rain_source, lang=args.lang)
+                rain_source=args.rain_source, lang=args.lang, cdi=args.cdi)
 
 
 def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params):
@@ -632,6 +632,11 @@ def main():
                          "(default 3)")
     ap.add_argument("--drought-end", help="drought: window end YYYY-MM-DD "
                     "(default: freshest image of the chosen --rain-source)")
+    ap.add_argument("--cdi", action="store_true",
+                    help="drought: also compute the Combined Drought Indicator "
+                         "— meteorological, agricultural and hydrological on one "
+                         "classified map plus a styled GeoTIFF. Adds ERA5-Land "
+                         "soil moisture and runoff, so it costs extra compute")
     ap.add_argument("--rain-source", default="chirps",
                     choices=["chirps", "era5", "imerg", "gsmap"],
                     help="drought: rainfall product. chirps = gauge-blended, "
