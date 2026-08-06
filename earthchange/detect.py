@@ -186,6 +186,26 @@ def resolve_location(args):
     return lat, lon, None, name
 
 
+def _window_params(scenario, args):
+    """One window, given either as a single day or as START:END."""
+    import datetime as dt
+    d = getattr(args, "date", None)
+    if not d:
+        raise SystemExit(
+            f"Scenario '{scenario}' needs --date: a single day "
+            "(--date 2025-09-20) or a range (--date 2025-07-01:2025-08-31)")
+    p = {"sensor": getattr(args, "sensor", "s2")}
+    if ":" in d:
+        p["window"] = parse_period(d)
+        return p
+    # filterDate is half-open [start, end), so a single day has to be expressed
+    # as [d, d+1). Passing (d, d) is an empty range and Earth Engine rejects it.
+    p["window"] = (d, (dt.date.fromisoformat(d)
+                       + dt.timedelta(days=1)).isoformat())
+    p["single_date"] = d
+    return p
+
+
 def build_params(scenario, args):
     """Assemble the params dict a scenario's run() expects."""
     cfg = SCENARIOS[scenario]
@@ -194,6 +214,9 @@ def build_params(scenario, args):
 
     if needs == "none":  # scenario uses fixed internal windows (e.g. urban-history)
         return p
+
+    if needs == "window":
+        return _window_params(scenario, args)
 
     if needs in ("sirad", "epochs"):
         # Both take exactly 3 date windows (R/G/B). --epochs overrides the
@@ -496,6 +519,11 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--date", metavar="DATE",
+                    help="imagery: which imagery to fetch — a single day "
+                         "(--date 2025-09-20) or a composite window "
+                         "(--date 2025-07-01:2025-08-31). A single day with no "
+                         "overpass reports the nearby acquisition dates")
     ap.add_argument("--preview", action=argparse.BooleanOptionalAction, default=True,
                     help="optical scenarios: also write SWIR false-colour "
                          "quick-looks of the pre and post composites, and list "

@@ -59,6 +59,7 @@ gratis), atau `--site NAMA`.
 
 | Skenario | Metode | Sensor |
 |----------|--------|--------|
+| `imagery` | Citra saja: GeoTIFF reflektansi 6 band + pratinjau warna alami & SWIR. `--date` satu tanggal atau `START:END` untuk komposit | Sentinel-2 / Landsat |
 | `deforestation` | Kehilangan NDVI (ΔNDVI < ambang) | Sentinel-2 |
 | `mining` | SIRAD radar temporal **+** kehilangan NDVI | Sentinel-1 + S2 |
 | `urbanization` | Kenaikan NDBI (indeks terbangun) | Sentinel-2 |

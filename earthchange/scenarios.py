@@ -149,6 +149,80 @@ def run_sirad(aoi, p):
                                "Biru = aktivitas baru hanya di periode terakhir.")}
 
 
+def run_imagery(aoi, p):
+    """Just the imagery: a 6-band GeoTIFF plus quick-looks. No change detection.
+
+    One specific date or a composite over a window. A single date arrives here
+    already widened to [d, d+1) — filterDate is half-open, so a literal (d, d)
+    is an empty range Earth Engine refuses.
+
+    Two previews are written because the two questions people bring here
+    differ: natural colour for 'what does this place look like', SWIR false
+    colour for burn scars and vegetation stress.
+    """
+    import datetime as dt
+    from .indices import (IMAGERY_NAMES, IMAGERY_VIS, available_dates,
+                          imagery_composite, scene_inventory)
+
+    start, end = p["window"]
+    sensor = "landsat" if p.get("sensor") == "landsat" else "s2"
+    img, scenes, scale, cloud_prop = imagery_composite(aoi, start, end, sensor)
+    inv = scene_inventory(scenes, cloud_prop)
+
+    if inv["count"] == 0:
+        label = "Landsat" if sensor == "landsat" else "Sentinel-2"
+        # Two very different failures land here and the fix differs: the
+        # satellite never passed, or it did and every pass was too cloudy.
+        # Saying "widen the window" for the second one sends people the wrong way.
+        loose = scene_inventory(
+            imagery_composite(aoi, start, end, sensor, cloud_max=100)[1], cloud_prop)
+        if loose["count"]:
+            cl = sorted(s["cloud_pct"] for s in loose["scenes"]
+                        if s["cloud_pct"] is not None)
+            raise SystemExit(
+                f"{loose['count']} {label} scene(s) cover this AOI for "
+                f"{start}..{end}, but none is under the 60% cloud limit "
+                f"(cloud cover: {', '.join(f'{c:.0f}%' for c in cl[:8])}). "
+                f"Widen the window so the composite can see past the cloud.")
+        a = (dt.date.fromisoformat(start) - dt.timedelta(days=30)).isoformat()
+        b = (dt.date.fromisoformat(end) + dt.timedelta(days=30)).isoformat()
+        near = available_dates(imagery_composite(aoi, a, b, sensor)[1])
+        hint = (f" Nearby usable acquisitions: {', '.join(near[:8])}"
+                f"{' …' if len(near) > 8 else ''}." if near
+                else " No usable scenes within 30 days either — widen the window.")
+        raise SystemExit(f"No {label} scenes over this AOI for {start}..{end}.{hint}")
+
+    vis = IMAGERY_VIS[sensor]
+    products = [
+        # One product yields both the GeoTIFF and the natural-colour PNG.
+        {"key": "reflectance", "tif": img.clip(aoi), "scale": scale,
+         "thumb": img.clip(aoi), "thumb_vis": dict(vis["true"])},
+        {"key": "swir", "thumb": img.clip(aoi), "thumb_vis": dict(vis["swir"]),
+         "png_only": True},
+    ]
+    single = p.get("single_date")
+    # How much of the AOI actually survived cloud masking. On a single date
+    # this is routinely well under half, and without it a mostly-empty raster
+    # looks like a successful download.
+    coverage = round(_pct(img.select(0).mask(), aoi, scale), 1)
+    stats = {
+        "mode": "single date" if single else "composite",
+        "date": single, "window": [start, end], "sensor": sensor, "scale_m": scale,
+        "bands": IMAGERY_NAMES, "composite": "median (cloud-masked per pixel)",
+        "valid_pct": coverage,
+        "images_used": {"preview_composite": "natural colour + SWIR false colour",
+                        "window": inv},
+    }
+    if coverage < 60:
+        print(f"  NOTE: only {coverage:.0f}% of the AOI has data after cloud "
+              f"masking. {'Widen --date into a range to composite more scenes.'
+                          if single else 'Widen the window or raise cloud tolerance.'}")
+    return {"products": products, "stats": stats,
+            "interpretation": ("Citra sumber apa adanya — tanpa deteksi "
+                               "perubahan. / Source imagery as-is, no change "
+                               "detection.")}
+
+
 def run_mining(aoi, p):
     """Mining: SIRAD radar (cloud-proof) + NDVI loss (quantitative)."""
     res = run_sirad(aoi, p)
@@ -406,6 +480,13 @@ SCENARIOS = {
         "radius": 15.0, "needs": "pre_post_required",
         "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
+    },
+    "imagery": {
+        "label": "Imagery — source GeoTIFF + previews, no change detection",
+        "run": run_imagery,
+        "method": "imagery", "needs": "window",
+        "radius": 10.0,
+        "interpretation": "Citra sumber apa adanya (tanpa deteksi perubahan).",
     },
     "burn": {
         "label": "Burn severity — dNBR (Sentinel-2)",

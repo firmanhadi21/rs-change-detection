@@ -199,6 +199,59 @@ def l_sr_scenes(aoi, start, end, cloud_max=60):
             .merge(_l_filter(L9_COL, aoi, start, end, cloud_max)))
 
 
+# --- Plain imagery (no index): keep BLUE so true colour is possible ---
+# The index composites drop blue, which is fine for NDVI/NBR but makes a
+# natural-colour preview impossible. This path is separate for that reason.
+IMAGERY_NAMES = ["BLUE", "GREEN", "RED", "NIR", "SWIR1", "SWIR2"]
+_S2_IMAGERY = ["B2", "B3", "B4", "B8", "B11", "B12"]
+_TM_IMAGERY = ["SR_B1", "SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B7"]
+_OLI_IMAGERY = ["SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7"]
+IMAGERY_VIS = {
+    # Sentinel-2 SR is scaled by 10000; Landsat C2-L2 is scaled to reflectance.
+    "s2": {"true": {"bands": ["RED", "GREEN", "BLUE"], "min": 0, "max": 3000},
+           "swir": {"bands": ["SWIR2", "NIR", "RED"], "min": 0, "max": 3500}},
+    "landsat": {"true": {"bands": ["RED", "GREEN", "BLUE"], "min": 0, "max": 0.30},
+                "swir": {"bands": ["SWIR2", "NIR", "RED"], "min": 0, "max": 0.35}},
+}
+
+
+def _prep_l_imagery(img, bands):
+    """Landsat C2-L2 scene as 6-band reflectance, cloud-masked, BLUE kept."""
+    qa = img.select("QA_PIXEL")
+    clear = qa.bitwiseAnd((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4)).eq(0)
+    return (img.select(bands).multiply(0.0000275).add(-0.2)
+            .rename(IMAGERY_NAMES).updateMask(clear))
+
+
+def imagery_composite(aoi, start, end, sensor="s2", cloud_max=60):
+    """Reflectance composite for the plain-imagery scenario.
+
+    Returns (image, scenes_for_inventory, scale_m, cloud_property). A single
+    date and a multi-month window take exactly the same path — a one-day window
+    simply medians one scene — so nothing special is needed for the two cases.
+    """
+    if sensor == "landsat":
+        tm = (_l_filter(LSR_TM, aoi, start, end, cloud_max)
+              .map(lambda i: _prep_l_imagery(i, _TM_IMAGERY)))
+        oli = (_l_filter(L8_COL, aoi, start, end, cloud_max)
+               .merge(_l_filter(L9_COL, aoi, start, end, cloud_max))
+               .map(lambda i: _prep_l_imagery(i, _OLI_IMAGERY)))
+        return (tm.merge(oli).median(),
+                l_sr_scenes(aoi, start, end, cloud_max), 30, "CLOUD_COVER")
+    scenes = s2_scenes(aoi, start, end, cloud_max)
+    img = scenes.map(mask_s2_clouds).select(_S2_IMAGERY, IMAGERY_NAMES).median()
+    return img, scenes, 10, "CLOUDY_PIXEL_PERCENTAGE"
+
+
+def available_dates(scenes, span_days=30):
+    """Acquisition dates near a window, for when an exact date has no overpass."""
+    import datetime as _dt
+    ts = scenes.aggregate_array("system:time_start").getInfo() or []
+    out = sorted({_dt.datetime.fromtimestamp(t / 1000, _dt.UTC).date().isoformat()
+                  for t in ts})
+    return out
+
+
 def scene_inventory(coll, cloud_prop, limit=200):
     """Which scenes went into a composite: id, date and cloud cover.
 
