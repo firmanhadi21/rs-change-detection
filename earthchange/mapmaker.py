@@ -68,13 +68,45 @@ def _nice_km(width_km):
     return locals().get("nice", 0.5)
 
 
-def _add_basemap(ax, source=OSM):
+_CX_WARNED = False
+
+
+def _tiles(ax, source, what, fallback=True):
+    """Draw basemap tiles, and say plainly when it cannot be done.
+
+    Silence is expensive here. A missing contextily or a blocked tile host
+    leaves a blank white box, which reads as a rendering bug rather than as a
+    missing dependency — and the insets use different tile hosts from the main
+    map, so one can go dark while the other still works.
+
+    Returns the name of what was actually drawn, or None.
+    """
+    global _CX_WARNED
     if not _HAS_CX:
-        return
-    try:
-        cx.add_basemap(ax, crs="EPSG:4326", source=source, attribution=False)
-    except Exception as e:  # noqa: BLE001
-        print(f"  (basemap skipped: {e})")
+        if not _CX_WARNED:
+            print("  NOTE: contextily is not installed, so no basemap tiles can "
+                  "be drawn — the main map and both insets get blank\n"
+                  "        backgrounds. Fix: pip install 'earthchange[maps]'")
+            _CX_WARNED = True
+        return None
+    tried = [(source, None)]
+    if fallback and source is not OSM:
+        tried.append((OSM, "OpenStreetMap"))
+    last = None
+    for src, label in tried:
+        try:
+            cx.add_basemap(ax, crs="EPSG:4326", source=src, attribution=False)
+            if label:
+                print(f"  ({what}: usual provider unavailable, used {label})")
+            return label or "provider"
+        except Exception as e:  # noqa: BLE001 — try the fallback, then report
+            last = e
+    print(f"  ({what}: no basemap — {last.__class__.__name__}: {str(last)[:70]})")
+    return None
+
+
+def _add_basemap(ax, source=OSM):
+    return _tiles(ax, source, "main map")
 
 
 def _read_raster(tif):
@@ -116,7 +148,8 @@ def _location_inset(fig, rect, lon, lat, span=7.0):
     ax.set_xlim(lon - span, lon + span)
     ax.set_ylim(lat - span, lat + span)
     ax.set_xticks([]); ax.set_yticks([])
-    _add_basemap(ax, source=cx.providers.CartoDB.Positron if _HAS_CX else OSM)
+    _tiles(ax, cx.providers.CartoDB.Positron if _HAS_CX else OSM,
+           "location inset")
     ax.plot(lon, lat, marker="*", markersize=15, color="red",
             markeredgecolor="white", markeredgewidth=0.8, zorder=8)
     ax.set_title("Lokasi", fontsize=8)
@@ -136,14 +169,13 @@ def _satellite_inset(fig, rect, extent):
     ax.set_xlim(minlon, maxlon)
     ax.set_ylim(minlat, maxlat)
     ax.set_xticks([]); ax.set_yticks([])
-    if _HAS_CX:
-        try:
-            cx.add_basemap(ax, crs="EPSG:4326",
-                           source=cx.providers.Esri.WorldImagery,
-                           attribution=False)
-        except Exception as e:  # noqa: BLE001
-            print(f"  (satellite inset skipped: {e})")
-    ax.set_title("Satelit (ESRI)", fontsize=8)
+    drawn = _tiles(ax, cx.providers.Esri.WorldImagery if _HAS_CX else OSM,
+                   "satellite inset")
+    # Title what was actually drawn: an OSM fallback here is better than a
+    # blank box, but labelling street tiles "Satelit (ESRI)" would be a lie.
+    ax.set_title("Satelit (ESRI)" if drawn == "provider"
+                 else ("Peta dasar (OSM)" if drawn else "Basemap tidak tersedia"),
+                 fontsize=8)
     for s in ax.spines.values():
         s.set_edgecolor("#888")
     return ax
