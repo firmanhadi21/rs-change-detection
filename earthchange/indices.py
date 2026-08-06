@@ -43,13 +43,34 @@ def s2_scenes(aoi, start, end, scene_cloud_max=60):
             .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", scene_cloud_max)))
 
 
+def s2_masked(aoi, start, end, scene_cloud_max=60):
+    """Cloud-masked Sentinel-2 scenes. The median and the per-pixel
+    observation count both derive from this, so they cannot disagree."""
+    return s2_scenes(aoi, start, end, scene_cloud_max).map(mask_s2_clouds)
+
+
 def s2_median(aoi, start, end, scene_cloud_max=60):
     """Cloud-masked median Sentinel-2 SR composite over a date window.
 
     Returns (image, scene_count). scene_count is a Python int.
     """
-    coll = s2_scenes(aoi, start, end, scene_cloud_max).map(mask_s2_clouds)
+    coll = s2_masked(aoi, start, end, scene_cloud_max)
     return coll.median(), coll.size().getInfo()
+
+
+# Band to count clear observations on, per sensor path.
+OBS_BAND = {"s2": "B8", "landsat": "NIR"}
+
+
+def clear_obs(coll, band):
+    """How many clear observations each pixel's median actually rests on.
+
+    A scene count describes the window; this describes the pixel. They diverge
+    badly under persistent cloud — a window of 6 scenes routinely leaves parts
+    of the AOI with one usable look, and there the median IS that one look, so
+    any cloud or shadow the mask missed passes straight through as change.
+    """
+    return coll.select(band).count().unmask(0).rename("obs")
 
 
 # --- Normalised-difference indices on a Sentinel-2 SR image ---
@@ -157,9 +178,14 @@ def l2_scenes(aoi, start, end, cloud_max=60):
             .merge(_l_filter(L9_COL, aoi, start, end, cloud_max)))
 
 
+def l2_masked(aoi, start, end, cloud_max=60):
+    """Cloud-masked, prepped Landsat 8/9 scenes."""
+    return l2_scenes(aoi, start, end, cloud_max).map(_l2_prep)
+
+
 def l2_median(aoi, start, end, cloud_max=60):
     """Cloud-masked median Landsat 8/9 composite. Returns (image, scene_count)."""
-    col = l2_scenes(aoi, start, end, cloud_max).map(_l2_prep)
+    col = l2_masked(aoi, start, end, cloud_max)
     return col.median(), col.size().getInfo()
 
 
@@ -178,13 +204,18 @@ def l_sr_median(aoi, start, end, cloud_max=60):
     Scan Line Corrector failed in 2003 (SLC-off gaps stripe every scene).
     Uniform band naming across sensors so historical epochs (e.g. 2010) work.
     """
+    col = l_sr_masked(aoi, start, end, cloud_max)
+    return col.median(), col.size().getInfo()
+
+
+def l_sr_masked(aoi, start, end, cloud_max=60):
+    """Cloud-masked, prepped Landsat archive scenes (TM + OLI, uniform bands)."""
     tm = (_l_filter(LSR_TM, aoi, start, end, cloud_max)  # L5 TM (ends 2011)
           .map(lambda i: _prep_l_sr(i, ["SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B7"])))
     oli = (_l_filter(L8_COL, aoi, start, end, cloud_max)
            .merge(_l_filter(L9_COL, aoi, start, end, cloud_max))
            .map(lambda i: _prep_l_sr(i, ["SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7"])))
-    col = tm.merge(oli)
-    return col.median(), col.size().getInfo()
+    return tm.merge(oli)
 
 
 def l_sr_scenes(aoi, start, end, cloud_max=60):

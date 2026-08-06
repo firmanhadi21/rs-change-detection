@@ -43,8 +43,12 @@ def _mean(img, aoi, scale=10):
 
 
 # ----------------------------- methods -----------------------------
+def _round1(v):
+    return round(v, 1) if isinstance(v, (int, float)) else None
+
+
 def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6,
-                       preview=True):
+                       preview=True, min_obs=2):
     """Generic optical index change: delta = post - pre.
 
     direction 'loss' reports pixels below thr (e.g. NDVI drop); 'gain' reports
@@ -53,22 +57,26 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6,
     masked out by default (except for the NDWI/water scenario) so sea and lakes
     don't pollute NDVI/NBR change — essential on coasts and islands.
     """
-    from .indices import (LANDSAT_INDEX_FN, MNDWI_BANDS, PREVIEW_VIS,
-                          l2_scenes, l_sr_scenes, s2_scenes, scene_inventory)
+    from .indices import (LANDSAT_INDEX_FN, MNDWI_BANDS, OBS_BAND, PREVIEW_VIS,
+                          clear_obs, l2_masked, l2_scenes, l_sr_masked,
+                          l_sr_scenes, s2_masked, s2_scenes, scene_inventory)
     thermal = SENSOR.get(index_name) == "L8"          # NDISI/EBBI need Landsat thermal
     want_landsat = p.get("sensor") == "landsat"
     if thermal:
         loader, fn, sensor, scale, wsensor = l2_median, INDEX_FN[index_name], "Landsat", 30, None
         scenes_fn, pvis, cloud_prop = l2_scenes, PREVIEW_VIS["landsat"], "CLOUD_COVER"
+        masked_fn, obs_band = l2_masked, OBS_BAND["landsat"]
     elif want_landsat:
         if index_name not in LANDSAT_INDEX_FN:
             raise SystemExit(f"--sensor landsat is not available for {index_name}.")
         loader, fn = l_sr_median, LANDSAT_INDEX_FN[index_name]
         sensor, scale, wsensor = "Landsat (archive to 1984)", 30, "landsat"
         scenes_fn, pvis, cloud_prop = l_sr_scenes, PREVIEW_VIS["landsat"], "CLOUD_COVER"
+        masked_fn, obs_band = l_sr_masked, OBS_BAND["landsat"]
     else:
         loader, fn, sensor, scale, wsensor = s2_median, INDEX_FN[index_name], "Sentinel-2", 10, "s2"
         scenes_fn, pvis, cloud_prop = s2_scenes, PREVIEW_VIS["s2"], "CLOUDY_PIXEL_PERCENTAGE"
+        masked_fn, obs_band = s2_masked, OBS_BAND["s2"]
 
     pre_img, n_pre = loader(aoi, *p["pre"])
     post_img, n_post = loader(aoi, *p["post"])
@@ -78,6 +86,23 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6,
             f"for this AOI — adjust --pre/--post dates."
         )
     delta = fn(post_img).subtract(fn(pre_img)).rename("d" + index_name).clip(aoi)
+
+    # Refuse to report change where there is too little evidence to tell change
+    # from cloud. Cloud masks are imperfect -- SCL misses thin cloud and is
+    # weakest on shadow -- and a median over many looks absorbs that, while a
+    # median over ONE look simply reproduces it. Shadow lowers NIR more than
+    # SWIR, so it depresses both NDVI and NBR: it reads as vegetation loss or
+    # burn, never as gain. That asymmetry is what makes it a false-positive
+    # engine rather than noise.
+    pre_obs = clear_obs(masked_fn(aoi, *p["pre"]), obs_band)
+    post_obs = clear_obs(masked_fn(aoi, *p["post"]), obs_band)
+    thin = None
+    if min_obs > 1:
+        enough = pre_obs.gte(min_obs).And(post_obs.gte(min_obs))
+        # Measured before the water mask so the number means "dropped for thin
+        # coverage", not "dropped for coverage or being sea".
+        thin = round(100.0 - _pct(enough, aoi, scale), 1)
+        delta = delta.updateMask(enough)
 
     # Mask permanent water (MNDWI>0 in either date) so it isn't counted as change.
     water_masked = False
@@ -103,6 +128,20 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6,
                  "threshold": thr, "strong_threshold": severe_thr}
     stats.update({"scenes_pre": n_pre, "scenes_post": n_post,
                   "sensor": sensor, "water_masked": water_masked})
+    stats["clear_observations"] = {
+        "min_obs_required": min_obs,
+        "pct_dropped_too_few": thin,
+        "pre_median_per_pixel": _round1(_mean(pre_obs, aoi, scale)),
+        "post_median_per_pixel": _round1(_mean(post_obs, aoi, scale)),
+        "note": ("Change is only reported where BOTH windows have at least "
+                 "min_obs clear looks. A pixel seen once has a 'median' of one "
+                 "image, so cloud or shadow the mask missed becomes change. "
+                 "Shadow depresses NDVI and NBR, so it mimics loss/burn, never "
+                 "gain."),
+    }
+    if thin:
+        print(f"  {thin:.1f}% of the AOI had fewer than {min_obs} clear looks "
+              f"in one of the windows and is excluded from the change stats.")
 
     vis = {"min": -vmax, "max": vmax, "palette": DIVERGING}
     products = [{"key": "d" + index_name.lower(), "thumb": delta,

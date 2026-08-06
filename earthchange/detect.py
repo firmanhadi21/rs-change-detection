@@ -322,7 +322,8 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
     if cfg.get("method") == "optical":
         result = run_optical_change(aoi, params, cfg["index"], cfg["direction"],
                                     cfg["thr"], cfg["severe"], cfg.get("vmax", 0.6),
-                                    preview=params["preview"])
+                                    preview=params["preview"],
+                                    min_obs=getattr(args, "min_obs", 2))
     else:
         result = cfg["run"](aoi, params)
 
@@ -519,6 +520,14 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--min-obs", type=int, default=2, metavar="N",
+                    help="optical scenarios: only report change where BOTH "
+                         "windows have at least N cloud-free looks at that "
+                         "pixel (default 2). A pixel seen once has a median of "
+                         "one image, so cloud or shadow the mask missed becomes "
+                         "'change' — and shadow depresses NDVI/NBR, so it mimics "
+                         "loss and burn, never gain. Use 1 to disable, 3-4 to be "
+                         "strict in persistently cloudy areas")
     ap.add_argument("--date", metavar="DATE",
                     help="imagery: which imagery to fetch — a single day "
                          "(--date 2025-09-20) or a composite window "
