@@ -43,7 +43,8 @@ def _mean(img, aoi, scale=10):
 
 
 # ----------------------------- methods -----------------------------
-def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6):
+def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6,
+                       preview=True):
     """Generic optical index change: delta = post - pre.
 
     direction 'loss' reports pixels below thr (e.g. NDVI drop); 'gain' reports
@@ -52,18 +53,22 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6)
     masked out by default (except for the NDWI/water scenario) so sea and lakes
     don't pollute NDVI/NBR change — essential on coasts and islands.
     """
-    from .indices import LANDSAT_INDEX_FN, MNDWI_BANDS
+    from .indices import (LANDSAT_INDEX_FN, MNDWI_BANDS, PREVIEW_VIS,
+                          l2_scenes, l_sr_scenes, s2_scenes, scene_inventory)
     thermal = SENSOR.get(index_name) == "L8"          # NDISI/EBBI need Landsat thermal
     want_landsat = p.get("sensor") == "landsat"
     if thermal:
         loader, fn, sensor, scale, wsensor = l2_median, INDEX_FN[index_name], "Landsat", 30, None
+        scenes_fn, pvis, cloud_prop = l2_scenes, PREVIEW_VIS["landsat"], "CLOUD_COVER"
     elif want_landsat:
         if index_name not in LANDSAT_INDEX_FN:
             raise SystemExit(f"--sensor landsat is not available for {index_name}.")
         loader, fn = l_sr_median, LANDSAT_INDEX_FN[index_name]
         sensor, scale, wsensor = "Landsat (archive to 1984)", 30, "landsat"
+        scenes_fn, pvis, cloud_prop = l_sr_scenes, PREVIEW_VIS["landsat"], "CLOUD_COVER"
     else:
         loader, fn, sensor, scale, wsensor = s2_median, INDEX_FN[index_name], "Sentinel-2", 10, "s2"
+        scenes_fn, pvis, cloud_prop = s2_scenes, PREVIEW_VIS["s2"], "CLOUDY_PIXEL_PERCENTAGE"
 
     pre_img, n_pre = loader(aoi, *p["pre"])
     post_img, n_post = loader(aoi, *p["post"])
@@ -100,9 +105,25 @@ def run_optical_change(aoi, p, index_name, direction, thr, severe_thr, vmax=0.6)
                   "sensor": sensor, "water_masked": water_masked})
 
     vis = {"min": -vmax, "max": vmax, "palette": DIVERGING}
-    product = {"key": "d" + index_name.lower(), "thumb": delta,
-               "thumb_vis": vis, "tif": delta, "scale": scale}
-    return {"products": [product], "stats": stats}
+    products = [{"key": "d" + index_name.lower(), "thumb": delta,
+                 "thumb_vis": vis, "tif": delta, "scale": scale}]
+
+    if preview:
+        # Quick-looks of the two composites the change was measured between,
+        # so the result can be eyeballed against the imagery rather than taken
+        # on trust. PNG only: a multi-band 10 m GeoTIFF of each composite would
+        # dwarf every other download for something meant to be glanced at.
+        for key, img, window in (("pre", pre_img, p["pre"]),
+                                 ("post", post_img, p["post"])):
+            products.append({"key": f"preview_{key}", "thumb": img.clip(aoi),
+                             "thumb_vis": dict(pvis), "png_only": True,
+                             "window": list(window)})
+        stats["images_used"] = {
+            "preview_composite": "SWIR false colour (SWIR2/NIR/RED)",
+            "pre": scene_inventory(scenes_fn(aoi, *p["pre"]), cloud_prop),
+            "post": scene_inventory(scenes_fn(aoi, *p["post"]), cloud_prop),
+        }
+    return {"products": products, "stats": stats}
 
 
 def run_sirad(aoi, p):
@@ -134,7 +155,7 @@ def run_mining(aoi, p):
     periods = p["sirad_periods"]
     ndvi_res = run_optical_change(
         aoi, {"pre": periods[0], "post": periods[-1]},
-        "NDVI", "loss", -0.15, -0.30)
+        "NDVI", "loss", -0.15, -0.30, preview=p.get("preview", True))
     res["products"] += ndvi_res["products"]
     res["stats"] = {"sirad": res["stats"], "ndvi": ndvi_res["stats"]}
     res["interpretation"] = ("SIRAD biru = ekspansi baru; peta NDVI merah = "
@@ -317,7 +338,8 @@ def run_disturbance(aoi, p, drop_thr=-3.0, severe_thr=-6.0, steep_deg=15.0):
 # ----------------------------- registry -----------------------------
 def _optical(index, direction, thr, severe, vmax=0.6):
     def run(aoi, p):
-        return run_optical_change(aoi, p, index, direction, thr, severe, vmax)
+        return run_optical_change(aoi, p, index, direction, thr, severe, vmax,
+                                  preview=p.get("preview", True))
     return run
 
 

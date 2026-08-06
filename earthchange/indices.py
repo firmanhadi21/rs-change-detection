@@ -17,16 +17,38 @@ S1 = "COPERNICUS/S1_GRD"
 ORBITS = ("ASCENDING", "DESCENDING")
 
 
+# SWIR false colour (SWIR2 / NIR / RED) for quick-look previews. Used instead
+# of true colour because the Landsat paths rename to a band set with no BLUE,
+# so this is the one scheme available on every sensor — and for a burn it is
+# the more informative composite anyway: scars read orange-red, healthy
+# vegetation green, water near-black.
+PREVIEW_VIS = {
+    "s2": {"bands": ["B12", "B8", "B4"], "min": 0, "max": 3500},
+    "landsat": {"bands": ["SWIR2", "NIR", "RED"], "min": 0, "max": 0.35},
+}
+
+
+def s2_scenes(aoi, start, end, scene_cloud_max=60):
+    """The Sentinel-2 scenes a composite is built from, BEFORE cloud masking.
+
+    Inventory has to be taken here rather than from the mapped collection:
+    per-scene prep uses multiply/add/rename, and those drop image properties in
+    Earth Engine, so system:index and the cloud field come back null afterwards.
+    Cloud masking itself is updateMask, which does preserve them, but the
+    Landsat preps do not — so all three sensors take the same route.
+    """
+    return (ee.ImageCollection(S2)
+            .filterBounds(aoi)
+            .filterDate(start, end)
+            .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", scene_cloud_max)))
+
+
 def s2_median(aoi, start, end, scene_cloud_max=60):
     """Cloud-masked median Sentinel-2 SR composite over a date window.
 
     Returns (image, scene_count). scene_count is a Python int.
     """
-    coll = (ee.ImageCollection(S2)
-            .filterBounds(aoi)
-            .filterDate(start, end)
-            .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", scene_cloud_max))
-            .map(mask_s2_clouds))
+    coll = s2_scenes(aoi, start, end, scene_cloud_max).map(mask_s2_clouds)
     return coll.median(), coll.size().getInfo()
 
 
@@ -107,6 +129,7 @@ METHOD_DEFAULTS = {
 
 # --- Landsat 8/9 Collection-2 Level-2 (adds a thermal band for NDISI/EBBI) ---
 L8_COL, L9_COL = "LANDSAT/LC08/C02/T1_L2", "LANDSAT/LC09/C02/T1_L2"
+LSR_TM = "LANDSAT/LT05/C02/T1_L2"   # Landsat 5 TM; L7 excluded (SLC-off, 2003)
 
 
 def _l2_prep(img):
@@ -121,11 +144,22 @@ def _l2_prep(img):
                .updateMask(clear))
 
 
+def _l_filter(cid, aoi, start, end, cloud_max):
+    """One Landsat collection, filtered but not yet prepped. Shared by the
+    median builders and the scene inventory so the two cannot drift apart."""
+    return (ee.ImageCollection(cid).filterBounds(aoi).filterDate(start, end)
+            .filter(ee.Filter.lt("CLOUD_COVER", cloud_max)))
+
+
+def l2_scenes(aoi, start, end, cloud_max=60):
+    """Landsat 8/9 scenes behind the composite, before prep. See s2_scenes."""
+    return (_l_filter(L8_COL, aoi, start, end, cloud_max)
+            .merge(_l_filter(L9_COL, aoi, start, end, cloud_max)))
+
+
 def l2_median(aoi, start, end, cloud_max=60):
     """Cloud-masked median Landsat 8/9 composite. Returns (image, scene_count)."""
-    col = (ee.ImageCollection(L8_COL).merge(ee.ImageCollection(L9_COL))
-           .filterBounds(aoi).filterDate(start, end)
-           .filter(ee.Filter.lt("CLOUD_COVER", cloud_max)).map(_l2_prep))
+    col = l2_scenes(aoi, start, end, cloud_max).map(_l2_prep)
     return col.median(), col.size().getInfo()
 
 
@@ -144,17 +178,58 @@ def l_sr_median(aoi, start, end, cloud_max=60):
     Scan Line Corrector failed in 2003 (SLC-off gaps stripe every scene).
     Uniform band naming across sensors so historical epochs (e.g. 2010) work.
     """
-    tm = (ee.ImageCollection("LANDSAT/LT05/C02/T1_L2")  # L5 TM (no SLC-off; ends 2011)
-          .filterBounds(aoi).filterDate(start, end)
-          .filter(ee.Filter.lt("CLOUD_COVER", cloud_max))
+    tm = (_l_filter(LSR_TM, aoi, start, end, cloud_max)  # L5 TM (ends 2011)
           .map(lambda i: _prep_l_sr(i, ["SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B7"])))
-    oli = (ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
-           .merge(ee.ImageCollection("LANDSAT/LC09/C02/T1_L2"))
-           .filterBounds(aoi).filterDate(start, end)
-           .filter(ee.Filter.lt("CLOUD_COVER", cloud_max))
+    oli = (_l_filter(L8_COL, aoi, start, end, cloud_max)
+           .merge(_l_filter(L9_COL, aoi, start, end, cloud_max))
            .map(lambda i: _prep_l_sr(i, ["SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7"])))
     col = tm.merge(oli)
     return col.median(), col.size().getInfo()
+
+
+def l_sr_scenes(aoi, start, end, cloud_max=60):
+    """Landsat archive scenes behind the composite, before prep. See s2_scenes.
+
+    TM and OLI need different band mappings, so the composite maps them
+    separately; the inventory only needs the scene list, which is the same
+    filter on the same three collections.
+    """
+    return (_l_filter(LSR_TM, aoi, start, end, cloud_max)
+            .merge(_l_filter(L8_COL, aoi, start, end, cloud_max))
+            .merge(_l_filter(L9_COL, aoi, start, end, cloud_max)))
+
+
+def scene_inventory(coll, cloud_prop, limit=200):
+    """Which scenes went into a composite: id, date and cloud cover.
+
+    A bare count ('12 scenes') can be neither checked nor reproduced; the ids
+    can. Capped, because a multi-year window over a busy path can run to
+    thousands and the list is provenance, not data.
+    """
+    sub = ee.ImageCollection(coll.toList(limit))
+    got = ee.Dictionary({
+        "n": coll.size(),
+        "id": sub.aggregate_array("system:index"),
+        "t": sub.aggregate_array("system:time_start"),
+        "cloud": sub.aggregate_array(cloud_prop),
+    }).getInfo()
+    import datetime as _dt
+    ids, ts = got.get("id") or [], got.get("t") or []
+    clouds = got.get("cloud") or []
+    scenes = []
+    for i, sid in enumerate(ids):
+        ms = ts[i] if i < len(ts) else None
+        cl = clouds[i] if i < len(clouds) else None
+        scenes.append({
+            "id": sid,
+            "date": (_dt.datetime.fromtimestamp(ms / 1000, _dt.UTC)
+                     .date().isoformat() if ms else None),
+            "cloud_pct": round(cl, 1) if isinstance(cl, (int, float)) else None,
+        })
+    scenes.sort(key=lambda s: s["date"] or "")
+    return {"count": int(got.get("n") or 0), "listed": len(scenes),
+            "truncated": int(got.get("n") or 0) > len(scenes),
+            "scenes": scenes}
 
 
 def _norm01(band, lo, hi):

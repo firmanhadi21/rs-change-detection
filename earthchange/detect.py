@@ -252,6 +252,10 @@ def _write_gee_product(prod, aoi, run_dir, common, do_map, basemap,
     tif = os.path.join(run_dir, base + ".tif")
     print(f"Downloading {prod['key']} PNG...")
     download_png(prod["thumb"], aoi, png, vis=prod["thumb_vis"])
+    if prod.get("png_only"):
+        # A quick-look of a source composite: there is no derived raster to
+        # export, and no map sheet to compose from it.
+        return
     print(f"Downloading {prod['key']} GeoTIFF...")
     tif_ok = download_geotiff(prod["tif"], aoi, tif, scale=prod.get("scale", 10))
     if do_drive:  # async full-resolution export to the user's Google Drive
@@ -289,9 +293,13 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
         initialize_ee(getattr(args, "ee_key", None) or CONFIG_KEY)
     aoi = square_aoi(lon, lat, radius)  # square clip (not a circle)
 
+    # Carried in params so composite scenarios (e.g. mining, which folds an
+    # NDVI change into a SIRAD run) can pass it down to their optical leg.
+    params = {**params, "preview": getattr(args, "preview", True)}
     if cfg.get("method") == "optical":
         result = run_optical_change(aoi, params, cfg["index"], cfg["direction"],
-                                    cfg["thr"], cfg["severe"], cfg.get("vmax", 0.6))
+                                    cfg["thr"], cfg["severe"], cfg.get("vmax", 0.6),
+                                    preview=params["preview"])
     else:
         result = cfg["run"](aoi, params)
 
@@ -488,6 +496,11 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--preview", action=argparse.BooleanOptionalAction, default=True,
+                    help="optical scenarios: also write SWIR false-colour "
+                         "quick-looks of the pre and post composites, and list "
+                         "every scene that went into them (id, date, cloud %%) "
+                         "under stats.images_used. --no-preview skips both")
     ap.add_argument("--backend", choices=["gee", "mpc"], default="gee",
                     help="data backend: gee (Earth Engine) or mpc "
                          "(Microsoft Planetary Computer, no account needed)")

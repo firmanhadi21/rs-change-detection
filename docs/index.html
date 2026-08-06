@@ -146,11 +146,13 @@
     <li>a <b>full-resolution, georeferenced GeoTIFF</b> you can open in QGIS/ArcGIS, and</li>
     <li>a <b>value-added map</b> (A4 PDF + PNG) with legend, scale bar, statistics and a location inset.</li>
   </ul>
+  <p class="en">Optical scenarios also write a <b>SWIR false-colour quick-look of each source composite</b> — the pre and post imagery the change was measured between — and record <b>every scene that went into them</b> (id, date, cloud&nbsp;%) under <code>images_used</code> in <code>stats.json</code>. A count alone can be neither checked nor reproduced; the ids can. Use <code>--no-preview</code> to skip both.</p>
   <ul class="id">
     <li><b>PNG pratinjau</b> perubahan,</li>
     <li><b>GeoTIFF resolusi penuh tergeoreferensi</b> yang bisa dibuka di QGIS/ArcGIS, dan</li>
     <li><b>peta value-added</b> (A4 PDF + PNG) dengan legenda, skala, statistik, dan inset lokasi.</li>
   </ul>
+  <p class="id">Skenario optik juga menuliskan <b>pratinjau warna semu SWIR untuk tiap komposit sumber</b> — citra pra dan pasca yang menjadi dasar pengukuran perubahan — serta mencatat <b>setiap scene yang menyusunnya</b> (id, tanggal, %&nbsp;awan) pada <code>images_used</code> di <code>stats.json</code>. Jumlah scene saja tidak bisa diperiksa maupun direproduksi; id-nya bisa. Pakai <code>--no-preview</code> untuk melewati keduanya.</p>
   <p class="en">You pick a <b>scenario</b> (what kind of change) and a <b>location</b> (a coordinate). The tool selects the right remote-sensing method automatically. No prior GIS coding required.</p>
   <p class="id">Anda memilih <b>skenario</b> (jenis perubahan) dan <b>lokasi</b> (koordinat). Alat memilih metode penginderaan jauh yang tepat secara otomatis. Tanpa perlu pengalaman pemrograman GIS.</p>
 
@@ -279,7 +281,8 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
     <tr><td><code>…_&lt;name&gt;.png</code></td><td><span class="en">Coloured quick-look</span><span class="id">Pratinjau berwarna</span></td><td><span class="en">Any image viewer</span><span class="id">Penampil gambar apa saja</span></td></tr>
     <tr><td><code>…_&lt;name&gt;.tif</code></td><td><span class="en">Full-resolution, georeferenced GeoTIFF (EPSG:4326)</span><span class="id">GeoTIFF resolusi penuh tergeoreferensi (EPSG:4326)</span></td><td>QGIS, ArcGIS, rasterio</td></tr>
     <tr><td><code>…_map.pdf</code> / <code>.png</code></td><td><span class="en">Value-added map (with <code>--map</code>)</span><span class="id">Peta value-added (dengan <code>--map</code>)</span></td><td>PDF / image viewer</td></tr>
-    <tr><td><code>stats.json</code></td><td><span class="en">Statistics: % area affected, mean Δ, scene counts</span><span class="id">Statistik: % area terdampak, rerata Δ, jumlah scene</span></td><td><span class="en">Any text editor</span><span class="id">Editor teks apa saja</span></td></tr>
+    <tr><td><code>…_preview_pre_&lt;name&gt;.png</code><br><code>…_preview_post_&lt;name&gt;.png</code></td><td><span class="en">SWIR false-colour quick-look of each source composite (optical scenarios; <code>--no-preview</code> to skip)</span><span class="id">Pratinjau warna semu SWIR untuk tiap komposit sumber (skenario optik; <code>--no-preview</code> untuk melewati)</span></td><td><span class="en">Any image viewer</span><span class="id">Penampil gambar apa saja</span></td></tr>
+    <tr><td><code>stats.json</code></td><td><span class="en">Statistics: % area affected, mean Δ, scene counts, and <code>images_used</code> — every scene id, date and cloud % behind both composites</span><span class="id">Statistik: % area terdampak, rerata Δ, jumlah scene, dan <code>images_used</code> — id, tanggal dan % awan tiap scene di balik kedua komposit</span></td><td><span class="en">Any text editor</span><span class="id">Editor teks apa saja</span></td></tr>
   </table>
   <div class="callout tip en"><b>Each run gets its own folder.</b> Every run writes to a uniquely-named <code>output/&lt;timestamp&gt;_&lt;scenario&gt;_&lt;name&gt;_&lt;id&gt;/</code> — PNG, GeoTIFF, stats, metadata (and maps) together, so runs never overwrite each other.</div>
   <div class="callout tip id"><b>Tiap run punya folder sendiri.</b> Setiap run menulis ke <code>output/&lt;timestamp&gt;_&lt;skenario&gt;_&lt;nama&gt;_&lt;id&gt;/</code> yang unik — PNG, GeoTIFF, statistik, metadata (dan peta) jadi satu, sehingga antar-run tak saling menimpa.</div>
