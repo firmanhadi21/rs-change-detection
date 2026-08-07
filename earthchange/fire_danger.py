@@ -260,6 +260,59 @@ def _mean(img, aoi, scale=ERA5_SCALE):
     return round(v, 2) if v is not None else None
 
 
+# A field this skewed is not described by its average. Calibrated on Ketapang,
+# 20 October 2019: district DC 51 and "99% low danger", while fire concentrated
+# in a pocket at DC 240 -- 4.7x the mean. Reporting the mean alone would have
+# told a fire agency the district was safe on the most dangerous week tested.
+SKEW_ALERT = 2.0
+
+
+def _spread(img, aoi, scale=ERA5_SCALE):
+    """Mean AND the upper tail. An area mean hides a dry pocket, and the pocket
+    is where the fire goes."""
+    import ee
+    red = (ee.Reducer.mean()
+           .combine(ee.Reducer.percentile([50, 90]), None, True)
+           .combine(ee.Reducer.max(), None, True))
+    got = img.reduceRegion(red, aoi, scale, maxPixels=int(1e10),
+                           bestEffort=True).getInfo()
+    out = {}
+    for key, name in (("mean", "mean"), ("p50", "p50"), ("p90", "p90"),
+                      ("max", "max")):
+        v = next((v for k, v in got.items() if k.endswith(name)), None)
+        out[key] = round(v, 2) if v is not None else None
+    m, p90 = out["mean"], out["p90"]
+    out["skew"] = round(p90 / m, 2) if m and p90 and m > 0 else None
+    return out
+
+
+def _pocket(img, aoi, p90, scale=ERA5_SCALE):
+    """Where the driest tenth of the AOI actually is.
+
+    A number the reader cannot locate is not actionable; this returns the
+    centroid and extent of the area above the 90th percentile.
+    """
+    import ee
+    if p90 is None:
+        return None
+    hot = img.gte(p90).selfMask()
+    try:
+        area = hot.multiply(ee.Image.pixelArea()).divide(1e4).reduceRegion(
+            ee.Reducer.sum(), aoi, scale, maxPixels=int(1e10),
+            bestEffort=True).values().get(0)
+        cen = (hot.toInt().reduceToVectors(
+            geometry=aoi, scale=scale, geometryType="polygon",
+            maxPixels=int(1e10), bestEffort=True)
+            .geometry().centroid(maxError=1000).coordinates())
+        area, cen = ee.List([area, cen]).getInfo()
+        if not cen:
+            return None
+        return {"threshold": p90, "area_ha": round(area or 0, 1),
+                "centroid_lon": round(cen[0], 3), "centroid_lat": round(cen[1], 3)}
+    except Exception:                                              # noqa: BLE001
+        return None
+
+
 def _class_image(fwi):
     """FWI as a 0-3 class code, on the Indonesia-adapted thresholds.
 
@@ -398,8 +451,10 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
           f"day-length factors: {dl_name}")
 
     codes = _accumulate(aoi, days, noon_h, le, lf)
-    idx = {k: _mean(codes[k], aoi) for k in
-           ("FFMC", "DMC", "DC", "ISI", "BUI", "FWI")}
+    idx = {k: _mean(codes[k], aoi) for k in ("FFMC", "DMC", "ISI")}
+    spread = {k: _spread(codes[k], aoi) for k in ("DC", "BUI", "FWI")}
+    idx.update({k: v["mean"] for k, v in spread.items()})
+    pocket = _pocket(codes["DC"], aoi, spread["DC"]["p90"])
     cls = _class_image(codes["FWI"]).clip(aoi)
     ha, pct = _class_areas(cls, aoi, lang)
 
@@ -424,7 +479,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "date": end_d.isoformat(), "spinup_days": spinup,
         "accumulated_from": days[0].isoformat(),
         "noon_utc_hour": noon_h, "daylength_factors": dl_name,
-        "indices": idx,
+        "indices": idx, "spread": spread, "dry_pocket": pocket,
+        "skewed": bool(spread["DC"]["skew"] and
+                       spread["DC"]["skew"] >= SKEW_ALERT),
         "fwi_class_ha": ha, "fwi_class_pct": pct,
         "sources": {"weather": f"ERA5-Land hourly ({ERA5_HOURLY}), {ERA5_SCALE} m",
                     "system": "Canadian Forest Fire Weather Index, "
@@ -442,11 +499,41 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
 
+    _print_summary(name, end_d, idx, spread, pocket, pct)
+    return stats
+
+
+def _print_summary(name, end_d, idx, spread, pocket, pct):
+    """Report the upper tail beside the mean, always.
+
+    An area mean is the wrong summary for a skewed field, and this one is
+    routinely skewed. Ketapang on 20 October 2019 read DC 51 and "99% low
+    danger" while fire concentrated in a pocket at DC 240; the mean alone would
+    have called the most dangerous week of the three tested safe.
+    """
     print(f"\n{name} — {end_d}")
-    print(f"  DC  {idx['DC']:>8}   (kekeringan lapisan dalam / peat-relevant)")
-    print(f"  BUI {idx['BUI']:>8}   (bahan bakar tersedia)")
-    print(f"  FWI {idx['FWI']:>8}   (indeks keseluruhan)")
+    print(f"  {'':4s} {'rerata':>9s} {'p90':>9s} {'maks':>9s}   ")
+    for code, note in (("DC", "lapisan dalam / gambut"),
+                       ("BUI", "bahan bakar tersedia"),
+                       ("FWI", "indeks keseluruhan")):
+        s = spread[code]
+        print(f"  {code:4s} {s['mean']:>9} {s['p90']:>9} {s['max']:>9}   {note}")
     print(f"  FFMC {idx['FFMC']:>7}  ISI {idx['ISI']:>7}  DMC {idx['DMC']:>7}")
     print("  kelas FWI: " + " · ".join(
         f"{k} {v:.0f}%" for k, v in pct.items() if v > 0))
-    return stats
+
+    skew = spread["DC"]["skew"]
+    if skew and skew >= SKEW_ALERT:
+        print(f"\n  PERHATIAN: sebaran DC sangat timpang (p90 {skew:.1f}x rerata).")
+        print(f"  Rerata wilayah TIDAK mewakili kondisi: sepersepuluh terkering "
+              f"berada di DC >= {spread['DC']['p90']}, sementara rerata "
+              f"{spread['DC']['mean']}.")
+        if pocket:
+            print(f"  Kantong kering: {pocket['area_ha']:,.0f} ha, pusat di "
+                  f"{pocket['centroid_lat']:.3f}, {pocket['centroid_lon']:.3f}")
+        print("  Justru pekan seperti ini yang paling menipu: ringkasan wilayah "
+              "terlihat aman.")
+    elif pocket:
+        print(f"\n  Sepersepuluh terkering: DC >= {spread['DC']['p90']}, "
+              f"{pocket['area_ha']:,.0f} ha, pusat di "
+              f"{pocket['centroid_lat']:.3f}, {pocket['centroid_lon']:.3f}")
