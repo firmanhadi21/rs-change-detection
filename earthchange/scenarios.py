@@ -520,6 +520,13 @@ SCENARIOS = {
         "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
+    "fire-danger": {
+        "label": "Fire danger rating — Canadian FWI System (ERA5-Land)",
+        "method": "fire_danger", "needs": "none",
+        "radius": 60.0,
+        "interpretation": ("DC/BUI memimpin, bukan FWI: kebakaran gambut "
+                           "Indonesia didorong pengeringan lapisan dalam."),
+    },
     "imagery": {
         "label": "Imagery — source GeoTIFF + previews, no change detection",
         "run": run_imagery,

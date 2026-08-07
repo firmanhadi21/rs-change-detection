@@ -467,6 +467,14 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
+    if method == "fire_danger":
+        from . import fire_danger
+        fire_danger.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                        config_key=ee_key, end=args.fdrs_end,
+                        admin=args.admin, bbox=args.bbox,
+                        spinup=args.spinup, lang=args.lang)
+        return True
+
     if method == "island-heat":
         from . import island_heat
         island_heat.run(args.backend, lat, lon, radius, name, run_dir, run_id,
@@ -520,6 +528,16 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--fdrs-end", metavar="YYYY-MM-DD",
+                    help="fire-danger: the day to rate (default: the freshest "
+                         "complete ERA5-Land day, ~6 days back)")
+    ap.add_argument("--spinup", type=int, default=60, metavar="DAYS",
+                    help="fire-danger: days of accumulation before the rated "
+                         "day (default 60). The moisture codes are cumulative "
+                         "and DC has a ~52-day time lag, so a shorter run "
+                         "reports the starting constant rather than the site; "
+                         "60 is the practical minimum, 90+ is safer after a "
+                         "long dry spell")
     ap.add_argument("--min-obs", type=int, default=2, metavar="N",
                     help="optical scenarios: only report change where BOTH "
                          "windows have at least N cloud-free looks at that "
