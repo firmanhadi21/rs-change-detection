@@ -49,15 +49,37 @@ DC_LF_N = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, 6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
 DMC_LE_EQ, DC_LF_EQ = 9.0, 1.4        # equatorial convention
 TROPIC = 15.0                          # |lat| below this -> equatorial factors
 
-# FWI danger classes as adapted for Indonesia (BMKG SPBK / ASEAN). These are far
-# lower than the Canadian thresholds; quoting Canadian classes over Sumatra or
-# Kalimantan would call a dangerous day "low".
-FWI_CLASSES = [
-    (1.0, {"id": "Rendah", "en": "Low"}, "#2e9e4f"),
-    (6.0, {"id": "Sedang", "en": "Moderate"}, "#2f7fd1"),
-    (13.0, {"id": "Tinggi", "en": "High"}, "#e8a33d"),
-    (float("inf"), {"id": "Ekstrem", "en": "Extreme"}, "#d1372f"),
-]
+# Operational danger classes exactly as published by BMKG on SPARTAN (Sistem
+# Peringatan Dini Kebakaran Hutan dan Lahan), taken from its own map legend.
+# They sit far below the Canadian thresholds -- Canadian classes over Sumatra or
+# Kalimantan would call a dangerous day "low" -- and matching BMKG's breakpoints
+# means a run here can be laid straight beside the map Indonesian users consult.
+# Colours follow SPARTAN too: blue, green, yellow, red.
+BMKG_COLOURS = ["#2f7fd1", "#4caf50", "#f5e642", "#e03131"]
+BMKG_NAMES = [{"id": "Rendah", "en": "Low"},
+              {"id": "Sedang", "en": "Moderate"},
+              {"id": "Tinggi", "en": "High"},
+              {"id": "Ekstrem", "en": "Extreme"}]
+BMKG_BREAKS = {
+    "FFMC": [73, 78, 82],
+    "DMC": [5, 15, 29],
+    "DC": [141, 261, 350],
+    "BUI": [7, 20, 33],
+    "ISI": [2, 4, 5],
+    "FWI": [2, 7, 13],
+}
+
+
+def _classes(code):
+    """(upper bound, names, colour) rows for one code, on the BMKG breaks."""
+    b = BMKG_BREAKS[code]
+    return [(b[0], BMKG_NAMES[0], BMKG_COLOURS[0]),
+            (b[1], BMKG_NAMES[1], BMKG_COLOURS[1]),
+            (b[2], BMKG_NAMES[2], BMKG_COLOURS[2]),
+            (float("inf"), BMKG_NAMES[3], BMKG_COLOURS[3])]
+
+
+FWI_CLASSES = _classes("FWI")
 NODATA = 255
 
 
@@ -328,6 +350,35 @@ def _class_image(fwi):
     return out.updateMask(fwi.mask()).rename("class").toByte()
 
 
+def _code_class_image(img, code):
+    """Any code as a 0-3 class on its own BMKG breaks. Masked to real data --
+    ERA5-Land is land-only, and an unmasked constant would file every sea pixel
+    under the lowest danger class."""
+    import ee
+    rows = _classes(code)
+    out = ee.Image(0)
+    for i, (hi, _, _) in enumerate(rows[:-1]):
+        out = out.where(img.gte(hi), i + 1)
+    return out.updateMask(img.mask()).rename("class").toByte()
+
+
+def _code_class_pct(img, code, aoi, lang):
+    """Share of AOI land area in each BMKG class, for one code."""
+    import ee
+    labels = [_label(r, lang) for r in _classes(code)]
+    cls = _code_class_image(img, code)
+    got = (ee.Image.pixelArea().divide(1e4).addBands(cls).reduceRegion(
+        ee.Reducer.sum().group(groupField=1, groupName="c"), aoi, ERA5_SCALE,
+        maxPixels=int(1e10), bestEffort=True).getInfo())
+    ha = {lb: 0.0 for lb in labels}
+    for g in got.get("groups", []):
+        i = int(g["c"])
+        if 0 <= i < len(labels):
+            ha[labels[i]] = round(g["sum"], 1)
+    tot = sum(ha.values()) or 1.0
+    return {k: round(v / tot * 100, 1) for k, v in ha.items()}
+
+
 def _class_areas(cls, aoi, lang):
     import ee
     labels = [_label(r, lang) for r in FWI_CLASSES]
@@ -524,6 +575,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     pocket = _pocket(codes["DC"], aoi, spread["DC"]["p90"])
     cls = _class_image(codes["FWI"]).clip(aoi)
     ha, pct = _class_areas(cls, aoi, lang)
+    # DC leads this module, so it gets classed too -- on BMKG's own breaks, so
+    # the answer is directly comparable with the SPARTAN map.
+    dc_pct = _code_class_pct(codes["DC"], "DC", aoi, lang)
 
     coords = aoi.bounds().getInfo()["coordinates"]
     xs = [p[0] for p in coords[0]]
@@ -551,7 +605,10 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "indices": idx, "spread": spread, "dry_pocket": pocket,
         "skewed": bool(spread["DC"]["skew"] and
                        spread["DC"]["skew"] >= SKEW_ALERT),
-        "fwi_class_ha": ha, "fwi_class_pct": pct,
+        "fwi_class_ha": ha, "fwi_class_pct": pct, "dc_class_pct": dc_pct,
+        "class_breaks": BMKG_BREAKS,
+        "class_source": ("BMKG SPARTAN (Sistem Peringatan Dini Kebakaran Hutan "
+                         "dan Lahan) operational legend"),
         "sources": {"weather": f"ERA5-Land hourly ({ERA5_HOURLY}), {ERA5_SCALE} m",
                     "system": "Canadian Forest Fire Weather Index, "
                               "Van Wagner (1987) / Van Wagner & Pickett (1985)"},
@@ -568,11 +625,11 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
 
-    _print_summary(name, end_d, idx, spread, pocket, pct)
+    _print_summary(name, end_d, idx, spread, pocket, pct, dc_pct)
     return stats
 
 
-def _print_summary(name, end_d, idx, spread, pocket, pct):
+def _print_summary(name, end_d, idx, spread, pocket, pct, dc_pct):
     """Report the upper tail beside the mean, always.
 
     An area mean is the wrong summary for a skewed field, and this one is
@@ -588,7 +645,12 @@ def _print_summary(name, end_d, idx, spread, pocket, pct):
         s = spread[code]
         print(f"  {code:4s} {s['mean']:>9} {s['p90']:>9} {s['max']:>9}   {note}")
     print(f"  FFMC {idx['FFMC']:>7}  ISI {idx['ISI']:>7}  DMC {idx['DMC']:>7}")
-    print("  kelas FWI: " + " · ".join(
+    print(f"\n  kelas BMKG (SPARTAN) — DC {'/'.join(str(b) for b in BMKG_BREAKS['DC'])}"
+          f", FWI {'/'.join(str(b) for b in BMKG_BREAKS['FWI'])}")
+    if dc_pct:
+        print("  luas per kelas DC : " + " · ".join(
+            f"{k} {v:.0f}%" for k, v in dc_pct.items() if v > 0))
+    print("  luas per kelas FWI: " + " · ".join(
         f"{k} {v:.0f}%" for k, v in pct.items() if v > 0))
 
     skew = spread["DC"]["skew"]
