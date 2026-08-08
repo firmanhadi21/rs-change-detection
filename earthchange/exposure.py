@@ -357,6 +357,161 @@ def _render(run_dir, name, order, tot, labels, days, meta, top=20):
     return out
 
 
+def _district_shapes(districts, tol_m=2000):
+    """District outlines as GeoJSON, simplified enough to draw.
+
+    Simplified server-side before the round trip: full GAUL coastline for a
+    province is tens of megabytes, and at map scale nobody can see the
+    difference between that and a 2 km tolerance.
+    """
+    import ee
+    fc = districts.map(lambda f: ee.Feature(f).simplify(tol_m))
+    return fc.select(["ADM1_NAME", "ADM2_NAME"]).getInfo()["features"]
+
+
+def _draw_choropleth(ax, shapes, recs, cmap, norm, rings, np, MplPoly):
+    """Fill each district by its burden. Returns extents, centroids, count.
+
+    Districts with no record are drawn grey rather than skipped: a hole in the
+    map reads as "no smoke here" when it means "no population data".
+    """
+    xs, ys, cent, drawn = [], [], {}, 0
+    for f in shapes:
+        nm = (f.get("properties") or {}).get("ADM2_NAME")
+        rec = recs.get(nm)
+        col = (cmap(norm(rec["person_days_unhealthy"] / 1e6)) if rec
+               else "#e9e9e6")
+        biggest = None
+        for ring in rings(f.get("geometry")):
+            a = np.asarray(ring, dtype="float64")
+            if a.shape[0] < 3:
+                continue
+            ax.add_patch(MplPoly(a, closed=True, facecolor=col,
+                                 edgecolor="#7a7a7a", linewidth=.45, zorder=2))
+            xs.extend(a[:, 0].tolist())
+            ys.extend(a[:, 1].tolist())
+            drawn += 1
+            if biggest is None or a.shape[0] > biggest.shape[0]:
+                biggest = a
+        if biggest is not None and nm:
+            cent[nm] = (biggest[:, 0].mean(), biggest[:, 1].mean())
+    return xs, ys, cent, drawn
+
+
+def _render_map(run_dir, name, recs, tot, meta, shapes, lang):
+    """Where the burden fell, and how many vulnerable people live there.
+
+    Drawn at DISTRICT resolution because that is the resolution of the answer.
+    A smooth surface would imply the 44 km smoke field knows something about
+    individual villages, which it does not. Circle area is proportional to the
+    under-5 and over-65 count, so a small district with many children reads as
+    heavily as a large one with few.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.colors import LinearSegmentedColormap, Normalize
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Polygon as MplPoly
+
+    from .drought import _rings
+
+    vals = [r["person_days_unhealthy"] / 1e6 for r in recs.values()]
+    if not vals or max(vals) <= 0:
+        return None
+    cmap = LinearSegmentedColormap.from_list(
+        "burden", ["#f7f7f4", "#fee8c8", "#fdbb84", "#e34a33", "#7f0000"])
+    norm = Normalize(0, max(vals))
+
+    fig, ax = plt.subplots(figsize=(14, 11), dpi=160)
+    fig.patch.set_facecolor("#faf8f4")
+    xs, ys, cent, drawn = _draw_choropleth(ax, shapes, recs, cmap, norm,
+                                           _rings, np, MplPoly)
+    if not drawn:
+        plt.close(fig)
+        return None
+
+    # Circles at district centroids, area proportional to vulnerable people.
+    top = sorted(recs.items(), key=lambda kv: -kv[1]["person_days_unhealthy"])
+    vmax = max((r["under5"] + r["over65"]) for _, r in top) or 1
+    # Circles only where there was exposure. Drawing one over every district
+    # scattered them across a clean interior and read as coverage rather than
+    # burden.
+    for nm, r in top:
+        c = cent.get(nm)
+        if not c or r["person_days_unhealthy"] <= 0:
+            continue
+        vul = r["under5"] + r["over65"]
+        ax.scatter(c[0], c[1], s=40 + 900 * (vul / vmax), facecolor="none",
+                   edgecolor="#1b3a6b", linewidth=1.3, zorder=4)
+
+    # Greedy de-collision: names in this region repeat ("Pontianak" and "Kota
+    # Pontianak" sit almost on top of each other), so a label is nudged up or
+    # down and dropped entirely if it still cannot find room.
+    placed, span_y = [], (max(ys) - min(ys)) or 1.0
+    minsep = span_y * 0.035
+    for nm, r in top[:10]:
+        c = cent.get(nm)
+        if not c or r["person_days_unhealthy"] <= 0:
+            continue
+        for dy in (0.0, minsep, -minsep, 2 * minsep, -2 * minsep):
+            y = c[1] + dy
+            if all(abs(y - py) > minsep or abs(c[0] - px) > span_y * .08
+                   for px, py in placed):
+                ax.annotate(nm, (c[0], y), fontsize=8.5, fontweight="bold",
+                            zorder=5, color="#12233f", ha="center", va="center",
+                            bbox=dict(boxstyle="round,pad=0.15", fc="#faf8f4",
+                                      ec="none", alpha=.75))
+                placed.append((c[0], y))
+                break
+
+    pad_x = (max(xs) - min(xs)) * .03
+    pad_y = (max(ys) - min(ys)) * .03
+    ax.set_xlim(min(xs) - pad_x, max(xs) + pad_x)
+    ax.set_ylim(min(ys) - pad_y, max(ys) + pad_y)
+    try:
+        import contextily as cx
+        cx.add_basemap(ax, crs="EPSG:4326",
+                       source=cx.providers.CartoDB.PositronNoLabels,
+                       attribution_size=5, zorder=1)
+    except Exception as exc:                                       # noqa: BLE001
+        print(f"  (basemap skipped: {exc.__class__.__name__})")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_aspect("equal", adjustable="box")
+    for s in ax.spines.values():
+        s.set_visible(False)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cb = plt.colorbar(sm, ax=ax, shrink=.62, pad=.01)
+    cb.set_label("juta person-day ≥ Tidak Sehat", fontsize=9)
+    ref = [0.25, 0.5, 1.0]
+    ax.legend(handles=[Line2D([], [], ls="", marker="o", markerfacecolor="none",
+                              markeredgecolor="#1b3a6b",
+                              markersize=np.sqrt(40 + 900 * q) / 2.2,
+                              label=f"{q*vmax/1000:,.0f} rb balita+lansia")
+                       for q in ref],
+              fontsize=8.5, frameon=False, loc="lower left",
+              labelspacing=1.6, borderpad=1.1)
+    ax.set_title(
+        f"Di mana penduduk terpapar — {name}\n"
+        f"{meta['season'][0]} → {meta['season'][1]} · warna = beban "
+        f"person-day, lingkaran = jumlah balita + lansia",
+        fontsize=13, fontweight="bold", loc="left")
+    fig.text(.008, .015,
+             "PM2.5: CAMS (~44 km), rerata harian per kabupaten — pewarnaan "
+             "pada resolusi kabupaten karena itulah resolusi jawabannya. "
+             "Penduduk: WorldPop 100 m, struktur umur 2020. Kelas ISPU "
+             "PermenLHK P.14/2020. Peta dasar © CartoDB/OpenStreetMap.",
+             fontsize=7.5, color="#777")
+    fig.tight_layout(rect=[0, .04, 1, 1])
+    out = os.path.join(run_dir, f"{name}_exposure_map.png")
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out
+
+
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         season=None, admin=None, bbox=None, pop_year=None, lang="id"):
     """Retrospective smoke exposure by district."""
@@ -411,6 +566,13 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     md = _write_report(os.path.join(run_dir, f"{name}_exposure.md"),
                        order, tot, labels, meta)
     png = _render(run_dir, name, order, tot, labels, days, meta)
+    print("  fetching district outlines for the map ...", flush=True)
+    try:
+        shapes = _district_shapes(districts)
+        mp = _render_map(run_dir, name, recs, tot, meta, shapes, lang)
+    except Exception as exc:                                       # noqa: BLE001
+        print(f"  (map skipped: {str(exc)[:70]})")
+        mp = None
     stats = {"run_id": run_id, "scenario": "smoke-exposure", "name": name,
              **meta, "ispu_breaks": BREAKS, "totals": tot,
              "districts": recs,
@@ -419,7 +581,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                                        f"{WORLDPOP_AGE} 2020 age structure",
                          "boundaries": GAUL2},
              "outputs": {"report": os.path.basename(md),
-                         "figure": os.path.basename(png) if png else None},
+                         "figure": os.path.basename(png) if png else None,
+                         "map": os.path.basename(mp) if mp else None},
              "note": ("Person-days of outdoor concentration, not a health "
                       "outcome. A whole district is counted in one ISPU class "
                       "per day because CAMS at 44 km is coarser than most "
