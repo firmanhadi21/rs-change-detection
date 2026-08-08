@@ -467,6 +467,17 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
+    if method == "smoke_video":
+        from . import smoke_video
+        sv_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        smoke_video.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                        bbox=sv_bbox, admin=args.admin, size=args.video_size,
+                        firms_region=args.firms_region,
+                        title=args.video_title, subtitle=args.video_subtitle,
+                        cities=args.video_cities,
+                        keep=not args.video_clean)
+        return True
+
     if method == "fire_record":
         from . import fire_record
         fr_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
@@ -544,6 +555,27 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--video-size", type=int, default=1080, metavar="PX",
+                    help="smoke-video: square frame size (default 1080)")
+    ap.add_argument("--firms-region", metavar="NAME",
+                    help="smoke-video: which FIRMS continental 7-day feed to "
+                         "pull (SouthEast_Asia, South_America, Europe, "
+                         "Africa, Australia_NewZealand, …). Guessed from the "
+                         "area if omitted; the feed must cover your bbox or "
+                         "you get no fires at all")
+    ap.add_argument("--video-title", metavar="TEXT",
+                    help="smoke-video: headline text (default 'WILDFIRE SMOKE')")
+    ap.add_argument("--video-subtitle", metavar="TEXT",
+                    help="smoke-video: subtitle; {period} is filled in")
+    ap.add_argument("--video-cities", metavar="LIST",
+                    help="smoke-video: place labels as "
+                         "'Name,lon,lat[,major]; Name,lon,lat'. Not discovered "
+                         "automatically — the geocoding API searches by name and "
+                         "cannot list what falls inside a bbox")
+    ap.add_argument("--video-clean", action="store_true",
+                    help="smoke-video: delete the staged pipeline and frames "
+                         "after encoding. Kept by default so you can re-run a "
+                         "single step or tweak the generated config")
     ap.add_argument("--season", metavar="START:END",
                     help="fire-record: the season to document, "
                          "e.g. 2019-06-01:2019-11-30")

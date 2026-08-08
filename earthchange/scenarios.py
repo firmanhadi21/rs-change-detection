@@ -520,6 +520,13 @@ SCENARIOS = {
         "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
+    "smoke-video": {
+        "label": "Wildfire smoke map video — 3-D terrain + CAMS smoke + FIRMS fires (no GEE)",
+        "method": "smoke_video", "needs": "none",
+        "radius": 150.0,
+        "interpretation": ("Animasi 1080x1080: relief gelap, asap CAMS, "
+                           "titik api VIIRS 7 hari terakhir."),
+    },
     "fire-record": {
         "label": "Fire-season accountability record — danger, hotspots & burned area by zone",
         "method": "fire_record", "needs": "none",
