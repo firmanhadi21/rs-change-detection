@@ -469,10 +469,15 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
 
     if method == "fire_danger":
         from . import fire_danger
+        # --bbox arrives as "w,s,e,n"; _resolve_aoi wants numbers, and passing
+        # the raw string makes Geometry.Rectangle see a list of characters.
+        fd_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
         fire_danger.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                         config_key=ee_key, end=args.fdrs_end,
-                        admin=args.admin, bbox=args.bbox,
-                        spinup=args.spinup, lang=args.lang)
+                        admin=args.admin, bbox=fd_bbox,
+                        spinup=args.spinup, lang=args.lang,
+                        zones=args.zones, zone_field=args.zone_field,
+                        zone_grid=args.zone_grid)
         return True
 
     if method == "island-heat":
@@ -528,6 +533,20 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--zones", metavar="FILE",
+                    help="fire-danger: cross the Drought Code against a "
+                         "polygon layer (GeoPackage/shapefile, EPSG:4326) and "
+                         "report how much of each category sits in each BMKG "
+                         "danger class — e.g. which forest designations are "
+                         "entering dangerous conditions. Needs --zone-field")
+    ap.add_argument("--zone-field", metavar="COLUMN",
+                    help="fire-danger: the attribute to group --zones by, "
+                         "e.g. FUNGSI_HTN for the Indonesian forest "
+                         "designation layer")
+    ap.add_argument("--zone-grid", type=float, default=500.0, metavar="METRES",
+                    help="fire-danger: grid for the --zones cross-tabulation "
+                         "(default 500). Areas are measured on this grid; the "
+                         "danger class still comes from the ~11 km field")
     ap.add_argument("--fdrs-end", metavar="YYYY-MM-DD",
                     help="fire-danger: the day to rate (default: the freshest "
                          "complete ERA5-Land day, ~6 days back)")

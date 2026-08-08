@@ -379,6 +379,139 @@ def _code_class_pct(img, code, aoi, lang):
     return {k: round(v / tot * 100, 1) for k, v in ha.items()}
 
 
+ZONE_GRID_M = 500.0        # grid the zonal cross-tabulation runs on
+ZONE_MAX_CELLS = 80_000_000
+
+
+def _read_zones(path, field, bounds):
+    """Zone polygons clipped to the raster's bounds, as (geometry, code) pairs.
+
+    Read with a bbox filter: these files are national (the Indonesian forest
+    designation layer is 1.1 GB and 147,199 features), and only the AOI is
+    wanted.
+    """
+    try:
+        import geopandas as gpd
+    except ImportError:
+        raise SystemExit("--zones needs geopandas: pip install geopandas")
+    w, s, e, n = bounds
+    gdf = gpd.read_file(path, bbox=(w, s, e, n), engine="pyogrio")
+    if field not in gdf.columns:
+        raise SystemExit(
+            f"--zone-field {field!r} not in {os.path.basename(path)}. "
+            f"Available: {', '.join(c for c in gdf.columns if c != 'geometry')}")
+    if gdf.crs and not gdf.crs.is_geographic:
+        raise SystemExit(
+            f"--zones must be in geographic (lon/lat) coordinates, got "
+            f"{gdf.crs.to_string()[:40]}. Reproject: "
+            f"ogr2ogr -t_srs EPSG:4326 out.gpkg in.gpkg")
+    gdf = gdf[gdf.geometry.notna()].copy()
+    gdf[field] = gdf[field].fillna("(kosong)").astype(str)
+    names = sorted(gdf[field].unique())
+    code = {v: i + 1 for i, v in enumerate(names)}      # 0 stays "outside"
+    return [(g, code[v]) for g, v in zip(gdf.geometry, gdf[field])], names
+
+
+def _zone_breakdown(dc_tif, zones_path, field, lang, grid_m=ZONE_GRID_M):
+    """Cross-tabulate DC danger class against zone category, by area.
+
+    Done on a fine grid rather than the 11 km index grid: the zones are the
+    detailed layer here, and collapsing them to 11 km would erase most of the
+    boundaries the answer depends on. The DC class is carried by NEAREST
+    lookup, never interpolated -- a class code averaged between 1 and 3 would
+    invent a 2 that was never computed.
+    """
+    import math
+    import numpy as np
+    import rasterio
+    from rasterio.features import rasterize
+
+    with rasterio.open(dc_tif) as src:
+        dc = src.read(1, masked=True).astype("float64").filled(np.nan)
+        b, ct, DH, DW = src.bounds, src.transform, src.height, src.width
+
+    shapes, names = _read_zones(zones_path, field, (b.left, b.bottom, b.right, b.top))
+    if not shapes:
+        return None
+    deg = grid_m / 111_000.0
+    w = max(10, int(round((b.right - b.left) / deg)))
+    h = max(10, int(round((b.top - b.bottom) / deg)))
+    if w * h > ZONE_MAX_CELLS:
+        raise SystemExit(f"--zone-grid {grid_m:.0f} m needs {w * h:,} cells "
+                         f"(limit {ZONE_MAX_CELLS:,}); use a coarser grid.")
+    tr = rasterio.transform.from_bounds(b.left, b.bottom, b.right, b.top, w, h)
+    zone = rasterize(shapes, out_shape=(h, w), transform=tr, fill=0,
+                     dtype="int32", all_touched=False)
+
+    breaks = BMKG_BREAKS["DC"]
+    labels = [_label(r, lang) for r in _classes("DC")]
+    m_lat = (math.pi / 180) * 6_371_008.8
+    dlon, dlat = (b.right - b.left) / w, (b.top - b.bottom) / h
+    tab = np.zeros((len(names) + 1, len(labels)))
+
+    lon = b.left + (np.arange(w) + 0.5) * dlon
+    dcol = np.clip(np.floor((lon - ct.c) / ct.a).astype("int64"), 0, DW - 1)
+    for r0 in range(0, h, 512):
+        nrow = min(512, h - r0)
+        lats = b.top - (np.arange(r0, r0 + nrow) + 0.5) * dlat
+        drow = np.clip(np.floor((ct.f - lats) / abs(ct.e)).astype("int64"),
+                       0, DH - 1)
+        px_ha = (dlon * m_lat * np.cos(np.radians(lats))) * (dlat * m_lat) / 1e4
+        for i in range(nrow):
+            zrow = zone[r0 + i]
+            vals = dc[drow[i], dcol]
+            ok = np.isfinite(vals)
+            if not ok.any():
+                continue
+            cls = np.digitize(vals, breaks)          # 0..3 on the BMKG breaks
+            np.add.at(tab, (zrow[ok], cls[ok]), px_ha[i])
+
+    out = {}
+    for i, nm in enumerate(names):
+        row = tab[i + 1]
+        tot = row.sum()
+        if tot <= 0:
+            continue
+        out[nm] = {"total_ha": round(tot, 1),
+                   "ha_by_class": {labels[j]: round(row[j], 1)
+                                   for j in range(len(labels))},
+                   "pct_by_class": {labels[j]: round(row[j] / tot * 100, 1)
+                                    for j in range(len(labels))}}
+    return {"field": field, "grid_m": grid_m, "breaks": breaks, "zones": out}
+
+
+def _try_zones(dc_tif, zones, zone_field, lang, zone_grid):
+    """Zonal breakdown, best effort. A bad path or field is the caller's error
+    and stops the run; anything else only costs this one table."""
+    if not (zones and dc_tif):
+        return None
+    try:
+        return _zone_breakdown(dc_tif, zones, zone_field, lang, zone_grid)
+    except SystemExit:
+        raise
+    except Exception as exc:                                       # noqa: BLE001
+        print(f"  (zonal breakdown skipped: {str(exc)[:70]})")
+        return None
+
+
+def _print_zones(zb, lang):
+    """Zones ranked by how much of them sits in the top DC classes."""
+    if not zb or not zb["zones"]:
+        return
+    labels = [_label(r, lang) for r in _classes("DC")]
+    hi = labels[2:]                      # Tinggi + Ekstrem
+    rows = sorted(zb["zones"].items(),
+                  key=lambda kv: -sum(kv[1]["pct_by_class"][k] for k in hi))
+    print(f"\n  DC per {zb['field']} (grid {zb['grid_m']:.0f} m, "
+          f"ambang {'/'.join(str(b) for b in zb['breaks'])}):")
+    print(f"    {'kawasan':38s} {'luas ha':>12s} " +
+          " ".join(f"{lb[:8]:>9s}" for lb in labels))
+    for nm, d in rows:
+        pct = d["pct_by_class"]
+        print(f"    {nm[:38]:38s} {d['total_ha']:12,.0f} " +
+              " ".join(f"{pct[lb]:8.1f}%" for lb in labels))
+
+
 def _class_areas(cls, aoi, lang):
     import ee
     labels = [_label(r, lang) for r in FWI_CLASSES]
@@ -527,7 +660,8 @@ def _render(run_dir, name, tif, box, meta, kind, lang, spread=None, pocket=None)
 
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
-        end=None, admin=None, bbox=None, spinup=SPINUP_DAYS, lang="id"):
+        end=None, admin=None, bbox=None, spinup=SPINUP_DAYS, lang="id",
+        zones=None, zone_field=None, zone_grid=ZONE_GRID_M):
     """Fire danger rating (Canadian FWI System) from ERA5-Land weather."""
     import datetime as dt
     for mod in ("numpy", "matplotlib", "rasterio"):
@@ -538,6 +672,12 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                              "pip install 'earthchange[maps]'")
     if backend == "mpc":
         raise SystemExit("fire-danger currently needs --backend gee (ERA5-Land).")
+    if zones:
+        if not os.path.exists(zones):
+            raise SystemExit(f"--zones not found: {zones}")
+        if not zone_field:
+            raise SystemExit("--zones needs --zone-field, e.g. "
+                             "--zone-field FUNGSI_HTN")
     if spinup < 30:
         raise SystemExit(
             f"--spinup {spinup} is too short. DC has a ~52-day time lag, so a "
@@ -586,10 +726,13 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     meta = {"date": end_d.isoformat(), "spinup": spinup, "daylength": dl_name}
 
     maps = {}
+    dc_tif = None
     for kind in ("DC", "BUI", "FWI"):
         tif = os.path.join(run_dir, f"{name}_{kind.lower()}.tif")
         got = download_geotiff(codes[kind].clip(aoi).toFloat(), coords, tif,
                                scale=ERA5_SCALE)
+        if got and kind == "DC":
+            dc_tif = got
         if got:
             png = _render(run_dir, name, got, box, meta, kind, lang,
                           spread=spread[kind],
@@ -597,6 +740,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
             maps[kind] = {"map": os.path.basename(png) if png else None,
                           "geotiff": os.path.basename(got)}
 
+    zone_break = _try_zones(dc_tif, zones, zone_field, lang, zone_grid)
     stats = {
         "run_id": run_id, "scenario": "fire-danger", "name": name,
         "date": end_d.isoformat(), "spinup_days": spinup,
@@ -606,6 +750,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "skewed": bool(spread["DC"]["skew"] and
                        spread["DC"]["skew"] >= SKEW_ALERT),
         "fwi_class_ha": ha, "fwi_class_pct": pct, "dc_class_pct": dc_pct,
+        "zones": zone_break,
         "class_breaks": BMKG_BREAKS,
         "class_source": ("BMKG SPARTAN (Sistem Peringatan Dini Kebakaran Hutan "
                          "dan Lahan) operational legend"),
@@ -626,6 +771,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         json.dump(stats, f, indent=2)
 
     _print_summary(name, end_d, idx, spread, pocket, pct, dc_pct)
+    _print_zones(zone_break, lang)
     return stats
 
 
