@@ -14,6 +14,69 @@ import sys
 import requests
 
 
+# A layer with less valid data than this is not a measurement, it is an empty
+# raster wearing one. Below it, read_band() says so instead of handing back
+# numbers that look real.
+MIN_VALID_FRAC = 0.02
+
+
+def read_band(path, band=1, label=None, min_valid=MIN_VALID_FRAC, hard=False):
+    """Read a downloaded band as float64, with EVERY non-finite value masked.
+
+    Earth Engine returns a wholly-masked image as -inf (sometimes NaN) in every
+    pixel. Read with masked=True and .filled(0), that is indistinguishable from
+    a real zero -- and three separate bugs in this package shipped exactly that
+    way: sea counted as low fire danger, a burned-area total of zero hectares,
+    and a coastal reserve missing from an area sum. Each produced a confident
+    wrong number rather than an error, and each was caught by an external check
+    rather than by reading the code.
+
+    Returns (array with NaN where there is no data, valid_fraction). Warns when
+    the layer is effectively empty; raises instead if hard=True, for callers
+    whose output would be meaningless without it.
+    """
+    import numpy as np
+    import rasterio
+
+    with rasterio.open(path) as src:
+        arr = src.read(band, masked=True).astype("float64").filled(np.nan)
+    # posinf and neginf as well as nan: the -inf case is the one that slipped
+    # through, because it survives .filled() and compares quietly as "not > 0".
+    arr[~np.isfinite(arr)] = np.nan
+    valid = float(np.isfinite(arr).mean()) if arr.size else 0.0
+
+    if valid < min_valid:
+        what = label or os.path.basename(path)
+        msg = (f"{what}: only {valid * 100:.2f}% of the raster has data "
+               f"({'wholly masked' if valid == 0 else 'effectively empty'}). "
+               f"Any total from it will read as a real zero.")
+        if hard:
+            raise SystemExit(f"  {msg}")
+        print(f"  WARNING: {msg}")
+    return arr, valid
+
+
+ZONES_NOT_SHIPPED = (
+    "This package does not ship a zone layer, and cannot: forest designation, "
+    "concession and tenure boundaries are national datasets with their own "
+    "licences and their own custodians. You must supply your own.\n"
+    "  For Indonesia the forest designation layer (SK Penunjukan Kawasan "
+    "Hutan, attribute FUNGSI_HTN) comes from KLHK; concession boundaries from "
+    "the relevant ministry or from open datasets you have the right to use.\n"
+    "  Any polygon layer works, in geographic (lon/lat) coordinates, grouped "
+    "by whichever attribute names the responsible party.")
+
+
+def missing_zones(path):
+    """The error for a zone layer that is not there.
+
+    Worth spelling out rather than just reporting a missing path: the docs
+    examples name forest.gpkg, which is one user's local file and will not
+    exist for anyone else.
+    """
+    return SystemExit(f"--zones not found: {path}\n  {ZONES_NOT_SHIPPED}")
+
+
 def _fetch(url, out_path):
     resp = requests.get(url, stream=True)
     resp.raise_for_status()

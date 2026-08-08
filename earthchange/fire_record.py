@@ -153,8 +153,9 @@ def _sample_mean(tif, zone, tr):
     import numpy as np
     import rasterio
 
+    from .gee_utils import read_band
+    a, _ = read_band(tif, label=os.path.basename(tif))
     with rasterio.open(tif) as src:
-        a = src.read(1, masked=True).astype("float64").filled(np.nan)
         ct, H, W = src.transform, src.height, src.width
     h, w = zone.shape
     lon = tr.c + (np.arange(w) + 0.5) * tr.a
@@ -184,14 +185,11 @@ def _sum_native(tif, shapes, aoi_geom):
     import numpy as np
     import rasterio
 
+    from .gee_utils import read_band
     shape, tr = _grid_of(tif)
     zone = _zone_on_grid(shapes, aoi_geom, shape, tr)
-    with rasterio.open(tif) as src:
-        # nan_to_num as well as filled: a wholly-masked GEE download arrives as
-        # -inf, which .filled() leaves untouched and every later comparison
-        # then reads as "not burned" without complaint.
-        a = np.nan_to_num(src.read(1, masked=True).astype("float64").filled(0.0),
-                          nan=0.0, posinf=0.0, neginf=0.0)
+    a, _ = read_band(tif, label=os.path.basename(tif))
+    a = np.nan_to_num(a, nan=0.0)
     out = {}
     for z in np.unique(zone):
         if z == 0:
@@ -205,14 +203,13 @@ def _burned_ha_native(tif, shapes, aoi_geom):
     import numpy as np
     import rasterio
 
+    from .gee_utils import read_band
     shape, tr = _grid_of(tif)
     zone = _zone_on_grid(shapes, aoi_geom, shape, tr)
-    with rasterio.open(tif) as src:
-        # nan_to_num as well as filled: a wholly-masked GEE download arrives as
-        # -inf, which .filled() leaves untouched and every later comparison
-        # then reads as "not burned" without complaint.
-        a = np.nan_to_num(src.read(1, masked=True).astype("float64").filled(0.0),
-                          nan=0.0, posinf=0.0, neginf=0.0)
+    # Burned area is the layer that shipped a confident zero for every zone, so
+    # this one warns loudly rather than quietly returning nothing.
+    a, _ = read_band(tif, label="burned area (MCD64A1)")
+    a = np.nan_to_num(a, nan=0.0)
     px = _px_area_ha(shape, tr)
     burnt = a > 0
     out = {}
@@ -464,7 +461,8 @@ def _check_args(zones, zone_field, season):
                          "— the record is per zone, and without them there is no "
                          "party to attribute anything to.")
     if not os.path.exists(zones):
-        raise SystemExit(f"--zones not found: {zones}")
+        from .gee_utils import missing_zones
+        raise missing_zones(zones)
     if not season or ":" not in season:
         raise SystemExit("fire-record needs --season START:END, "
                          "e.g. --season 2019-06-01:2019-11-30")

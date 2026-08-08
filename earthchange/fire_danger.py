@@ -428,8 +428,9 @@ def _zone_breakdown(dc_tif, zones_path, field, lang, grid_m=ZONE_GRID_M,
     import rasterio
     from rasterio.features import rasterize
 
+    from .gee_utils import read_band
+    dc, _ = read_band(dc_tif, label="Drought Code")
     with rasterio.open(dc_tif) as src:
-        dc = src.read(1, masked=True).astype("float64").filled(np.nan)
         b, ct, DH, DW = src.bounds, src.transform, src.height, src.width
 
     shapes, names = _read_zones(zones_path, field, (b.left, b.bottom, b.right, b.top))
@@ -699,7 +700,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         raise SystemExit("fire-danger currently needs --backend gee (ERA5-Land).")
     if zones:
         if not os.path.exists(zones):
-            raise SystemExit(f"--zones not found: {zones}")
+            from .gee_utils import missing_zones
+            raise missing_zones(zones)
         if not zone_field:
             raise SystemExit("--zones needs --zone-field, e.g. "
                              "--zone-field FUNGSI_HTN")

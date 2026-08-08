@@ -553,11 +553,18 @@ def main():
                          "fortnightly sample loses nothing and a daily one "
                          "costs 15x more")
     ap.add_argument("--zones", metavar="FILE",
-                    help="fire-danger: cross the Drought Code against a "
-                         "polygon layer (GeoPackage/shapefile, EPSG:4326) and "
-                         "report how much of each category sits in each BMKG "
-                         "danger class — e.g. which forest designations are "
-                         "entering dangerous conditions. Needs --zone-field")
+                    help="fire-danger/fire-record: cross the Drought Code "
+                         "against a polygon layer (GeoPackage/shapefile, "
+                         "lon/lat) and report how much of each category sits "
+                         "in each BMKG danger class — e.g. which forest "
+                         "designations are entering dangerous conditions. "
+                         "YOU MUST SUPPLY THIS LAYER: none is bundled, and "
+                         "none can be — designation, concession and tenure "
+                         "boundaries are national datasets with their own "
+                         "licences and custodians. For Indonesia the forest "
+                         "designation layer (SK Penunjukan Kawasan Hutan, "
+                         "attribute FUNGSI_HTN) comes from KLHK. Needs "
+                         "--zone-field")
     ap.add_argument("--zone-field", metavar="COLUMN",
                     help="fire-danger: the attribute to group --zones by, "
                          "e.g. FUNGSI_HTN for the Indonesian forest "
