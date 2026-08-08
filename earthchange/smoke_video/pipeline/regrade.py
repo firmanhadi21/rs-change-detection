@@ -10,7 +10,17 @@ from config import DATA, WIDTH, HEIGHT
 raw = np.asarray(I.open(DATA / "terrain_raw.png").convert("RGB"), dtype=np.float32) / 255.0
 lum = raw @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
 
-dem = np.clip(np.load(DATA / "dem_mercator.npy"), 0, 2400)
+
+def _dem_ceiling(default=2400.0):
+    """Same ceiling render_basemap used, so land/sea grading matches the relief."""
+    try:
+        parts = (DATA / "dem_meta.txt").read_text().split()
+        return float(parts[3]) if len(parts) > 3 else default
+    except Exception:                                              # noqa: BLE001
+        return default
+
+
+dem = np.clip(np.load(DATA / "dem_mercator.npy"), 0, _dem_ceiling())
 dfull = np.asarray(I.fromarray(dem).resize((WIDTH, HEIGHT), I.Resampling.BILINEAR), dtype=np.float32)
 sea = dfull <= 0.0
 

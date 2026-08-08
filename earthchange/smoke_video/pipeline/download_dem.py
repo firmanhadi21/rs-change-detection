@@ -7,7 +7,23 @@ from PIL import Image
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 from config import DATA, LON_MIN, LON_MAX, LAT_MIN, LAT_MAX
 
-Z = 10
+def _zoom_for(span_deg, target_px=3000, lo=8, hi=14):
+    """Tile zoom giving roughly target_px across the bbox.
+
+    Was fixed at 10, which suits a ~3-degree box and leaves a 0.36-degree one
+    mushy. The rule reproduces both known-good values: z10 for Ketapang's 3.3
+    degrees, z14 for Bromo's 0.36. Clamped because each step up quadruples the
+    tile count.
+    """
+    z = math.log2(max(target_px, 1) * 360.0 / (256.0 * max(span_deg, 1e-6)))
+    return int(max(lo, min(hi, round(z))))
+
+
+try:
+    from config import DEM_ZOOM as Z            # explicit override wins
+except ImportError:
+    Z = _zoom_for(max(LON_MAX - LON_MIN, LAT_MAX - LAT_MIN))
+print(f"DEM zoom z{Z} for a {max(LON_MAX-LON_MIN, LAT_MAX-LAT_MIN):.3f}° span")
 URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 
 
@@ -53,6 +69,18 @@ crop = mosaic[py0:py1, px0:px1]
 print("mosaic", mosaic.shape, "crop", crop.shape, "elev range", crop.min(), crop.max())
 
 np.save(DATA / "dem_mercator.npy", crop)  # web-mercator pixel grid over bbox
+# Vertical ceiling for the render, from the terrain itself. This was fixed at
+# 2400 m, which is fine for Kalimantan (nothing reaches it) and wrong for a
+# volcano: Semeru is 3669 m, so Bromo's summits were flattened to a plateau.
+# The 99.9th percentile rather than the max, so one spike pixel cannot squash
+# everything else.
+_land = crop[crop > 0]
+_ceil = float(np.percentile(_land, 99.9)) if _land.size else 1200.0
+_ceil = max(1200.0, round(_ceil / 100.0) * 100.0)
+print(f"DEM ceiling {_ceil:.0f} m (terrain max {crop.max():.0f} m)")
+
 with open(DATA / "dem_meta.txt", "w") as f:
-    f.write(f"{crop.shape[1]} {crop.shape[0]}\n")
+    # Fields: width height zoom ceiling. render_basemap.py and regrade.py both
+    # read this; importing this module to get them would re-run the download.
+    f.write(f"{crop.shape[1]} {crop.shape[0]} {Z} {_ceil:.0f}\n")
 print("saved")

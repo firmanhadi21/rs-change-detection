@@ -14,6 +14,13 @@ sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 from config import (DATA, FRAMES, WIDTH, HEIGHT, LON_MIN, LON_MAX, LAT_MIN, LAT_MAX,
                     CITIES, TITLE, SUBTITLE)
 
+# Optional in generated configs; absent in hand-written ones from before this
+# was a parameter. Region names cannot be derived from a bounding box.
+try:
+    from config import REGION_LABELS          # (text, lon, lat, is_big)
+except ImportError:
+    REGION_LABELS = []
+
 # ---------- timeline ----------
 # Derived from the downloaded data below: starts at the beginning of the
 # 7-day AOD window, ends at the last fire detection (floored to a 30-min step).
@@ -235,30 +242,66 @@ def draw_text_shadow(d, xy, text, font, fill, anchor="la", shadow=(0, 0, 0), sof
     d.text((xy[0] + soff, xy[1] + soff), text, font=font, fill=shadow, anchor=anchor)
     d.text(xy, text, font=font, fill=fill, anchor=anchor)
 
+# ---------- geometry-derived cartography ----------
+def tick_step(span):
+    """A round graticule interval giving roughly 3-6 lines across the frame.
+
+    Chosen so a 2.7-degree bbox still gets whole-degree ticks as before, while a
+    0.36-degree one gets 0.1 instead of nothing.
+    """
+    for s in (10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005):
+        if span / s >= 2.5:
+            return s
+    return 0.002
+
+
+def fmt_deg(v, step):
+    """Enough decimals for the step, and no more."""
+    dec = 0 if step >= 1 else (1 if step >= 0.1 else 2)
+    return f"{v:.{dec}f}"
+
+
+def nice_km(span_km, frac=0.28):
+    """A round scale-bar length near `frac` of the frame width."""
+    target = span_km * frac
+    for v in (1000, 500, 200, 100, 50, 25, 20, 10, 5, 2, 1):
+        if v <= target:
+            return v
+    return 1
+
+
+def _graticule(d):
+    lon_step = tick_step(LON_MAX - LON_MIN)
+    for lon in np.arange(math.ceil(LON_MIN / lon_step) * lon_step,
+                         LON_MAX + 1e-9, lon_step):
+        x, _ = to_px(lon, 0)
+        d.line([(x, 0), (x, HEIGHT)], fill=(255, 255, 255, 14), width=1)
+        d.text((x + 5, HEIGHT - 22), ascii_safe(f"{fmt_deg(lon, lon_step)}°E"),
+               font=F_TICK, fill=(*GREY, 150))
+    lat_step = tick_step(LAT_MAX - LAT_MIN)
+    for lat in np.arange(math.ceil(LAT_MIN / lat_step) * lat_step,
+                         LAT_MAX + 1e-9, lat_step):
+        _, y = to_px(0, lat)
+        d.line([(0, y), (WIDTH, y)], fill=(255, 255, 255, 14), width=1)
+        lab = ("0°" if abs(lat) < 1e-9
+               else f"{fmt_deg(abs(lat), lat_step)}°{'S' if lat < 0 else 'N'}")
+        d.text((8, y + 4), ascii_safe(lab), font=F_TICK, fill=(*GREY, 150))
+
+
+def _labels(d):
+    for txt, lon, lat, big in REGION_LABELS:
+        x, y = to_px(lon, lat)
+        d.text((x, y), spaced(txt) if big else txt,
+               font=F_SEA if big else F_REGION,
+               fill=(*GREY, 120 if big else 100), anchor="mm", align="center")
+
+
 # ---------- static overlay (graticule, labels, furniture skeleton) ----------
 def build_static_overlay():
     img = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-
-    # graticule
-    for lon in range(109, 112):
-        x, _ = to_px(lon, 0)
-        d.line([(x, 0), (x, HEIGHT)], fill=(255, 255, 255, 14), width=1)
-        d.text((x + 5, HEIGHT - 22), ascii_safe(f"{lon}°E"), font=F_TICK, fill=(*GREY, 150))
-    for lat in [-3, -2, -1, 0]:
-        _, y = to_px(0, lat)
-        d.line([(0, y), (WIDTH, y)], fill=(255, 255, 255, 14), width=1)
-        lab = "0°" if lat == 0 else f"{-lat}°S"
-        d.text((8, y + 4), ascii_safe(lab), font=F_TICK, fill=(*GREY, 150))
-
-    # sea + region labels
-    x, y = to_px(108.95, -0.75)
-    d.text((x, y), spaced("KARIMATA"), font=F_SEA, fill=(*GREY, 120), anchor="mm")
-    d.text((x, y + 26), spaced("STRAIT"), font=F_SEA, fill=(*GREY, 120), anchor="mm")
-    x, y = to_px(110.85, -0.62)
-    d.text((x, y), spaced("KALIMANTAN BARAT", gap=""), font=F_REGION, fill=(*GREY, 105), anchor="mm")
-    x, y = to_px(111.35, -2.35)
-    d.text((x, y), "KALIMANTAN\nTENGAH", font=F_REGION, fill=(*GREY, 95), anchor="mm", align="center")
+    _graticule(d)
+    _labels(d)
 
     # cities
     for name, lon, lat, major in CITIES:
@@ -266,9 +309,10 @@ def build_static_overlay():
         r = 4 if major else 3
         d.ellipse([x - r, y - r, x + r, y + r], fill=(*WHITE, 235), outline=(0, 0, 0, 180), width=1)
         f = F_CITY_B if major else F_CITY
-        # label placement: right of dot, except tweaks
+        # Label to the right, unless the dot is near the right edge and the
+        # text would run off. Was a hardcoded list of two Kalimantan town names.
         ax, ay, anchor = x + 9, y - 2, "lm"
-        if name in ("Nanga Pinoh", "Pangkalan Bun"):
+        if x > WIDTH * 0.78:
             ax, anchor = x - 9, "rm"
         draw_text_shadow(d, (ax, ay), name, f, (*WHITE, 240), anchor=anchor)
 
@@ -282,7 +326,11 @@ STATIC = build_static_overlay()
 
 # ---------- scale bar ----------
 def draw_scalebar(d):
-    km = 100
+    # Derived from the frame, not fixed at 100 km. On Bromo's 40 km box a 100 km
+    # bar is two and a half times the frame width and runs off the edge.
+    span_km = (LON_MAX - LON_MIN) * 111.32 * math.cos(
+        math.radians((LAT_MIN + LAT_MAX) / 2))
+    km = nice_km(span_km)
     deg = km / 111.32
     px = deg / (LON_MAX - LON_MIN) * WIDTH
     x0, y0 = 150, HEIGHT - 68

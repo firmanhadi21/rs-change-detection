@@ -98,7 +98,7 @@ def preflight(basemap=True):
             + "\n\n  Everything else installs with: pip install 'earthchange[video]'")
 
 
-def _write_config(work, bbox, cities, title, subtitle, region, size):
+def _write_config(work, bbox, cities, title, subtitle, region, size, labels=None):
     """Generate config.py for this run, instead of editing the shipped one."""
     w, s, e, n = bbox
     lines = [
@@ -121,10 +121,18 @@ def _write_config(work, bbox, cities, title, subtitle, region, size):
         f"TITLE = {title!r}",
         f"SUBTITLE = {subtitle!r}",
         "",
+        "# Graticule spacing, scale bar, DEM zoom and terrain smoothing are all",
+        "# derived from the bbox. Override DEM_ZOOM or TERRAIN_SMOOTH here if a",
+        "# particular landscape wants something else.",
         "CITIES = [",
     ]
     for nm, clon, clat, major in cities:
         lines.append(f"    ({nm!r}, {clon}, {clat}, {bool(major)}),")
+    lines.append("]")
+    lines.append("")
+    lines.append("REGION_LABELS = [   # (text, lon, lat, big)")
+    for txt, rlon, rlat, big in (labels or []):
+        lines.append(f"    ({txt!r}, {rlon}, {rlat}, {bool(big)}),")
     lines.append("]")
     (work / "config.py").write_text("\n".join(lines) + "\n")
 
@@ -146,12 +154,13 @@ def _stage(work):
     return work
 
 
-def _run(work, script, *args, label=""):
+def _run(work, script, *args, label="", env=None):
     """One pipeline step, with this interpreter rather than a bare python3."""
     cmd = ([sys.executable, str(work / script), *args] if script.endswith(".py")
            else ["bash", str(work / script), *args])
     print(f"  {label or script} ...", flush=True)
-    r = subprocess.run(cmd, cwd=str(work))
+    r = subprocess.run(cmd, cwd=str(work),
+                       env={**os.environ, **(env or {})} if env else None)
     if r.returncode != 0:
         raise SystemExit(f"  smoke-video failed at {script} "
                          f"(exit {r.returncode}). The staged pipeline is in "
@@ -194,7 +203,7 @@ def _cities_from(spec, bbox):
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         bbox=None, admin=None, size=1080, firms_region=None, title=None,
-        subtitle=None, cities=None, keep=True):
+        subtitle=None, cities=None, labels=None, keep=True):
     """Render the wildfire smoke map video for an area."""
     preflight()
 
@@ -217,10 +226,11 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
     work = _stage(Path(run_dir) / "pipeline")
     places = _cities_from(cities, (w, s, e, n))
+    marks = _cities_from(labels, (w, s, e, n)) if labels else []
     _write_config(work, (w, s, e, n), places,
                   title or "WILDFIRE SMOKE",
                   subtitle or f"{name.upper()} · {{period}} · CAMS + VIIRS",
-                  region, size)
+                  region, size, marks)
 
     print(f"  {name}: bbox {w:.2f},{s:.2f} → {e:.2f},{n:.2f} · "
           f"FIRMS {region} · {size}x{size}")
@@ -237,7 +247,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     _run(work, "render_basemap.py", label="2/5 forge3d terrain")
     _run(work, "regrade.py", label="3/5 dark grade")
     _run(work, "compose.py", "all", label="4/5 frames")
-    _run(work, "encode.sh", label="5/5 encode")
+    slug = "".join(c if c.isalnum() or c in "-_" else "_" for c in name).lower()
+    _run(work, "encode.sh", label="5/5 encode",
+         env={"OUT_NAME": f"{slug}_wildfire_smoke"})
 
     out = work / "out"
     made = sorted(str(p) for p in out.glob("*") if p.suffix in (".mp4", ".gif"))
