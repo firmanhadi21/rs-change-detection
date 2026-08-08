@@ -413,7 +413,8 @@ def _read_zones(path, field, bounds):
     return [(g, code[v]) for g, v in zip(gdf.geometry, gdf[field])], names
 
 
-def _zone_breakdown(dc_tif, zones_path, field, lang, grid_m=ZONE_GRID_M):
+def _zone_breakdown(dc_tif, zones_path, field, lang, grid_m=ZONE_GRID_M,
+                    aoi_geom=None):
     """Cross-tabulate DC danger class against zone category, by area.
 
     Done on a fine grid rather than the 11 km index grid: the zones are the
@@ -443,12 +444,27 @@ def _zone_breakdown(dc_tif, zones_path, field, lang, grid_m=ZONE_GRID_M):
     tr = rasterio.transform.from_bounds(b.left, b.bottom, b.right, b.top, w, h)
     zone = rasterize(shapes, out_shape=(h, w), transform=tr, fill=0,
                      dtype="int32", all_touched=False)
+    # Clip to the AOI polygon at the FINE grid. Relying on the DC field's own
+    # footprint got this wrong twice over: clip() keeps whole 11 km pixels that
+    # merely touch the boundary, so the district spilled outward, while
+    # ERA5-Land being land-only dropped coastal land inside boundary pixels.
+    # Over Ketapang the two errors left the zone areas summing to 107.8% of the
+    # district while understating coastal Cagar Alam by 18%.
+    if aoi_geom is not None:
+        inside = rasterize([(aoi_geom, 1)], out_shape=(h, w), transform=tr,
+                           fill=0, dtype="uint8")
+        zone[inside == 0] = 0
 
     breaks = BMKG_BREAKS["DC"]
     labels = [_label(r, lang) for r in _classes("DC")]
+    nodata_lb = "Tanpa data" if lang != "en" else "No data"
     m_lat = (math.pi / 180) * 6_371_008.8
     dlon, dlat = (b.right - b.left) / w, (b.top - b.bottom) / h
-    tab = np.zeros((len(names) + 1, len(labels)))
+    # One extra column: land inside a zone that the 11 km field does not reach.
+    # Dropping it silently is what made the totals wrong; carrying it makes the
+    # gap visible instead.
+    tab = np.zeros((len(names) + 1, len(labels) + 1))
+    nd = len(labels)
 
     lon = b.left + (np.arange(w) + 0.5) * dlon
     dcol = np.clip(np.floor((lon - ct.c) / ct.a).astype("int64"), 0, DW - 1)
@@ -460,13 +476,14 @@ def _zone_breakdown(dc_tif, zones_path, field, lang, grid_m=ZONE_GRID_M):
         px_ha = (dlon * m_lat * np.cos(np.radians(lats))) * (dlat * m_lat) / 1e4
         for i in range(nrow):
             zrow = zone[r0 + i]
-            vals = dc[drow[i], dcol]
-            ok = np.isfinite(vals)
-            if not ok.any():
+            if not zrow.any():
                 continue
-            cls = np.digitize(vals, breaks)          # 0..3 on the BMKG breaks
-            np.add.at(tab, (zrow[ok], cls[ok]), px_ha[i])
+            vals = dc[drow[i], dcol]
+            cls = np.where(np.isfinite(vals), np.digitize(vals, breaks), nd)
+            np.add.at(tab, (zrow, cls), px_ha[i])
+    tab[0] = 0                                   # outside every zone
 
+    cols = labels + [nodata_lb]
     out = {}
     for i, nm in enumerate(names):
         row = tab[i + 1]
@@ -474,20 +491,24 @@ def _zone_breakdown(dc_tif, zones_path, field, lang, grid_m=ZONE_GRID_M):
         if tot <= 0:
             continue
         out[nm] = {"total_ha": round(tot, 1),
-                   "ha_by_class": {labels[j]: round(row[j], 1)
-                                   for j in range(len(labels))},
-                   "pct_by_class": {labels[j]: round(row[j] / tot * 100, 1)
-                                    for j in range(len(labels))}}
-    return {"field": field, "grid_m": grid_m, "breaks": breaks, "zones": out}
+                   "ha_by_class": {cols[j]: round(row[j], 1)
+                                   for j in range(len(cols))},
+                   "pct_by_class": {cols[j]: round(row[j] / tot * 100, 1)
+                                    for j in range(len(cols))}}
+    return {"field": field, "grid_m": grid_m, "breaks": breaks,
+            "clipped_to_aoi": aoi_geom is not None,
+            "total_ha": round(sum(v["total_ha"] for v in out.values()), 1),
+            "zones": out}
 
 
-def _try_zones(dc_tif, zones, zone_field, lang, zone_grid):
+def _try_zones(dc_tif, zones, zone_field, lang, zone_grid, aoi_geom=None):
     """Zonal breakdown, best effort. A bad path or field is the caller's error
     and stops the run; anything else only costs this one table."""
     if not (zones and dc_tif):
         return None
     try:
-        return _zone_breakdown(dc_tif, zones, zone_field, lang, zone_grid)
+        return _zone_breakdown(dc_tif, zones, zone_field, lang, zone_grid,
+                               aoi_geom)
     except SystemExit:
         raise
     except Exception as exc:                                       # noqa: BLE001
@@ -503,14 +524,17 @@ def _print_zones(zb, lang):
     hi = labels[2:]                      # Tinggi + Ekstrem
     rows = sorted(zb["zones"].items(),
                   key=lambda kv: -sum(kv[1]["pct_by_class"][k] for k in hi))
+    cols = list(next(iter(zb["zones"].values()))["pct_by_class"])
+    clip = "dipotong ke AOI" if zb.get("clipped_to_aoi") else "TIDAK dipotong"
     print(f"\n  DC per {zb['field']} (grid {zb['grid_m']:.0f} m, "
-          f"ambang {'/'.join(str(b) for b in zb['breaks'])}):")
+          f"ambang {'/'.join(str(b) for b in zb['breaks'])}, {clip}):")
     print(f"    {'kawasan':38s} {'luas ha':>12s} " +
-          " ".join(f"{lb[:8]:>9s}" for lb in labels))
+          " ".join(f"{lb[:9]:>10s}" for lb in cols))
     for nm, d in rows:
         pct = d["pct_by_class"]
         print(f"    {nm[:38]:38s} {d['total_ha']:12,.0f} " +
-              " ".join(f"{pct[lb]:8.1f}%" for lb in labels))
+              " ".join(f"{pct[lb]:9.1f}%" for lb in cols))
+    print(f"    {'TOTAL':38s} {zb['total_ha']:12,.0f}")
 
 
 def _class_areas(cls, aoi, lang):
@@ -741,7 +765,11 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
             maps[kind] = {"map": os.path.basename(png) if png else None,
                           "geotiff": os.path.basename(got)}
 
-    zone_break = _try_zones(dc_tif, zones, zone_field, lang, zone_grid)
+    aoi_geom = None
+    if zones and dc_tif:
+        from shapely.geometry import shape as _shp
+        aoi_geom = _shp(aoi.getInfo())
+    zone_break = _try_zones(dc_tif, zones, zone_field, lang, zone_grid, aoi_geom)
     stats = {
         "run_id": run_id, "scenario": "fire-danger", "name": name,
         "date": end_d.isoformat(), "spinup_days": spinup,
