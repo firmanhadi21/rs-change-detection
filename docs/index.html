@@ -135,6 +135,32 @@
     <figcaption><span class="en">A finished product: a deforestation map (Sentinel-2 NDVI change) from one command. Red = vegetation loss.</span><span class="id">Produk jadi: peta deforestasi (perubahan NDVI Sentinel-2) dari satu perintah. Merah = kehilangan vegetasi.</span></figcaption>
   </figure>
 
+  <h2 id="why"><span class="en">Why this exists</span><span class="id">Mengapa perangkat lunak ini ada</span></h2>
+  <p class="en"><b>Satellite data has been free for years. The ability to use it has not.</b> The imagery is there — Sentinel, Landsat, MODIS, decades of it, downloadable by anyone. What stands between those images and an answer is a stack of things that take months to learn: cloud masking, projections, which index suits which question, what threshold deserves to be called "change", and how to turn a raster into a number someone can act on. Yet the people who most need the answer — a district forestry officer, an NGO researcher, a journalist on deadline, a lecturer preparing a class, a student with three months left — are often precisely the people without those months. So the question this package asks is a narrow one: <b>can a single command do the whole thing?</b></p>
+  <p class="id"><b>Data satelit sudah gratis bertahun-tahun. Kemampuan memakainya belum.</b> Citranya ada — Sentinel, Landsat, MODIS, berpuluh tahun, bisa diunduh siapa saja. Yang berdiri di antara citra itu dan sebuah jawaban adalah tumpukan hal yang perlu berbulan-bulan untuk dikuasai: penapisan awan, sistem proyeksi, indeks mana untuk pertanyaan mana, ambang berapa yang pantas disebut "berubah", dan bagaimana mengubah raster menjadi angka yang bisa ditindaklanjuti orang. Sementara mereka yang paling membutuhkan jawabannya — penyuluh kehutanan di kabupaten, peneliti lembaga swadaya, wartawan yang dikejar tenggat, dosen yang menyiapkan kuliah, mahasiswa yang tinggal punya tiga bulan — justru sering kali adalah orang-orang yang tidak punya bulan-bulan itu. Maka pertanyaan yang diajukan paket ini sempit saja: <b>bisakah satu baris perintah mengerjakan seluruhnya?</b></p>
+
+  <h3><span class="en">Objectives</span><span class="id">Tujuan</span></h3>
+  <ul class="en">
+    <li><b>One command, one question.</b> No Earth Engine scripting, no threshold to choose, no projections to manage.</li>
+    <li><b>Calibrated where it runs.</b> Fire danger classes follow BMKG, not Canada. Day-length factors use the equatorial convention, because the standard tables were drawn up for 46°N. Drought Code leads over FWI, because peat fire is driven by deep drying. Air quality uses ISPU. Global tools are calibrated for everywhere, which means for nowhere in particular.</li>
+    <li><b>Outputs you can actually use.</b> A print-ready A4 map sheet, a GeoTIFF that opens straight in QGIS, statistics as JSON, and text in Indonesian and English.</li>
+    <li><b>Your own data, not only global layers.</b> Rice-field boundaries, forest designation, an authoritative peat map — crossed with public satellite data. That is the difference between "West Kalimantan is dry" and "87% of this nature reserve is dry".</li>
+    <li><b>Honest about its limits.</b> Every output states what it cannot tell you. A tool that hides its limits misleads precisely when it is trusted most.</li>
+    <li><b>Free, open and citable.</b> MIT licence, Zenodo DOI.</li>
+  </ul>
+  <ul class="id">
+    <li><b>Satu perintah untuk satu pertanyaan.</b> Tidak perlu menulis skrip Earth Engine, tidak perlu memilih ambang, tidak perlu mengurus proyeksi.</li>
+    <li><b>Dikalibrasi di tempat ia dipakai.</b> Ambang bahaya kebakaran mengikuti BMKG, bukan Kanada. Faktor panjang hari memakai konvensi ekuatorial, karena tabel bakunya disusun untuk 46°LU. Drought Code dipimpinkan di atas FWI, karena kebakaran gambut didorong pengeringan lapisan dalam. Kualitas udara memakai ISPU. Perkakas global dikalibrasi untuk seluruh dunia — yang berarti tidak untuk tempat mana pun secara khusus.</li>
+    <li><b>Keluaran yang benar-benar bisa dipakai.</b> Lembar peta A4 siap cetak, GeoTIFF yang langsung terbuka di QGIS, statistik JSON, teks dwibahasa.</li>
+    <li><b>Data Anda sendiri, bukan hanya data global.</b> Lahan baku sawah, batas fungsi kawasan, peta gambut resmi — disilangkan dengan data satelit publik. Inilah yang membedakan "Kalimantan Barat kering" dari "87% cagar alam ini kering".</li>
+    <li><b>Jujur tentang batasnya.</b> Tiap keluaran menyebutkan apa yang tidak bisa ia katakan. Perangkat yang menyembunyikan batasnya akan menyesatkan tepat pada saat ia paling dipercaya.</li>
+    <li><b>Gratis, terbuka, dapat disitasi.</b> Lisensi MIT, DOI Zenodo.</li>
+  </ul>
+
+  <h3><span class="en">The hope</span><span class="id">Harapan</span></h3>
+  <p class="en">The measure of this package is not downloads. It is whether an analysis that would never have happened, happens — because the person who needed to answer the question no longer had to become a remote sensing specialist first. A lecturer teaches with it. A student finishes a thesis with it. An organisation publishes a number that others can check. A district official sees which areas are drying, before they burn. And a further hope: that people take this approach to their own places. BMKG's thresholds suit Indonesia and nowhere else, but the idea that a tool should be calibrated for where it is used — and should say what it does not know — travels anywhere.</p>
+  <p class="id">Ukuran keberhasilan paket ini bukan jumlah unduhan. Ukurannya adalah apakah ada analisis yang tadinya tidak akan pernah terjadi, akhirnya terjadi — karena orang yang perlu menjawab pertanyaannya tidak lagi harus lebih dulu menjadi ahli penginderaan jauh. Seorang dosen memakainya untuk mengajar. Seorang mahasiswa menyelesaikan skripsinya dengannya. Sebuah lembaga menerbitkan angka yang bisa diperiksa orang lain. Seorang pejabat kabupaten melihat kawasan mana yang sedang mengering, sebelum ia terbakar. Dan harapan yang lebih jauh: bahwa orang mengambil pendekatan ini untuk tempat mereka sendiri. Ambang BMKG hanya cocok untuk Indonesia, tetapi gagasan bahwa sebuah perkakas harus dikalibrasi untuk tempat ia dipakai — dan harus mengatakan apa yang tidak diketahuinya — berlaku di mana saja.</p>
+
   <h2 id="overview">1 · <span class="en">What you'll build</span><span class="id">Yang akan Anda buat</span></h2>
   <p class="en">By the end you'll run a single command like this…</p>
   <p class="id">Di akhir tutorial, Anda menjalankan satu perintah seperti ini…</p>

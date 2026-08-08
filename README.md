@@ -16,6 +16,62 @@ sebagai PNG, GeoTIFF tergeoreferensi, dan statistik.
 Studi kasus unggulan repо ini: **investigasi tambang emas ilegal (PETI) di Capkala**,
 Kalimantan Barat — lengkap sampai video dokumenter (lihat bagian bawah).
 
+## Mengapa perangkat lunak ini ada
+
+Data satelit sudah gratis bertahun-tahun. Kemampuan memakainya belum.
+
+Citranya ada — Sentinel, Landsat, MODIS, berpuluh tahun, bisa diunduh siapa saja.
+Yang berdiri di antara citra itu dan sebuah jawaban adalah tumpukan hal yang perlu
+berbulan-bulan untuk dikuasai: penapisan awan, sistem proyeksi, indeks mana untuk
+pertanyaan mana, ambang berapa yang pantas disebut "berubah", dan bagaimana
+mengubah raster menjadi angka yang bisa ditindaklanjuti orang. Sementara mereka
+yang paling membutuhkan jawabannya — penyuluh kehutanan di kabupaten, peneliti
+lembaga swadaya, wartawan yang dikejar tenggat, dosen yang menyiapkan kuliah,
+mahasiswa yang tinggal punya tiga bulan — justru sering kali adalah orang-orang
+yang tidak punya bulan-bulan itu.
+
+Maka pertanyaan yang diajukan paket ini sempit saja: **bisakah satu baris perintah
+mengerjakan seluruhnya?**
+
+### Tujuan
+
+- **Satu perintah untuk satu pertanyaan.** `earthchange -s deforestation --city
+  "Ketapang" --map` seharusnya cukup. Tidak perlu menulis skrip Earth Engine, tidak
+  perlu memilih ambang, tidak perlu mengurus proyeksi.
+- **Dikalibrasi di tempat ia dipakai.** Ambang kelas bahaya kebakaran mengikuti
+  BMKG, bukan Kanada. Faktor panjang hari memakai konvensi ekuatorial, karena tabel
+  bakunya disusun untuk 46°LU. Drought Code dipimpinkan di atas FWI, karena
+  kebakaran gambut didorong pengeringan lapisan dalam. Kualitas udara memakai ISPU.
+  Perkakas global dikalibrasi untuk seluruh dunia — yang berarti tidak untuk tempat
+  mana pun secara khusus.
+- **Keluaran yang benar-benar bisa dipakai.** Lembar peta A4 siap cetak, GeoTIFF
+  yang langsung terbuka di QGIS, statistik dalam JSON, teks dwibahasa.
+- **Data Anda sendiri, bukan hanya data global.** Lahan baku sawah, batas fungsi
+  kawasan, peta gambut resmi — silangkan dengan data satelit publik. Platform
+  global tidak bisa membaca berkas lokal Anda; inilah yang membedakan "Kalimantan
+  Barat kering" dari "87% cagar alam ini kering".
+- **Jujur tentang batasnya.** Tiap keluaran menyebutkan apa yang tidak bisa ia
+  katakan: MODIS meremehkan kebakaran gambut, ERA5-Land meratakan cuaca pada 11 km,
+  jumlah titik panas bukan luas terbakar. Perangkat yang menyembunyikan batasnya
+  akan menyesatkan tepat pada saat ia paling dipercaya.
+- **Gratis, terbuka, dapat disitasi.** Lisensi MIT, DOI Zenodo.
+
+### Harapan
+
+Ukuran keberhasilan paket ini bukan jumlah unduhan.
+
+Ukurannya adalah apakah ada analisis yang tadinya tidak akan pernah terjadi,
+akhirnya terjadi — karena orang yang perlu menjawab pertanyaannya tidak lagi harus
+lebih dulu menjadi ahli penginderaan jauh. Seorang dosen memakainya untuk mengajar.
+Seorang mahasiswa menyelesaikan skripsinya dengannya. Sebuah lembaga menerbitkan
+angka yang bisa diperiksa orang lain. Seorang pejabat kabupaten melihat kawasan
+mana yang sedang mengering, sebelum ia terbakar.
+
+Dan harapan yang lebih jauh: bahwa orang mengambil pendekatan ini untuk tempat
+mereka sendiri. Ambang BMKG hanya cocok untuk Indonesia, tetapi gagasan bahwa
+sebuah perkakas harus dikalibrasi untuk tempat ia dipakai — dan harus mengatakan
+apa yang tidak diketahuinya — berlaku di mana saja.
+
 > 📚 **Tutorial hands-on (GitHub Pages):** https://firmanhadi21.github.io/rs-change-detection/
 > — panduan langkah demi langkah (dwibahasa 🇮🇩/🇬🇧, ada tombol EN/ID) agar siapa pun bisa memakai & menyesuaikan alat ini.
 
