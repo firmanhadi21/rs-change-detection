@@ -467,6 +467,14 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
+    if method == "smoke_exposure":
+        from . import exposure
+        ex_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        exposure.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                     config_key=ee_key, season=args.season, admin=args.admin,
+                     bbox=ex_bbox, pop_year=args.pop_year, lang=args.lang)
+        return True
+
     if method == "smoke_video":
         from . import smoke_video
         sv_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
@@ -474,7 +482,7 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                         bbox=sv_bbox, admin=args.admin, size=args.video_size,
                         firms_region=args.firms_region,
                         title=args.video_title, subtitle=args.video_subtitle,
-                        cities=args.video_cities,
+                        cities=args.video_cities, labels=args.video_labels,
                         keep=not args.video_clean)
         return True
 
@@ -572,6 +580,11 @@ def main():
                          "'Name,lon,lat[,major]; Name,lon,lat'. Not discovered "
                          "automatically — the geocoding API searches by name and "
                          "cannot list what falls inside a bbox")
+    ap.add_argument("--video-labels", metavar="LIST",
+                    help="smoke-video: region names as "
+                         "'TEXT,lon,lat[,big]; …' — a strait, a caldera, a "
+                         "province. Cannot be derived from a bounding box, so "
+                         "the frame has none unless you name them")
     ap.add_argument("--video-clean", action="store_true",
                     help="smoke-video: delete the staged pipeline and frames "
                          "after encoding. Kept by default so you can re-run a "
@@ -680,7 +693,11 @@ def main():
                     "threshold(s) in metres, comma-separated (default 500; SDG 11.2.1 uses "
                     "500 m for buses, ~1000 m for rail). The first value drives the map.")
     ap.add_argument("--pop-year", type=int, default=2020,
-                    help="transit-access: WorldPop year (2000–2020; default 2020)")
+                    help="transit-access/smoke-exposure: WorldPop year "
+                         "(2000–2020; default 2020). smoke-exposure takes the "
+                         "age structure from 2020 regardless — it is published "
+                         "for that year only — and applies its fractions to "
+                         "this year's totals")
     ap.add_argument("--access-buffer", type=float, default=100.0,
                     help="transit-access: corridor width (m) around served streets for the "
                          "service-area polygon (map only; default 100)")

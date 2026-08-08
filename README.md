@@ -115,6 +115,7 @@ gratis), atau `--site NAMA`.
 
 | Skenario | Metode | Sensor |
 |----------|--------|--------|
+| `smoke-exposure` | Paparan asap: person-day per kelas ISPU per kabupaten/kota, dipilah balita & lansia (WorldPop) → laporan + peta panas kabupaten×hari | CAMS + WorldPop + GAUL |
 | `smoke-video` | Animasi peta asap kebakaran 1080×1080 (MP4+GIF): relief 3-D forge3d, asap CAMS asli, titik api VIIRS 7 hari, penghitung langsung. **Tanpa akun GEE** — semua sumber HTTP publik. Perlu `pip install 'earthchange[video]'` + ffmpeg | CAMS + FIRMS VIIRS + AWS Terrain |
 | `fire-record` | Catatan musim kebakaran per kawasan yang dapat dihitung ulang: lintasan DC, tanggal ambang BMKG terlampaui, titik panas, luas terbakar → catatan Markdown yang dapat disitasi | ERA5-Land + FIRMS + MCD64A1 |
 | `fire-danger` | Peringkat bahaya kebakaran (Sistem FWI Kanada): FFMC/DMC/DC/ISI/BUI/FWI dari cuaca ERA5-Land. DC & BUI memimpin — gambut didorong pengeringan lapisan dalam | ERA5-Land |

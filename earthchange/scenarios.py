@@ -520,6 +520,13 @@ SCENARIOS = {
         "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
+    "smoke-exposure": {
+        "label": "Smoke exposure — person-days by ISPU class, per district, with age split",
+        "method": "smoke_exposure", "needs": "none",
+        "radius": 300.0,
+        "interpretation": ("Berapa orang menghirup udara seburuk apa, "
+                           "berapa lama, dan berapa di antaranya balita/lansia."),
+    },
     "smoke-video": {
         "label": "Wildfire smoke map video — 3-D terrain + CAMS smoke + FIRMS fires (no GEE)",
         "method": "smoke_video", "needs": "none",
