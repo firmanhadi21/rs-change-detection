@@ -59,6 +59,7 @@ gratis), atau `--site NAMA`.
 
 | Skenario | Metode | Sensor |
 |----------|--------|--------|
+| `fire-record` | Catatan musim kebakaran per kawasan yang dapat dihitung ulang: lintasan DC, tanggal ambang BMKG terlampaui, titik panas, luas terbakar → catatan Markdown yang dapat disitasi | ERA5-Land + FIRMS + MCD64A1 |
 | `fire-danger` | Peringkat bahaya kebakaran (Sistem FWI Kanada): FFMC/DMC/DC/ISI/BUI/FWI dari cuaca ERA5-Land. DC & BUI memimpin — gambut didorong pengeringan lapisan dalam | ERA5-Land |
 | `imagery` | Citra saja: GeoTIFF reflektansi 6 band + pratinjau warna alami & SWIR. `--date` satu tanggal atau `START:END` untuk komposit | Sentinel-2 / Landsat |
 | `deforestation` | Kehilangan NDVI (ΔNDVI < ambang) | Sentinel-2 |

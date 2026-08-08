@@ -467,6 +467,17 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
+    if method == "fire_record":
+        from . import fire_record
+        fr_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        fire_record.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                        config_key=ee_key, season=args.season,
+                        admin=args.admin, bbox=fr_bbox,
+                        zones=args.zones, zone_field=args.zone_field,
+                        spinup=args.spinup, step=args.record_step,
+                        grid_m=args.zone_grid, lang=args.lang)
+        return True
+
     if method == "fire_danger":
         from . import fire_danger
         # --bbox arrives as "w,s,e,n"; _resolve_aoi wants numbers, and passing
@@ -533,6 +544,14 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--season", metavar="START:END",
+                    help="fire-record: the season to document, "
+                         "e.g. 2019-06-01:2019-11-30")
+    ap.add_argument("--record-step", type=int, default=15, metavar="DAYS",
+                    help="fire-record: days between Drought Code checkpoints "
+                         "(default 15). DC has a ~52-day time lag, so a "
+                         "fortnightly sample loses nothing and a daily one "
+                         "costs 15x more")
     ap.add_argument("--zones", metavar="FILE",
                     help="fire-danger: cross the Drought Code against a "
                          "polygon layer (GeoPackage/shapefile, EPSG:4326) and "

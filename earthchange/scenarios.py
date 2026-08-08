@@ -520,6 +520,13 @@ SCENARIOS = {
         "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
+    "fire-record": {
+        "label": "Fire-season accountability record — danger, hotspots & burned area by zone",
+        "method": "fire_record", "needs": "none",
+        "radius": 60.0,
+        "interpretation": ("Catatan per kawasan yang dapat dihitung ulang: "
+                           "kapan mengering, di mana terbakar, berapa luasnya."),
+    },
     "fire-danger": {
         "label": "Fire danger rating — Canadian FWI System (ERA5-Land)",
         "method": "fire_danger", "needs": "none",
