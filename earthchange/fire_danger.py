@@ -352,56 +352,123 @@ def _plt():
     return plt
 
 
+# Fixed display ranges, so two runs are comparable. Auto-scaling to each run's
+# own data range made a harmless week render exactly as dramatically as a
+# dangerous one -- fatal for a monitoring product, where the whole point is
+# noticing that this week looks worse than last week. Upper bounds sit above
+# the highest values measured over Indonesian conditions (DC 378, BUI 109,
+# FWI 27); anything beyond is clamped and the map says so.
 RAMPS = {
     "DC": ("Drought Code — kekeringan lapisan organik dalam (gambut)",
-           ["#f7fcf5", "#e5f5e0", "#fee391", "#fe9929", "#d95f0e", "#7f2704"]),
+           ["#f7fcf5", "#e5f5e0", "#fee391", "#fe9929", "#d95f0e", "#7f2704"],
+           (0, 400)),
     "BUI": ("Buildup Index — bahan bakar tersedia",
-            ["#f7fbff", "#deebf7", "#fdd0a2", "#fd8d3c", "#d94801", "#7f2704"]),
+            ["#f7fbff", "#deebf7", "#fdd0a2", "#fd8d3c", "#d94801", "#7f2704"],
+            (0, 120)),
     "FWI": ("Fire Weather Index — intensitas keseluruhan",
-            ["#f7fcf5", "#c7e9c0", "#ffffb2", "#fd8d3c", "#e31a1c", "#800026"]),
+            ["#f7fcf5", "#c7e9c0", "#ffffb2", "#fd8d3c", "#e31a1c", "#800026"],
+            (0, 40)),
 }
 
 
-def _render(run_dir, name, tif, box, meta, kind, lang):
-    """One code as a map. Continuous ramp, because these are indices and the
-    class thresholds only exist for FWI."""
+def _overlays(ax, a, b, box, kind, vmin, spread, pocket):
+    """Admin outlines and the dry pocket. Returns legend handles."""
+    import numpy as np
+    from matplotlib.lines import Line2D
+
+    handles = []
+    try:
+        from .drought import _draw_admin
+        _draw_admin(ax, list(box))
+        handles.append(Line2D([], [], color="#333", lw=.55,
+                              label="batas provinsi (FAO GAUL)"))
+    except Exception as exc:                                       # noqa: BLE001
+        print(f"  (admin boundaries skipped: {exc.__class__.__name__})")
+
+    p90 = (spread or {}).get("p90")
+    if p90 is not None and np.nanmax(a) > p90:
+        ny, nx = a.shape
+        xs = np.linspace(b.left, b.right, nx)
+        ys = np.linspace(b.top, b.bottom, ny)
+        ax.contour(xs, ys, np.nan_to_num(a, nan=vmin), levels=[p90],
+                   colors="#0b3d91", linewidths=1.4, zorder=4)
+        handles.append(Line2D([], [], color="#0b3d91", lw=1.4,
+                              label=f"sepersepuluh terkering ({kind} ≥ {p90:g})"))
+    if pocket:
+        ax.plot(pocket["centroid_lon"], pocket["centroid_lat"], marker="x",
+                ms=11, mew=2.2, color="#0b3d91", zorder=5)
+        handles.append(Line2D([], [], ls="", marker="x", color="#0b3d91",
+                              ms=9, mew=2,
+                              label=f"pusat kantong kering "
+                                    f"({pocket['area_ha']:,.0f} ha)"))
+    return handles
+
+
+def _render(run_dir, name, tif, box, meta, kind, lang, spread=None, pocket=None):
+    """One code as a map: tiles, admin outlines, and the dry pocket marked.
+
+    The pocket is drawn because it is what the run now leads with. Computing a
+    p90 threshold, printing an alert about it and then shipping a map that does
+    not show it leaves the one actionable thing in the text only.
+    """
     import numpy as np
     import rasterio
     plt = _plt()
     from matplotlib.colors import LinearSegmentedColormap
+    from matplotlib.lines import Line2D
 
     with rasterio.open(tif) as src:
         a = src.read(1, masked=True).astype("float64").filled(np.nan)
         b = src.bounds
     if not np.isfinite(a).any():
         return None
-    title, cols = RAMPS[kind]
+    title, cols, (vmin, vmax) = RAMPS[kind]
     cmap = LinearSegmentedColormap.from_list(kind, cols)
     span_x, span_y = box[2] - box[0], box[3] - box[1]
     aspect = span_x / span_y if span_y else 1.0
-    h = min(11.0, max(5.0, 10.0 / max(aspect, .4) + 2.0))
+    h = min(11.0, max(5.0, 10.0 / max(aspect, .4) + 2.2))
     fig, ax = plt.subplots(figsize=(10.5, h), dpi=150)
     fig.patch.set_facecolor("#faf8f4")
-    im = ax.imshow(np.ma.masked_invalid(a), cmap=cmap,
+    ax.set_xlim(box[0], box[2])
+    ax.set_ylim(box[1], box[3])
+    try:
+        import contextily as cx
+        cx.add_basemap(ax, crs="EPSG:4326",
+                       source=cx.providers.CartoDB.Positron,
+                       attribution_size=5, zorder=1)
+    except Exception as exc:                                       # noqa: BLE001
+        print(f"  (basemap skipped: {exc.__class__.__name__})")
+    im = ax.imshow(np.ma.masked_invalid(a), cmap=cmap, vmin=vmin, vmax=vmax,
                    extent=[b.left, b.right, b.bottom, b.top],
-                   interpolation="nearest")
-    plt.colorbar(im, ax=ax, shrink=.72, label=kind)
+                   interpolation="nearest", alpha=.78, zorder=2)
+    cb = plt.colorbar(im, ax=ax, shrink=.72, extend="max")
+    cb.set_label(f"{kind}  (skala tetap {vmin}–{vmax}, agar antar-pekan "
+                 f"bisa dibandingkan)", fontsize=8.5)
+
+    handles = _overlays(ax, a, b, box, kind, vmin, spread, pocket)
     ax.set_xlim(box[0], box[2])
     ax.set_ylim(box[1], box[3])
     ax.set_xticks([])
     ax.set_yticks([])
+    ax.set_aspect("equal", adjustable="box")
     for s in ax.spines.values():
         s.set_visible(False)
-    ax.set_title(f"{title}\n{name} — {meta['date']} · "
-                 f"akumulasi {meta['spinup']} hari · ERA5-Land 11 km",
-                 fontsize=12, fontweight="bold", loc="left")
+    if handles:
+        ax.legend(handles=handles, fontsize=8, frameon=False,
+                  loc="upper center", bbox_to_anchor=(.5, -.01), ncol=3)
+    sub = f"{name} — {meta['date']} · akumulasi {meta['spinup']} hari · ERA5-Land 11 km"
+    if spread and spread.get("skew"):
+        sub += (f" · rerata {spread['mean']} · p90 {spread['p90']} "
+                f"(timpang {spread['skew']:.1f}×)")
+    ax.set_title(f"{title}\n{sub}", fontsize=11.5, fontweight="bold", loc="left")
     fig.text(.01, .015,
              "Sistem Fire Weather Index Kanada (Van Wagner 1987), dihitung dari "
              "ERA5-Land. Faktor panjang hari: " + meta["daylength"] + ". "
              "Ambang kelas FWI mengikuti adaptasi Indonesia (BMKG/ASEAN), bukan "
-             "ambang boreal. Perlu kalibrasi lokal sebelum dipakai operasional.",
+             "ambang boreal. Perlu kalibrasi lokal sebelum dipakai operasional. "
+             "Peta dasar © CartoDB/OpenStreetMap.",
              fontsize=7.5, color="#777", wrap=True)
-    fig.tight_layout(rect=[0, .06, 1, 1])
+    fig.tight_layout(rect=[0, .09, 1, 1])
     out = os.path.join(run_dir, f"{name}_{kind.lower()}.png")
     fig.savefig(out, facecolor=fig.get_facecolor())
     plt.close(fig)
@@ -470,7 +537,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         got = download_geotiff(codes[kind].clip(aoi).toFloat(), coords, tif,
                                scale=ERA5_SCALE)
         if got:
-            png = _render(run_dir, name, got, box, meta, kind, lang)
+            png = _render(run_dir, name, got, box, meta, kind, lang,
+                          spread=spread[kind],
+                          pocket=pocket if kind == "DC" else None)
             maps[kind] = {"map": os.path.basename(png) if png else None,
                           "geotiff": os.path.basename(got)}
 
