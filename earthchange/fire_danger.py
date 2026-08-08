@@ -393,7 +393,8 @@ def _read_zones(path, field, bounds):
     try:
         import geopandas as gpd
     except ImportError:
-        raise SystemExit("--zones needs geopandas: pip install geopandas")
+        raise SystemExit("--zones needs geopandas: "
+                         "pip install 'earthchange[zones]'")
     w, s, e, n = bounds
     gdf = gpd.read_file(path, bbox=(w, s, e, n), engine="pyogrio")
     if field not in gdf.columns:
