@@ -527,6 +527,165 @@ def _write_markdown(path, recs, meta, lang):
     return path
 
 
+def _render_map(run_dir, name, dc_tifs, burn_tif, hs_tifs, shapes, meta, lang):
+    """Where it dried and where it burned, on one page.
+
+    The trajectory figure answers "when", on a shared time axis, and that is
+    deliberate. But it cannot answer "where", and the run already has every
+    layer needed: Drought Code at the peak checkpoint, the hotspots and the
+    burned area, all georeferenced and all on disk. Leaving them undrawn asked
+    the reader to open QGIS to see the other half of their own record.
+
+    Two panels, because they are different claims: a continuous danger field on
+    the left, discrete events on the right.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import rasterio
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.lines import Line2D
+
+    if not dc_tifs:
+        return None
+    peak_day = max(dc_tifs, key=lambda d: _peak_of(dc_tifs[d]))
+    with rasterio.open(dc_tifs[peak_day]) as src:
+        dc = src.read(1).astype("float64")
+        b = src.bounds
+    dc[~np.isfinite(dc)] = np.nan
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, 8.2), dpi=160)
+    fig.patch.set_facecolor("#faf8f4")
+    box = [b.left, b.bottom, b.right, b.top]
+
+    # Left: Drought Code at its seasonal peak, on the BMKG class breaks rather
+    # than a continuous ramp -- the breaks are what an obligation attaches to.
+    breaks = [0] + list(BMKG_BREAKS["DC"]) + [1000]
+    cmap = ListedColormap(["#f7f7d3", "#fdd49e", "#fc8d59", "#b30000"])
+    axes[0].imshow(np.ma.masked_invalid(dc), cmap=cmap,
+                   norm=BoundaryNorm(breaks, cmap.N),
+                   extent=[b.left, b.right, b.bottom, b.top], zorder=2,
+                   interpolation="nearest")
+    axes[0].set_title(f"Drought Code — puncak musim, {peak_day}",
+                      fontsize=11.5, fontweight="bold", loc="left")
+
+    # Right: what actually happened. Burned area as filled cells, hotspots as
+    # the season total per cell, so a reader can see the two disagree.
+    _draw_events(axes[1], hs_tifs, burn_tif)
+    axes[1].set_title("Titik panas FIRMS (musim) & luas terbakar MODIS",
+                      fontsize=11.5, fontweight="bold", loc="left")
+
+    for ax in axes:
+        _draw_zones(ax, shapes)
+        ax.set_xlim(box[0], box[2])
+        ax.set_ylim(box[1], box[3])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_aspect("equal", adjustable="box")
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        try:
+            import contextily as cx
+            cx.add_basemap(ax, crs="EPSG:4326",
+                           source=cx.providers.CartoDB.PositronNoLabels,
+                           attribution_size=5, zorder=1)
+        except Exception:                                          # noqa: BLE001
+            pass
+
+    labels = [_label(r, lang) for r in _classes("DC")]
+    axes[0].legend(handles=[
+        Line2D([], [], marker="s", ls="", markersize=9,
+               markerfacecolor=cmap(i), markeredgecolor="none", label=lb)
+        for i, lb in enumerate(labels)],
+        fontsize=8.5, frameon=False, loc="lower left", ncol=2)
+    axes[1].legend(handles=[
+        Line2D([], [], marker="s", ls="", markersize=9,
+               markerfacecolor="#fc8d59", markeredgecolor="none",
+               label="titik panas"),
+        Line2D([], [], marker="s", ls="", markersize=9,
+               markerfacecolor="#4d004b", markeredgecolor="none",
+               label="terbakar (MODIS)"),
+        Line2D([], [], color="#333", lw=1.0,
+               label=f"batas {meta['zone_field']}")],
+        fontsize=8.5, frameon=False, loc="lower left")
+
+    fig.suptitle(f"Di mana mengering, di mana terbakar — {meta['name']}\n"
+                 f"{meta['season'][0]} → {meta['season'][1]} · "
+                 f"kawasan menurut {meta['zone_field']}",
+                 fontsize=13, fontweight="bold", x=.008, ha="left")
+    fig.text(.008, .015,
+             "Drought Code: Sistem FWI Kanada dari ERA5-Land 11 km, kelas BMKG. "
+             "Titik panas: FIRMS (MODIS ~1 km), piksel-hari sepanjang musim. "
+             "Luas terbakar: MODIS MCD64A1 500 m — batas bawah, meremehkan "
+             "kebakaran gambut. Peta dasar © CartoDB/OpenStreetMap.",
+             fontsize=7.5, color="#777", wrap=True)
+    fig.tight_layout(rect=[0, .04, 1, .93])
+    out = os.path.join(run_dir, f"{name}_fire_record_map.png")
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out
+
+
+def _draw_events(ax, hs_tifs, burn_tif):
+    """Hotspots summed over the season, with burned area over the top.
+
+    Both on one panel on purpose: they routinely disagree, and MODIS burned
+    area under-detects smouldering peat, so seeing hotspots without burn scar is
+    information rather than an error.
+    """
+    import numpy as np
+    import rasterio
+    from matplotlib.colors import ListedColormap
+
+    total, bounds = None, None
+    for t in hs_tifs.values():
+        with rasterio.open(t) as src:
+            a = src.read(1).astype("float64")
+            bounds = src.bounds
+        a[~np.isfinite(a)] = 0
+        total = a if total is None else total + a
+    if total is not None and total.max() > 0:
+        ax.imshow(np.ma.masked_where(total <= 0, total), cmap="YlOrRd",
+                  extent=[bounds.left, bounds.right, bounds.bottom,
+                          bounds.top],
+                  zorder=3, interpolation="nearest")
+
+    if burn_tif and os.path.exists(burn_tif):
+        with rasterio.open(burn_tif) as src:
+            bu = src.read(1).astype("float64")
+            bb = src.bounds
+        ax.imshow(np.ma.masked_where(~(bu > 0), np.ones_like(bu)),
+                  cmap=ListedColormap(["#4d004b"]), alpha=.75,
+                  extent=[bb.left, bb.right, bb.bottom, bb.top],
+                  zorder=4, interpolation="nearest")
+
+
+def _peak_of(tif):
+    """Mean Drought Code in a checkpoint raster, for picking the peak day."""
+    import numpy as np
+    import rasterio
+
+    with rasterio.open(tif) as src:
+        a = src.read(1).astype("float64")
+    a = a[np.isfinite(a)]
+    return float(a.mean()) if a.size else -1.0
+
+
+def _draw_zones(ax, shapes):
+    """Zone outlines, so every panel is readable as 'whose land'."""
+    from shapely.geometry import shape as shp_shape
+
+    for geom, _v in shapes:
+        try:
+            g = shp_shape(geom)
+        except Exception:                                          # noqa: BLE001
+            continue
+        for poly in (g.geoms if g.geom_type.startswith("Multi") else [g]):
+            xs, ys = poly.exterior.xy
+            ax.plot(xs, ys, color="#333", lw=0.6, alpha=.8, zorder=5)
+
+
 def _render(run_dir, name, recs, meta, lang):
     """DC trajectory per zone with hotspots beneath, on one time axis.
 
@@ -684,12 +843,15 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     md = _write_markdown(os.path.join(run_dir, f"{name}_fire_record.md"),
                          recs, meta, lang)
     png = _render(run_dir, name, recs, meta, lang)
+    pmap = _render_map(run_dir, name, dc_tifs, burn_tif, hs_tifs, shapes,
+                       meta, lang)
     stats = {"run_id": run_id, "scenario": "fire-record", "name": name,
              **meta, "class_breaks": BMKG_BREAKS,
              "class_source": "BMKG SPARTAN operational legend",
              "zones": recs,
              "outputs": {"record": os.path.basename(md),
-                         "figure": os.path.basename(png) if png else None},
+                         "figure": os.path.basename(png) if png else None,
+                         "map": os.path.basename(pmap) if pmap else None},
              "note": ("A record, not a forecast. Hotspot counts are pixel-days, "
                       "not area. MODIS burned area under-detects peat fire and "
                       "is a lower bound. The danger class comes from an 11 km "
