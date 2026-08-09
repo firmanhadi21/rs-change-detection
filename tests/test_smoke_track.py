@@ -158,6 +158,46 @@ def test_window_message_backward_shifts_the_other_end():
     assert "2016-06-24" in msg
 
 
+def test_display_box_expands_to_hold_the_paths():
+    """A district-sized AOI with 48 h of travel: every path leaves the frame
+    unless the figure grows to hold them."""
+    aoi = [109.5, -2.5, 110.5, -1.5]                 # roughly Ketapang
+    box = st.display_box(aoi, [107.0, 112.0], [-4.0, 1.0])
+    assert box[0] < 107.0 and box[2] > 112.0
+    assert box[1] < -4.0 and box[3] > 1.0
+
+
+def test_display_box_never_shrinks_below_the_aoi():
+    aoi = [109.0, -2.0, 111.0, 0.0]
+    box = st.display_box(aoi, [110.0], [-1.0])       # paths inside the AOI
+    assert box[0] <= aoi[0] and box[2] >= aoi[2]
+    assert box[1] <= aoi[1] and box[3] >= aoi[3]
+
+
+def test_display_box_ignores_one_runaway_parcel():
+    """Twenty-four parcels together, one 900 km north. The outlier is drawn to
+    the edge and clipped rather than deciding the frame for everyone."""
+    xs = [110.0] * 24 + [110.0]
+    ys = [-1.8] * 24 + [6.0]
+    box = st.display_box([109.5, -2.5, 110.5, -1.5], xs, ys)
+    assert box[3] < 3.0, box
+
+
+def test_display_box_is_not_a_sliver():
+    """Equal-aspect axes plus a tall thin extent renders as a strip down the
+    middle of the page."""
+    box = st.display_box([109.9, -2.0, 110.1, -1.9],
+                         [110.0] * 20, list(range(-10, 10)))
+    w, h = box[2] - box[0], box[3] - box[1]
+    assert 0.5 < (w / h) / st.FIG_ASPECT < 2.0, (w, h)
+
+
+def test_display_box_stays_on_the_globe():
+    box = st.display_box([-179.0, -89.0, 179.0, 89.0], [-179.9], [-89.9])
+    assert box[0] >= -180.0 and box[1] >= -90.0
+    assert box[2] <= 180.0 and box[3] <= 90.0
+
+
 def test_subtitle_with_no_districts():
     cap = st._captions("X", "2019-09-15", 48, {}, "forward", [(0, 0)], None, 48)
     assert "melintasi" not in cap["title"]

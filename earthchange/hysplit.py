@@ -25,11 +25,14 @@ Registration is only needed for forecast dispersion or the source code:
   Linux  https://www.ready.noaa.gov/HYSPLIT_linuxtrial.php
 """
 
+import calendar
 import datetime as dt
 import os
+import re
 import shutil
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 
 ARL_BUCKET = "https://noaa-oar-arl-hysplit-pds.s3.amazonaws.com"
@@ -144,7 +147,72 @@ def met_keys(start, hours, direction="forward"):
     return keys
 
 
-def fetch_met(keys, cache_dir):
+_NAME_RE = re.compile(r"gdas1\.([a-z]{3})(\d{2})\.w(\d)$")
+
+
+def week_end(year, month, week):
+    """Last day a GDAS1 weekly file covers.
+
+    ARL cuts weeks as 1-7, 8-14, 15-21, 22-28 and then w5 for whatever is left,
+    so the fifth file is three days long in February and four in August.
+    """
+    last = calendar.monthrange(year, month)[1]
+    return dt.date(year, month, last if week >= 5 else min(week * 7, last))
+
+
+def _list_prefix(prefix):
+    """Object keys under a prefix in the public ARL bucket."""
+    url = f"{ARL_BUCKET}/?list-type=2&prefix={prefix}"
+    with urllib.request.urlopen(url, timeout=60) as r:
+        body = r.read().decode("utf-8", "replace")
+    return re.findall(r"<Key>([^<]+)</Key>", body)
+
+
+def archive_end():
+    """Newest day GDAS1 actually covers, read from the bucket.
+
+    Not a constant: ARL publishes a weekly file once its week has run, so the
+    end of the archive moves and the current week is always absent.
+    """
+    today = dt.date.today()
+    for year in (today.year, today.year - 1):
+        best = None
+        for key in _list_prefix(f"gdas1/{year}/"):
+            m = _NAME_RE.search(key)
+            if not m:
+                continue
+            mon = MONTHS.index(m.group(1)) + 1
+            end = week_end(2000 + int(m.group(2)), mon, int(m.group(3)))
+            if best is None or end > best:
+                best = end
+        if best:
+            return best
+    return None
+
+
+def availability_message(missing, have_end, hours, direction):
+    """A run the published archive cannot cover, said usefully.
+
+    A bare 404 on a filename nobody recognises is not a usable error. Name the
+    day the archive reaches and the dates that would work instead.
+    """
+    span = dt.timedelta(hours=abs(hours or 0))
+    lines = [f"ARL has not published {missing} yet."]
+    if have_end:
+        lines.append(f"GDAS1 currently reaches {have_end}.")
+        if hours:
+            latest = have_end if direction == "backward" else have_end - span
+            lines.append("")
+            lines.append(f"With --track-hours {abs(hours)}, --date has to be "
+                         f"{latest} or earlier.")
+    lines.append("")
+    lines.append("ARL writes each weekly file once its week has run, so the "
+                 "current week is always missing. For the last few days use "
+                 "smoke-video, which reads live feeds and needs no archive.")
+    return "\n".join(lines)
+
+
+def fetch_met(keys, cache_dir, hours=None, direction="forward"):
     """Download the weekly met files, skipping any already cached.
 
     These are ~571 MiB each and are reused by every run in the same week, so
@@ -158,32 +226,45 @@ def fetch_met(keys, cache_dir):
         if os.path.exists(dest) and os.path.getsize(dest) > 1_000_000:
             print(f"  met cached: {name} "
                   f"({os.path.getsize(dest) / 2**20:.0f} MiB)")
-            out.append(dest)
-            continue
-        url = f"{ARL_BUCKET}/{key}"
-        print(f"  fetching {name} from ARL public S3 …")
-        tmp = dest + ".part"
-        try:
-            with urllib.request.urlopen(url) as r, open(tmp, "wb") as f:
-                total = int(r.headers.get("Content-Length") or 0)
-                got = 0
-                while True:
-                    chunk = r.read(1 << 22)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    got += len(chunk)
-                    if total:
-                        print(f"\r    {got / 2**20:6.0f} / {total / 2**20:.0f} "
-                              f"MiB", end="", flush=True)
-                print()
-        except Exception as exc:                                   # noqa: BLE001
-            if os.path.exists(tmp):
-                os.remove(tmp)
-            raise SystemExit(f"Could not fetch {key} from ARL S3: {exc}")
-        os.replace(tmp, dest)
+        else:
+            _download(key, name, dest, hours, direction)
         out.append(dest)
     return out
+
+
+def _download(key, name, dest, hours, direction):
+    """One weekly file, streamed to a .part and renamed only when complete.
+
+    A half-written file left at the real name would be treated as cached by the
+    next run and handed to HYSPLIT as meteorology.
+    """
+    print(f"  fetching {name} from ARL public S3 …")
+    tmp = dest + ".part"
+    try:
+        with urllib.request.urlopen(f"{ARL_BUCKET}/{key}") as r, \
+                open(tmp, "wb") as f:
+            total = int(r.headers.get("Content-Length") or 0)
+            got = 0
+            while True:
+                chunk = r.read(1 << 22)
+                if not chunk:
+                    break
+                f.write(chunk)
+                got += len(chunk)
+                if total:
+                    print(f"\r    {got / 2**20:6.0f} / {total / 2**20:.0f} MiB",
+                          end="", flush=True)
+            print()
+    except Exception as exc:                                       # noqa: BLE001
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        # A 404 is not a network problem: ARL writes each weekly file only once
+        # its week has run, so the current week is simply not there yet.
+        if isinstance(exc, urllib.error.HTTPError) and exc.code == 404:
+            raise SystemExit(availability_message(name, archive_end(), hours,
+                                                  direction))
+        raise SystemExit(f"Could not fetch {key} from ARL S3: {exc}")
+    os.replace(tmp, dest)
 
 
 def write_control(path, start, points, hours, met_paths, out_dir, out_name,

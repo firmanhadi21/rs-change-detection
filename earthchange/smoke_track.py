@@ -100,6 +100,50 @@ def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl
     }
 
 
+FIG_ASPECT = 13.5 / 11.0        # the figsize _render draws into
+
+
+def display_box(aoi_box, xs, ys, pad=0.10, q=2.0, aspect=FIG_ASPECT):
+    """Frame the trajectories, not just the area the seeds came from.
+
+    Seeding on one district is the natural way to ask "where does Ketapang's
+    smoke go", but the AOI is then district-sized while the parcels travel
+    hundreds of kilometres, so every path leaves the frame and the figure
+    answers nothing.
+
+    Two refinements, both from looking at the result:
+
+      * A percentile rather than min/max. One parcel that runs 900 km north
+        while the other twenty-four stay together should not decide the frame;
+        it is drawn to the edge and clipped, which is the honest treatment of an
+        outlier in a fan whose spread is the point.
+      * Aspect balancing. An equal-aspect axis with a tall thin extent renders
+        as a sliver down the middle of the page with the title running off it.
+    """
+    import numpy as np
+
+    lo_x = min(aoi_box[0], float(np.percentile(xs, q)))
+    hi_x = max(aoi_box[2], float(np.percentile(xs, 100 - q)))
+    lo_y = min(aoi_box[1], float(np.percentile(ys, q)))
+    hi_y = max(aoi_box[3], float(np.percentile(ys, 100 - q)))
+
+    mx = max(hi_x - lo_x, 0.1) * pad
+    my = max(hi_y - lo_y, 0.1) * pad
+    lo_x, hi_x, lo_y, hi_y = lo_x - mx, hi_x + mx, lo_y - my, hi_y + my
+
+    # Grow the short side only -- never crop what was just fitted.
+    w, h = hi_x - lo_x, hi_y - lo_y
+    if w / h < aspect:
+        grow = (h * aspect - w) / 2
+        lo_x, hi_x = lo_x - grow, hi_x + grow
+    else:
+        grow = (w / aspect - h) / 2
+        lo_y, hi_y = lo_y - grow, hi_y + grow
+
+    return [max(lo_x, -180.0), max(lo_y, -90.0),
+            min(hi_x, 180.0), min(hi_y, 90.0)]
+
+
 def _wind_stack(aoi, start, hours, run_dir):
     """Hourly u/v at 100 m as one multi-band GeoTIFF per component.
 
@@ -575,7 +619,8 @@ def _engine_hysplit(seeds, start, hours, run_dir, heights, direction,
     print(f"  HYSPLIT: {exe}")
     signed = -abs(hours) if direction == "backward" else abs(hours)
     cache = met_cache or os.path.expanduser("~/.cache/earthchange/arl")
-    met = hy.fetch_met(hy.met_keys(start, hours, direction), cache)
+    met = hy.fetch_met(hy.met_keys(start, hours, direction), cache,
+                       hours=hours, direction=direction)
 
     pts = [(lat, lon, h) for lon, lat, *_ in seeds for h in heights]
     if len(pts) > 500:
@@ -717,6 +762,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     start = dt.datetime(d0.year, d0.month, d0.day, tzinfo=dt.UTC)
 
     import ee
+    import numpy as np
     from .gee_utils import download_geotiff, initialize_ee
     from .fire_history import _resolve_aoi
     initialize_ee(config_key)
@@ -743,6 +789,13 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     span = dt.timedelta(hours=abs(hours))
     lo, hi = ((start - span, start) if direction == "backward"
               else (start, start + span))
+    # Frame the paths. Done before the backdrop is fetched so the smoke field
+    # covers the whole figure rather than a rectangle in the middle of it.
+    pts = [np.array(t.to_linestring().coords) for t in tc.trajectories]
+    box = display_box(box, np.concatenate([p[:, 0] for p in pts]),
+                      np.concatenate([p[:, 1] for p in pts]))
+    region = ee.Geometry.Rectangle(box)
+
     smoke = os.path.join(run_dir, "_pm25.tif")
     window = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
               .filterDate(lo.isoformat(), hi.isoformat()))
@@ -750,8 +803,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     # mid-2016, and refusing to draw 2015 trajectories over a blank background
     # would withhold the part that still works.
     if window.size().getInfo():
-        img = window.mean().multiply(1e9).clip(aoi)
-        smoke = download_geotiff(img, coords, smoke, scale=44453)
+        img = window.mean().multiply(1e9).clip(region)
+        smoke = download_geotiff(img, region.bounds().getInfo()["coordinates"],
+                                 smoke, scale=44453)
     else:
         print("  (no CAMS PM2.5 for this window — trajectories only)")
         smoke = None
