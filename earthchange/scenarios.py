@@ -520,6 +520,13 @@ SCENARIOS = {
         "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
+    "smoke-track": {
+        "label": "Smoke trajectories — indicative air-parcel paths from the fires",
+        "method": "smoke_track", "needs": "none",
+        "radius": 300.0,
+        "interpretation": ("ILUSTRASI, bukan atribusi: menunjukkan arah angin "
+                           "membawa asap, bukan bukti sumbernya."),
+    },
     "smoke-exposure": {
         "label": "Smoke exposure — person-days by ISPU class, per district, with age split",
         "method": "smoke_exposure", "needs": "none",

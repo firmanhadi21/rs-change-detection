@@ -467,6 +467,15 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
+    if method == "smoke_track":
+        from . import smoke_track
+        tk_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        smoke_track.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                        config_key=ee_key, day=args.date,
+                        hours=args.track_hours, parcels=args.track_parcels,
+                        admin=args.admin, bbox=tk_bbox, lang=args.lang)
+        return True
+
     if method == "smoke_exposure":
         from . import exposure
         ex_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
@@ -563,6 +572,12 @@ def main():
                     help="also render an A4 map layout (PDF + PNG) per product")
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
                     help="map basemap (default osm)")
+    ap.add_argument("--track-hours", type=int, default=48, metavar="H",
+                    help="smoke-track: how far forward to carry the parcels "
+                         "(default 48). Past ~72 h a kinematic path is "
+                         "decorative rather than informative")
+    ap.add_argument("--track-parcels", type=int, default=60, metavar="N",
+                    help="smoke-track: how many fire points to seed (default 60)")
     ap.add_argument("--video-size", type=int, default=1080, metavar="PX",
                     help="smoke-video: square frame size (default 1080)")
     ap.add_argument("--firms-region", metavar="NAME",
