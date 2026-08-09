@@ -29,6 +29,7 @@ import datetime as dt
 import os
 import shutil
 import subprocess
+import sys
 import urllib.request
 
 ARL_BUCKET = "https://noaa-oar-arl-hysplit-pds.s3.amazonaws.com"
@@ -54,6 +55,32 @@ root, or pass --hysplit-bin /path/to/hyts_std.
 
 The meteorology is fetched automatically from public S3 and needs no account.
 Run without --engine hysplit for the kinematic fan, which needs no binary."""
+
+
+# macOS kills unsigned quarantined binaries with SIGKILL and no message at all,
+# which is a miserable thing to debug from the outside: no stdout, no stderr,
+# exit -9. ARL ships HYSPLIT unsigned, so every Mac user who downloads it with a
+# browser hits this. Name it precisely rather than let them guess.
+_QUARANTINE_HELP = """\
+HYSPLIT was killed by macOS before it ran (SIGKILL, no output).
+
+This is not your run and not the model: ARL ships HYSPLIT unsigned, and macOS
+refuses to launch unsigned binaries that carry a download quarantine flag.
+
+Clear the flag on the install, once:
+
+    xattr -dr com.apple.quarantine {root}
+
+Then re-run. To confirm the flag is what is there:
+
+    xattr -l {exe}"""
+
+
+def _install_root(binary):
+    """The HYSPLIT install root, given a path to something in its exec/."""
+    exec_dir = os.path.dirname(os.path.abspath(binary))
+    parent = os.path.dirname(exec_dir)
+    return parent if os.path.basename(exec_dir) == "exec" else exec_dir
 
 
 def find_binary(explicit=None):
@@ -263,13 +290,23 @@ def run_trajectories(binary, start, points, hours, met_paths, work_dir,
     print(f"  running {os.path.basename(binary)} "
           f"({len(points)} start points, {hours:+d} h) …")
     try:
+        # stdin closed on purpose: HYSPLIT prompts interactively when CONTROL is
+        # missing or malformed, so an inherited stdin turns a five-second
+        # mistake into a thirty-minute hang.
         proc = subprocess.run([binary], cwd=work_dir, capture_output=True,
-                              text=True, timeout=1800)
+                              text=True, timeout=1800,
+                              stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         raise SystemExit("HYSPLIT did not finish within 30 minutes.")
+
+    if proc.returncode == -9 and sys.platform == "darwin":
+        raise SystemExit(_QUARANTINE_HELP.format(exe=binary,
+                                                 root=_install_root(binary)))
     tdump = os.path.join(work_dir, out_name)
     if not os.path.exists(tdump):
-        tail = (proc.stdout or proc.stderr or "").strip().splitlines()[-12:]
-        raise SystemExit("HYSPLIT produced no endpoints file.\n  " +
-                         "\n  ".join(tail))
+        tail = ((proc.stdout or "") + (proc.stderr or "")
+                ).strip().splitlines()[-12:]
+        raise SystemExit(
+            f"HYSPLIT produced no endpoints file (exit {proc.returncode}).\n  "
+            + "\n  ".join(tail or ["(no output)"]))
     return read_tdump(tdump)
