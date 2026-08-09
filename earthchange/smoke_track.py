@@ -41,6 +41,48 @@ CAMS_PM25 = "particulate_matter_d_less_than_25_um_surface"
 
 DEFAULT_HOURS = 48
 DEFAULT_PARCELS = 60
+DEFAULT_HEIGHTS = (100.0, 500.0, 1500.0)     # m AGL, HYSPLIT release levels
+
+DEFAULT_CAVEAT = (
+    "ILUSTRASI, BUKAN ATRIBUSI. Parsel dibawa angin ERA5 100 m — level terbaik "
+    "yang tersedia, tetapi asap yang terangkat ke lapisan batas (500–1500 m) "
+    "bergerak lebih cepat dan ke arah berbeda. Tanpa gerak vertikal, tanpa "
+    "dispersi, tanpa deposisi. Untuk klaim yang harus tahan uji, gunakan "
+    "HYSPLIT (--engine hysplit) atau FLEXPART. Latar: PM2.5 CAMS. "
+    "Peta dasar © CartoDB/OpenStreetMap.")
+
+# The HYSPLIT footer is shorter because it has less to apologise for. It still
+# states the configuration, because a trajectory without its met resolution and
+# release height is not reproducible.
+HYSPLIT_CAVEAT = (
+    "Lintasan HYSPLIT (NOAA ARL) dengan meteorologi GDAS1 1° 3-jam; gerak "
+    "vertikal mengikuti medan (opsi 0). Dilepas pada {levels} m di atas "
+    "permukaan — sebaran antar-ketinggian adalah geseran angin yang nyata, "
+    "bukan ketidakpastian. Ini lintasan, bukan dispersi: garis tidak "
+    "menyebar dan tidak mengendap, sehingga melintas ≠ menurunkan asap. "
+    "Latar: PM2.5 CAMS. Peta dasar © CartoDB/OpenStreetMap.")
+
+
+def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl):
+    """Title, subtitle and legend labels, which differ only by direction.
+
+    Backward is not forward with a minus sign: the seeds are receptors, the
+    question is 'where did this air come from', and every label has to say so or
+    the figure quietly asserts the opposite of what it computed.
+    """
+    back = direction == "backward"
+    top = list(crossed.items())[:4]
+    sub = ("melintasi " + ", ".join(f"{k} ({v})" for k, v in top)) if top else ""
+    what = "parsel udara yang tiba pada " if back else "parsel udara dari titik api "
+    span = f"{hours_lbl} jam ke belakang" if back else f"{hours_lbl} jam ke depan"
+    head = "Dari mana asap datang" if back else "Ke mana asap terbawa"
+    return {
+        "title": f"{head} — {name}\n{what}{day}, {span} · {sub}",
+        "seed": seed_label or f"titik api FIRMS {day} — awal parsel ({len(seeds)})",
+        "start": "paling awal" if back else "jam ke-0",
+        "end": ("tiba di reseptor (ujung panah)" if back
+                else f"jam ke-{hours_lbl} (ujung panah)"),
+    }
 
 
 def _wind_stack(aoi, start, hours, run_dir):
@@ -86,6 +128,41 @@ def _seeds(aoi, day, n):
            .sort("first", False).limit(n).getInfo()["features"])
     return [(f["geometry"]["coordinates"][0], f["geometry"]["coordinates"][1])
             for f in pts]
+
+
+def _receptors(aoi, day, n, shapes=None):
+    """Backward-run start points: where the smoke actually was, worst first.
+
+    A backward trajectory is only worth running from somewhere people were
+    breathing. Rather than make the user name receptors, take the districts with
+    the highest CAMS PM2.5 that day and start at their centroids -- which is the
+    same ranking smoke-exposure reports, so the two scenarios line up.
+
+    Returns [(lon, lat, name), ...].
+    """
+    import ee
+    from .exposure import _district_shapes, _districts
+    from shapely.geometry import shape as shp_shape
+
+    a = ee.Date(day.isoformat())
+    pm = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
+          .filterDate(a, a.advance(1, "day")).mean().multiply(1e9)
+          .rename("pm25"))
+    fc = _districts(aoi)
+    stats = pm.reduceRegions(fc, ee.Reducer.mean(), 44453).getInfo()["features"]
+    ranked = sorted(
+        (f for f in stats if f["properties"].get("mean") is not None),
+        key=lambda f: -f["properties"]["mean"])[:n]
+
+    out = []
+    for f in ranked:
+        try:
+            c = shp_shape(f["geometry"]).representative_point()
+        except Exception:                                          # noqa: BLE001
+            continue
+        nm = f["properties"].get("ADM2_NAME") or "?"
+        out.append((c.x, c.y, nm, round(f["properties"]["mean"], 1)))
+    return out
 
 
 def _advect(seeds, up, vp, start, hours, step_min=20):
@@ -197,11 +274,17 @@ def _crossed(tc, shapes, field="ADM2_NAME"):
     return dict(sorted(counts.items(), key=lambda kv: -kv[1]))
 
 
-def _render(run_dir, name, tc, seeds, smoke_tif, box, day, hours, crossed):
+def _render(run_dir, name, tc, seeds, smoke_tif, box, day, hours, crossed,
+            engine="kinematic", direction="forward", caveat=None,
+            seed_label=None):
     """The trajectories over the smoke field they are meant to explain.
 
     A fan of threads, not one bold arrow. The spread IS the message: these are
     plausible paths, and their disagreement is the honest width of the answer.
+
+    Both engines render through here, and that is the point: swapping in HYSPLIT
+    changes the physics and the footnote, not the picture. A reader who has seen
+    one can read the other.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -271,30 +354,21 @@ def _render(run_dir, name, tc, seeds, smoke_tif, box, day, hours, crossed):
     ax.set_aspect("equal", adjustable="box")
     for sp in ax.spines.values():
         sp.set_visible(False)
+    # Even running backward the threads are drawn oldest-first, so the arrow
+    # always points the way the air actually travelled. What changes is which
+    # end was chosen: forward starts at fires, backward starts at receptors.
+    cap = _captions(name, day, hours, crossed, direction, seeds, seed_label,
+                    abs(hours))
     leg = ax.legend(handles=[
-        Line2D([], [], ls="", marker="^", color="#ff3b1f",
-               label=f"titik api FIRMS {day} — awal parsel ({len(seeds)})"),
-        Line2D([], [], color=cmap(.3), lw=2, label="jam ke-0"),
+        Line2D([], [], ls="", marker="^", color="#ff3b1f", label=cap["seed"]),
+        Line2D([], [], color=cmap(.3), lw=2, label=cap["start"]),
         Line2D([], [], color=cmap(.95), lw=2, marker=">",
                markerfacecolor="#ffe9b0", markeredgecolor="#ffe9b0",
-               label=f"jam ke-{hours} (ujung panah)"),
+               label=cap["end"]),
     ], fontsize=9, frameon=False, loc="lower left", labelcolor="#e8e4dc")
     leg.set_zorder(7)
-
-    top = list(crossed.items())[:4]
-    sub = ("melintasi " + ", ".join(f"{k} ({v})" for k, v in top)
-           if top else "")
-    ax.set_title(
-        f"Ke mana asap terbawa — {name}\n"
-        f"parsel udara dari titik api {day}, {hours} jam ke depan · {sub}",
-        fontsize=12.5, fontweight="bold", loc="left")
-    fig.text(.008, .022,
-             "ILUSTRASI, BUKAN ATRIBUSI. Parsel dibawa angin ERA5 100 m — "
-             "level terbaik yang tersedia, tetapi asap yang terangkat ke "
-             "lapisan batas (500–1500 m) bergerak lebih cepat dan ke arah "
-             "berbeda. Tanpa gerak vertikal, tanpa dispersi, tanpa deposisi. "
-             "Untuk klaim yang harus tahan uji, gunakan HYSPLIT/FLEXPART. "
-             "Latar: PM2.5 CAMS. Peta dasar © CartoDB/OpenStreetMap.",
+    ax.set_title(cap["title"], fontsize=12.5, fontweight="bold", loc="left")
+    fig.text(.008, .022, caveat or DEFAULT_CAVEAT,
              fontsize=7.5, color="#777", wrap=True)
     fig.tight_layout(rect=[0, .055, 1, 1])
     out = os.path.join(run_dir, f"{name}_smoke_track.png")
@@ -303,10 +377,119 @@ def _render(run_dir, name, tc, seeds, smoke_tif, box, day, hours, crossed):
     return out
 
 
+def _engine_kinematic(aoi, seeds, start, hours, run_dir):
+    """The no-dependency engine: ERA5 100 m wind, integrated here."""
+    up, vp = _wind_stack(aoi, start, hours, run_dir)
+    if not (up and vp):
+        raise SystemExit("Could not download the ERA5 wind stack.")
+    return _advect([(s[0], s[1]) for s in seeds], up, vp, start, hours)
+
+
+def _engine_hysplit(seeds, start, hours, run_dir, heights, direction,
+                    exe, met_cache=None):
+    """The real engine: NOAA ARL HYSPLIT on GDAS1.
+
+    Every seed is released at several heights, because that is the thing the
+    kinematic engine cannot do and the reason to bother: the spread between
+    release levels is genuine wind shear, not model uncertainty.
+    """
+    from . import hysplit as hy
+
+    print(f"  HYSPLIT: {exe}")
+    signed = -abs(hours) if direction == "backward" else abs(hours)
+    cache = met_cache or os.path.expanduser("~/.cache/earthchange/arl")
+    met = hy.fetch_met(hy.met_keys(start, hours, direction), cache)
+
+    pts = [(lat, lon, h) for lon, lat, *_ in seeds for h in heights]
+    if len(pts) > 500:
+        raise SystemExit(
+            f"{len(pts)} start points ({len(seeds)} seeds x {len(heights)} "
+            "heights) is more than HYSPLIT will take in one run. Lower "
+            "--track-parcels or pass fewer --track-heights.")
+
+    paths, got_dir = hy.run_trajectories(exe, start, pts, signed, met,
+                                         os.path.join(run_dir, "_hysplit"))
+    print(f"  {len(paths)} trajectories ({got_dir.lower()}), "
+          f"released at {', '.join(f'{h:g}' for h in heights)} m AGL")
+    # Drop the height column: the rest of the pipeline is 2-D, and carrying a
+    # third coordinate into MovingPandas would silently change get_length()
+    # from ground distance to slant distance.
+    return [[(t, lon, lat) for t, lon, lat, _h in p] for p in paths]
+
+
+HYSPLIT_NOTE = (
+    "Trajectories, not dispersion. HYSPLIT resolves vertical motion, mixing "
+    "depth and terrain, so these are defensible paths -- but a trajectory line "
+    "does not spread or deposit, so crossing a district is still not the same "
+    "as depositing smoke on it. For concentration attribution run HYSPLIT in "
+    "dispersion mode or FLEXPART. GDAS1 is 1 degree; local terrain flow is not "
+    "resolved.")
+
+KINEMATIC_NOTE = (
+    "ILLUSTRATION, NOT ATTRIBUTION. 100 m wind is the best Earth Engine "
+    "carries, but lofted smoke travels faster and on a different bearing. No "
+    "vertical motion, no dispersion, no deposition. For a claim that must "
+    "survive challenge, re-run with --engine hysplit, or use FLEXPART.")
+
+
+def _stats(run_id, name, d0, hours, engine, direction, heights, seeds, recept,
+           tc, crossed, png):
+    """The machine-readable record, including what the figure cannot carry."""
+    lens = sorted(t.get_length() / 1000.0 for t in tc.trajectories)
+    hy = engine == "hysplit"
+    seed_src = (f"CAMS PM2.5 district ranking on {d0}"
+                if direction == "backward"
+                else f"FIRMS ({FIRMS_IC}) detections on {d0}")
+    out = {"run_id": run_id, "scenario": "smoke-track", "name": name,
+           "day": d0.isoformat(), "hours": hours, "engine": engine,
+           "direction": direction, "seeds": len(seeds),
+           "trajectories": len(tc.trajectories),
+           "median_path_km": round(lens[len(lens) // 2], 1),
+           "districts_crossed": crossed,
+           "outputs": {"figure": os.path.basename(png) if png else None},
+           "note": HYSPLIT_NOTE if hy else KINEMATIC_NOTE,
+           "sources": {
+               "model": ("NOAA ARL HYSPLIT (hyts_std), vertical motion = data"
+                         if hy else "kinematic integration (RK2 midpoint)"),
+               "meteorology": ("GDAS1 1 deg 3-hourly (ARL public S3)" if hy
+                               else f"ERA5 100 m ({ERA5_IC})"),
+               "seeds": seed_src,
+               "smoke": f"CAMS ({CAMS_IC}) mean over the window"}}
+    if hy:
+        out["release_heights_m_agl"] = list(heights)
+    if recept:
+        out["receptors"] = [{"name": r[2], "lon": round(r[0], 3),
+                             "lat": round(r[1], 3), "pm25": r[3]}
+                            for r in recept]
+    return out
+
+
+def _seed_points(aoi, d0, parcels, direction, name, hours, engine):
+    """Where the parcels start — fires going forward, receptors going back."""
+    if direction == "backward":
+        recept = _receptors(aoi, d0, parcels)
+        if not recept:
+            raise SystemExit(f"No CAMS PM2.5 over any district on {d0}.")
+        print(f"  {name}: air arriving {d0}, traced back {hours} h (hysplit)")
+        for _lon, _lat, nm, pm in recept[:6]:
+            print(f"    {nm[:28]:28s} PM2.5 {pm:6.1f} µg/m³")
+        return ([(r[0], r[1]) for r in recept], recept,
+                f"reseptor — {len(recept)} kabupaten PM2.5 tertinggi {d0}")
+
+    seeds = _seeds(aoi, d0, parcels)
+    if not seeds:
+        raise SystemExit(f"No FIRMS detections in this area on {d0}. "
+                         "Try a day during an active episode.")
+    print(f"  {name}: fires of {d0}, carried {hours} h ({engine})")
+    print(f"  {len(seeds)} parcels seeded")
+    return seeds, None, None
+
+
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         day=None, hours=DEFAULT_HOURS, parcels=DEFAULT_PARCELS,
-        admin=None, bbox=None, lang="id"):
-    """Indicative forward trajectories from a day's fires."""
+        admin=None, bbox=None, lang="id", engine="kinematic",
+        direction="forward", heights=None, hysplit_bin=None, met_cache=None):
+    """Forward or backward smoke trajectories, kinematic or HYSPLIT."""
     if backend == "mpc":
         raise SystemExit("smoke-track needs --backend gee (ERA5 + FIRMS).")
     try:
@@ -317,6 +500,21 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     if not day:
         raise SystemExit("smoke-track needs --date YYYY-MM-DD — the day whose "
                          "fires to follow")
+    if direction == "backward" and engine != "hysplit":
+        raise SystemExit(
+            "--direction backward needs --engine hysplit. Running the "
+            "kinematic integrator in reverse would look like a source "
+            "attribution while being no more defensible than the forward fan, "
+            "which is exactly the confusion this scenario exists to avoid.")
+    heights = tuple(heights or DEFAULT_HEIGHTS)
+    exe = None
+    if engine == "hysplit":
+        # Up front, before any Earth Engine work: being told to install a binary
+        # after sitting through a FIRMS query is a waste of the user's time.
+        from . import hysplit as hy
+        exe = hy.find_binary(hysplit_bin)
+        if not exe:
+            raise SystemExit(hy.INSTALL_HELP)
     d0 = dt.date.fromisoformat(day)
     start = dt.datetime(d0.year, d0.month, d0.day, tzinfo=dt.UTC)
 
@@ -330,56 +528,50 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     ys = [p[1] for p in coords[0]]
     box = [min(xs), min(ys), max(xs), max(ys)]
 
-    print(f"  {name}: fires of {d0}, carried {hours} h on ERA5 100 m wind")
-    seeds = _seeds(aoi, d0, parcels)
-    if not seeds:
-        raise SystemExit(f"No FIRMS detections in this area on {d0}. "
-                         "Try a day during an active episode.")
-    print(f"  {len(seeds)} parcels seeded")
-
-    up, vp = _wind_stack(aoi, start, hours, run_dir)
-    if not (up and vp):
-        raise SystemExit("Could not download the ERA5 wind stack.")
-    paths = _advect(seeds, up, vp, start, hours)
+    seeds, recept, seed_label = _seed_points(aoi, d0, parcels, direction,
+                                             name, hours, engine)
+    if engine == "hysplit":
+        paths = _engine_hysplit(seeds, start, hours, run_dir, heights,
+                                direction, exe, met_cache)
+    else:
+        paths = _engine_kinematic(aoi, seeds, start, hours, run_dir)
     tc = _trajectories(paths)
     if tc is None:
         raise SystemExit("No trajectories produced.")
 
-    # Mean smoke over the window, as the backdrop the threads should explain.
+    # Mean smoke over the window the parcels actually occupy. Backward runs
+    # look at the hours BEFORE the start time; averaging the following two days
+    # would put the backdrop in the wrong place entirely.
+    span = dt.timedelta(hours=abs(hours))
+    lo, hi = ((start - span, start) if direction == "backward"
+              else (start, start + span))
     smoke = os.path.join(run_dir, "_pm25.tif")
     img = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
-           .filterDate(start.isoformat(),
-                       (start + dt.timedelta(hours=hours)).isoformat())
+           .filterDate(lo.isoformat(), hi.isoformat())
            .mean().multiply(1e9).clip(aoi))
     smoke = download_geotiff(img, coords, smoke, scale=44453)
 
     from .exposure import _district_shapes, _districts
     shapes = _district_shapes(_districts(aoi))
     crossed = _crossed(tc, shapes)
-    png = _render(run_dir, name, tc, seeds, smoke, box, d0, hours, crossed)
+    caveat = (HYSPLIT_CAVEAT.format(levels="/".join(f"{h:g}" for h in heights))
+              if engine == "hysplit" else DEFAULT_CAVEAT)
+    png = _render(run_dir, name, tc, seeds, smoke, box, d0, hours, crossed,
+                  engine=engine, direction=direction, caveat=caveat,
+                  seed_label=seed_label)
 
-    lens = [t.get_length() / 1000.0 for t in tc.trajectories]
-    stats = {"run_id": run_id, "scenario": "smoke-track", "name": name,
-             "day": d0.isoformat(), "hours": hours, "parcels": len(seeds),
-             "median_path_km": round(sorted(lens)[len(lens) // 2], 1),
-             "districts_crossed": crossed,
-             "sources": {"wind": f"ERA5 100 m ({ERA5_IC})",
-                         "seeds": f"FIRMS ({FIRMS_IC}) detections on {d0}",
-                         "smoke": f"CAMS ({CAMS_IC}) mean over the window"},
-             "outputs": {"figure": os.path.basename(png) if png else None},
-             "note": ("ILLUSTRATION, NOT ATTRIBUTION. 100 m wind is the best "
-                      "Earth Engine carries, but lofted smoke travels faster "
-                      "and on a different bearing. No vertical motion, no "
-                      "dispersion, no deposition. For a claim that must "
-                      "survive challenge, run HYSPLIT or FLEXPART against the "
-                      "receptors smoke-exposure identifies.")}
+    stats = _stats(run_id, name, d0, hours, engine, direction, heights,
+                   seeds, recept, tc, crossed, png)
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
 
-    print(f"\n{name} — parsel dari {d0}, {hours} jam")
+    verb = "menuju" if direction == "backward" else "dari"
+    print(f"\n{name} — parsel {verb} {d0}, {abs(hours)} jam ({engine})")
     print(f"  panjang lintasan median: {stats['median_path_km']:,.0f} km")
-    print("  kabupaten/kota terlintasi (jumlah parsel):")
+    print("  kabupaten/kota terlintasi (jumlah lintasan):")
     for k, v in list(crossed.items())[:10]:
         print(f"    {k[:30]:30s} {v:4d}")
-    print("\n  ILUSTRASI, bukan atribusi — lihat catatan di stats.json")
+    print("\n  " + ("Lintasan HYSPLIT — bukan dispersi"
+                    if engine == "hysplit" else "ILUSTRASI, bukan atribusi")
+          + " — lihat catatan di stats.json")
     return stats

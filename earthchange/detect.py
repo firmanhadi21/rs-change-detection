@@ -470,10 +470,15 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
     if method == "smoke_track":
         from . import smoke_track
         tk_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        tk_h = ([float(x) for x in args.track_heights.split(",")]
+                if args.track_heights else None)
         smoke_track.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                         config_key=ee_key, day=args.date,
                         hours=args.track_hours, parcels=args.track_parcels,
-                        admin=args.admin, bbox=tk_bbox, lang=args.lang)
+                        admin=args.admin, bbox=tk_bbox, lang=args.lang,
+                        engine=args.engine, direction=args.direction,
+                        heights=tk_h, hysplit_bin=args.hysplit_bin,
+                        met_cache=args.met_cache)
         return True
 
     if method == "smoke_exposure":
@@ -578,6 +583,27 @@ def main():
                          "decorative rather than informative")
     ap.add_argument("--track-parcels", type=int, default=60, metavar="N",
                     help="smoke-track: how many fire points to seed (default 60)")
+    ap.add_argument("--engine", choices=("kinematic", "hysplit"),
+                    default="kinematic",
+                    help="smoke-track: 'kinematic' (default) integrates ERA5 "
+                         "100 m wind here and is an illustration; 'hysplit' "
+                         "runs NOAA ARL HYSPLIT on GDAS1 and resolves vertical "
+                         "motion. hysplit needs the free hyts_std binary")
+    ap.add_argument("--direction", choices=("forward", "backward"),
+                    default="forward",
+                    help="smoke-track: 'forward' from fires, or 'backward' "
+                         "from the worst-PM2.5 districts to ask where their "
+                         "air came from. backward requires --engine hysplit")
+    ap.add_argument("--track-heights", metavar="M[,M…]",
+                    help="smoke-track --engine hysplit: release heights in m "
+                         "above ground (default 100,500,1500). The spread "
+                         "between them is real wind shear")
+    ap.add_argument("--hysplit-bin", metavar="PATH",
+                    help="path to hyts_std, if it is not on PATH or under "
+                         "$HYSPLIT_DIR")
+    ap.add_argument("--met-cache", metavar="DIR",
+                    help="where to keep ARL GDAS1 files (~571 MiB each; "
+                         "default ~/.cache/earthchange/arl)")
     ap.add_argument("--video-size", type=int, default=1080, metavar="PX",
                     help="smoke-video: square frame size (default 1080)")
     ap.add_argument("--firms-region", metavar="NAME",

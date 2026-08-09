@@ -521,11 +521,13 @@ SCENARIOS = {
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
     "smoke-track": {
-        "label": "Smoke trajectories — indicative air-parcel paths from the fires",
+        "label": ("Smoke trajectories — air-parcel paths from the fires "
+                  "(kinematic, or HYSPLIT with --engine hysplit)"),
         "method": "smoke_track", "needs": "none",
         "radius": 300.0,
-        "interpretation": ("ILUSTRASI, bukan atribusi: menunjukkan arah angin "
-                           "membawa asap, bukan bukti sumbernya."),
+        "interpretation": ("Kinematic: ILUSTRASI, bukan atribusi. HYSPLIT: "
+                           "lintasan yang dapat dipertahankan, tetapi tetap "
+                           "lintasan — melintas bukan berarti menurunkan asap."),
     },
     "smoke-exposure": {
         "label": "Smoke exposure — person-days by ISPU class, per district, with age split",
