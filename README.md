@@ -109,13 +109,18 @@ Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
 
 ## Deteksi Perubahan Multiguna — `detect.py`
 
+Bantuan per skenario: `earthchange -s <skenario> --help` hanya menampilkan opsi
+yang berlaku untuk skenario itu (dari 106 opsi, biasanya 20–30), lengkap dengan
+satu baris tentang apa yang dilaporkannya. `--help` tanpa `-s` tetap menampilkan
+semuanya.
+
 Satu perintah: `-s <skenario>` memilih **metode** yang tepat, lokasi lewat
 `--lat/--lon`, `-l 'lat,lon'`, **`--city 'Nama, Negara'`** (geocoding OpenStreetMap
 gratis), atau `--site NAMA`.
 
 | Skenario | Metode | Sensor |
 |----------|--------|--------|
-| `smoke-track` | Lintasan asap → kipas lintasan + daftar kabupaten terlintasi. Dua mesin: **kinematik** (bawaan, angin ERA5 100 m, tanpa binary — **ILUSTRASI, bukan atribusi**) dan **`--engine hysplit`** (NOAA ARL HYSPLIT + GDAS1, gerak vertikal nyata, mendukung `--direction backward` dari kabupaten ber-PM2.5 tertinggi). Perlu `pip install 'earthchange[track]'`; mesin HYSPLIT perlu `hyts_std` (gratis) | ERA5 / GDAS1 + FIRMS + CAMS |
+| `smoke-track` | Lintasan asap → kipas lintasan + daftar kabupaten terlintasi. Dua mesin: **kinematik** (bawaan, angin ERA5 100 m, tanpa binary — **ILUSTRASI, bukan atribusi**) dan **`--engine hysplit`** (NOAA ARL HYSPLIT + GDAS1, gerak vertikal nyata, mendukung `--direction backward` dari kabupaten ber-PM2.5 tertinggi atau dari `--receptors "Nama,lon,lat; …"`). Perlu `pip install 'earthchange[track]'`; mesin HYSPLIT perlu `hyts_std` (gratis) | ERA5 / GDAS1 + FIRMS + CAMS |
 | `smoke-exposure` | Paparan asap: person-day per kelas ISPU per kabupaten/kota, dipilah balita & lansia (WorldPop) → laporan + peta panas kabupaten×hari | CAMS + WorldPop + GAUL |
 | `smoke-video` | Animasi peta asap kebakaran 1080×1080 (MP4+GIF): relief 3-D forge3d, asap CAMS asli, titik api VIIRS 7 hari, penghitung langsung. **Tanpa akun GEE** — semua sumber HTTP publik. Perlu `pip install 'earthchange[video]'` + ffmpeg | CAMS + FIRMS VIIRS + AWS Terrain |
 | `fire-record` | Catatan musim kebakaran per kawasan yang dapat dihitung ulang: lintasan DC, tanggal ambang BMKG terlampaui, titik panas, luas terbakar → catatan Markdown yang dapat disitasi | ERA5-Land + FIRMS + MCD64A1 |

@@ -71,8 +71,17 @@ def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl
     the figure quietly asserts the opposite of what it computed.
     """
     back = direction == "backward"
-    top = list(crossed.items())[:4]
-    sub = ("melintasi " + ", ".join(f"{k} ({v})" for k, v in top)) if top else ""
+    # Budget characters, not districts. Four names fit until one of them is
+    # "Kota Pontianak", and then the title runs off the right edge of the
+    # figure -- which is how it first shipped.
+    parts, budget = [], 62
+    for k, v in crossed.items():
+        piece = f"{k} ({v})"
+        if len(piece) + 2 > budget:
+            break
+        parts.append(piece)
+        budget -= len(piece) + 2
+    sub = ("melintasi " + ", ".join(parts)) if parts else ""
     what = "parsel udara yang tiba pada " if back else "parsel udara dari titik api "
     span = f"{hours_lbl} jam ke belakang" if back else f"{hours_lbl} jam ke depan"
     head = "Dari mana asap datang" if back else "Ke mana asap terbawa"
@@ -130,19 +139,76 @@ def _seeds(aoi, day, n):
             for f in pts]
 
 
-def _receptors(aoi, day, n, shapes=None):
+def parse_receptors(spec):
+    """Parse --receptors 'Nama,lon,lat; Nama,lon,lat' into points.
+
+    Explicit rather than geocoded, for the same reason smoke-video takes
+    --video-cities that way: a name lookup cannot tell you which places matter
+    for this question, and silently geocoding to the wrong Pontianak would be
+    worse than asking.
+    """
+    out = []
+    for i, chunk in enumerate(spec.split(";"), 1):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        parts = [p.strip() for p in chunk.split(",")]
+        if len(parts) != 3:
+            raise SystemExit(
+                f"--receptors entry {i} is {chunk!r}; expected "
+                "'Name,lon,lat' separated by semicolons, e.g. "
+                "'Pontianak,109.33,-0.02; Palangkaraya,113.92,-2.21'")
+        name, lon_s, lat_s = parts
+        try:
+            lon, lat = float(lon_s), float(lat_s)
+        except ValueError:
+            raise SystemExit(f"--receptors entry {i}: {lon_s!r},{lat_s!r} are "
+                             "not numbers. The order is Name,lon,lat.")
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+            raise SystemExit(
+                f"--receptors entry {i}: lon={lon}, lat={lat} is out of range. "
+                "The order is Name,lon,lat -- longitude first.")
+        out.append((lon, lat, name or f"receptor {i}"))
+    if not out:
+        raise SystemExit("--receptors was empty.")
+    return out
+
+
+def _sample_pm25(day, points):
+    """CAMS PM2.5 at each named point, so explicit receptors report like ranked
+    ones and stats.json has the same shape either way."""
+    import ee
+
+    a = ee.Date(day.isoformat())
+    pm = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
+          .filterDate(a, a.advance(1, "day")).mean().multiply(1e9))
+    fc = ee.FeatureCollection([ee.Feature(ee.Geometry.Point([lon, lat]))
+                               for lon, lat, _ in points])
+    vals = pm.reduceRegions(fc, ee.Reducer.first(), 44453).getInfo()["features"]
+    out = []
+    for (lon, lat, nm), f in zip(points, vals):
+        v = f["properties"].get("first")
+        out.append((lon, lat, nm, round(v, 1) if v is not None else None))
+    return out
+
+
+def _receptors(aoi, day, n, named=None):
     """Backward-run start points: where the smoke actually was, worst first.
 
     A backward trajectory is only worth running from somewhere people were
-    breathing. Rather than make the user name receptors, take the districts with
-    the highest CAMS PM2.5 that day and start at their centroids -- which is the
-    same ranking smoke-exposure reports, so the two scenarios line up.
+    breathing. With no --receptors, take the districts with the highest CAMS
+    PM2.5 that day and start at their centroids -- the same ranking
+    smoke-exposure reports, so the two scenarios line up. With --receptors, use
+    exactly the places named, in the order given.
 
-    Returns [(lon, lat, name), ...].
+    Returns [(lon, lat, name, pm25), ...].
     """
     import ee
-    from .exposure import _district_shapes, _districts
+    from .exposure import _districts
     from shapely.geometry import shape as shp_shape
+
+    if named:
+        return _sample_pm25(day, named)
 
     a = ee.Date(day.isoformat())
     pm = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
@@ -464,17 +530,59 @@ def _stats(run_id, name, d0, hours, engine, direction, heights, seeds, recept,
     return out
 
 
-def _seed_points(aoi, d0, parcels, direction, name, hours, engine):
+def _check_opts(backend, day, engine, direction, receptors, hysplit_bin):
+    """Everything that can be refused before spending a second on data.
+
+    All of it runs ahead of Earth Engine and ahead of the met download, because
+    being told to install a binary after sitting through a FIRMS query is a
+    waste of the user's time.
+    """
+    if backend == "mpc":
+        raise SystemExit("smoke-track needs --backend gee (ERA5 + FIRMS).")
+    try:
+        import movingpandas                                       # noqa: F401
+    except ImportError:
+        raise SystemExit("smoke-track needs movingpandas: "
+                         "pip install 'earthchange[track]'")
+    if not day:
+        raise SystemExit("smoke-track needs --date YYYY-MM-DD — the day whose "
+                         "fires to follow")
+
+    named = parse_receptors(receptors) if receptors else None
+    if named and direction != "backward":
+        raise SystemExit(
+            "--receptors names places for air to arrive AT, so it only means "
+            "something with --direction backward. Going forward the start "
+            "points are the fires.")
+    if direction == "backward" and engine != "hysplit":
+        raise SystemExit(
+            "--direction backward needs --engine hysplit. Running the "
+            "kinematic integrator in reverse would look like a source "
+            "attribution while being no more defensible than the forward fan, "
+            "which is exactly the confusion this scenario exists to avoid.")
+
+    exe = None
+    if engine == "hysplit":
+        from . import hysplit as hy
+        exe = hy.find_binary(hysplit_bin)
+        if not exe:
+            raise SystemExit(hy.INSTALL_HELP)
+    return named, exe
+
+
+def _seed_points(aoi, d0, parcels, direction, name, hours, engine, named=None):
     """Where the parcels start — fires going forward, receptors going back."""
     if direction == "backward":
-        recept = _receptors(aoi, d0, parcels)
+        recept = _receptors(aoi, d0, parcels, named=named)
         if not recept:
             raise SystemExit(f"No CAMS PM2.5 over any district on {d0}.")
         print(f"  {name}: air arriving {d0}, traced back {hours} h (hysplit)")
-        for _lon, _lat, nm, pm in recept[:6]:
-            print(f"    {nm[:28]:28s} PM2.5 {pm:6.1f} µg/m³")
-        return ([(r[0], r[1]) for r in recept], recept,
-                f"reseptor — {len(recept)} kabupaten PM2.5 tertinggi {d0}")
+        for _lon, _lat, nm, pm in recept[:8]:
+            shown = f"{pm:6.1f} µg/m³" if pm is not None else "   no CAMS value"
+            print(f"    {nm[:28]:28s} PM2.5 {shown}")
+        label = (f"reseptor — {len(recept)} lokasi yang disebutkan" if named
+                 else f"reseptor — {len(recept)} kabupaten PM2.5 tertinggi {d0}")
+        return [(r[0], r[1]) for r in recept], recept, label
 
     seeds = _seeds(aoi, d0, parcels)
     if not seeds:
@@ -488,33 +596,12 @@ def _seed_points(aoi, d0, parcels, direction, name, hours, engine):
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         day=None, hours=DEFAULT_HOURS, parcels=DEFAULT_PARCELS,
         admin=None, bbox=None, lang="id", engine="kinematic",
-        direction="forward", heights=None, hysplit_bin=None, met_cache=None):
+        direction="forward", heights=None, hysplit_bin=None, met_cache=None,
+        receptors=None):
     """Forward or backward smoke trajectories, kinematic or HYSPLIT."""
-    if backend == "mpc":
-        raise SystemExit("smoke-track needs --backend gee (ERA5 + FIRMS).")
-    try:
-        import movingpandas                                       # noqa: F401
-    except ImportError:
-        raise SystemExit("smoke-track needs movingpandas: "
-                         "pip install 'earthchange[track]'")
-    if not day:
-        raise SystemExit("smoke-track needs --date YYYY-MM-DD — the day whose "
-                         "fires to follow")
-    if direction == "backward" and engine != "hysplit":
-        raise SystemExit(
-            "--direction backward needs --engine hysplit. Running the "
-            "kinematic integrator in reverse would look like a source "
-            "attribution while being no more defensible than the forward fan, "
-            "which is exactly the confusion this scenario exists to avoid.")
+    named, exe = _check_opts(backend, day, engine, direction, receptors,
+                             hysplit_bin)
     heights = tuple(heights or DEFAULT_HEIGHTS)
-    exe = None
-    if engine == "hysplit":
-        # Up front, before any Earth Engine work: being told to install a binary
-        # after sitting through a FIRMS query is a waste of the user's time.
-        from . import hysplit as hy
-        exe = hy.find_binary(hysplit_bin)
-        if not exe:
-            raise SystemExit(hy.INSTALL_HELP)
     d0 = dt.date.fromisoformat(day)
     start = dt.datetime(d0.year, d0.month, d0.day, tzinfo=dt.UTC)
 
@@ -529,7 +616,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     box = [min(xs), min(ys), max(xs), max(ys)]
 
     seeds, recept, seed_label = _seed_points(aoi, d0, parcels, direction,
-                                             name, hours, engine)
+                                             name, hours, engine, named=named)
     if engine == "hysplit":
         paths = _engine_hysplit(seeds, start, hours, run_dir, heights,
                                 direction, exe, met_cache)

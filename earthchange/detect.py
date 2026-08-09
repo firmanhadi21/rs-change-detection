@@ -61,7 +61,7 @@ from datetime import datetime
 
 from .gee_utils import (
     download_png, download_geotiff, initialize_ee, square_aoi)
-from .scenarios import SCENARIOS, run_optical_change
+from .scenarios import SCENARIOS, flags_for, run_optical_change
 from .indices import (
     INDEX_FN, BUILTUP_METHODS, THERMAL_METHODS, METHOD_DEFAULTS)
 
@@ -478,7 +478,7 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                         admin=args.admin, bbox=tk_bbox, lang=args.lang,
                         engine=args.engine, direction=args.direction,
                         heights=tk_h, hysplit_bin=args.hysplit_bin,
-                        met_cache=args.met_cache)
+                        met_cache=args.met_cache, receptors=args.receptors)
         return True
 
     if method == "smoke_exposure":
@@ -550,7 +550,68 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
     return False
 
 
-def main():
+def _wanted_scenario(argv):
+    """The scenario named on the command line, if help was also asked for.
+
+    Read straight off argv rather than from parsed args, because argparse acts
+    on --help the moment it sees it and exits before anything can look at the
+    rest of the line.
+    """
+    if not ({"-h", "--help"} & set(argv)):
+        return None
+    for i, tok in enumerate(argv):
+        if tok in ("-s", "--scenario") and i + 1 < len(argv):
+            return argv[i + 1]
+        for pre in ("-s=", "--scenario="):
+            if tok.startswith(pre):
+                return tok[len(pre):]
+    return None
+
+
+def _scenario_help(ap, scenario):
+    """Print help for one scenario: its own options plus the common ones.
+
+    The full --help runs to a hundred-odd options, and for any one scenario most
+    are noise. This reuses argparse's own formatter so wrapping and metavars
+    match the full listing exactly.
+    """
+    keep = flags_for(scenario)
+    actions = [a for a in ap._actions
+               if (set(a.option_strings) & keep) or not a.option_strings]
+
+    # The scenario is already decided, so spelling out all 24 choices twice is
+    # pure noise -- and it is the single longest line in the output. Safe to
+    # mutate: this function always exits the process.
+    for a in actions:
+        if "--scenario" in a.option_strings:
+            a.choices, a.metavar = None, scenario
+
+    meta = SCENARIOS.get(scenario, {})
+    fmt = ap._get_formatter()
+    fmt.add_usage(ap.usage, actions, ap._mutually_exclusive_groups,
+                  prefix=f"Usage ({scenario}): ")
+    fmt.add_text(meta.get("label"))
+    fmt.start_section(f"options that apply to {scenario}")
+    fmt.add_arguments(actions)
+    fmt.end_section()
+    print(fmt.format_help().rstrip())
+
+    interp = meta.get("interpretation")
+    if interp:
+        print(f"\nWhat it reports:\n  {interp}")
+    hidden = sum(1 for a in ap._actions
+                 if a.option_strings and not (set(a.option_strings) & keep))
+    print(f"\n{hidden} options that do not apply to {scenario} are hidden. "
+          "Use --help without -s to see all of them.")
+
+
+def build_parser():
+    """The full CLI. Separate from main() so the help table can be tested.
+
+    scenarios.unclaimed_flags() needs the real option strings, and scraping them
+    out of formatted help text picks up rules, prose mentions and the negated
+    --no-* forms instead.
+    """
     ap = argparse.ArgumentParser(
         description="Multipurpose satellite change detection.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -598,6 +659,11 @@ def main():
                     help="smoke-track --engine hysplit: release heights in m "
                          "above ground (default 100,500,1500). The spread "
                          "between them is real wind shear")
+    ap.add_argument("--receptors", metavar="'Name,lon,lat; …'",
+                    help="smoke-track --direction backward: trace back from "
+                         "these places instead of the automatic worst-PM2.5 "
+                         "district ranking, e.g. "
+                         "'Pontianak,109.33,-0.02; Kuching,110.34,1.55'")
     ap.add_argument("--hysplit-bin", metavar="PATH",
                     help="path to hyts_std, if it is not on PATH or under "
                          "$HYSPLIT_DIR")
@@ -678,10 +744,13 @@ def main():
                          "loss and burn, never gain. Use 1 to disable, 3-4 to be "
                          "strict in persistently cloudy areas")
     ap.add_argument("--date", metavar="DATE",
-                    help="imagery: which imagery to fetch — a single day "
-                         "(--date 2025-09-20) or a composite window "
-                         "(--date 2025-07-01:2025-08-31). A single day with no "
-                         "overpass reports the nearby acquisition dates")
+                    help="the day the scenario works on. imagery: a single day "
+                         "(2025-09-20) or a composite window "
+                         "(2025-07-01:2025-08-31), and a day with no overpass "
+                         "reports the nearby acquisitions. fire-danger: the "
+                         "day to rate. smoke-track: the day whose fires to "
+                         "follow, or whose air to trace back. smoke-video: the "
+                         "last day of the animation")
     ap.add_argument("--preview", action=argparse.BooleanOptionalAction, default=True,
                     help="optical scenarios: also write SWIR false-colour "
                          "quick-looks of the pre and post composites, and list "
@@ -900,6 +969,15 @@ def main():
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
     ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")
+    return ap
+
+
+def main():
+    ap = build_parser()
+    scen = _wanted_scenario(sys.argv[1:])
+    if scen in SCENARIOS:
+        _scenario_help(ap, scen)
+        return 0
     args = ap.parse_args()
 
     if args.list or not args.scenario:

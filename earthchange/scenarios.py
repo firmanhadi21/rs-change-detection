@@ -652,3 +652,99 @@ SCENARIOS = {
                            "Peta 2D + hutan paku 3D + ekspor untuk forge3d."),
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# Which flags belong to which scenario, for `-s <scenario> --help`.
+#
+# The full --help lists 100-odd options, and for any single scenario most of
+# them are noise -- someone running `burn` does not need to read about
+# --transect-spacing. These tables let the CLI show only what applies.
+#
+# Keeping this correct by hand would fail quietly, so unclaimed_flags() below
+# reports any option that no scenario claims and that is not common. A new flag
+# added without being listed here shows up there rather than disappearing.
+# ---------------------------------------------------------------------------
+
+# Shown for every scenario: where to look, what to call it, where to put it.
+# Deliberately small. A flag whose own help text has to name a scenario
+# ("island-heat: also render...") is not common, however convenient it would be
+# to put it here -- it would appear under 24 scenarios and be wrong for 23.
+COMMON_FLAGS = (
+    "--scenario", "--list", "--lat", "--lon", "--location", "--city", "--site",
+    "--admin", "--bbox", "--radius", "--name", "--out-dir", "--backend",
+    "--ee-key", "--lang", "--drive", "--drive-folder",
+)
+
+# Date windows most change-detection scenarios share.
+_WINDOW = ("--pre", "--post", "--date", "--days", "--season")
+# Optical scene selection, and the A4 map layout those scenarios can render.
+_OPTICAL = ("--sensor", "--min-obs", "--preview", "--method")
+_MAP = ("--map", "--basemap")
+# Anything reading a zone layer the user supplies.
+_ZONES = ("--zones", "--zone-field", "--zone-grid")
+# Very-high-resolution confirmation via Planet.
+_PLANET = ("--planet", "--planet-confirm", "--planet-key", "--planet-pre",
+           "--planet-post")
+
+SCENARIO_FLAGS = {
+    "deforestation": _WINDOW + _OPTICAL + _PLANET + _MAP
+                     + ("--thr", "--forest-thr"),
+    "mining": _WINDOW + _OPTICAL + _PLANET + _MAP + ("--thr", "--drop-thr"),
+    "urbanization": _WINDOW + _OPTICAL + _MAP + ("--thr",),
+    "urban-trend": ("--start-year", "--end-year", "--epochs", "--cell-km"),
+    "urban-history": ("--start-year", "--end-year", "--epochs", "--cell-km"),
+    "flood": _WINDOW + _MAP + ("--thr", "--no-water-mask", "--severe"),
+    "disturbance": _WINDOW + _MAP + ("--drop-thr", "--severe"),
+    "burn": _WINDOW + _OPTICAL + _MAP + ("--thr", "--severe", "--min-obs"),
+    "water": _WINDOW + _MAP + ("--months", "--no-water-mask"),
+    "imagery": ("--date", "--sensor", "--preview", "--min-obs"),
+    "coastline": ("--pre", "--post", "--coast-method", "--coast-smooth",
+                  "--transect-spacing", "--transects-file", "--snap-dist",
+                  "--boundary", "--islands-file", "--island-mode") + _MAP,
+    "transit-access": ("--transit-file", "--walk-dist", "--access-buffer",
+                       "--min-pop", "--pop-year", "--boundary", "--aoi-file"),
+    "island-heat": ("--season", "--lst-source", "--wetbulb-thr", "--months",
+                    "--infographic"),
+    "urban-heat": ("--season", "--lst-source", "--months", "--neutral-pct"),
+    "population-change": ("--epochs", "--cell-km", "--pop-years", "--forge3d",
+                          "--forge3d-prep-only", "--country"),
+    "forest-history": ("--start-year", "--end-year", "--forest-thr"),
+    "fire-history": ("--season", "--start-year", "--end-year", "--areas",
+                     "--regions", "--vs-baseline", "--peat-file",
+                     "--peat-source", "--peat-thr", "--months"),
+    "fire-danger": ("--date", "--fdrs-end", "--spinup", "--rain-source"
+                    ) + _ZONES,
+    "fire-record": ("--season", "--record-step", "--spinup", "--rain-source"
+                    ) + _ZONES,
+    "haze": ("--haze-start", "--haze-end", "--hotspot-from", "--hotspot-to",
+             "--hotspot-km", "--firms-region"),
+    "drought": ("--season", "--drought-end", "--spi-months", "--rain-source",
+                "--cdi", "--cdi-scale", "--cdi-grid", "--cdi-mask",
+                "--cdi-mask-name", "--cdi-basemap"),
+    "smoke-exposure": ("--season", "--pop-year"),
+    "smoke-video": ("--date", "--days", "--firms-region", "--video-size",
+                    "--video-title", "--video-subtitle", "--video-cities",
+                    "--video-labels", "--video-clean"),
+    "smoke-track": ("--date", "--engine", "--direction", "--track-hours",
+                    "--track-parcels", "--track-heights", "--receptors",
+                    "--hysplit-bin", "--met-cache"),
+}
+
+
+def unclaimed_flags(all_flags):
+    """Options no scenario lists and that are not common.
+
+    A hand-maintained table drifts the moment someone adds a flag and forgets
+    this file. This turns that from a silent omission into something a test can
+    print.
+    """
+    claimed = set(COMMON_FLAGS)
+    for flags in SCENARIO_FLAGS.values():
+        claimed.update(flags)
+    return sorted(set(all_flags) - claimed)
+
+
+def flags_for(scenario):
+    """The options worth showing for one scenario, common ones included."""
+    return set(COMMON_FLAGS) | set(SCENARIO_FLAGS.get(scenario, ()))
