@@ -160,6 +160,56 @@ def test_html_is_self_contained(tmp_path):
     assert "k_dc.png" not in body
 
 
+def _png(colour_byte):
+    """Two tiny PNGs that differ, so duplication is detectable."""
+    return bytes.fromhex(
+        "89504e470d0a1a0a0000000d494844520000000100000001080600000"
+        "01f15c4890000000a49444154789c63" + colour_byte +
+        "0100000500010d0a2db40000000049454e44ae426082")
+
+
+def test_forward_and_backward_figures_are_not_the_same_image(tmp_path):
+    """Both smoke-track steps write <name>_smoke_track.png. Matching figures by
+    basename inlined the forward one under both headings and dropped the
+    backward one entirely -- and only in the HTML, so the markdown looked
+    right."""
+    root = str(tmp_path)
+    for folder, direction, blob in (("3_fwd", "forward", "00"),
+                                    ("5_back", "backward", "ff")):
+        d = os.path.join(root, folder)
+        os.makedirs(d)
+        with open(os.path.join(d, "stats.json"), "w") as f:
+            json.dump({"scenario": "smoke-track", "direction": direction,
+                       "name": "K", "day": "2026-08-01", "hours": 48,
+                       "engine": "x", "districts_crossed": {}}, f)
+        # Deliberately the SAME filename in both folders, as the real run does.
+        with open(os.path.join(d, "K_smoke_track.png"), "wb") as f:
+            f.write(_png(blob))
+
+    _md, html = brief.run(root, lang="en")
+    import re
+    srcs = re.findall(r"data:image/png;base64,([A-Za-z0-9+/=]+)",
+                      open(html).read())
+    assert len(srcs) == 2, srcs
+    assert srcs[0] != srcs[1], "forward and backward inlined the same image"
+
+
+def test_markdown_points_at_distinct_paths(tmp_path):
+    root = str(tmp_path)
+    for folder, direction in (("3_fwd", "forward"), ("5_back", "backward")):
+        d = os.path.join(root, folder)
+        os.makedirs(d)
+        with open(os.path.join(d, "stats.json"), "w") as f:
+            json.dump({"scenario": "smoke-track", "direction": direction,
+                       "name": "K", "districts_crossed": {}}, f)
+        with open(os.path.join(d, "K_smoke_track.png"), "wb") as f:
+            f.write(_png("00"))
+    md, _html = brief.run(root, lang="en")
+    import re
+    paths = re.findall(r"!\[.*?\]\((.*?)\)", open(md).read())
+    assert len(set(paths)) == 2, paths
+
+
 def test_run_refuses_an_empty_directory(tmp_path):
     with pytest.raises(SystemExit, match="No chain output"):
         brief.run(str(tmp_path))

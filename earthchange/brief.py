@@ -392,7 +392,7 @@ li { margin: .45rem 0; }
 """
 
 
-def build_html(steps, title, lang, md_text):
+def build_html(title, md_text, run_dir):
     """Self-contained: images inlined so one file survives being forwarded."""
     import re
 
@@ -407,7 +407,8 @@ def build_html(steps, title, lang, md_text):
         elif line.startswith("!["):
             m = re.match(r"!\[(.*?)\]\((.*?)\)", line)
             if m:
-                body.append(_img(m.group(2), m.group(1), steps))
+                body.append(_img(os.path.join(run_dir, m.group(2)),
+                                 m.group(1)))
         elif line.strip() in ("```", ""):
             continue
         else:
@@ -424,14 +425,20 @@ def _inline(s):
     return re.sub(r"`(.+?)`", r"<code>\1</code>", s)
 
 
-def _img(rel, alt, steps):
-    for step in steps.values():
-        f = step.get("figure")
-        if f and f.endswith(os.path.basename(rel)):
-            with open(f, "rb") as fh:
-                b64 = base64.b64encode(fh.read()).decode()
-            return f"<img alt='{alt}' src='data:image/png;base64,{b64}'>"
-    return ""
+def _img(path, alt):
+    """Inline one figure, resolved by PATH.
+
+    An earlier version matched figures by basename, and both smoke-track steps
+    write <name>_smoke_track.png -- so the forward figure was inlined under the
+    backward heading too, and the backward one never appeared at all. The
+    markdown was correct throughout, which is what made it easy to miss: the two
+    outputs disagreed and only the one nobody diffs was wrong.
+    """
+    if not os.path.exists(path):
+        return ""
+    with open(path, "rb") as fh:
+        b64 = base64.b64encode(fh.read()).decode()
+    return f"<img alt='{alt}' src='data:image/png;base64,{b64}'>"
 
 
 def run(run_dir, title=None, lang="id"):
@@ -451,7 +458,7 @@ def run(run_dir, title=None, lang="id"):
         f.write(md)
     html_path = os.path.join(run_dir, "brief.html")
     with open(html_path, "w") as f:
-        f.write(build_html(steps, title, lang, md))
+        f.write(build_html(title, md, run_dir))
 
     used = [k for k in ORDER if k in steps]
     missing = [k for k in ORDER if k not in steps]
