@@ -110,6 +110,13 @@ def _wind_stack(aoi, start, hours, run_dir):
     import ee
     from .gee_utils import download_geotiff
 
+    # ERA5 is a reanalysis and lags real time by about six days, so a run whose
+    # seeds exist in FIRMS can still have no wind for its second day. Without
+    # this the loop below builds ee.Image(null) and the failure surfaces as
+    # "Image.select: Parameter 'input' is required and may not be null."
+    _require_window(ERA5_IC, start, start + dt.timedelta(hours=hours),
+                    "ERA5 100 m wind", hours)
+
     coll = ee.ImageCollection(ERA5_IC)
     ub, vb = [], []
     for h in range(hours + 1):
@@ -125,12 +132,107 @@ def _wind_stack(aoi, start, hours, run_dir):
     return up, vp
 
 
+LATE_HINT = {
+    FIRMS_IC: ("FIRMS reaches Earth Engine a few days behind real time, so the "
+               "most recent days are never there. Pick an earlier day — or use "
+               "smoke-video, which reads the NASA FIRMS live feed directly "
+               "(last 7 days) and needs no Earth Engine account."),
+    CAMS_IC: ("CAMS is a near-real-time forecast archive and lags by a day or "
+              "two. Pick an earlier day."),
+}
+
+
+def coverage_message(what, day, lo, hi, late_hint=""):
+    """The message for a day the archive does not hold.
+
+    Separate from the Earth Engine call so the wording can be tested, and worth
+    getting right: the default failure here is a bare 'Image.gt: ... Got 0 and
+    1', which says nothing about dates at all.
+    """
+    msg = (f"{what} has no data for {day}. Earth Engine carries "
+           f"{lo} to {hi}.")
+    if late_hint and str(day) > hi:
+        msg += "\n\n" + late_hint
+    elif str(day) < lo:
+        msg += f"\n\nThe archive begins {lo}; earlier days cannot be computed."
+    return msg
+
+
+def window_message(what, need_lo, need_hi, have_lo, have_hi, hours, direction):
+    """A run window the archive cannot cover, said usefully.
+
+    Partial coverage is the trap: a 48 h run can seed from FIRMS, find wind for
+    its first day and none for its second. Reporting only the archive's end date
+    leaves the user to do the arithmetic, so do it for them and name the dates
+    that would actually work.
+    """
+    span = dt.timedelta(hours=abs(hours))
+    if direction == "backward":
+        earliest, latest = have_lo + span, have_hi
+    else:
+        earliest, latest = have_lo, have_hi - span
+    return "\n".join([
+        f"{what} does not cover the whole run window.",
+        f"  needed:    {need_lo:%Y-%m-%d %H:%M} to {need_hi:%Y-%m-%d %H:%M}",
+        f"  available: {have_lo:%Y-%m-%d %H:%M} to {have_hi:%Y-%m-%d %H:%M}",
+        "",
+        f"With --track-hours {abs(hours)}, --date has to fall between "
+        f"{earliest:%Y-%m-%d} and {latest:%Y-%m-%d}.",
+        "Reanalysis runs several days behind real time. For the last few days "
+        "use smoke-video, which reads live feeds and needs no Earth Engine.",
+    ])
+
+
+def _require_window(collection_id, lo, hi, what, hours, direction="forward"):
+    """Refuse a run the archive cannot cover end to end."""
+    import ee
+
+    full = ee.ImageCollection(collection_id)
+    span = ee.Dictionary({
+        "lo": ee.Date(full.aggregate_min("system:time_start")).format(
+            "yyyy-MM-dd HH:mm"),
+        "hi": ee.Date(full.aggregate_max("system:time_start")).format(
+            "yyyy-MM-dd HH:mm"),
+    }).getInfo()
+    fmt = "%Y-%m-%d %H:%M"
+    have_lo = dt.datetime.strptime(span["lo"], fmt).replace(tzinfo=dt.UTC)
+    have_hi = dt.datetime.strptime(span["hi"], fmt).replace(tzinfo=dt.UTC)
+    if have_lo <= lo and hi <= have_hi:
+        return
+    raise SystemExit(window_message(what, lo, hi, have_lo, have_hi, hours,
+                                    direction))
+
+
+def _require_day(ic, collection_id, day, what):
+    """Refuse early when a collection holds nothing for this day.
+
+    An empty ImageCollection reduces to an image with no bands, and every
+    arithmetic op after that fails with a message about band counts rather than
+    about the date -- which is the actual problem and is easy to fix.
+    """
+    import ee
+
+    if ic.size().getInfo():
+        return
+    full = ee.ImageCollection(collection_id)
+    span = ee.Dictionary({
+        "lo": ee.Date(full.aggregate_min("system:time_start")).format("YYYY-MM-dd"),
+        "hi": ee.Date(full.aggregate_max("system:time_start")).format("YYYY-MM-dd"),
+    }).getInfo()
+    raise SystemExit(coverage_message(what, day, span["lo"], span["hi"],
+                                      LATE_HINT.get(collection_id, "")))
+
+
 def _seeds(aoi, day, n):
     """Parcel start points: the strongest FIRMS detections that day."""
     import ee
     a = ee.Date(day.isoformat())
     ic = (ee.ImageCollection(FIRMS_IC).select("T21")
           .filterDate(a, a.advance(1, "day")))
+    # FIRMS is a daily global image, so inside the archive there is always one,
+    # masked wherever nothing burned -- a fireless day still yields an image and
+    # simply produces no seeds. Zero IMAGES means the day itself is missing.
+    _require_day(ic, FIRMS_IC, day, "FIRMS")
     # reduceToVectors groups on the FIRST band and reduces the rest, so it needs
     # a label band and a value band. One band with Reducer.first fails with
     # "Need 1+1 bands" -- the same trap the Ketapang hotspot join hit.
@@ -217,9 +319,12 @@ def _receptors(aoi, day, n, named=None):
         return _sample_pm25(day, named)
 
     a = ee.Date(day.isoformat())
-    pm = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
-          .filterDate(a, a.advance(1, "day")).mean().multiply(1e9)
-          .rename("pm25"))
+    day_ic = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
+              .filterDate(a, a.advance(1, "day")))
+    # Ranking receptors by PM2.5 is impossible without PM2.5, so this one is
+    # fatal rather than cosmetic.
+    _require_day(day_ic, CAMS_IC, day, "CAMS PM2.5")
+    pm = day_ic.mean().multiply(1e9).rename("pm25")
     fc = _districts(aoi)
     stats = pm.reduceRegions(fc, ee.Reducer.mean(), 44453).getInfo()["features"]
     ranked = sorted(
@@ -639,10 +744,17 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     lo, hi = ((start - span, start) if direction == "backward"
               else (start, start + span))
     smoke = os.path.join(run_dir, "_pm25.tif")
-    img = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
-           .filterDate(lo.isoformat(), hi.isoformat())
-           .mean().multiply(1e9).clip(aoi))
-    smoke = download_geotiff(img, coords, smoke, scale=44453)
+    window = (ee.ImageCollection(CAMS_IC).select(CAMS_PM25)
+              .filterDate(lo.isoformat(), hi.isoformat()))
+    # Unlike the receptor ranking, the backdrop is decorative: CAMS starts in
+    # mid-2016, and refusing to draw 2015 trajectories over a blank background
+    # would withhold the part that still works.
+    if window.size().getInfo():
+        img = window.mean().multiply(1e9).clip(aoi)
+        smoke = download_geotiff(img, coords, smoke, scale=44453)
+    else:
+        print("  (no CAMS PM2.5 for this window — trajectories only)")
+        smoke = None
 
     from .exposure import _district_shapes, _districts
     shapes = _district_shapes(_districts(aoi))

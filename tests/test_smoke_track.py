@@ -109,6 +109,55 @@ def test_subtitle_survives_absurd_names():
     assert len(cap["title"].splitlines()[-1]) <= st.SUBTITLE_CHARS
 
 
+def test_coverage_message_names_the_range():
+    """The default failure is 'Image.gt: ... Got 0 and 1', which says nothing
+    about dates. This message has to."""
+    msg = st.coverage_message("FIRMS", "2026-08-09", "2000-11-01", "2026-08-08")
+    assert "2026-08-09" in msg and "2000-11-01" in msg and "2026-08-08" in msg
+
+
+def test_coverage_message_explains_a_day_past_the_archive():
+    msg = st.coverage_message("FIRMS", "2026-08-09", "2000-11-01", "2026-08-08",
+                              st.LATE_HINT[st.FIRMS_IC])
+    assert "smoke-video" in msg          # the live feed, for recent days
+
+
+def test_coverage_message_explains_a_day_before_the_archive():
+    msg = st.coverage_message("CAMS PM2.5", "2015-09-30", "2016-06-22",
+                              "2026-08-08", st.LATE_HINT[st.CAMS_IC])
+    assert "begins 2016-06-22" in msg
+    # The lag hint is about recent days and would be nonsense for 2015.
+    assert "lags" not in msg
+
+
+def test_window_message_does_the_arithmetic_for_you():
+    """Partial coverage is the trap: FIRMS has the seed day, ERA5 does not have
+    the second day of the run. Naming the archive's end leaves the user to work
+    out a usable --date, so the message works it out."""
+    import datetime as dt
+    have_hi = dt.datetime(2026, 8, 3, 23, tzinfo=dt.UTC)
+    msg = st.window_message(
+        "ERA5 100 m wind",
+        dt.datetime(2026, 8, 8, tzinfo=dt.UTC),
+        dt.datetime(2026, 8, 10, tzinfo=dt.UTC),
+        dt.datetime(1943, 5, 11, 4, tzinfo=dt.UTC), have_hi, 48, "forward")
+    # 48 h forward off an archive ending 3 Aug means the last usable day is 1 Aug.
+    assert "2026-08-01" in msg
+    assert "smoke-video" in msg
+
+
+def test_window_message_backward_shifts_the_other_end():
+    import datetime as dt
+    msg = st.window_message(
+        "ERA5 100 m wind",
+        dt.datetime(2016, 6, 22, tzinfo=dt.UTC),
+        dt.datetime(2016, 6, 24, tzinfo=dt.UTC),
+        dt.datetime(2016, 6, 22, tzinfo=dt.UTC),
+        dt.datetime(2026, 8, 3, tzinfo=dt.UTC), 48, "backward")
+    # Going back 48 h, the EARLIEST usable date moves forward instead.
+    assert "2016-06-24" in msg
+
+
 def test_subtitle_with_no_districts():
     cap = st._captions("X", "2019-09-15", 48, {}, "forward", [(0, 0)], None, 48)
     assert "melintasi" not in cap["title"]
