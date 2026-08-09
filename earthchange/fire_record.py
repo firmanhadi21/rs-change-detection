@@ -290,10 +290,18 @@ def _build_records(zone, tr, names, dc_by_date, hs, burn, lang):
         peak = max(vals)
         # First date each threshold was crossed -- the date an obligation, if
         # one is attached to that class, would have started.
-        crossed = {}
+        #
+        # A crossing dated to the FIRST snapshot is not a crossing: the zone was
+        # already at that class when the window opened, and the real date is
+        # earlier than anything this run can see. Recording it as a date would
+        # turn the window's left edge into a finding, and every zone would
+        # appear to have crossed on the same day.
+        first_snap = next(iter(series))
+        crossed, censored = {}, {}
         for lvl, br in zip(labels[1:], breaks):
             hit = next((d for d, v in series.items() if v >= br), None)
             crossed[lvl] = hit
+            censored[lvl] = hit is not None and hit == first_snap
         months = {mo: int(round(v.get(i, 0))) for mo, v in hs.items()}
         recs[nm] = {
             "area_ha": round(areas[i], 1),
@@ -302,6 +310,7 @@ def _build_records(zone, tr, names, dc_by_date, hs, burn, lang):
             "dc_peak_date": max(series, key=series.get),
             "dc_class_at_peak": labels[int(np.digitize(peak, breaks))],
             "first_crossed": crossed,
+            "first_crossed_censored": censored,
             "checkpoints_at_or_above_Tinggi": sum(1 for v in vals if v >= breaks[1]),
             "checkpoints_total": len(vals),
             "hotspots_by_month": months,
@@ -309,6 +318,27 @@ def _build_records(zone, tr, names, dc_by_date, hs, burn, lang):
             "burned_ha": (round(burn[i], 1) if i in burn else None),
         }
     return recs
+
+
+def _crossing_lines(r):
+    """The threshold dates, with the ones the window cut off marked as such.
+
+    A date equal to the first snapshot is the window's left edge showing
+    through, not a finding. Left unmarked it reads as though every zone crossed
+    on the same day -- which is exactly what a season starting after the build-up
+    produces, and exactly the sort of tidy coincidence that gets quoted.
+    """
+    out, cens = [], r.get("first_crossed_censored", {})
+    for lvl, d in r["first_crossed"].items():
+        if not d:
+            continue
+        if cens.get(lvl):
+            out.append(f"- Sudah pada kelas **{lvl}** saat jendela dibuka "
+                       f"({d}) — tanggal sebenarnya lebih awal; mulai musim "
+                       "lebih pagi untuk menemukannya")
+        else:
+            out.append(f"- Pertama mencapai **{lvl}**: {d}")
+    return out
 
 
 def _write_markdown(path, recs, meta, lang):
@@ -337,6 +367,8 @@ def _write_markdown(path, recs, meta, lang):
     L.append("|---|---:|---:|---|---|---:|---:|")
     for nm, r in order:
         first = r["first_crossed"].get(hi) or "—"
+        if r.get("first_crossed_censored", {}).get(hi):
+            first = f"sebelum {first}"
         burned = f"{r['burned_ha']:,.0f}" if r["burned_ha"] is not None else "—"
         L.append(f"| {nm} | {r['area_ha']:,.0f} | {r['dc_peak']:,.0f} | "
                  f"{r['dc_class_at_peak']} | {first} | {r['hotspots_total']:,} | "
@@ -351,9 +383,7 @@ def _write_markdown(path, recs, meta, lang):
                  f"tinggi pada {r['checkpoints_at_or_above_Tinggi']} dari "
                  f"{r['checkpoints_total']} titik pantau.")
         L.append("")
-        for lvl, d in r["first_crossed"].items():
-            if d:
-                L.append(f"- Pertama mencapai **{lvl}**: {d}")
+        L.extend(_crossing_lines(r))
         L.append("")
         if r["hotspots_total"]:
             L.append(f"Titik panas FIRMS di dalam kawasan: "

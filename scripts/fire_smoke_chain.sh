@@ -69,6 +69,14 @@ SEASON_START=$(python3 -c "
 import datetime as dt,sys
 print((dt.date.fromisoformat(sys.argv[1]) - dt.timedelta(days=90)).isoformat())
 " "$END")
+# Step 7 needs a longer run-up than the rest. Drought Code has a ~52-day time
+# lag and the build-up starts months before the burning, so a 90-day window
+# opens after every zone has already crossed its thresholds and reports them
+# all crossing on day one -- the window's left edge masquerading as a finding.
+RECORD_START=$(python3 -c "
+import datetime as dt,sys
+print((dt.date.fromisoformat(sys.argv[1]) - dt.timedelta(days=210)).isoformat())
+" "$END")
 HY_DATE=$(python3 -c "
 import datetime as dt,sys
 print((dt.date.fromisoformat(sys.argv[1]) + dt.timedelta(days=4)).isoformat())
@@ -124,6 +132,6 @@ run_step 6 "haze — PM2.5 with fires and admin context" \
 # Step 7 is opt-in and wants a CLOSED season, for the burned-area reason above.
 run_step 7 "fire-record — per-designation accountability (closed seasons only)" \
   earthchange -s fire-record "${AREA[@]}" \
-    --season "$SEASON_START:$END" ${Z[@]+"${Z[@]}"} -o "$OUT/7_record"
+    --season "$RECORD_START:$END" ${Z[@]+"${Z[@]}"} -o "$OUT/7_record"
 
 echo; echo "All outputs under $OUT/"
