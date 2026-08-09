@@ -66,6 +66,34 @@ HYSPLIT_CAVEAT = (
     "Latar: PM2.5 CAMS. Peta dasar © CartoDB/OpenStreetMap.")
 
 
+def _as_date(day):
+    return day if isinstance(day, dt.date) else dt.date.fromisoformat(str(day))
+
+
+def _fmt_when(t):
+    """A date, or a date and time when the run does not land on midnight."""
+    return t.strftime("%Y-%m-%d" if (t.hour, t.minute) == (0, 0)
+                      else "%Y-%m-%d %H:%M")
+
+
+def span_dates(day, hours, direction):
+    """Both ends of the run, as dates rather than a duration.
+
+    "48 jam ke depan" makes the reader do arithmetic against a date they have to
+    hold in their head. The two dates are what they actually want, and they are
+    always given oldest first so the text reads in the same direction the
+    arrows on the map point.
+
+    A run that is not a whole number of days lands mid-day, and saying so beats
+    rounding to a date that is off by twelve hours.
+    """
+    start = dt.datetime.combine(_as_date(day), dt.time(), tzinfo=dt.UTC)
+    delta = dt.timedelta(hours=abs(hours))
+    other = start - delta if direction == "backward" else start + delta
+    lo, hi = sorted([start, other])
+    return _fmt_when(lo), _fmt_when(hi)
+
+
 def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl):
     """Title, subtitle and legend labels, which differ only by direction.
 
@@ -74,15 +102,16 @@ def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl
     the figure quietly asserts the opposite of what it computed.
     """
     back = direction == "backward"
-    what = "parsel udara yang tiba pada " if back else "parsel udara dari titik api "
-    span = f"{hours_lbl} jam ke belakang" if back else f"{hours_lbl} jam ke depan"
+    lo, hi = span_dates(day, hours_lbl, direction)
+    when = (f"parsel udara yang tiba pada {hi}, berasal dari {lo}" if back
+            else f"parsel udara dari titik api {lo}, sampai {hi}")
     head = "Dari mana asap datang" if back else "Ke mana asap terbawa"
 
     # Budget the whole rendered line, not just the district list. Counting
     # districts overflows the moment one is called "Kota Pontianak"; budgeting
     # the list alone still overflows, because the prefix ahead of it is another
     # seventy characters and its length changes with direction.
-    prefix = f"{what}{day}, {span} · melintasi "
+    prefix = f"{when} · melintasi "
     parts, budget = [], SUBTITLE_CHARS - len(prefix)
     for k, v in crossed.items():
         piece = f"{k} ({v})"
@@ -92,7 +121,7 @@ def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl
         budget -= len(piece) + 2
     sub = ("melintasi " + ", ".join(parts)) if parts else ""
     return {
-        "title": f"{head} — {name}\n{what}{day}, {span} · {sub}",
+        "title": f"{head} — {name}\n{when} · {sub}",
         "seed": seed_label or f"titik api FIRMS {day} — awal parsel ({len(seeds)})",
         "start": "paling awal" if back else "jam ke-0",
         "end": ("tiba di reseptor (ujung panah)" if back

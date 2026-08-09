@@ -84,6 +84,45 @@ def test_caveats_say_which_engine_produced_the_figure():
     assert "bukan dispersi" in st.HYSPLIT_CAVEAT
 
 
+def test_span_dates_forward_is_start_plus_hours():
+    assert st.span_dates("2026-08-01", 48, "forward") == ("2026-08-01",
+                                                          "2026-08-03")
+
+
+def test_span_dates_backward_reaches_back():
+    assert st.span_dates("2019-09-15", 48, "backward") == ("2019-09-13",
+                                                           "2019-09-15")
+
+
+def test_span_dates_are_always_oldest_first():
+    """So the text reads in the same direction the arrows on the map point."""
+    for direction in ("forward", "backward"):
+        lo, hi = st.span_dates("2019-09-15", 72, direction)
+        assert lo < hi
+
+
+def test_span_dates_shows_the_time_when_it_is_not_a_whole_day():
+    """A 36 h run lands at midday; rounding to a date would be 12 h wrong."""
+    lo, hi = st.span_dates("2026-08-01", 36, "forward")
+    assert lo == "2026-08-01" and hi == "2026-08-02 12:00"
+
+
+def test_subtitle_carries_both_dates_not_a_duration():
+    cap = st._captions("X", "2026-08-01", 48, {"Ketapang": 3}, "forward",
+                       [(0, 0)], None, 48)
+    line = cap["title"].splitlines()[-1]
+    assert "2026-08-01" in line and "2026-08-03" in line
+    assert "jam ke depan" not in line
+
+
+def test_backward_subtitle_says_arrived_and_came_from():
+    cap = st._captions("X", "2019-09-15", 48, {"Ketapang": 3}, "backward",
+                       [(0, 0)], None, 48)
+    line = cap["title"].splitlines()[-1]
+    assert "tiba pada 2019-09-15" in line
+    assert "berasal dari 2019-09-13" in line
+
+
 LONG_NAMES = {"Kota Pontianak": 9, "Kotawaringin Timur": 8,
               "Kota Singkawang": 7, "Bengkayang": 6, "Sambas": 5}
 
