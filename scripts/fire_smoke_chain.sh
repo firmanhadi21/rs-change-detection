@@ -14,6 +14,11 @@
 #   5 smoke-track    where did their air come from?  backward, the defensible one
 #   6 haze           what did it look like?          PM2.5 + fires + admin
 #   7 fire-record    what happened, per designation? closed seasons only
+#   8 fire-brief     assemble it into one deliverable  reads 1-7, no data
+#
+# --steps REPLACES the list, it does not add to it: --steps 7 runs only step 7.
+# The default is 1,2,3,4,5,6,8 -- everything except the record, which is opt-in
+# for the burned-area reason below. For all of it: --steps 1,2,3,4,5,6,7,8
 #
 # The trap this exists to handle: the seven steps read six archives and they do
 # not end on the same day. Measured 2026-08-09 --
@@ -41,7 +46,7 @@
 set -euo pipefail
 
 END=""; ADMIN=""; NAME=""; ZONES=""; ZFIELD=""; WIDE=""; OUT="output/chain"
-STEPS="1,2,3,4,5,6"
+STEPS="1,2,3,4,5,6,8"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -133,5 +138,11 @@ run_step 6 "haze — PM2.5 with fires and admin context" \
 run_step 7 "fire-record — per-designation accountability (closed seasons only)" \
   earthchange -s fire-record "${AREA[@]}" \
     --season "$RECORD_START:$END" ${Z[@]+"${Z[@]}"} -o "$OUT/7_record"
+
+# Step 8 reads the folders the others wrote, so it runs last and needs no data.
+# In the default step list because seven folders of PNGs is an evidence base,
+# not something you can hand to anybody.
+run_step 8 "fire-brief — assemble the six claims into one deliverable" \
+  earthbrief "$OUT" --lang "${BRIEF_LANG:-id}"
 
 echo; echo "All outputs under $OUT/"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "earthchange"
-version = "0.1.70"
+version = "0.1.71"
 description = "Multipurpose satellite change detection (deforestation, mining, urbanisation, floods, burns, water, urban growth) via Google Earth Engine or Microsoft Planetary Computer."
 readme = "PYPI_README.md"
 requires-python = ">=3.11"
@@ -70,6 +70,7 @@ Repository = "https://github.com/firmanhadi21/rs-change-detection"
 [project.scripts]
 earthchange = "earthchange.detect:main"
 earthmap = "earthchange.make_map:main"
+earthbrief = "earthchange.brief:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["earthchange"]
