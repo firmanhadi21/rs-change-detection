@@ -320,6 +320,42 @@ def _build_records(zone, tr, names, dc_by_date, hs, burn, lang):
     return recs
 
 
+def _incomplete(kept, missing, spinup, s0, s1):
+    """Refuse to write a record that is missing checkpoints.
+
+    Earth Engine stops evaluating the daily accumulation once the chain gets
+    long enough, and it is always the LATER checkpoints that fail -- which for a
+    fire season means the dry months, the only ones anybody cares about.
+
+    Continuing would be the worst possible outcome for this scenario. The record
+    exists to be cited, and a partial one does not look partial: the summary
+    counts checkpoints out of however many downloaded, so nine of fifteen prints
+    as "0/9 at or above Tinggi" and reads as a quiet season. That is not a
+    caveat, it is a wrong answer with a confident face.
+    """
+    chain = spinup + (s1 - s0).days + 1
+    return "\n".join([
+        f"Only {len(kept) - len(missing)} of {len(kept)} checkpoints could be "
+        "computed, so no record was written.",
+        "",
+        "  missing: " + ", ".join(d.isoformat() for d in missing),
+        "",
+        "Earth Engine gives up on the Drought Code accumulation once the daily "
+        f"chain gets long enough; this run asked for {chain} days. It is always "
+        "the later checkpoints that fail, which for a fire season means the dry "
+        "months.",
+        "",
+        "A record missing those is worse than no record -- it would report the "
+        "season as calmer than it was, and nothing in the output would say so.",
+        "",
+        "Shorten the season. Runs of roughly 180 days of accumulation "
+        "(--spinup plus the season) have completed; beyond that the tail is "
+        "lost. Note the trade-off: too short and the Drought Code has not spun "
+        "up, and the threshold dates fall on the first checkpoint because the "
+        "zone was already dry when the window opened.",
+    ])
+
+
 def _crossing_lines(r):
     """The threshold dates, with the ones the window cut off marked as such.
 
@@ -551,6 +587,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         if got:
             dc_tifs[d] = got
     print(f"  {len(dc_tifs)}/{len(kept)} titik pantau terunduh")
+    missing = [d for d in kept if d not in dc_tifs]
+    if missing:
+        raise SystemExit(_incomplete(kept, missing, spinup, s0, s1))
 
     hs_tifs = _hotspots_monthly(aoi, s0, s1, run_dir)
     burn_tif = _burned_area(aoi, s0, s1, run_dir)
