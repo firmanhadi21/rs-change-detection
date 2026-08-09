@@ -29,9 +29,9 @@ import os
 os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
 
-from .fire_danger import (BMKG_BREAKS, ERA5_HOURLY, ERA5_SCALE, SPINUP_DAYS,
-                          _accumulate, _classes, _day_factors, _label,
-                          _noon_utc_hour, _read_zones)
+from .fire_danger import (BMKG_BREAKS, DC_START, ERA5_HOURLY, ERA5_SCALE,
+                          SPINUP_DAYS, _accumulate, _classes, _day_factors,
+                          _label, _noon_utc_hour, _noon_weather, _read_zones)
 
 FIRMS_IC = "FIRMS"
 BURN_IC = "MODIS/061/MCD64A1"
@@ -52,14 +52,13 @@ def _checkpoints(start, end, step):
     return out
 
 
-def _dc_snapshots(aoi, season_start, season_end, spinup, step):
-    """Drought Code at each checkpoint, from ONE continuous accumulation.
+def _dc_plan(aoi, season_start, season_end, spinup, step):
+    """Which days to accumulate, which of them are checkpoints, and the factors.
 
-    Re-running the spinup per checkpoint would repeat the same arithmetic dozens
-    of times; instead the daily chain runs once and the DC image is captured as
-    it passes each checkpoint date.
+    Split out from the accumulation itself because the day list, the day-length
+    factors and the noon hour are all cheap and local, while the accumulation is
+    the expensive part that had to change.
     """
-    import ee
     days = [season_start - dt.timedelta(days=spinup - i)
             for i in range(spinup)] + \
         [season_start + dt.timedelta(days=i)
@@ -70,42 +69,114 @@ def _dc_snapshots(aoi, season_start, season_end, spinup, step):
 
     cen = aoi.centroid(maxError=1000).coordinates().getInfo()
     noon_h = _noon_utc_hour(cen[0])
-    le, lf, dl = _day_factors(cen[1], days)
-    snaps = _accumulate_with_snapshots(aoi, days, noon_h, le, lf, want)
-    return kept, snaps, dl, noon_h
+    _le, lf, dl = _day_factors(cen[1], days)
+    return days, kept, want, lf, noon_h, dl
 
 
-def _accumulate_with_snapshots(aoi, days, noon_h, le, lf, want):
-    """The fire_danger accumulation, keeping DC at flagged days."""
+DAYS_PER_CHUNK = 45          # 90 bands per download, comfortably under limits
+
+
+def _weather_chunk(aoi, days, noon_h):
+    """Noon temperature and 24 h-to-noon rain for a run of days, as one image.
+
+    Two bands per day. Flat -- no iterate, no dependency between days -- which
+    is the whole point: it is the chained accumulation that Earth Engine gives
+    up on, not the weather.
+    """
     import ee
-    from .fire_danger import _dc, _dmc, _ffmc, _noon_weather
-    from .fire_danger import DC_START, DMC_START, FFMC_START
 
-    le_l, lf_l, want_l = ee.List(le), ee.List(lf), ee.List(want)
-    day_l = ee.List([d.isoformat() for d in days])
-    init = ee.Dictionary({
-        "ffmc": ee.Image.constant(FFMC_START).rename("FFMC").clip(aoi).toFloat(),
-        "dmc": ee.Image.constant(DMC_START).rename("DMC").clip(aoi).toFloat(),
-        "dc": ee.Image.constant(DC_START).rename("DC").clip(aoi).toFloat(),
-        "snaps": ee.List([]),
-    })
+    bands = []
+    for d in days:
+        t, _rh, _w, r = _noon_weather(aoi, d.isoformat(), noon_h)
+        bands.append(t.rename(f"t{d.isoformat()}"))
+        bands.append(r.rename(f"r{d.isoformat()}"))
+    return ee.Image.cat(bands).clip(aoi).toFloat()
 
-    def step(i, prev):
-        i = ee.Number(i)
-        prev = ee.Dictionary(prev)
-        t, h, w, r = _noon_weather(aoi, ee.String(day_l.get(i)), noon_h)
-        dc = _dc(ee.Image(prev.get("dc")), t, r, ee.Number(lf_l.get(i)))
-        snaps = ee.List(prev.get("snaps"))
-        snaps = ee.List(ee.Algorithms.If(ee.Number(want_l.get(i)).eq(1),
-                                         snaps.add(dc), snaps))
-        return ee.Dictionary({
-            "ffmc": _ffmc(ee.Image(prev.get("ffmc")), t, h, w, r),
-            "dmc": _dmc(ee.Image(prev.get("dmc")), t, h, r,
-                        ee.Number(le_l.get(i))),
-            "dc": dc, "snaps": snaps})
 
-    out = ee.Dictionary(ee.List.sequence(0, len(days) - 1).iterate(step, init))
-    return ee.List(out.get("snaps"))
+def _dc_local(aoi, coords, days, noon_h, lf, want, run_dir):
+    """Drought Code accumulated here, from weather downloaded in chunks.
+
+    The previous version built one ee.List.iterate chain over every day and
+    asked Earth Engine for the DC image at each checkpoint. Each request
+    re-evaluates the chain from its head, so the graph deepens as the season
+    goes on and Earth Engine eventually refuses -- always on the LATER
+    checkpoints, which for a fire season are the dry months. It returned 400 and
+    the run wrote a record with the fire season missing.
+
+    Downloading the weather and stepping the recursion in numpy removes the
+    problem rather than working around it: the server only ever sees a flat
+    stack of independent daily bands, and the recursion happens where recursion
+    is cheap. It is the same trade smoke-track makes with the wind field.
+
+    Returns {date: path-to-DC-GeoTIFF} for the flagged days.
+    """
+    import numpy as np
+    import rasterio
+    from .gee_utils import download_geotiff
+
+    chunks = [days[i:i + DAYS_PER_CHUNK]
+              for i in range(0, len(days), DAYS_PER_CHUNK)]
+    print(f"  weather in {len(chunks)} chunk(s) of up to {DAYS_PER_CHUNK} days",
+          flush=True)
+
+    dc = None                                   # carries across chunk edges
+    profile = None
+    out = {}
+    for ci, chunk in enumerate(chunks):
+        tif = os.path.join(run_dir, f"_wx_{ci:02d}.tif")
+        got = download_geotiff(_weather_chunk(aoi, chunk, noon_h), coords, tif,
+                               scale=ERA5_SCALE)
+        if not got:
+            raise SystemExit(
+                f"Could not download weather for {chunk[0]}…{chunk[-1]}. "
+                "This is a plain download failure, not the accumulation: retry, "
+                "or reduce the area.")
+        with rasterio.open(got) as src:
+            arr = src.read().astype("float64")
+            if profile is None:
+                profile = src.profile
+        arr[~np.isfinite(arr)] = np.nan
+
+        for k, day in enumerate(chunk):
+            i = ci * DAYS_PER_CHUNK + k          # absolute day index
+            t, r = arr[2 * k], arr[2 * k + 1]
+            if dc is None:
+                dc = np.full(t.shape, float(DC_START))
+            dc = _dc_step(dc, t, r, lf[i])
+            if want[i]:
+                out[day] = _write_dc(dc, profile, run_dir, day)
+    return out
+
+
+def _dc_step(dc, t, r, lf):
+    """One day of Drought Code, in numpy.
+
+    Van Wagner (1987), matching fire_danger._dc term for term so the two
+    scenarios cannot drift apart.
+    """
+    import numpy as np
+
+    rd = np.maximum(r * 0.83 - 1.27, 0.0)
+    qo = 800.0 * np.exp(-dc / 400.0)
+    qr = qo + 3.937 * rd
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dr = np.maximum(400.0 * np.log(800.0 / qr), 0.0)
+    # Rain only resets the code once it exceeds the 2.8 mm threshold.
+    d0 = np.where(r > 2.8, dr, dc)
+    v = np.maximum(0.36 * (np.maximum(t, -2.8) + 2.8) + lf, 0.0)
+    return np.maximum(d0 + 0.5 * v, 0.0)
+
+
+def _write_dc(dc, profile, run_dir, day):
+    import rasterio
+
+    p = dict(profile)
+    p.update(count=1, dtype="float32")
+    path = os.path.join(run_dir, f"_dc_{day.isoformat()}.tif")
+    with rasterio.open(path, "w", **p) as dst:
+        dst.write(dc.astype("float32"), 1)
+    return path
+
 
 
 def _zone_on_grid(shapes, aoi_geom, out_shape, transform):
@@ -575,18 +646,10 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     print(f"  {name}: {s0} → {s1} · {len(cps)} titik pantau tiap {step} hari · "
           f"akumulasi {spinup} hari sebelumnya")
 
-    kept, snaps, dl, noon_h = _dc_snapshots(aoi, s0, s1, spinup, step)
-    print(f"  menghitung Drought Code ({spinup + (s1 - s0).days + 1} hari) ...",
-          flush=True)
-    dc_tifs = {}
-    for i, d in enumerate(kept):
-        import ee
-        tif = os.path.join(run_dir, f"_dc_{d.isoformat()}.tif")
-        got = download_geotiff(ee.Image(snaps.get(i)).clip(aoi).toFloat(),
-                               coords, tif, scale=ERA5_SCALE)
-        if got:
-            dc_tifs[d] = got
-    print(f"  {len(dc_tifs)}/{len(kept)} titik pantau terunduh")
+    days, kept, want, lf, noon_h, dl = _dc_plan(aoi, s0, s1, spinup, step)
+    print(f"  menghitung Drought Code ({len(days)} hari) ...", flush=True)
+    dc_tifs = _dc_local(aoi, coords, days, noon_h, lf, want, run_dir)
+    print(f"  {len(dc_tifs)}/{len(kept)} titik pantau")
     missing = [d for d in kept if d not in dc_tifs]
     if missing:
         raise SystemExit(_incomplete(kept, missing, spinup, s0, s1))
