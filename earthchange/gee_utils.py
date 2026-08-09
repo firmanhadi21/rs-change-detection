@@ -249,3 +249,73 @@ def initialize_ee(config_key=None, prefer_user=False):
             "  export EARTHCHANGE_EE_KEY=/path/to/ee-geodetic.json   (any directory)\n"
             "  cp /path/to/ee-geodetic.json ~/.config/earthengine/ee-geodetic.json\n"
             "or run `earthengine authenticate` for personal user credentials.")
+
+
+# --------------------------------------------------------------------------
+# Archive coverage
+#
+# Reducing an empty ImageCollection yields an image with no bands, and every
+# operation after that fails with a message about band counts or null inputs:
+#
+#   Image.gt: If one image has no bands, the other must also have no bands.
+#   Image.select: Parameter 'input' is required and may not be null.
+#
+# Neither mentions dates, which is always the actual problem. The archives these
+# scenarios read end on different days -- ERA5-Land about a week behind, FIRMS
+# about a day, CAMS ahead because it is a forecast, MODIS burned area months
+# behind -- so "the last few days" fails in a different place depending on the
+# scenario. These turn that into one message that names a date that would work.
+# --------------------------------------------------------------------------
+
+REANALYSIS_HINT = (
+    "Reanalysis runs several days behind real time. For the last few days use "
+    "smoke-video, which reads live feeds and needs no Earth Engine.")
+
+
+def collection_span(collection_id):
+    """First and last timestamp a collection carries, as UTC datetimes."""
+    import datetime as dt
+
+    import ee
+
+    ic = ee.ImageCollection(collection_id)
+    span = ee.Dictionary({
+        "lo": ee.Date(ic.aggregate_min("system:time_start")).format(
+            "yyyy-MM-dd HH:mm"),
+        "hi": ee.Date(ic.aggregate_max("system:time_start")).format(
+            "yyyy-MM-dd HH:mm"),
+    }).getInfo()
+    fmt = "%Y-%m-%d %H:%M"
+    return (dt.datetime.strptime(span["lo"], fmt).replace(tzinfo=dt.UTC),
+            dt.datetime.strptime(span["hi"], fmt).replace(tzinfo=dt.UTC))
+
+
+def span_message(what, need_lo, need_hi, have_lo, have_hi, hint=""):
+    """A window the archive cannot cover end to end.
+
+    Reports what WOULD fit, not only what is missing: the user's next move is to
+    pick a date that works, and making them derive it from an end timestamp is
+    the part that wastes their time.
+    """
+    lines = [f"{what} does not cover the whole window.",
+             f"  needed:    {need_lo:%Y-%m-%d} to {need_hi:%Y-%m-%d}",
+             f"  available: {have_lo:%Y-%m-%d} to {have_hi:%Y-%m-%d}"]
+    if need_hi.date() > have_hi.date():
+        lines += ["", f"End the window on {have_hi:%Y-%m-%d} or earlier."]
+    if need_lo.date() < have_lo.date():
+        lines += ["", f"Start the window on {have_lo:%Y-%m-%d} or later."]
+    if hint:
+        lines += ["", hint]
+    return "\n".join(lines)
+
+
+def require_span(collection_id, lo, hi, what, hint=REANALYSIS_HINT):
+    """Refuse a window the collection cannot cover, before any computation.
+
+    Compared on dates rather than timestamps: a daily product is stamped at
+    midnight, so a window ending later the same day is in fact covered.
+    """
+    have_lo, have_hi = collection_span(collection_id)
+    if have_lo.date() <= lo.date() and hi.date() <= have_hi.date():
+        return
+    raise SystemExit(span_message(what, lo, hi, have_lo, have_hi, hint))

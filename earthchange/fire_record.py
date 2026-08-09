@@ -516,9 +516,19 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         raise SystemExit("fire-record needs --backend gee (ERA5-Land + FIRMS).")
     s0, s1 = _check_args(zones, zone_field, season)
 
-    from .gee_utils import initialize_ee, download_geotiff
+    from .gee_utils import initialize_ee, download_geotiff, require_span
     from .fire_history import _resolve_aoi
     initialize_ee(config_key)
+    # Before the Drought Code accumulation, which is hundreds of days of work.
+    # ERA5-Land runs about a week behind, so a season ending "today" leaves the
+    # last checkpoint with no weather, and the run gets all the way to the
+    # download before failing with "Image.select: Parameter 'input' ... null".
+    # The window includes the spin-up, which reaches back before the season.
+    require_span(ERA5_HOURLY,
+                 dt.datetime.combine(s0 - dt.timedelta(days=spinup),
+                                     dt.time(), tzinfo=dt.UTC),
+                 dt.datetime.combine(s1, dt.time(), tzinfo=dt.UTC),
+                 "ERA5-Land (Drought Code weather)")
     aoi = _resolve_aoi(admin, bbox, lon, lat, radius)
     coords = aoi.bounds().getInfo()["coordinates"]
     xs = [p[0] for p in coords[0]]
