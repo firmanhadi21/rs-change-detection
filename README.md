@@ -109,6 +109,11 @@ Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
 
 ## Deteksi Perubahan Multiguna — `detect.py`
 
+Uji: `pip install 'earthchange[dev]'` lalu `pytest -m "not network"` — berjalan
+luring dalam ±1 detik. `pytest` tanpa penanda juga menguji bahwa berkas
+meteorologi GDAS1 yang dirujuk benar-benar ada di S3 publik ARL. Uji yang
+memerlukan HYSPLIT akan dilewati bila `hyts_std` tidak terpasang.
+
 Bantuan per skenario: `earthchange -s <skenario> --help` hanya menampilkan opsi
 yang berlaku untuk skenario itu (dari 106 opsi, biasanya 20–30), lengkap dengan
 satu baris tentang apa yang dilaporkannya. `--help` tanpa `-s` tetap menampilkan

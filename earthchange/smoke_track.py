@@ -42,6 +42,9 @@ CAMS_PM25 = "particulate_matter_d_less_than_25_um_surface"
 DEFAULT_HOURS = 48
 DEFAULT_PARCELS = 60
 DEFAULT_HEIGHTS = (100.0, 500.0, 1500.0)     # m AGL, HYSPLIT release levels
+# Longest subtitle line that fits the figure at 12.5 pt bold on 13.5 in.
+# Measured, not guessed: 144 characters clipped, 123 fitted.
+SUBTITLE_CHARS = 125
 
 DEFAULT_CAVEAT = (
     "ILUSTRASI, BUKAN ATRIBUSI. Parsel dibawa angin ERA5 100 m — level terbaik "
@@ -71,10 +74,16 @@ def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl
     the figure quietly asserts the opposite of what it computed.
     """
     back = direction == "backward"
-    # Budget characters, not districts. Four names fit until one of them is
-    # "Kota Pontianak", and then the title runs off the right edge of the
-    # figure -- which is how it first shipped.
-    parts, budget = [], 62
+    what = "parsel udara yang tiba pada " if back else "parsel udara dari titik api "
+    span = f"{hours_lbl} jam ke belakang" if back else f"{hours_lbl} jam ke depan"
+    head = "Dari mana asap datang" if back else "Ke mana asap terbawa"
+
+    # Budget the whole rendered line, not just the district list. Counting
+    # districts overflows the moment one is called "Kota Pontianak"; budgeting
+    # the list alone still overflows, because the prefix ahead of it is another
+    # seventy characters and its length changes with direction.
+    prefix = f"{what}{day}, {span} · melintasi "
+    parts, budget = [], SUBTITLE_CHARS - len(prefix)
     for k, v in crossed.items():
         piece = f"{k} ({v})"
         if len(piece) + 2 > budget:
@@ -82,9 +91,6 @@ def _captions(name, day, hours, crossed, direction, seeds, seed_label, hours_lbl
         parts.append(piece)
         budget -= len(piece) + 2
     sub = ("melintasi " + ", ".join(parts)) if parts else ""
-    what = "parsel udara yang tiba pada " if back else "parsel udara dari titik api "
-    span = f"{hours_lbl} jam ke belakang" if back else f"{hours_lbl} jam ke depan"
-    head = "Dari mana asap datang" if back else "Ke mana asap terbawa"
     return {
         "title": f"{head} — {name}\n{what}{day}, {span} · {sub}",
         "seed": seed_label or f"titik api FIRMS {day} — awal parsel ({len(seeds)})",

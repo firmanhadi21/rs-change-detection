@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "earthchange"
-version = "0.1.60"
+version = "0.1.61"
 description = "Multipurpose satellite change detection (deforestation, mining, urbanisation, floods, burns, water, urban growth) via Google Earth Engine or Microsoft Planetary Computer."
 readme = "PYPI_README.md"
 requires-python = ">=3.11"
@@ -47,11 +47,19 @@ video = ["forge3d>=1.34", "numpy", "scipy", "pandas", "pillow", "requests"]
 # Indicative smoke trajectories (smoke-track): air parcels on ERA5 100 m wind
 track = ["earthengine-api", "movingpandas", "geopandas", "pyogrio", "numpy",
          "rasterio", "matplotlib", "contextily", "shapely"]
+# Test suite. Runs offline with `pytest -m "not network"`.
+dev = ["pytest"]
 # Everything
 all = [
   "earthengine-api", "numpy", "rasterio", "pystac-client",
   "planetary-computer", "odc-stac", "rioxarray", "matplotlib", "contextily",
   "geopandas", "pyogrio", "movingpandas",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "network: reaches a public endpoint (ARL S3). Skip with -m 'not network'",
 ]
 
 [project.urls]
