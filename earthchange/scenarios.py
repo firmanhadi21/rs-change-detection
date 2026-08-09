@@ -693,7 +693,11 @@ SCENARIO_FLAGS = {
     "mining": _WINDOW + _OPTICAL + _PLANET + _MAP + ("--thr", "--drop-thr"),
     "urbanization": _WINDOW + _OPTICAL + _MAP + ("--thr",),
     "urban-trend": ("--start-year", "--end-year", "--epochs", "--cell-km"),
-    "urban-history": ("--start-year", "--end-year", "--epochs", "--cell-km"),
+    # urban-history is the scenario that confirms change against Planet imagery,
+    # which is where the --hotspot-* window actually belongs.
+    "urban-history": ("--start-year", "--end-year", "--epochs", "--cell-km",
+                      "--hotspot-km", "--hotspot-from", "--hotspot-to")
+                     + _PLANET,
     "flood": _WINDOW + _MAP + ("--thr", "--no-water-mask", "--severe"),
     "disturbance": _WINDOW + _MAP + ("--drop-thr", "--severe"),
     "burn": _WINDOW + _OPTICAL + _MAP + ("--thr", "--severe", "--min-obs"),
@@ -717,11 +721,13 @@ SCENARIO_FLAGS = {
                     ) + _ZONES,
     "fire-record": ("--season", "--record-step", "--spinup", "--rain-source"
                     ) + _ZONES,
-    "haze": ("--haze-start", "--haze-end", "--hotspot-from", "--hotspot-to",
-             "--hotspot-km", "--firms-region"),
-    "drought": ("--season", "--drought-end", "--spi-months", "--rain-source",
-                "--cdi", "--cdi-scale", "--cdi-grid", "--cdi-mask",
-                "--cdi-mask-name", "--cdi-basemap"),
+    # haze takes its window from --haze-start/--haze-end or --days, and nothing
+    # else: the hotspot and firms-region flags belong to other scenarios.
+    "haze": ("--haze-start", "--haze-end", "--days"),
+    # drought is bounded by --drought-end and --spi-months, not --season.
+    "drought": ("--drought-end", "--spi-months", "--start-year",
+                "--rain-source", "--cdi", "--cdi-scale", "--cdi-grid",
+                "--cdi-mask", "--cdi-mask-name", "--cdi-basemap"),
     "smoke-exposure": ("--season", "--pop-year"),
     "smoke-video": ("--date", "--days", "--firms-region", "--video-size",
                     "--video-title", "--video-subtitle", "--video-cities",
