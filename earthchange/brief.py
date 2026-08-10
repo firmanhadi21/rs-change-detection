@@ -109,6 +109,16 @@ def _n(x, nd=0):
     return f"{x:,.{nd}f}" if isinstance(x, (int, float)) else "—"
 
 
+def _ordinal(n):
+    """1st, 2nd, 3rd, 4th … including the 11th-13th exceptions."""
+    if not isinstance(n, int):
+        return str(n)
+    if 11 <= n % 100 <= 13:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }".replace(
+        " ", "")
+
+
 def _claim_drought(s, lang):
     r = s.get("rainfall", {}) or {}
     v = s.get("vegetation", {}) or {}
@@ -126,7 +136,7 @@ def _claim_drought(s, lang):
     if rank and yrs:
         bits.append(f"Peringkat terkering ke-{rank} dari {yrs} tahun."
                     if lang == "id" else
-                    f"The {rank}th driest in {yrs} years of record.")
+                    f"The {_ordinal(rank)} driest in {yrs} years of record.")
     if v.get("vhi") is not None:
         bits.append(
             f"Namun VHI {_n(v.get('vhi'))} — {v.get('class')}: vegetasi belum "

@@ -210,6 +210,25 @@ def test_markdown_points_at_distinct_paths(tmp_path):
     assert len(set(paths)) == 2, paths
 
 
+@pytest.mark.parametrize("n,want", [
+    (1, "1st"), (2, "2nd"), (3, "3rd"), (4, "4th"), (6, "6th"),
+    (11, "11th"), (12, "12th"), (13, "13th"),   # not 11st, 12nd, 13rd
+    (21, "21st"), (22, "22nd"), (23, "23rd"), (46, "46th"),
+])
+def test_ordinals(n, want):
+    """A Kalimantan Tengah brief opened with 'The 3th driest in 46 years'."""
+    assert brief._ordinal(n) == want
+
+
+def test_drought_claim_uses_a_real_ordinal():
+    s = {"rainfall": {"current_mm": 410, "normal_mm": 663,
+                      "pct_of_normal": 62, "z": -1.61, "class": "Kering parah"},
+         "rank_driest_of_record": 3, "years_in_record": 46}
+    out = brief._claim_drought(s, "en")
+    assert "3rd driest in 46 years" in out
+    assert "3th" not in out
+
+
 def test_run_refuses_an_empty_directory(tmp_path):
     with pytest.raises(SystemExit, match="No chain output"):
         brief.run(str(tmp_path))
