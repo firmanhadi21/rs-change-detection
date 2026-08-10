@@ -63,8 +63,12 @@ def _steps(a):
     area = ["--admin", a.admin] if a.admin else ["--bbox", a.bbox]
     area += ["-n", a.name]
     # A district-sized AOI under-reports which districts the smoke crossed, so
-    # the two smoke steps take a wider box when one is given.
-    wide = (["--bbox", a.wide, "-n", a.name] if a.wide else list(area))
+    # the smoke steps take a wider box when one is given -- and are labelled for
+    # it. Naming them after the province produced "Di mana penduduk terpapar --
+    # Kalteng" over a map whose only shaded districts were in Kalbar, which
+    # reads as a bug in the analysis rather than a finding about it.
+    wide = (["--bbox", a.wide, "-n", f"{a.name}-regional"] if a.wide
+            else list(area))
     zone = (["--zones", a.zones, "--zone-field", a.zone_field]
             if a.zones else [])
 

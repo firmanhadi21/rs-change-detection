@@ -68,8 +68,23 @@ def test_wide_box_applies_only_to_the_two_smoke_steps():
         assert "107,-4,115,3" not in _argv_for(n, **kw)
 
 
+def test_wide_steps_are_labelled_regional():
+    """Naming a wide-box step after the province produced "Di mana penduduk
+    terpapar — Kalteng" over a map whose only shaded districts were in Kalbar.
+    The analysis was right; the title said it was about somewhere else."""
+    kw = dict(wide="107,-4,115,3")
+    for n in (4, 5):
+        argv = _argv_for(n, **kw)
+        assert argv[argv.index("-n") + 1] == "Ketapang-regional"
+    for n in (1, 2, 3, 6, 7):
+        argv = _argv_for(n, zones="z.gpkg", zone_field="F", **kw)
+        assert argv[argv.index("-n") + 1] == "Ketapang"
+
+
 def test_without_wide_the_smoke_steps_use_the_plain_area():
-    assert "--admin" in _argv_for(5)
+    argv = _argv_for(5)
+    assert "--admin" in argv
+    assert argv[argv.index("-n") + 1] == "Ketapang"
 
 
 def test_bbox_area_is_passed_through():
