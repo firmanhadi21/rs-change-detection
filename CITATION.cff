@@ -1,19 +1,25 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "earthchange: Multipurpose satellite change detection"
+title: "earthchange: Multipurpose satellite environmental monitoring and change detection"
 doi: "10.5281/zenodo.21370696"
 identifiers:
   - type: doi
     value: "10.5281/zenodo.21370696"
     description: "Concept DOI (all versions)"
 abstract: >-
-  Pure-Python toolkit for satellite change detection — deforestation, mining,
-  urbanisation, floods, burns, surface-water change, coastal/shoreline change
-  (erosion/accretion with cross-shore retreat rates in m/yr) and multi-epoch
-  urban growth — from free Sentinel-1/2 and Landsat data via Google Earth Engine
-  or Microsoft Planetary Computer (no account needed). Produces georeferenced
-  GeoTIFFs, quick-look PNGs, statistics, and print-ready maps. Formerly published
-  as "satchange".
+  Pure-Python toolkit for satellite environmental monitoring and change
+  detection, spanning 24 scenarios from free public archives. Hazard: fire
+  danger from the Canadian Fire Weather Index on Indonesian (BMKG/ASEAN)
+  thresholds, and drought. Impact: burned area, floods, deforestation, mining,
+  urbanisation, surface-water and coastal change (erosion/accretion with
+  cross-shore rates in m/yr), multi-epoch urban and population growth,
+  land-surface heat. Exposure and accountability: smoke exposure in person-days
+  by air-quality class with age structure, air-parcel trajectories (kinematic or
+  NOAA ARL HYSPLIT, forward and backward), and reproducible per-zone fire-season
+  records. Runs on Google Earth Engine or Microsoft Planetary Computer (no
+  account needed). Produces georeferenced GeoTIFFs, quick-look PNGs, statistics,
+  print-ready maps, citable Markdown records, and an assembled brief. Each
+  output carries its own stated limits. Formerly published as "satchange".
 type: software
 authors:
   - given-names: Firman

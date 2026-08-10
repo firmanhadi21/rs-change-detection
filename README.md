@@ -1,4 +1,4 @@
-# Satellite Change Detection (multiguna)
+# Satellite Environmental Monitoring & Change Detection
 
 [![PyPI](https://img.shields.io/pypi/v/earthchange.svg)](https://pypi.org/project/earthchange/)
 [![Python](https://img.shields.io/pypi/pyversions/earthchange.svg)](https://pypi.org/project/earthchange/)
@@ -8,10 +8,13 @@
 
 Instalasi: `pip install 'earthchange[all]'` — perintah `earthchange` & `earthmap`.
 
-**Alat deteksi perubahan berbasis penginderaan jauh untuk berbagai skenario** —
-deforestasi, tambang, urbanisasi, banjir, kebakaran, dan perubahan air — berjalan
-di Google Earth Engine (Python). Pilih skenario + koordinat, hasil ter-unduh
-sebagai PNG, GeoTIFF tergeoreferensi, dan statistik.
+**Pemantauan lingkungan dan deteksi perubahan berbasis penginderaan jauh** —
+24 skenario: bahaya kebakaran (FDRS), paparan asap, lintasan asap, kekeringan,
+suhu permukaan, banjir, deforestasi, tambang, urbanisasi, dan perubahan air.
+Berjalan di Google Earth Engine atau Microsoft Planetary Computer (Python).
+Pilih skenario + lokasi; hasilnya PNG, GeoTIFF tergeoreferensi, statistik JSON,
+dan — untuk rantai kebakaran-asap — catatan Markdown yang dapat disitasi serta
+ringkasan siap kirim. Setiap keluaran membawa batasannya sendiri.
 
 Studi kasus unggulan repо ini: **investigasi tambang emas ilegal (PETI) di Capkala**,
 Kalimantan Barat — lengkap sampai video dokumenter (lihat bagian bawah).

@@ -1,10 +1,14 @@
 # earthchange
 
-**Multipurpose satellite change detection in pure Python.** Map deforestation,
-mining, urbanisation, floods, burns, surface-water change and multi-epoch urban
-growth anywhere on Earth from free Sentinel-1/2 and Landsat data — via **Google
-Earth Engine** or **Microsoft Planetary Computer** (no account needed). Export
-georeferenced GeoTIFFs, quick-look PNGs, statistics, and print-ready A4 maps.
+**Multipurpose satellite environmental monitoring and change detection, in pure
+Python.** 24 scenarios from free public archives: fire danger (Canadian FWI on
+BMKG thresholds), smoke exposure in person-days, air-parcel trajectories
+(HYSPLIT), drought, land-surface heat, floods, deforestation, mining,
+urbanisation and surface-water change — via **Google Earth Engine** or
+**Microsoft Planetary Computer** (no account needed). Export georeferenced
+GeoTIFFs, quick-look PNGs, statistics, print-ready A4 maps, citable Markdown
+records, and a one-file brief that assembles a whole assessment. Every output
+carries its own limits.
 
 - 📖 **Full hands-on tutorial (English & Bahasa Indonesia):** <https://firmanhadi21.github.io/rs-change-detection/>
 - 💻 **Source, examples & case study:** <https://github.com/firmanhadi21/rs-change-detection>

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "earthchange"
 version = "0.1.78"
-description = "Multipurpose satellite change detection (deforestation, mining, urbanisation, floods, burns, water, urban growth) via Google Earth Engine or Microsoft Planetary Computer."
+description = "Multipurpose satellite environmental monitoring and change detection: fire danger, smoke exposure, drought, heat, flood and land change, via Google Earth Engine or Microsoft Planetary Computer."
 readme = "PYPI_README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
