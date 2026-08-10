@@ -187,7 +187,16 @@ def _summarise(recs, labels, lang):
                  if r["population"] else 0.0)
         r["vulnerable_person_days_unhealthy"] = round(
             r["person_days_unhealthy"] * share)
-    order = sorted(recs.items(), key=lambda kv: -kv[1]["person_days_unhealthy"])
+    # Unnamed polygons stay in the totals -- they are real people -- but they
+    # are kept out of the ranking, which drives the report and the figure. See
+    # gee_utils.is_named.
+    from .gee_utils import is_named
+    named = [kv for kv in recs.items() if is_named(kv[0])]
+    dropped = len(recs) - len(named)
+    if dropped:
+        print(f"  ({dropped} unnamed admin unit(s) counted in the totals but "
+              "left out of the ranking)")
+    order = sorted(named, key=lambda kv: -kv[1]["person_days_unhealthy"])
     tot = {
         "districts": len(recs),
         "population": sum(r["population"] for r in recs.values()),

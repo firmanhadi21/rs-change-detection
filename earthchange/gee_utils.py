@@ -309,6 +309,25 @@ def span_message(what, need_lo, need_hi, have_lo, have_hi, hint=""):
     return "\n".join(lines)
 
 
+_PLACEHOLDER_NAMES = ("not available", "unknown", "unnamed", "no data", "n/a")
+
+
+def is_named(name):
+    """Whether an admin name can carry a ranking or a headline.
+
+    GAUL ships placeholder names for polygons it cannot attribute -- most often
+    "Administrative unit not available". Those are real land with real people,
+    so they belong in the totals. They do not belong in a ranking: a district
+    nobody can name is a district nobody can act on, and on a day when only two
+    districts have any exposure the placeholder floats into third place and
+    lands in the summary sentence.
+    """
+    s = (name or "").strip().lower()
+    if not s or s in {"?", "-", "(unnamed)", "none"}:
+        return False
+    return not any(p in s for p in _PLACEHOLDER_NAMES)
+
+
 def last_complete_day(collection_id, before, per_day=24, look_back=12):
     """Most recent day for which the collection holds a full set of hours."""
     import datetime as dt

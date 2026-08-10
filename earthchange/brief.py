@@ -276,17 +276,30 @@ def _claim_track(s, lang):
     ])
 
 
+def _worst_districts(districts, lang, n=3):
+    """The heaviest-burden list, named districts with real exposure only.
+
+    A placeholder name or a zero has no business in a sentence that says
+    "heaviest burden". On a day when only two districts have any exposure, the
+    third slot otherwise fell to "Administrative unit not available (0.0M)".
+    """
+    from .gee_utils import is_named
+
+    top = sorted(((k, v.get("person_days_unhealthy") or 0)
+                  for k, v in districts.items()
+                  if isinstance(v, dict) and is_named(k)
+                  and (v.get("person_days_unhealthy") or 0) > 0),
+                 key=lambda kv: -kv[1])[:n]
+    unit = "juta" if lang == "id" else "M"
+    return ", ".join(f"{k} ({_n(pd / 1e6, 1)}{'' if unit == 'M' else ' '}{unit})"
+                     for k, pd in top)
+
+
 def _claim_exposure(s, lang):
     t = s.get("totals", {}) or {}
     by = t.get("person_days_by_class", {}) or {}
     unhealthy = t.get("person_days_unhealthy")
-    top = sorted(((k, v) for k, v in (s.get("districts") or {}).items()
-                  if isinstance(v, dict)),
-                 key=lambda kv: -(kv[1].get("person_days_unhealthy") or 0))[:3]
-    who = ", ".join(f"{k} ({_n((v.get('person_days_unhealthy') or 0) / 1e6, 1)} "
-                    "juta)" if lang == "id" else
-                    f"{k} ({_n((v.get('person_days_unhealthy') or 0) / 1e6, 1)}M)"
-                    for k, v in top)
+    who = _worst_districts(s.get("districts") or {}, lang)
     bits = []
     if unhealthy:
         bits.append(
