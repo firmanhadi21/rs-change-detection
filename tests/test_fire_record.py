@@ -37,6 +37,54 @@ def test_match_grid_keeps_corner_values():
     assert out[0, -1, -1] == a[0, -1, -1]
 
 
+def test_cells_returns_coordinates_for_every_nonzero_cell():
+    """Hotspots are drawn as points now: imshow put a 1 km cell on two or three
+    screen pixels and coloured it by count with no norm, so the median cell --
+    a single detection against a max of thirty -- landed on the pale end of the
+    ramp and vanished into the basemap."""
+    import rasterio
+    from earthchange.fire_record import _cells
+
+    arr = np.zeros((4, 5))
+    arr[1, 2] = 3.0
+    arr[3, 0] = 1.0
+    tr = rasterio.transform.from_bounds(100.0, -5.0, 105.0, -1.0, 5, 4)
+    xs, ys, v = _cells(arr, tr)
+    assert len(xs) == len(ys) == len(v) == 2
+    assert sorted(v.tolist()) == [1.0, 3.0]
+    # Cell centres, so inside the bounds rather than on them.
+    assert all(100.0 < x < 105.0 for x in xs)
+    assert all(-5.0 < y < -1.0 for y in ys)
+
+
+def test_cells_on_an_empty_raster():
+    import rasterio
+    from earthchange.fire_record import _cells
+
+    tr = rasterio.transform.from_bounds(0, 0, 1, 1, 2, 2)
+    xs, ys, v = _cells(np.zeros((2, 2)), tr)
+    assert xs == [] and ys == [] and v == []
+
+
+def test_legend_and_map_share_one_colour():
+    """They were hard-coded separately, so the legend advertised an orange the
+    panel never drew. Both sides must now read the same constant.
+
+    Note the left panel's BMKG ramp legitimately contains #fc8d59 as its Tinggi
+    stop, so an absence check on the literal would fail for the wrong reason.
+    """
+    import inspect
+
+    from earthchange import fire_record as fr
+
+    legend = inspect.getsource(fr._render_map)
+    drawn = inspect.getsource(fr._draw_events)
+    for const in ("HOTSPOT_COLOUR", "BURNED_COLOUR"):
+        assert const in legend, f"legend does not use {const}"
+        assert const in drawn, f"map does not use {const}"
+    assert "markerfacecolor=HOTSPOT_COLOUR" in legend
+
+
 def test_carried_drought_code_still_broadcasts():
     """download_geotiff coarsens per call, so chunk 3 can come back at half
     chunk 0's resolution and the recursion dies with

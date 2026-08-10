@@ -622,12 +622,15 @@ def _render_map(run_dir, name, dc_tifs, burn_tif, hs_tifs, shapes, meta, lang):
                markerfacecolor=cmap(i), markeredgecolor="none", label=lb)
         for i, lb in enumerate(labels)],
         fontsize=8.5, frameon=False, loc="lower left", ncol=2)
+    # Swatches read from the same constants the map draws with. They were
+    # hard-coded separately, so the legend advertised an orange the panel never
+    # used.
     axes[1].legend(handles=[
-        Line2D([], [], marker="s", ls="", markersize=9,
-               markerfacecolor="#fc8d59", markeredgecolor="none",
-               label="titik panas"),
-        Line2D([], [], marker="s", ls="", markersize=9,
-               markerfacecolor="#4d004b", markeredgecolor="none",
+        Line2D([], [], marker="o", ls="", markersize=7,
+               markerfacecolor=HOTSPOT_COLOUR, markeredgecolor="none",
+               label="titik panas (per sel, sepanjang musim)"),
+        Line2D([], [], marker="s", ls="", markersize=7,
+               markerfacecolor=BURNED_COLOUR, markeredgecolor="none",
                label="terbakar (MODIS)"),
         Line2D([], [], color="#333", lw=1.0,
                label=f"batas {meta['zone_field']}")],
@@ -650,38 +653,65 @@ def _render_map(run_dir, name, dc_tifs, burn_tif, hs_tifs, shapes, meta, lang):
     return out
 
 
+HOTSPOT_COLOUR = "#e6550d"
+BURNED_COLOUR = "#4d004b"
+
+
+def _cells(tif_or_sum, transform=None):
+    """Lon/lat and value of every cell above zero."""
+    import numpy as np
+    import rasterio
+
+    arr, tr = tif_or_sum, transform
+    if isinstance(tif_or_sum, str):
+        with rasterio.open(tif_or_sum) as src:
+            arr = src.read(1).astype("float64")
+            tr = src.transform
+        arr[~np.isfinite(arr)] = 0
+    rows, cols = np.nonzero(arr > 0)
+    if not len(rows):
+        return [], [], []
+    xs, ys = rasterio.transform.xy(tr, rows, cols)
+    return xs, ys, arr[rows, cols]
+
+
 def _draw_events(ax, hs_tifs, burn_tif):
     """Hotspots summed over the season, with burned area over the top.
 
-    Both on one panel on purpose: they routinely disagree, and MODIS burned
-    area under-detects smouldering peat, so seeing hotspots without burn scar is
-    information rather than an error.
+    Drawn as POINTS, not as a raster. imshow put a 1 km cell on two or three
+    screen pixels and then coloured it by count with no explicit norm -- and
+    since the median cell holds a single detection against a maximum of fifteen
+    or thirty, every ordinary cell landed on the pale end of the ramp and
+    vanished into a light basemap. The legend said orange; the map drew
+    near-white.
+
+    Both layers on one panel on purpose: they routinely disagree, and MODIS
+    burned area under-detects smouldering peat, so hotspots with no burn scar
+    is information rather than an error.
     """
     import numpy as np
     import rasterio
-    from matplotlib.colors import ListedColormap
 
-    total, bounds = None, None
+    total, tr = None, None
     for t in hs_tifs.values():
         with rasterio.open(t) as src:
             a = src.read(1).astype("float64")
-            bounds = src.bounds
+            tr = src.transform
         a[~np.isfinite(a)] = 0
         total = a if total is None else total + a
+
     if total is not None and total.max() > 0:
-        ax.imshow(np.ma.masked_where(total <= 0, total), cmap="YlOrRd",
-                  extent=[bounds.left, bounds.right, bounds.bottom,
-                          bounds.top],
-                  zorder=3, interpolation="nearest")
+        xs, ys, v = _cells(total, tr)
+        # Area grows with the count, so a cell burning ten days reads heavier
+        # than one burning once -- but the smallest is still plainly visible.
+        ax.scatter(xs, ys, s=5 + 4 * np.sqrt(v), c=HOTSPOT_COLOUR,
+                   linewidths=0, alpha=.85, zorder=3)
 
     if burn_tif and os.path.exists(burn_tif):
-        with rasterio.open(burn_tif) as src:
-            bu = src.read(1).astype("float64")
-            bb = src.bounds
-        ax.imshow(np.ma.masked_where(~(bu > 0), np.ones_like(bu)),
-                  cmap=ListedColormap(["#4d004b"]), alpha=.75,
-                  extent=[bb.left, bb.right, bb.bottom, bb.top],
-                  zorder=4, interpolation="nearest")
+        xs, ys, _v = _cells(burn_tif)
+        if len(xs):
+            ax.scatter(xs, ys, s=7, c=BURNED_COLOUR, marker="s",
+                       linewidths=0, alpha=.8, zorder=4)
 
 
 def _peak_of(tif):
