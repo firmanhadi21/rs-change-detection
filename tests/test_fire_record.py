@@ -6,7 +6,44 @@ disagreed, so both are regression tests rather than hypotheticals.
 
 import datetime as dt
 
-from earthchange.fire_record import _crossing_lines, _incomplete
+import numpy as np
+import pytest
+
+from earthchange.fire_record import _crossing_lines, _incomplete, _match_grid
+
+
+# --------------------------------------------------------------------------
+# Weather chunks arriving on different grids
+# --------------------------------------------------------------------------
+
+def test_match_grid_is_a_no_op_on_the_same_shape():
+    a = np.zeros((2, 34, 43))
+    assert _match_grid(a, (34, 43)) is a
+
+
+@pytest.mark.parametrize("src", [(2, 17, 22), (2, 68, 86), (2, 34, 43)])
+def test_match_grid_reaches_the_target_shape(src):
+    out = _match_grid(np.arange(np.prod(src), dtype="float64").reshape(src),
+                      (34, 43))
+    assert out.shape == (2, 34, 43)
+
+
+def test_match_grid_keeps_corner_values():
+    """Nearest, not interpolated: the bounds are identical and only the
+    sampling differs, so this undoes an unrequested resample."""
+    a = np.arange(2 * 17 * 22, dtype="float64").reshape(2, 17, 22)
+    out = _match_grid(a, (34, 43))
+    assert out[0, 0, 0] == a[0, 0, 0]
+    assert out[0, -1, -1] == a[0, -1, -1]
+
+
+def test_carried_drought_code_still_broadcasts():
+    """download_geotiff coarsens per call, so chunk 3 can come back at half
+    chunk 0's resolution and the recursion dies with
+    'operands could not be broadcast together with shapes (17,22) (34,43)'."""
+    dc = np.full((34, 43), 15.0)
+    t = _match_grid(np.ones((17, 22)), (34, 43))
+    assert (dc + t).shape == (34, 43)
 
 
 # --------------------------------------------------------------------------

@@ -309,6 +309,57 @@ def span_message(what, need_lo, need_hi, have_lo, have_hi, hint=""):
     return "\n".join(lines)
 
 
+def last_complete_day(collection_id, before, per_day=24, look_back=12):
+    """Most recent day for which the collection holds a full set of hours."""
+    import datetime as dt
+
+    import ee
+
+    ic = ee.ImageCollection(collection_id)
+    d0 = before.date() if isinstance(before, dt.datetime) else before
+    days = [d0 - dt.timedelta(days=i) for i in range(look_back)]
+    counts = ee.Dictionary({
+        d.isoformat(): ic.filterDate(
+            ee.Date(d.isoformat()),
+            ee.Date(d.isoformat()).advance(1, "day")).size()
+        for d in days}).getInfo()
+    for d in days:
+        if counts.get(d.isoformat(), 0) >= per_day:
+            return d
+    return None
+
+
+def require_hours(collection_id, lo, hi, what, hint=REANALYSIS_HINT):
+    """Refuse a window with HOLES, not merely one that runs past the end.
+
+    Comparing against min/max timestamps assumes the archive is contiguous, and
+    a near-real-time reanalysis is not: its most recent day arrives piecemeal.
+    ERA5 on 2026-08-04 held 2 of 24 hours while its max timestamp read 19:00, so
+    a window ending at 00:00 that day passed every range check and then found a
+    null image in the middle of the run -- surfacing as a GeoTIFF download
+    failure with no mention of dates at all.
+    """
+    import ee
+
+    have = (ee.ImageCollection(collection_id)
+            .filterDate(lo.isoformat(), hi.isoformat()).size().getInfo())
+    need = int((hi - lo).total_seconds() // 3600)
+    if have >= need:
+        return
+    good = last_complete_day(collection_id, hi)
+    lines = [f"{what} holds {have} hourly images where this run needs {need}.",
+             f"  window: {lo:%Y-%m-%d %H:%M} to {hi:%Y-%m-%d %H:%M}",
+             "",
+             "A near-real-time reanalysis ingests its most recent day a few "
+             "hours at a time, so the range looks covered while hours inside "
+             "it are missing."]
+    if good:
+        lines += ["", f"The last complete day is {good}. End the run on or "
+                      "before it."]
+    lines += ["", hint]
+    raise SystemExit("\n".join(lines))
+
+
 def require_span(collection_id, lo, hi, what, hint=REANALYSIS_HINT):
     """Refuse a window the collection cannot cover, before any computation.
 

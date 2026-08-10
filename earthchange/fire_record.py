@@ -136,6 +136,12 @@ def _dc_local(aoi, coords, days, noon_h, lf, want, run_dir):
             if profile is None:
                 profile = src.profile
         arr[~np.isfinite(arr)] = np.nan
+        # download_geotiff coarsens on its own when a request is too big, and it
+        # decides per call -- so chunk 3 can come back at half chunk 0's
+        # resolution over the same bounds. The Drought Code carries across chunk
+        # boundaries, so a shape change breaks the recursion outright:
+        # "operands could not be broadcast together with shapes (17,22) (34,43)".
+        arr = _match_grid(arr, (profile["height"], profile["width"]))
 
         for k, day in enumerate(chunk):
             i = ci * DAYS_PER_CHUNK + k          # absolute day index
@@ -146,6 +152,23 @@ def _dc_local(aoi, coords, days, noon_h, lf, want, run_dir):
             if want[i]:
                 out[day] = _write_dc(dc, profile, run_dir, day)
     return out
+
+
+def _match_grid(arr, shape):
+    """Put a chunk on the first chunk's grid.
+
+    Nearest-neighbour, and that is the right choice: the bounds are identical
+    and only the sampling differs, so this is undoing an unrequested resample
+    rather than interpolating weather.
+    """
+    import numpy as np
+
+    h, w = shape
+    if arr.shape[-2:] == (h, w):
+        return arr
+    yi = np.clip((np.arange(h) * arr.shape[-2] // h), 0, arr.shape[-2] - 1)
+    xi = np.clip((np.arange(w) * arr.shape[-1] // w), 0, arr.shape[-1] - 1)
+    return arr[..., yi, :][..., :, xi]
 
 
 def _dc_step(dc, t, r, lf):

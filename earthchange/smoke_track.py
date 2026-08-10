@@ -183,12 +183,14 @@ def _wind_stack(aoi, start, hours, run_dir):
     import ee
     from .gee_utils import download_geotiff
 
-    # ERA5 is a reanalysis and lags real time by about six days, so a run whose
-    # seeds exist in FIRMS can still have no wind for its second day. Without
-    # this the loop below builds ee.Image(null) and the failure surfaces as
-    # "Image.select: Parameter 'input' is required and may not be null."
-    _require_window(ERA5_IC, start, start + dt.timedelta(hours=hours),
-                    "ERA5 100 m wind", hours)
+    # ERA5 lags real time by about six days, so a run whose seeds exist in FIRMS
+    # can still have no wind for its second day. Count the hours rather than
+    # check the range: the trailing day arrives piecemeal, so a window ending
+    # inside it passes a min/max test and then hits a null image mid-loop,
+    # surfacing as "Image.select: Parameter 'input' ... may not be null".
+    from .gee_utils import require_hours
+    require_hours(ERA5_IC, start, start + dt.timedelta(hours=hours + 1),
+                  "ERA5 100 m wind")
 
     coll = ee.ImageCollection(ERA5_IC)
     ub, vb = [], []
