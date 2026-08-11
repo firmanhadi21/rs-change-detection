@@ -729,9 +729,12 @@ SCENARIO_FLAGS = {
                 "--rain-source", "--cdi", "--cdi-scale", "--cdi-grid",
                 "--cdi-mask", "--cdi-mask-name", "--cdi-basemap"),
     "smoke-exposure": ("--season", "--pop-year"),
-    "smoke-video": ("--date", "--days", "--firms-region", "--video-size",
-                    "--video-title", "--video-subtitle", "--video-cities",
-                    "--video-labels", "--video-clean"),
+    # No --date or --days: the FIRMS public feed is a rolling seven days and
+    # smoke_video.run takes neither, so offering them promised a window the
+    # scenario cannot honour.
+    "smoke-video": ("--firms-region", "--video-size", "--video-title",
+                    "--video-subtitle", "--video-cities", "--video-labels",
+                    "--video-clean"),
     "smoke-track": ("--date", "--engine", "--direction", "--track-hours",
                     "--track-parcels", "--track-heights", "--receptors",
                     "--hysplit-bin", "--met-cache"),

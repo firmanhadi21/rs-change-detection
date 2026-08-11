@@ -165,7 +165,13 @@ _FONT_DIRS = [
     str(_pl.Path(__file__).resolve().parent / "fonts"),   # drop Inter .otf files here
     "/usr/share/fonts/opentype/inter", "/usr/share/fonts/truetype/inter",
     _os.path.expanduser("~/Library/Fonts"), "/Library/Fonts",   # macOS
-    "/usr/share/fonts/truetype/dejavu", "C:/Windows/Fonts",
+    # Modern macOS ships Arial and Helvetica here, not in /Library/Fonts, which
+    # on a stock machine is empty. Without these every style fell through to
+    # PIL's default -- which is why an em dash in the title came out as a box
+    # even though the machine had perfectly good fonts installed.
+    "/System/Library/Fonts/Supplemental", "/System/Library/Fonts",
+    "/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/truetype/liberation",
+    "C:/Windows/Fonts",
 ]
 _FALLBACKS = {
     "ExtraBold":    ["Inter-ExtraBold", "Arial Black", "Arialbd", "Helvetica-Bold", "DejaVuSans-Bold"],
@@ -365,24 +371,64 @@ def draw_legend(img, d):
            font=F_SMALL, fill=(*DIM, 210), anchor="ra")
 
 # ---------- per-frame furniture ----------
+def fitted_title(d, text, max_w, start=52, floor=26):
+    """Largest ExtraBold size at which the title clears the date.
+
+    The title is user text and the date is fixed-width in the opposite corner,
+    so a long one runs straight through it -- "Kebakaran dan asap - Kalimantan"
+    collided with "07 AUG 2026". Shrinking beats truncating: the whole title is
+    the caption, and a clipped one reads as a rendering fault.
+    """
+    for size in range(start, floor - 1, -2):
+        f = font("ExtraBold", size)
+        if d.textlength(text, font=f) <= max_w:
+            return f
+    return font("ExtraBold", floor)
+
+
+def panel(d, box, pad=10, alpha=120):
+    """A dark plate behind text that has to sit over the map.
+
+    The counters were placed "over sea", which held for a district-sized frame
+    and stopped holding the moment the bbox covered an island: at Kalimantan
+    extent they landed on the Pontianak label. Rather than hunt for empty space
+    that depends on the AOI, make the text legible over anything.
+    """
+    x0, y0, x1, y1 = box
+    d.rounded_rectangle([x0 - pad, y0 - pad, x1 + pad, y1 + pad], radius=8,
+                        fill=(8, 10, 16, alpha))
+
+
 def draw_dynamic(d, t_utc, t_sec):
-    # title block
-    draw_text_shadow(d, (36, 28), TITLE, F_TITLE, (*WHITE, 255))
+    # title block. ascii_safe too: the subtitle was sanitised and the title was
+    # not, so an em dash in --video-title came out as a tofu box.
+    date_s = t_utc.strftime("%d %b %Y").upper()
+    title = ascii_safe(TITLE)
+    room = (WIDTH - 96) - d.textlength(date_s, font=F_DATE) - 36 - 28
+    draw_text_shadow(d, (36, 28), title, fitted_title(d, title, room),
+                     (*WHITE, 255))
     d.rectangle([38, 92, 138, 97], fill=(*ORANGE, 255))
     d.text((38, 110), ascii_safe(SUBTITLE.format(period=PERIOD)), font=F_SUB, fill=(*GREY, 235))
 
     # date/time top right
-    draw_text_shadow(d, (WIDTH - 96, 34), t_utc.strftime("%d %b %Y").upper(), F_DATE, (*WHITE, 255), anchor="ra")
+    draw_text_shadow(d, (WIDTH - 96, 34), date_s, F_DATE, (*WHITE, 255), anchor="ra")
     d.text((WIDTH - 96, 84), t_utc.strftime("%H:%M UTC"), font=F_TIME, fill=(*GREY, 235), anchor="ra")
 
-    # counters (left, over sea)
+    # counters, on a plate so they read over land as well as sea
     cum = int(((f_sec >= 0) & (f_sec <= t_sec)).sum())
     today = int(((f_date == t_utc.strftime("%Y-%m-%d")) & (f_sec <= t_sec)).sum())
     cx, cy = 40, 508
+    lab1 = spaced("VIIRS FIRE DETECTIONS (CUM.)", gap="")
+    lab2 = spaced("DETECTIONS TODAY", gap="")
+    wide = max(d.textlength(f"{cum:,}", font=F_NUM),
+               d.textlength(lab1, font=F_NUMLAB),
+               d.textlength(f"{today:,}", font=F_NUM),
+               d.textlength(lab2, font=F_NUMLAB))
+    panel(d, (cx, cy, cx + wide, cy + 152))
     draw_text_shadow(d, (cx, cy), f"{cum:,}", F_NUM, (*ORANGE, 255))
-    d.text((cx, cy + 48), spaced("VIIRS FIRE DETECTIONS (CUM.)", gap=""), font=F_NUMLAB, fill=(*GREY, 220))
+    d.text((cx, cy + 48), lab1, font=F_NUMLAB, fill=(*GREY, 220))
     draw_text_shadow(d, (cx, cy + 86), f"{today:,}", F_NUM, (*ORANGE, 255))
-    d.text((cx, cy + 134), spaced("DETECTIONS TODAY", gap=""), font=F_NUMLAB, fill=(*GREY, 220))
+    d.text((cx, cy + 134), lab2, font=F_NUMLAB, fill=(*GREY, 220))
 
 # ---------- compose one frame ----------
 def render_frame(i, out_path):
