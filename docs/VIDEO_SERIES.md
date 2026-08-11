@@ -5,6 +5,12 @@
 A twelve-part series taking a viewer from no account and no install to a
 citable, defensible environmental assessment they can hand to somebody.
 
+**Shot-by-shot scripts for all twelve episodes are in
+[`scripts/`](scripts/README.md)** — timecoded scenes, narration in both
+languages, verbatim commands and expected output. This document decides *what*
+the series teaches and in what order; those decide what is on screen and what is
+said, second by second.
+
 ---
 
 ## Why this shape
@@ -181,7 +187,7 @@ is a catalogue limit, not an unfinished port.
 **Run**
 ```bash
 earthchange -s fire-danger --admin Ketapang -n Ketapang \
-  --date 2019-09-30 --spinup 60
+  --date 2015-09-30 --spinup 60
 ```
 
 **Explain** — **The most important teaching moment in the series.** On
