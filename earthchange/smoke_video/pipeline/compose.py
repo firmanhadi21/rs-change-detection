@@ -414,10 +414,13 @@ def draw_dynamic(d, t_utc, t_sec):
     draw_text_shadow(d, (WIDTH - 96, 34), date_s, F_DATE, (*WHITE, 255), anchor="ra")
     d.text((WIDTH - 96, 84), t_utc.strftime("%H:%M UTC"), font=F_TIME, fill=(*GREY, 235), anchor="ra")
 
-    # counters, on a plate so they read over land as well as sea
+    # Counters in the header, under the subtitle rule, rather than floating in
+    # the middle of the map. At district extent the old mid-left position sat
+    # over sea; at island extent it sat on Pontianak. The header is the one
+    # place that is reserved at every scale.
     cum = int(((f_sec >= 0) & (f_sec <= t_sec)).sum())
     today = int(((f_date == t_utc.strftime("%Y-%m-%d")) & (f_sec <= t_sec)).sum())
-    cx, cy = 40, 508
+    cx, cy = 40, 176
     lab1 = spaced("VIIRS FIRE DETECTIONS (CUM.)", gap="")
     lab2 = spaced("DETECTIONS TODAY", gap="")
     wide = max(d.textlength(f"{cum:,}", font=F_NUM),

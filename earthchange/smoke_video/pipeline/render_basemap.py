@@ -95,4 +95,42 @@ frame = renderer.render_terrain_pbr_pom(material_set=mat, env_maps=env,
     params=f3d.TerrainRenderParams(cfg), heightmap=hm, target=None, certificate=False)
 frame.save(str(DATA / "terrain_raw.png"))
 print("forge3d render done", round(time.time() - t0, 1), "s ->", DATA / "terrain_raw.png")
+
+
+def _hillshade(dem, ceil, az_deg=315.0, alt_deg=45.0, exag=EXAG):
+    """Relief from the DEM in numpy, no GPU involved.
+
+    Standard Horn hillshade. Cell size is taken as one unit and the vertical
+    exaggeration folded into the gradient, which is all that matters here --
+    the output is tone-mapped by regrade.py, so only the relative shading
+    counts, not absolute slope.
+    """
+    z = np.clip(np.asarray(dem, dtype=np.float32), 0, ceil)
+    # A light blur first: terrarium tiles are quantised to 1 m, and the steps
+    # come through as a plaid of one-pixel terraces once shaded.
+    z = gaussian_filter(z, 1.2)
+    dy, dx = np.gradient(z)
+    scale = exag * z.shape[0] / max(ceil, 1.0) / 400.0
+    slope = np.arctan(scale * np.hypot(dx, dy))
+    aspect = np.arctan2(-dx, dy)
+    az, alt = math.radians(360.0 - az_deg + 90.0), math.radians(alt_deg)
+    shade = (np.sin(alt) * np.cos(slope)
+             + np.cos(alt) * np.sin(slope) * np.cos(az - aspect))
+    return np.clip(shade, 0.0, 1.0)
+
+
+# forge3d needs a working Vulkan device, and when it cannot get one it does not
+# raise -- it returns a black frame. regrade.py then tone-maps a constant, every
+# land pixel collapses to the same slate, and the video ships with no relief at
+# all. Detect that and shade the DEM here instead: the elevation is already on
+# disk, and a hillshade is arithmetic.
+_probe = np.asarray(I.open(DATA / "terrain_raw.png").convert("L"), dtype=np.float32)
+if float(_probe.max()) <= 2.0:
+    print("WARNING: forge3d returned an empty frame (no usable Vulkan device?)."
+          "\n         Falling back to a CPU hillshade of the DEM.")
+    shade = _hillshade(d, DEM_CEIL)
+    rgb = (np.dstack([shade] * 3) * 255.0).astype(np.uint8)
+    I.fromarray(rgb).resize((WIDTH, HEIGHT), I.Resampling.BILINEAR) \
+        .save(str(DATA / "terrain_raw.png"))
+    print("CPU hillshade written ->", DATA / "terrain_raw.png")
 print("now run: python3 regrade.py")
