@@ -133,4 +133,11 @@ if float(_probe.max()) <= 2.0:
     I.fromarray(rgb).resize((WIDTH, HEIGHT), I.Resampling.BILINEAR) \
         .save(str(DATA / "terrain_raw.png"))
     print("CPU hillshade written ->", DATA / "terrain_raw.png")
+    # regrade.py grades the two renderers differently: a hillshade is far
+    # brighter and flatter in distribution than a PBR frame, and the curve tuned
+    # for one washes the other out. Record which produced this, rather than
+    # leaving regrade to infer it from the pixels.
+    (DATA / "terrain_source.txt").write_text("hillshade\n")
+else:
+    (DATA / "terrain_source.txt").write_text("forge3d\n")
 print("now run: python3 regrade.py")

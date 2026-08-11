@@ -25,9 +25,25 @@ dfull = np.asarray(I.fromarray(dem).resize((WIDTH, HEIGHT), I.Resampling.BILINEA
 sea = dfull <= 0.0
 
 ll = lum[~sea]
-base = np.percentile(ll, 55)
-hi = np.percentile(ll, 99.9)
-t = np.clip((lum - base) / (hi - base + 1e-6), 0, 1) ** 2.0 * 0.9
+# The two renderers need different curves. A forge3d PBR frame is mostly dark
+# with highlights on lit slopes, so lifting from the 55th percentile picks out
+# relief. A CPU hillshade is centred near 0.65 and roughly symmetric, so the
+# same curve lifts nearly half the land and the terrain becomes the subject --
+# fires and smoke then read as detail on a relief map, which is backwards.
+try:
+    _src = (DATA / "terrain_source.txt").read_text().strip()
+except Exception:                                                  # noqa: BLE001
+    _src = "forge3d"
+if _src == "hillshade":
+    LO_PCT, HI_PCT, GAMMA, GAIN = 82.0, 99.0, 1.5, 0.5
+else:
+    LO_PCT, HI_PCT, GAMMA, GAIN = 55.0, 99.9, 2.0, 0.9
+print(f"terrain source {_src}: lift from p{LO_PCT:.0f} to p{HI_PCT:.0f}, "
+      f"gamma {GAMMA}, gain {GAIN}")
+
+base = np.percentile(ll, LO_PCT)
+hi = np.percentile(ll, HI_PCT)
+t = np.clip((lum - base) / (hi - base + 1e-6), 0, 1) ** GAMMA * GAIN
 
 SEA     = np.array([9, 14, 26], np.float32) / 255.0    # deeper navy
 LAND_LO = np.array([36, 41, 53], np.float32) / 255.0   # clearly lighter slate

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "earthchange"
-version = "0.1.82"
+version = "0.1.83"
 description = "Multipurpose satellite environmental monitoring and change detection: fire danger, smoke exposure, drought, heat, flood and land change, via Google Earth Engine or Microsoft Planetary Computer."
 readme = "PYPI_README.md"
 requires-python = ">=3.11"
