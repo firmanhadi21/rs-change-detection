@@ -341,6 +341,47 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
   <div class="callout tip id"><b>Ambang adalah titik awal, bukan patokan mutlak.</b> Ambang default tiap skenario (mis. ΔNDVI &lt; −0.15) adalah nilai wajar. Seperti dicatat Key &amp; Benson untuk severity kebakaran, ambang idealnya dikalibrasi dengan data lapangan lokal. Anggap angka % sebagai perbandingan, bukan mutlak.</div>
 
   <h2 id="scenarios">6 · <span class="en">Every scenario</span><span class="id">Setiap skenario</span></h2>
+
+  <h3 id="backends"><span class="en">Which need an Earth Engine account</span><span class="id">Mana yang perlu akun Earth Engine</span></h3>
+  <p class="en">Not every scenario needs the same access, and it is worth knowing
+  which before you start. <b>There is no automatic fallback</b>: <code>--backend</code>
+  defaults to <code>gee</code>, and without credentials the run stops with
+  instructions rather than quietly switching data source.</p>
+  <p class="id">Tidak semua skenario memerlukan akses yang sama, dan ada baiknya
+  mengetahuinya sebelum mulai. <b>Tidak ada peralihan otomatis</b>:
+  <code>--backend</code> bawaannya <code>gee</code>, dan tanpa kredensial
+  proses berhenti dengan petunjuk, bukan diam-diam berpindah sumber data.</p>
+
+  <table>
+    <tr><th><span class="en">Access</span><span class="id">Akses</span></th>
+        <th><span class="en">Scenarios</span><span class="id">Skenario</span></th>
+        <th><span class="en">Why</span><span class="id">Alasan</span></th></tr>
+    <tr>
+      <td><b><span class="en">No account at all</span><span class="id">Tanpa akun sama sekali</span></b><br>1</td>
+      <td><code>smoke-video</code></td>
+      <td><span class="en">Reads AWS terrain tiles, the NASA FIRMS live feed and Open-Meteo over plain HTTP. Needs <code>ffmpeg</code> and, ideally, a Vulkan device — though it now falls back to a CPU hillshade without one.</span><span class="id">Membaca ubin relief AWS, umpan langsung NASA FIRMS, dan Open-Meteo lewat HTTP biasa. Perlu <code>ffmpeg</code> dan, idealnya, perangkat Vulkan — meski kini tersedia hillshade CPU bila tidak ada.</span></td>
+    </tr>
+    <tr>
+      <td><b><span class="en">Either backend</span><span class="id">Kedua backend</span></b><br>8</td>
+      <td><code>deforestation</code> · <code>mining</code> · <code>urbanization</code> · <code>burn</code> · <code>water</code> · <code>flood</code> · <code>disturbance</code> · <code>urban-trend</code></td>
+      <td><span class="en">Optical and SAR change detection from Sentinel-1/2 and Landsat, which Microsoft Planetary Computer also carries. Add <code>--backend mpc</code> and <b>no account is needed</b>. Note the two backends are not identical: cloud masking and scene availability differ, so results will not match to the pixel.</span><span class="id">Deteksi perubahan optik dan SAR dari Sentinel-1/2 dan Landsat, yang juga tersedia di Microsoft Planetary Computer. Tambahkan <code>--backend mpc</code> dan <b>tidak perlu akun</b>. Perhatikan keduanya tidak identik: masking awan dan ketersediaan citra berbeda, jadi hasilnya tidak akan sama persis.</span></td>
+    </tr>
+    <tr>
+      <td><b><span class="en">Earth Engine only</span><span class="id">Hanya Earth Engine</span></b><br>15</td>
+      <td><code>fire-danger</code> · <code>fire-record</code> · <code>fire-history</code> · <code>forest-history</code> · <code>drought</code> · <code>haze</code> · <code>smoke-exposure</code> · <code>smoke-track</code> · <code>island-heat</code> · <code>urban-heat</code> · <code>population-change</code> · <code>transit-access</code> · <code>coastline</code> · <code>imagery</code> · <code>urban-history</code></td>
+      <td><span class="en">These need archives Planetary Computer does not carry: <b>ERA5-Land</b> for the Fire Weather Index, <b>CAMS</b> for smoke, <b>FIRMS</b> hotspots, <b>MODIS</b> burned area and land-surface temperature, <b>WorldPop</b>, <b>CHIRPS</b>, and <b>GAUL</b> boundaries. Running them with <code>--backend mpc</code> stops with a message rather than substituting something else.</span><span class="id">Semuanya memerlukan arsip yang tidak ada di Planetary Computer: <b>ERA5-Land</b> untuk Fire Weather Index, <b>CAMS</b> untuk asap, titik panas <b>FIRMS</b>, luas terbakar dan suhu permukaan <b>MODIS</b>, <b>WorldPop</b>, <b>CHIRPS</b>, dan batas administrasi <b>GAUL</b>. Menjalankannya dengan <code>--backend mpc</code> akan berhenti dengan pesan, bukan mengganti dengan sumber lain.</span></td>
+    </tr>
+  </table>
+
+  <p class="en"><b>If you have no Earth Engine account</b>, the eight in the middle
+  row plus <code>smoke-video</code> are available immediately — nine of the
+  twenty-four. Everything in the fire-and-smoke chain needs an account, because
+  the weather and air-quality archives it is built on live only there.</p>
+  <p class="id"><b>Bila Anda belum punya akun Earth Engine</b>, delapan skenario
+  di baris tengah ditambah <code>smoke-video</code> langsung bisa dipakai —
+  sembilan dari dua puluh empat. Seluruh rantai kebakaran-asap memerlukan akun,
+  sebab arsip cuaca dan kualitas udara yang menjadi dasarnya hanya ada di sana.</p>
+
   <p class="en">List them any time with <code>earthchange --list</code>. Commands:</p>
   <p class="id">Lihat daftarnya kapan saja dengan <code>earthchange --list</code>. Perintah:</p>
   <pre><code># Deforestation / vegetation loss (default baseline vs recent year)

@@ -112,6 +112,14 @@ Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
 
 ## Deteksi Perubahan Multiguna — `detect.py`
 
+Backend: **8 skenario** berjalan di kedua backend — `deforestation`, `mining`,
+`urbanization`, `burn`, `water`, `flood`, `disturbance`, `urban-trend` — jadi
+dengan `--backend mpc` **tanpa perlu akun**. `smoke-video` tidak perlu akun sama
+sekali. **15 sisanya hanya Earth Engine**, sebab memerlukan arsip yang tidak ada
+di Planetary Computer (ERA5-Land, CAMS, FIRMS, MODIS, WorldPop, CHIRPS, GAUL).
+Tidak ada peralihan otomatis: tanpa kredensial, proses berhenti dengan petunjuk.
+Rinciannya di [tutorial](https://firmanhadi21.github.io/rs-change-detection/#backends).
+
 Uji: `pip install 'earthchange[dev]'` lalu `pytest -m "not network"` — berjalan
 luring dalam ±1 detik. `pytest` tanpa penanda juga menguji bahwa berkas
 meteorologi GDAS1 yang dirujuk benar-benar ada di S3 publik ARL. Uji yang
