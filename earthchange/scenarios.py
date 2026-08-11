@@ -677,7 +677,19 @@ COMMON_FLAGS = (
 )
 
 # Date windows most change-detection scenarios share.
-_WINDOW = ("--pre", "--post", "--date", "--days", "--season")
+# Window flags are DERIVED from each scenario's "needs", not listed by hand.
+# The dispatcher already branches on that field to decide whether a scenario
+# takes a single --date, a --pre/--post pair or three --epochs, so reading the
+# same field keeps help and behaviour from drifting. Hand-grouping them as one
+# "_WINDOW" bundle is what put fire-record's --season into urbanization's help.
+_BY_NEEDS = {
+    "pre_post": ("--pre", "--post"),
+    "pre_post_required": ("--pre", "--post"),
+    "window": ("--date",),
+    "sirad": ("--epochs",),
+    "epochs": ("--epochs",),
+    "none": (),
+}
 # Optical scene selection, and the A4 map layout those scenarios can render.
 _OPTICAL = ("--sensor", "--min-obs", "--preview", "--method")
 _MAP = ("--map", "--basemap")
@@ -688,35 +700,40 @@ _PLANET = ("--planet", "--planet-confirm", "--planet-key", "--planet-pre",
            "--planet-post")
 
 SCENARIO_FLAGS = {
-    "deforestation": _WINDOW + _OPTICAL + _PLANET + _MAP
-                     + ("--thr", "--forest-thr"),
-    "mining": _WINDOW + _OPTICAL + _PLANET + _MAP + ("--thr", "--drop-thr"),
-    "urbanization": _WINDOW + _OPTICAL + _MAP + ("--thr",),
+    "deforestation": _OPTICAL + _PLANET + _MAP + ("--thr", "--forest-thr"),
+    "mining": _OPTICAL + _PLANET + _MAP + ("--thr", "--drop-thr"),
+    "urbanization": _OPTICAL + _MAP + ("--thr",),
     "urban-trend": ("--start-year", "--end-year", "--epochs", "--cell-km"),
     # urban-history is the scenario that confirms change against Planet imagery,
     # which is where the --hotspot-* window actually belongs.
     "urban-history": ("--start-year", "--end-year", "--epochs", "--cell-km",
                       "--hotspot-km", "--hotspot-from", "--hotspot-to")
                      + _PLANET,
-    "flood": _WINDOW + _MAP + ("--thr", "--no-water-mask", "--severe"),
-    "disturbance": _WINDOW + _MAP + ("--drop-thr", "--severe"),
-    "burn": _WINDOW + _OPTICAL + _MAP + ("--thr", "--severe", "--min-obs"),
-    "water": _WINDOW + _MAP + ("--months", "--no-water-mask"),
-    "imagery": ("--date", "--sensor", "--preview", "--min-obs"),
+    "flood": _MAP + ("--thr", "--no-water-mask", "--severe"),
+    "disturbance": _MAP + ("--drop-thr", "--severe"),
+    "burn": _OPTICAL + _MAP + ("--thr", "--severe", "--min-obs"),
+    # --months is read only by urban-heat; water never sees it.
+    "water": _MAP + ("--no-water-mask",),
+    "imagery": ("--sensor", "--preview", "--min-obs"),
     "coastline": ("--pre", "--post", "--coast-method", "--coast-smooth",
                   "--transect-spacing", "--transects-file", "--snap-dist",
                   "--boundary", "--islands-file", "--island-mode") + _MAP,
     "transit-access": ("--transit-file", "--walk-dist", "--access-buffer",
                        "--min-pop", "--pop-year", "--boundary", "--aoi-file"),
-    "island-heat": ("--season", "--lst-source", "--wetbulb-thr", "--months",
-                    "--infographic"),
-    "urban-heat": ("--season", "--lst-source", "--months", "--neutral-pct"),
+    # Neither heat scenario reads --season; both are bounded by --epochs, and
+    # only urban-heat reads --months.
+    "island-heat": ("--lst-source", "--wetbulb-thr", "--infographic"),
+    "urban-heat": ("--lst-source", "--months", "--neutral-pct", "--epochs"),
     "population-change": ("--epochs", "--cell-km", "--pop-years", "--forge3d",
                           "--forge3d-prep-only", "--country"),
     "forest-history": ("--start-year", "--end-year", "--forest-thr"),
-    "fire-history": ("--season", "--start-year", "--end-year", "--areas",
-                     "--regions", "--vs-baseline", "--peat-file",
-                     "--peat-source", "--peat-thr", "--months"),
+    # detect.py passes fire-history neither --season nor --months; it is bounded
+    # by --start-year/--end-year.
+    "fire-history": ("--start-year", "--end-year", "--areas", "--regions",
+                     "--vs-baseline", "--peat-file", "--peat-source",
+                     "--peat-thr"),
+    # fire-danger and smoke-track read args.date directly rather than through
+    # the needs branch, so they name it here.
     "fire-danger": ("--date", "--fdrs-end", "--spinup", "--rain-source"
                     ) + _ZONES,
     "fire-record": ("--season", "--record-step", "--spinup", "--rain-source"
@@ -751,9 +768,18 @@ def unclaimed_flags(all_flags):
     claimed = set(COMMON_FLAGS)
     for flags in SCENARIO_FLAGS.values():
         claimed.update(flags)
+    for flags in _BY_NEEDS.values():
+        claimed.update(flags)
     return sorted(set(all_flags) - claimed)
 
 
 def flags_for(scenario):
-    """The options worth showing for one scenario, common ones included."""
-    return set(COMMON_FLAGS) | set(SCENARIO_FLAGS.get(scenario, ()))
+    """Options worth showing for one scenario: common, window, and its own.
+
+    The window flags come from the scenario's own "needs", which is the field
+    the dispatcher branches on, so the two cannot disagree.
+    """
+    needs = (SCENARIOS.get(scenario) or {}).get("needs")
+    return (set(COMMON_FLAGS)
+            | set(_BY_NEEDS.get(needs, ()))
+            | set(SCENARIO_FLAGS.get(scenario, ())))

@@ -95,6 +95,44 @@ def test_burn_hides_other_scenarios_flags(noise):
     assert noise not in out
 
 
+# --------------------------------------------------------------------------
+# Window flags come from "needs", and scenario-specific flags stay put
+# --------------------------------------------------------------------------
+
+WINDOW_OWNERS = {
+    "--season": {"smoke-exposure", "fire-record"},
+    "--days": {"haze"},
+    "--months": {"urban-heat"},
+    "--pre": {s for s, c in SCENARIOS.items()
+              if c.get("needs", "").startswith("pre_post")},
+}
+
+
+@pytest.mark.parametrize("flag,owners", sorted(WINDOW_OWNERS.items()))
+def test_window_flags_reach_only_their_owners(flag, owners):
+    """`-s urbanization --help` advertised "--season START:END  fire-record:
+    the season to document". Grouping the window flags into one bundle put
+    fire-record's option into seven change-detection scenarios."""
+    got = {s for s in SCENARIOS if flag in flags_for(s)}
+    assert got == owners, f"{flag}: {sorted(got)} != {sorted(owners)}"
+
+
+@pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+def test_window_flags_match_the_dispatcher(scenario):
+    """The dispatcher branches on `needs` to decide which window a scenario
+    takes, so help must read the same field rather than a parallel list."""
+    from earthchange.scenarios import _BY_NEEDS
+
+    needs = SCENARIOS[scenario].get("needs")
+    shown = flags_for(scenario)
+    for f in _BY_NEEDS.get(needs, ()):
+        assert f in shown, f"{scenario} needs {needs} but hides {f}"
+    # A pre/post scenario must not also advertise a single --date.
+    if needs and needs.startswith("pre_post"):
+        assert "--date" not in shown or scenario in {"fire-danger",
+                                                     "smoke-track"}
+
+
 def test_unknown_scenario_is_rejected_with_the_real_list():
     _out, err = _help_for("not-a-scenario")
     assert "invalid choice" in err
