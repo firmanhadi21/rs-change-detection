@@ -139,6 +139,64 @@
   <p class="en"><b>Satellite data has been free for years. The ability to use it has not.</b> The imagery is there — Sentinel, Landsat, MODIS, decades of it, downloadable by anyone. What stands between those images and an answer is a stack of things that take months to learn: cloud masking, projections, which index suits which question, what threshold deserves to be called "change", and how to turn a raster into a number someone can act on. Yet the people who most need the answer — a district forestry officer, an NGO researcher, a journalist on deadline, a lecturer preparing a class, a student with three months left — are often precisely the people without those months. So the question this package asks is a narrow one: <b>can a single command do the whole thing?</b></p>
   <p class="id"><b>Data satelit sudah gratis bertahun-tahun. Kemampuan memakainya belum.</b> Citranya ada — Sentinel, Landsat, MODIS, berpuluh tahun, bisa diunduh siapa saja. Yang berdiri di antara citra itu dan sebuah jawaban adalah tumpukan hal yang perlu berbulan-bulan untuk dikuasai: penapisan awan, sistem proyeksi, indeks mana untuk pertanyaan mana, ambang berapa yang pantas disebut "berubah", dan bagaimana mengubah raster menjadi angka yang bisa ditindaklanjuti orang. Sementara mereka yang paling membutuhkan jawabannya — penyuluh kehutanan di kabupaten, peneliti lembaga swadaya, wartawan yang dikejar tenggat, dosen yang menyiapkan kuliah, mahasiswa yang tinggal punya tiga bulan — justru sering kali adalah orang-orang yang tidak punya bulan-bulan itu. Maka pertanyaan yang diajukan paket ini sempit saja: <b>bisakah satu baris perintah mengerjakan seluruhnya?</b></p>
 
+  <h3><span class="en">A function you use again and again</span><span class="id">Fungsi yang dipakai berulang-ulang</span></h3>
+  <p class="en">The answer this package gives is not a script you adapt. It is a
+  <b>ready-made analysis</b> — the method, the thresholds, the masking and the
+  output already decided — and the only things you change are <b>where</b> and
+  <b>when</b>. Those two are the whole interface:</p>
+  <p class="id">Jawaban yang diberikan paket ini bukan skrip yang harus Anda
+  sesuaikan. Ia adalah <b>analisis siap pakai</b> — metode, ambang, penapisan,
+  dan bentuk keluarannya sudah ditetapkan — dan yang Anda ubah hanyalah
+  <b>di mana</b> dan <b>kapan</b>. Keduanya adalah seluruh antarmukanya:</p>
+
+  <pre><code># Ketapang, 2019
+earthchange -s fire-danger --admin Ketapang --date 2019-09-30
+
+# the same analysis, somewhere else, another year
+earthchange -s fire-danger --admin "Kalimantan Tengah" --date 2026-08-01</code></pre>
+
+  <p class="en">Nothing was written between those two lines. No index chosen, no
+  cloud mask configured, no projection set, no colour ramp designed. That is
+  what "ready to use" has to mean if it is to be worth anything: <b>copy, change
+  two words, run</b> — and out come a map you can put in front of a bupati, a
+  GeoTIFF for the GIS staff, and a JSON of numbers for the report. A novice
+  never opens a code editor.</p>
+  <p class="id">Tidak ada satu baris pun yang ditulis di antara kedua perintah
+  itu. Tidak memilih indeks, tidak menyetel penapis awan, tidak mengatur
+  proyeksi, tidak merancang gradasi warna. Itulah yang harus berarti "siap
+  pakai" agar ada gunanya: <b>salin, ubah dua kata, jalankan</b> — dan keluarlah
+  peta yang bisa disodorkan kepada bupati, GeoTIFF untuk staf GIS, dan JSON
+  angka untuk laporan. Pengguna pemula tidak pernah membuka editor kode.</p>
+
+  <p class="en"><b>This is deliberately not a toolbox.</b> A general GIS platform
+  hands you a thousand operations and asks which sequence answers your question;
+  that is the right tool for someone who already knows the answer to that. This
+  is for the far larger group who have the question but not the method — who
+  need to know whether a district is drying, not which spectral index to
+  subtract from which. Both kinds of software should exist. They are not
+  substitutes.</p>
+  <p class="id"><b>Ini memang sengaja bukan kotak perkakas.</b> Platform GIS umum
+  menyodorkan seribu operasi lalu bertanya urutan mana yang menjawab pertanyaan
+  Anda; itu perkakas yang tepat bagi orang yang sudah tahu jawabannya. Yang ini
+  untuk kelompok yang jauh lebih besar — mereka yang punya pertanyaannya tetapi
+  bukan metodenya, yang perlu tahu apakah sebuah kabupaten sedang mengering,
+  bukan indeks spektral mana yang harus dikurangkan dari mana. Keduanya perlu
+  ada. Keduanya bukan pengganti satu sama lain.</p>
+
+  <p class="en"><b>One honest wrinkle.</b> "Just change the date" holds
+  completely for a season that has ended. For anything recent it does not: the
+  archives run between one day and three months behind, each by a different
+  amount, so the newest date that works shifts daily and differs by scenario.
+  The package will tell you which date to use rather than fail obscurely — but
+  it is the one part of the copy-and-paste promise that needs a little care.</p>
+  <p class="id"><b>Satu catatan jujur.</b> "Tinggal ganti tanggalnya" berlaku
+  sepenuhnya untuk musim yang sudah berakhir. Untuk data terkini tidak: arsipnya
+  tertinggal antara satu hari sampai tiga bulan, masing-masing berbeda, sehingga
+  tanggal terbaru yang bisa dipakai bergeser tiap hari dan berbeda antar
+  skenario. Paket ini akan memberi tahu tanggal mana yang bisa dipakai, bukan
+  gagal tanpa penjelasan — tetapi inilah satu bagian dari janji salin-tempel
+  yang perlu sedikit kehati-hatian.</p>
+
   <h3><span class="en">Objectives</span><span class="id">Tujuan</span></h3>
   <ul class="en">
     <li><b>One command, one question.</b> No Earth Engine scripting, no threshold to choose, no projections to manage.</li>
