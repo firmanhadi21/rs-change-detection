@@ -41,10 +41,42 @@ from .insar import (LOW_COH_FLOOR, _client, _open, _pixel_ha, band, fetch,
 CREDITS_PER_JOB = 10
 DEFAULT_CONNECTIONS = 3      # each scene paired with the next N in time
 
-# Part of the job name, so products asked for WITH the geometry bands are never
-# confused with the ones submitted without them. Bump this if the submitted
-# parameters change again.
-VARIANT = "geom"
+# The job parameters that are the same for every pair. Kept as data, separately
+# from the granules, so the job name can be derived from them -- see variant().
+FIXED_JOB_PARAMETERS = {
+    "apply_water_mask": True,
+    "looks": "20x4",
+    # MintPy's prep_hyp3 REQUIRES the DEM, and the incidence angle is what
+    # makes an ascending/descending decomposition into vertical and east-west
+    # possible at all. Omitting them the first time cost a full reprocessing.
+    "include_dem": True,
+    "include_inc_map": True,
+    # include_inc_map emits *_inc_map.tif; look vectors are a SEPARATE flag
+    # producing *_lv_theta.tif and *_lv_phi.tif, which carry the azimuth angle.
+    "include_look_vectors": True,
+}
+
+
+def variant():
+    """Job-name tag derived FROM the parameters, not hand-maintained.
+
+    This was the literal string "geom" with a comment asking whoever changed
+    the parameters to bump it. When include_look_vectors was added, nobody did.
+    The name therefore did not change, the submitter matched the pre-existing
+    jobs by name, and 705 jobs were silently reused with the OLD parameters --
+    so include_look_vectors stayed False on every one of them and no
+    *_lv_phi.tif was ever produced. The bug was invisible because reusing a job
+    by name is also the correct behaviour that stops us paying twice.
+
+    Deriving the tag from the parameters removes the human step: change any
+    parameter and the name changes with it.
+    """
+    import hashlib
+    import json
+    digest = hashlib.sha1(
+        json.dumps(FIXED_JOB_PARAMETERS, sort_keys=True).encode()
+    ).hexdigest()[:6]
+    return f"geom{digest}"
 MAX_TEMPORAL_DAYS = 60       # beyond this C-band coherence is gone in the wet tropics
 
 NOTE = (
@@ -391,7 +423,7 @@ def _collect(name, pairs, meta, run_dir, wait):
         if j.name:
             known.setdefault(j.name, j)
 
-    want = {job_name(name, "ts", pair, VARIANT): pair for pair in pairs}
+    want = {job_name(name, "ts", pair, variant()): pair for pair in pairs}
     missing = [(jn, p) for jn, p in want.items() if jn not in known]
     print(f"{len(want) - len(missing)} already submitted, "
           f"{len(missing)} to submit")
@@ -414,22 +446,12 @@ def _collect(name, pairs, meta, run_dir, wait):
         prepared = [{
             "job_type": "INSAR_GAMMA",
             "name": jn,
+            # Exactly the dict the name was hashed from, plus this pair's
+            # granules. Building it any other way would let the name and the
+            # submitted parameters drift apart again.
             "job_parameters": {
                 "granules": [p[0]["granule"], p[1]["granule"]],
-                "apply_water_mask": True,
-                "looks": "20x4",
-                # MintPy's prep_hyp3 REQUIRES the DEM, and the incidence angle
-                # is what makes an ascending/descending decomposition into
-                # vertical and east-west possible at all. Omitting them the
-                # first time cost a full reprocessing.
-                "include_dem": True,
-                "include_inc_map": True,
-                # MintPy's prep_hyp3 reads *_lv_theta.tif, which comes from
-                # include_look_vectors -- NOT from include_inc_map, which emits
-                # *_inc_map.tif instead. Setting only the latter produced 705
-                # products that still could not be decomposed into vertical and
-                # east-west. Ask for both; they are small.
-                "include_look_vectors": True,
+                **FIXED_JOB_PARAMETERS,
             },
         } for jn, p in chunk]
         for j in hyp3.submit_prepared_jobs(prepared):

@@ -15,14 +15,26 @@
 set -u
 cd /Users/firmanhadi/GitHub/rs-change-detection || exit 1
 
+# Most-corrected first. Both tracks must end up on the SAME one, or the
+# agreement test measures a processing asymmetry instead of the ground.
+CHAIN="timeseries_SET_ERA5_demErr.h5 timeseries_ERA5_demErr.h5"
+
+pick=""
+for cand in $CHAIN; do
+  if [ -f "output/insar_geom_asc/mintpy/$cand" ] && \
+     [ -f "output/insar_geom_desc/mintpy/$cand" ]; then
+    pick="$cand"; break
+  fi
+done
+if [ -z "$pick" ]; then
+  echo "no corrected time series present on BOTH tracks yet"; exit 1
+fi
+echo "using $pick on both tracks"
+
 for track in insar_geom_asc insar_geom_desc; do
   d="output/$track/mintpy"
-  src="$d/timeseries_ERA5_demErr.h5"
+  src="$d/$pick"
   echo "=== $track ==="
-  if [ ! -f "$src" ]; then
-    echo "  $src missing — correct_topography has not produced it yet"
-    continue
-  fi
   env -u PROJ_LIB -u GDAL_DATA conda run --no-capture-output -n mintpy \
     timeseries2velocity.py "$src" -o "$d/velocityERA5.h5" 2>&1 | tail -3
 done
