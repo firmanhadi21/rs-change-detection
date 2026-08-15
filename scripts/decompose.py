@@ -29,12 +29,37 @@ import h5py  # noqa: E402
 import numpy as np  # noqa: E402
 
 
-def read_velocity(path):
-    """Velocity in mm/yr with its geographic grid."""
+SANE_MM_YR = 500.0   # 0.5 m/yr; no tectonic rate here is remotely this large
+
+
+def read_velocity(path, mask_path=None):
+    """Velocity in mm/yr with its grid, masked to pixels worth comparing.
+
+    timeseries2velocity writes no mask dataset, so falling back to isfinite
+    admits every pixel -- including ill-conditioned ones carrying 1e22 mm/yr,
+    which alone are enough to drive the correlation to zero and make two
+    agreeing fields look unrelated. Use MintPy's own temporal-coherence mask,
+    and additionally drop physically impossible rates.
+    """
     with h5py.File(path, "r") as f:
         v = f["velocity"][:] * 1000.0        # MintPy writes m/yr
         a = dict(f.attrs)
-        mask = f["mask"][:].astype(bool) if "mask" in f else np.isfinite(v)
+        mask = f["mask"][:].astype(bool) if "mask" in f else None
+
+    if mask is None and mask_path and os.path.exists(mask_path):
+        with h5py.File(mask_path, "r") as f:
+            m = f["mask"][:].astype(bool)
+        mask = m if m.shape == v.shape else None
+    if mask is None:
+        mask = np.isfinite(v) & (v != 0)
+
+    finite = np.isfinite(v)
+    wild = finite & (np.abs(v) > SANE_MM_YR)
+    mask = mask & finite & (np.abs(v) <= SANE_MM_YR) & (v != 0)
+    print(f"  {os.path.basename(os.path.dirname(os.path.dirname(path)))}: "
+          f"{mask.sum():,} px kept, {int(wild.sum()):,} dropped as "
+          f"|v| > {SANE_MM_YR:.0f} mm/yr, {int((~finite).sum()):,} non-finite")
+
     return v, mask, {k: float(a[k]) for k in
                      ("X_FIRST", "X_STEP", "Y_FIRST", "Y_STEP")}
 
@@ -117,17 +142,27 @@ def main():
     ap.add_argument("asc_dir")
     ap.add_argument("desc_dir")
     ap.add_argument("-o", "--out", default="output/decomposition")
+    ap.add_argument("--velocity", default="velocityERA5.h5",
+                    help="velocity file inside each mintpy dir; must be the "
+                         "SAME name on both tracks or the comparison is unfair")
     a = ap.parse_args()
 
     paths = {}
     for role, d in (("asc", a.asc_dir), ("desc", a.desc_dir)):
-        p = f"{d}/mintpy/velocity.h5"
+        # Prefer the ERA5-corrected velocity. Falling back to the uncorrected
+        # one silently would compare an atmosphere-dominated field against a
+        # corrected one and call the disagreement a result.
+        p = f"{d}/mintpy/{a.velocity}"
         if not os.path.exists(p):
             raise SystemExit(f"{p} not found — has smallbaselineApp finished?")
         paths[role] = p
+    print(f"using {a.velocity} on both tracks")
 
-    va, ma, ga = read_velocity(paths["asc"])
-    vd, md, gd = read_velocity(paths["desc"])
+    print("=== masking ===")
+    va, ma, ga = read_velocity(paths["asc"],
+                               f"{a.asc_dir}/mintpy/maskTempCoh.h5")
+    vd, md, gd = read_velocity(paths["desc"],
+                               f"{a.desc_dir}/mintpy/maskTempCoh.h5")
     print(f"asc  {va.shape}  desc {vd.shape}")
 
     wa, wd, bbox = common_grid(ga, gd, va.shape, vd.shape)
