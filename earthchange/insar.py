@@ -267,12 +267,27 @@ def _state(job):
 # Products
 # --------------------------------------------------------------------------
 def fetch(job, dest):
-    """Download and unpack a finished job once; reuse it afterwards."""
+    """Download and unpack a finished interferogram once; reuse it afterwards.
+
+    Cached under the job NAME, not the job id. The name is derived from the two
+    granules, so any job producing the same interferogram hits the same cache --
+    which matters because HyP3 will happily run the identical pair twice under
+    two job ids, and a product is ~70 MB. Keying on job id re-downloaded work
+    already on disk the moment a pair was resubmitted.
+    """
     import zipfile
 
     os.makedirs(dest, exist_ok=True)
-    stem = os.path.join(dest, job.job_id)
+    key = getattr(job, "name", None) or job.job_id
+    stem = os.path.join(dest, key)
     if os.path.isdir(stem):
+        return stem
+
+    # Products fetched before the cache key changed are still valid; adopt one
+    # rather than spending the download again.
+    legacy = os.path.join(dest, job.job_id)
+    if os.path.isdir(legacy):
+        os.rename(legacy, stem)
         return stem
 
     for p in job.download_files(dest):
@@ -303,23 +318,29 @@ def band(product_dir, suffix):
     return hits[0]
 
 
-def baselines(product_dir):
-    """Temporal and perpendicular baseline, from the product's own metadata.
+def baselines(product_dir, days=None):
+    """Perpendicular baseline from the product metadata, temporal from the dates.
 
-    Reported rather than assumed: a coherence-change map means something only if
-    the two pairs decorrelate comparably, and baseline is most of that.
+    HyP3 writes a single bare field, `Baseline: -95.6839`, and it is the
+    PERPENDICULAR baseline in metres. Treating an unqualified "Baseline" as
+    temporal reported two 12-day pairs as -95.7 and 86.1 days -- wrong, and
+    wrong in the one field that exists to show whether the two pairs decorrelate
+    comparably. Temporal baseline is not in the file at all; it is the
+    difference between the two acquisition dates, which the caller already
+    knows, so it is passed in rather than guessed at.
     """
     out = {}
+    if days is not None:
+        out["temporal_baseline_days"] = int(days)
     for f in sorted(os.listdir(product_dir)):
-        if not f.endswith(".txt"):
+        if not f.endswith(".txt") or f.endswith(".README.md.txt"):
             continue
         for line in open(os.path.join(product_dir, f), errors="ignore"):
-            m = re.match(r"\s*(Baseline|Temporal baseline|Perpendicular baseline)"
-                         r"\s*:\s*(-?[\d.]+)", line, re.I)
+            m = re.match(r"\s*(?:Perpendicular\s+)?Baseline\s*:\s*(-?[\d.]+)",
+                         line, re.I)
             if m:
-                key = ("perp_baseline_m" if "perp" in m.group(1).lower()
-                       else "temporal_baseline_days")
-                out[key] = float(m.group(2))
+                out["perp_baseline_m"] = round(float(m.group(1)), 1)
+                break
     return out
 
 
@@ -348,7 +369,7 @@ def _pixel_ha(transform, crs, bounds):
 # --------------------------------------------------------------------------
 # Analysis
 # --------------------------------------------------------------------------
-def coherence_change(pre_dir, co_dir):
+def coherence_change(pre_dir, co_dir, pre_days=None, co_days=None):
     """Damage proxy: how far coherence fell from the pre-event pair to the
     co-event pair.
 
@@ -386,8 +407,8 @@ def coherence_change(pre_dir, co_dir):
             100 * float(flagged.sum()) / max(1, int(usable.sum())), 2),
         "mean_drop_where_usable": round(float(np.nanmean(drop)), 3)
         if usable.any() else None,
-        "pre_pair_baselines": baselines(pre_dir),
-        "co_pair_baselines": baselines(co_dir),
+        "pre_pair_baselines": baselines(pre_dir, pre_days),
+        "co_pair_baselines": baselines(co_dir, co_days),
     }
     return drop, flagged, stats, (transform, crs, bounds)
 
@@ -556,7 +577,8 @@ def _analyse(product, prods, pick, name, run_dir):
 
     co = pick["co_pair"]
     if product == "coherence":
-        arr, flagged, stats, geo = coherence_change(prods["pre"], prods["co"])
+        arr, flagged, stats, geo = coherence_change(
+            prods["pre"], prods["co"], pick["pre_days"], pick["co_days"])
         pre = pick["pre_pair"]
         _write_tif(np.where(flagged, arr, np.nan), geo,
                    os.path.join(run_dir, f"{name}_coherence_drop.tif"))
