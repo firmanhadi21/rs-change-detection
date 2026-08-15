@@ -32,7 +32,12 @@ import os
 from .insar import (LOW_COH_FLOOR, _client, _open, _pixel_ha, band, fetch,
                     job_name, search_slc, tracks)
 
-CREDITS_PER_JOB = 5          # measured: 7980 -> 7960 over four INSAR_GAMMA jobs
+# Fallback only. The real figure is read from HyP3's own cost table, because
+# guessing it once cost real money: I inferred 5 from a 20-credit drop over what
+# I believed were four jobs, having read the balance while only two had been
+# charged. INSAR_GAMMA at 20x4 looks is 10, so a 348-pair estimate came out at
+# half the true price.
+CREDITS_PER_JOB = 10
 DEFAULT_CONNECTIONS = 3      # each scene paired with the next N in time
 MAX_TEMPORAL_DAYS = 60       # beyond this C-band coherence is gone in the wet tropics
 
@@ -85,7 +90,25 @@ def network(stack, connections=DEFAULT_CONNECTIONS,
     return pairs, skipped
 
 
-def plan(track_key, stack, pairs, skipped):
+def credits_per_job(hyp3=None, job_type="INSAR_GAMMA", looks="20x4"):
+    """Per-job cost, from HyP3's own table rather than a constant.
+
+    The table is authoritative and versioned server-side; a hardcoded number
+    goes stale silently and the user only finds out from the balance. Falls back
+    to the constant when offline, since a plan that cannot price itself is still
+    better than no plan.
+    """
+    try:
+        table = (hyp3 or _client()).costs()
+        entry = table.get(job_type, {})
+        if "cost" in entry:
+            return int(entry["cost"])
+        return int(entry.get("cost_table", {}).get(looks, CREDITS_PER_JOB))
+    except Exception:  # noqa: BLE001 -- pricing must never block planning
+        return CREDITS_PER_JOB
+
+
+def plan(track_key, stack, pairs, skipped, per_job=CREDITS_PER_JOB):
     """Show the network and its price. Nothing is charged for looking."""
     path, frame, drn = track_key
     span = (dt.date.fromisoformat(stack[-1]["date"])
@@ -96,13 +119,17 @@ def plan(track_key, stack, pairs, skipped):
     print(f"pairs          : {len(pairs)}"
           + (f"  ({skipped} dropped over {MAX_TEMPORAL_DAYS} days)"
              if skipped else ""))
-    print(f"HyP3 credits   : ~{len(pairs) * CREDITS_PER_JOB} "
-          f"({CREDITS_PER_JOB} per pair)")
+    print(f"HyP3 credits   : ~{len(pairs) * per_job} ({per_job} per pair, "
+          f"INSAR_GAMMA at 20x4 looks)")
+    print(f"                 INSAR_ISCE_BURST costs 1 credit per pair, but "
+          f"covers a single burst\n                 (~20x5 km) rather than the "
+          f"whole frame")
     return {"path": path, "frame": frame, "direction": drn,
             "scenes": len(stack), "span_days": span,
             "first": stack[0]["date"], "last": stack[-1]["date"],
             "pairs": len(pairs), "dropped_pairs": skipped,
-            "estimated_credits": len(pairs) * CREDITS_PER_JOB}
+            "credits_per_pair": per_job,
+            "estimated_credits": len(pairs) * per_job}
 
 
 # --------------------------------------------------------------------------
@@ -339,7 +366,7 @@ def run(lat, lon, radius, name, run_dir, run_id, start=None, end=None,
     if not pairs:
         raise SystemExit("no pair survives the temporal-baseline limit")
 
-    meta = plan(track_key, stack, pairs, skipped)
+    meta = plan(track_key, stack, pairs, skipped, credits_per_job())
     with open(os.path.join(run_dir, "plan.json"), "w") as f:
         json.dump(meta, f, indent=2)
 
