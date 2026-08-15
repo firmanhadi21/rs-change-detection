@@ -184,9 +184,20 @@ def velocity(products, wavelength_m=0.055465):
     else:
         ref = (0, 0)
 
+    # The span the fit ACTUALLY rests on, which is not the requested window.
+    # A four-year request collected while later jobs were still processing fitted
+    # only the two years already downloaded, and reported span_days 1447 beside
+    # pairs_used 174 -- a velocity labelled with a baseline it never had.
+    used_dates = sorted(d for _, pair in products for d in pair)
+    span_used = (dt.date.fromisoformat(used_dates[-1])
+                 - dt.date.fromisoformat(used_dates[0])).days
+
     stats = {
         "unit": "mm/yr, line of sight (negative = moving away from satellite)",
         "pairs_used": len(products),
+        "pairs_first_date": used_dates[0],
+        "pairs_last_date": used_dates[-1],
+        "span_days_used": span_used,
         "reference_pixel_rowcol": [int(ref[0]), int(ref[1])],
         "min_pairs_per_pixel": int(max(3, len(products) // 4)),
         # Percent of pixels that HAD data, not of the whole array. The AOI is a
@@ -423,6 +434,12 @@ def run(lat, lon, radius, name, run_dir, run_id, start=None, end=None,
                    "note": NOTE}, f, indent=2)
 
     print(f"\n{os.path.basename(fig)}")
+    if stats["span_days_used"] < meta["span_days"] - 60:
+        print(f"  NOTE: fitted over {stats['pairs_first_date']} → "
+              f"{stats['pairs_last_date']} ({stats['span_days_used']} days), "
+              f"not the {meta['span_days']}-day window requested — "
+              f"{stats['pairs_used']} of {meta['pairs']} pairs were ready. "
+              f"Re-run to collect the rest.")
     print(f"  {stats['fitted_pct_of_observed']}% of observed pixels fitted, median "
           f"{stats['median_pairs_per_fitted_pixel']} pairs each")
     print(f"  LOS velocity p05..p95: {stats['p05']} .. {stats['p95']} mm/yr")
