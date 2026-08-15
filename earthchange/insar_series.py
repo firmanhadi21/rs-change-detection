@@ -40,6 +40,11 @@ from .insar import (LOW_COH_FLOOR, _client, _open, _pixel_ha, band, fetch,
 # half the true price.
 CREDITS_PER_JOB = 10
 DEFAULT_CONNECTIONS = 3      # each scene paired with the next N in time
+
+# Part of the job name, so products asked for WITH the geometry bands are never
+# confused with the ones submitted without them. Bump this if the submitted
+# parameters change again.
+VARIANT = "geom"
 MAX_TEMPORAL_DAYS = 60       # beyond this C-band coherence is gone in the wet tropics
 
 NOTE = (
@@ -359,7 +364,7 @@ def _collect(name, pairs, meta, run_dir, wait):
         if j.name:
             known.setdefault(j.name, j)
 
-    want = {job_name(name, "ts", pair): pair for pair in pairs}
+    want = {job_name(name, "ts", pair, VARIANT): pair for pair in pairs}
     missing = [(jn, p) for jn, p in want.items() if jn not in known]
     print(f"{len(want) - len(missing)} already submitted, "
           f"{len(missing)} to submit")
@@ -386,6 +391,12 @@ def _collect(name, pairs, meta, run_dir, wait):
                 "granules": [p[0]["granule"], p[1]["granule"]],
                 "apply_water_mask": True,
                 "looks": "20x4",
+                # MintPy's prep_hyp3 REQUIRES the DEM, and the incidence angle
+                # is what makes an ascending/descending decomposition into
+                # vertical and east-west possible at all. Omitting them the
+                # first time cost a full reprocessing.
+                "include_dem": True,
+                "include_inc_map": True,
             },
         } for jn, p in chunk]
         for j in hyp3.submit_prepared_jobs(prepared):

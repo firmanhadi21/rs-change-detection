@@ -222,7 +222,7 @@ def _client():
             "https://hyp3-api.asf.alaska.edu/")
 
 
-def job_name(name, kind, pair):
+def job_name(name, kind, pair, variant=""):
     """A deterministic name, so a later run can find the job it submitted.
 
     HyP3 has no notion of our run directory; the name is the only handle that
@@ -236,14 +236,24 @@ def job_name(name, kind, pair):
     That cost 10 credits when I hit it with one pair; on a 400-pair stack it
     would waste thousands. The short hash separates same-day pairs on different
     frames, which the dates alone would collide.
+
+    `variant` covers the JOB PARAMETERS. Two runs over the same granules with
+    different parameters are different products -- asking HyP3 for the DEM and
+    incidence-angle bands produces a genuinely different result -- so they must
+    not share a name. Without this, resubmitting for geometry would find the
+    old geometry-less jobs and hand them back as if they were what was asked
+    for, which is the worst kind of failure: silent, and it looks like success.
     """
     import hashlib
 
     del name, kind  # deliberately not part of the identity -- see above
     tag = f"{pair[0]['date']}_{pair[1]['date']}".replace("-", "")
-    digest = hashlib.sha1(
-        "|".join(sorted(p["granule"] for p in pair)).encode()).hexdigest()[:8]
-    return f"earthchange-{tag}-{digest}"
+    ident = "|".join(sorted(p["granule"] for p in pair))
+    if variant:
+        ident += f"|{variant}"
+    digest = hashlib.sha1(ident.encode()).hexdigest()[:8]
+    suffix = f"-{variant}" if variant else ""
+    return f"earthchange-{tag}{suffix}-{digest}"
 
 
 def submit_or_find(hyp3, name, kind, pair, product):
