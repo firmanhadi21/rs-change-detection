@@ -467,6 +467,16 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
+    if method == "insar_series":
+        from . import insar_series
+        insar_series.run(lat, lon, radius, name, run_dir, run_id,
+                         start=args.series_start, end=args.series_end,
+                         direction=args.orbit_pass,
+                         connections=args.connections, confirm=args.confirm,
+                         wait=args.wait,
+                         export_mintpy_only=args.export_mintpy)
+        return True
+
     if method == "insar":
         from . import insar
         insar.run(lat, lon, radius, name, run_dir, run_id,
@@ -684,6 +694,23 @@ def build_parser():
     ap.add_argument("--wait", action="store_true",
                     help="insar: block until the HyP3 jobs finish (20-40 min) "
                          "instead of returning so you can collect them later")
+    ap.add_argument("--series-start", metavar="YYYY-MM-DD",
+                    help="insar-series: first day of the stack. A velocity is "
+                         "a rate, so the window it was measured over is part "
+                         "of the answer")
+    ap.add_argument("--series-end", metavar="YYYY-MM-DD",
+                    help="insar-series: last day of the stack")
+    ap.add_argument("--connections", type=int, default=3,
+                    help="insar-series: how many later scenes each scene is "
+                         "paired with (default 3). More pairs means a steadier "
+                         "fit and a proportionally larger HyP3 bill")
+    ap.add_argument("--confirm", action="store_true",
+                    help="insar-series: actually submit. Without it the run "
+                         "prints the network and its credit cost and stops, "
+                         "because a multi-year stack is hundreds of jobs")
+    ap.add_argument("--export-mintpy", action="store_true",
+                    help="insar-series: write the MintPy-ready layout and stop, "
+                         "skipping the built-in velocity fit")
     ap.add_argument("--track-heights", metavar="M[,M…]",
                     help="smoke-track --engine hysplit: release heights in m "
                          "above ground (default 100,500,1500). The spread "

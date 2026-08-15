@@ -228,10 +228,22 @@ def job_name(name, kind, pair):
     HyP3 has no notion of our run directory; the name is the only handle that
     survives between invocations, which is what makes this scenario resumable
     instead of forcing one 40-minute blocking call.
+
+    Derived from the GRANULES ONLY -- not from --name, and not from whether the
+    pair happens to be the pre- or co-event one. An interferogram is a function
+    of its two granules and nothing else, so including the user's label meant
+    the same pair submitted twice under two labels produced two identical jobs.
+    That cost 10 credits when I hit it with one pair; on a 400-pair stack it
+    would waste thousands. The short hash separates same-day pairs on different
+    frames, which the dates alone would collide.
     """
+    import hashlib
+
+    del name, kind  # deliberately not part of the identity -- see above
     tag = f"{pair[0]['date']}_{pair[1]['date']}".replace("-", "")
-    slug = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-")[:24]
-    return f"earthchange-{slug}-{kind}-{tag}"
+    digest = hashlib.sha1(
+        "|".join(sorted(p["granule"] for p in pair)).encode()).hexdigest()[:8]
+    return f"earthchange-{tag}-{digest}"
 
 
 def submit_or_find(hyp3, name, kind, pair, product):

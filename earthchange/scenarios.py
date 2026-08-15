@@ -529,6 +529,15 @@ SCENARIOS = {
                            "kerusakan. Displacement = arah garis pandang satelit, "
                            "bukan vertikal."),
     },
+    "insar-series": {
+        "label": ("InSAR time series — line-of-sight velocity from a stack of "
+                  "interferograms (Sentinel-1 SLC via ASF HyP3)"),
+        "method": "insar_series", "needs": "none",
+        "radius": 30.0,
+        "interpretation": ("Kecepatan LOS mm/tahun. Bukan prediksi gempa: "
+                           "gunanya adalah garis dasar sebelum kejadian, dan "
+                           "menemukan yang bergerak tetap (amblesan, gunung api)."),
+    },
     "smoke-track": {
         "label": ("Smoke trajectories — air-parcel paths from the fires "
                   "(kinematic, or HYSPLIT with --engine hysplit)"),
@@ -758,6 +767,8 @@ SCENARIO_FLAGS = {
     # No --backend: SLC exists in neither GEE nor MPC, so offering the flag
     # would promise a choice that does not exist.
     "insar": ("--event-date", "--product", "--orbit-pass", "--wait"),
+    "insar-series": ("--series-start", "--series-end", "--orbit-pass",
+                     "--connections", "--confirm", "--wait", "--export-mintpy"),
     # No --date or --days: the FIRMS public feed is a rolling seven days and
     # smoke_video.run takes neither, so offering them promised a window the
     # scenario cannot honour.
@@ -793,6 +804,7 @@ NOT_APPLICABLE = {
     # serves it. insar reads ASF regardless of --backend, so offering the choice
     # would be a lie about where the data came from.
     "insar": ("--backend", "--ee-key", "--drive", "--drive-folder"),
+    "insar-series": ("--backend", "--ee-key", "--drive", "--drive-folder"),
 }
 
 

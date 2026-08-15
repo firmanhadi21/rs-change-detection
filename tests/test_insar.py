@@ -16,7 +16,16 @@ from earthchange.insar import (MAX_PAIR_DAYS, _next_pass, choose_pairs,
 
 
 def scene(date, path=112, frame=1148, direction="ascending"):
-    return {"granule": f"S1D_IW_SLC__1SDV_{date.replace('-', '')}T101603_{path}",
+    """One SLC record in the shape search_slc returns.
+
+    The granule carries the frame, as the real ones do: frames on the same pass
+    are acquired seconds apart and their names differ accordingly. Building it
+    from the path alone made two different frames share a granule name, which is
+    a fixture that cannot happen in the archive.
+    """
+    return {"granule":
+            f"S1D_IW_SLC__1SDV_{date.replace('-', '')}T1016{frame % 100:02d}_"
+            f"{path:03d}_{frame}",
             "date": date, "path": path, "frame": frame, "direction": direction}
 
 
@@ -109,10 +118,28 @@ def test_job_name_is_deterministic_and_safe(name):
     pair = (scene("2026-08-06"), scene("2026-08-18"))
     a = job_name(name, "co", pair)
     assert a == job_name(name, "co", pair)
-    assert a != job_name(name, "pre", pair)
     assert all(c.isalnum() or c in "-_" for c in a)
     assert "20260806_20260818" in a
     # HyP3 caps a job name at 100 characters, and a name that gets truncated
     # server-side stops matching on the next find_jobs -- which would silently
     # resubmit rather than resume.
     assert len(a) <= 100
+
+
+def test_same_pair_is_one_job_whatever_it_is_called():
+    """An interferogram is a function of its granules alone.
+
+    Naming it after --name, or after its role in the analysis, resubmitted
+    identical work: running the same pair as 'AuthTest' and then as 'Flores'
+    produced four jobs where two would do, at 5 credits each. On a 400-pair
+    stack that multiplies.
+    """
+    pair = (scene("2026-08-06"), scene("2026-08-18"))
+    assert job_name("AuthTest", "pre", pair) == job_name("Flores", "co", pair)
+
+
+def test_same_dates_on_different_frames_stay_distinct():
+    """Dates alone would collide: two frames are acquired the same second."""
+    a = (scene("2026-08-06", frame=1148), scene("2026-08-18", frame=1148))
+    b = (scene("2026-08-06", frame=1153), scene("2026-08-18", frame=1153))
+    assert job_name("x", "co", a) != job_name("x", "co", b)
