@@ -304,7 +304,34 @@ def fetch(job, dest):
     if not subs:
         raise SystemExit(f"HyP3 product for job {job.job_id} unpacked no files")
     os.rename(max(subs, key=os.path.getmtime), stem)
+    prune(stem)
     return stem
+
+
+# Everything the analysis actually opens, plus the metadata the stats quote.
+# A product is ~73 MB and _amp.tif alone is 30 MB of it, which nothing here
+# reads; the browse images and KMZs are another 9 MB. Over a 700-pair stack
+# that is the difference between 52 GB and 27 GB, on a disk with 65 GB free.
+KEEP_SUFFIXES = ("_corr.tif", "_unw_phase.tif", "_water_mask.tif",
+                 "_los_displacement.tif", "_dem.tif", "_lv_theta.tif", ".txt")
+
+
+def prune(product_dir):
+    """Drop the bands this package never opens. Returns bytes reclaimed.
+
+    Deliberately conservative: it keeps the DEM and incidence-angle bands even
+    though the built-in fit ignores them, because MintPy wants them, and a
+    re-download costs far more than the disk they occupy.
+    """
+    freed = 0
+    for f in os.listdir(product_dir):
+        if f.endswith(KEEP_SUFFIXES) or f.endswith(".xml"):
+            continue
+        path = os.path.join(product_dir, f)
+        if os.path.isfile(path):
+            freed += os.path.getsize(path)
+            os.remove(path)
+    return freed
 
 
 def band(product_dir, suffix):
