@@ -145,35 +145,41 @@ def velocity(products, wavelength_m=0.055465):
     velocity from three pairs and one from forty should not look alike on a map.
     """
     import numpy as np
+    import rasterio
 
-    rows, phases, cohs, geo = [], [], [], None
+    # Two passes, because holding the stack in memory does not scale. Stacking
+    # every pair loaded 354 interferograms twice over -- phase and coherence --
+    # and the kernel killed the process (SIGKILL, exit 137) partway through the
+    # four-year fit. A slope through the origin needs only three running sums
+    # per pixel, so memory is flat in the number of pairs.
+    shape, geo = None, None
+    for pdir, _ in products:
+        with rasterio.open(band(pdir, "_unw_phase.tif")) as s:
+            shape = ((min(shape[0], s.height), min(shape[1], s.width))
+                     if shape else (s.height, s.width))
+            geo = geo or (s.transform, s.crs, s.bounds)
+
+    sxy = np.zeros(shape, dtype="float64")
+    sxx = np.zeros(shape, dtype="float64")
+    n_good = np.zeros(shape, dtype="int32")
+    scale = (wavelength_m / (4 * np.pi)) * 1000.0    # radians -> mm
+
     for pdir, (d1, d2) in products:
-        unw, transform, crs, bounds = _open(band(pdir, "_unw_phase.tif"))
+        unw, _, _, _ = _open(band(pdir, "_unw_phase.tif"))
         coh, _, _, _ = _open(band(pdir, "_corr.tif"))
-        geo = geo or (transform, crs, bounds)
-        rows.append((dt.date.fromisoformat(d2)
-                     - dt.date.fromisoformat(d1)).days / 365.25)
-        phases.append(unw)
-        cohs.append(coh)
+        unw = unw[:shape[0], :shape[1]]
+        coh = coh[:shape[0], :shape[1]]
 
-    shape = min((p.shape for p in phases), key=lambda s: (s[0], s[1]))
-    phases = np.stack([p[:shape[0], :shape[1]] for p in phases])
-    cohs = np.stack([c[:shape[0], :shape[1]] for c in cohs])
-    dt_yr = np.asarray(rows, dtype="float32")
+        x = (dt.date.fromisoformat(d2)
+             - dt.date.fromisoformat(d1)).days / 365.25
+        good = np.isfinite(unw) & np.isfinite(coh) & (coh >= LOW_COH_FLOOR)
+        sxy += np.where(good, x * unw * scale, 0.0)
+        sxx += np.where(good, x * x, 0.0)
+        n_good += good
 
-    # Unwrapped phase to metres of range change, then to mm.
-    disp = phases * (wavelength_m / (4 * np.pi)) * 1000.0
-    good = np.isfinite(disp) & np.isfinite(cohs) & (cohs >= LOW_COH_FLOOR)
-    n_good = good.sum(axis=0)
-
-    w = np.where(good, 1.0, 0.0)
-    x = dt_yr[:, None, None] * w
-    y = np.where(good, disp, 0.0)
     # Least squares through the origin: velocity is a rate, and an intercept
-    # here would absorb the reference offset we remove explicitly below.
-    denom = (x * x).sum(axis=0)
-    vel = np.where(denom > 0, (x * y).sum(axis=0) / np.where(denom > 0, denom, 1),
-                   np.nan)
+    # here would absorb the reference offset removed explicitly below.
+    vel = np.where(sxx > 0, sxy / np.where(sxx > 0, sxx, 1), np.nan)
     vel = np.where(n_good >= max(3, len(products) // 4), vel, np.nan)
 
     # Reference to the most-observed coherent pixel: InSAR measures relative
