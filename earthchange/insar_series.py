@@ -291,11 +291,6 @@ def _collect(name, pairs, meta, run_dir, wait):
     running on ASF and the next run picks them up by name.
     """
     hyp3 = _client()
-    have = hyp3.check_credits()
-    if have is not None and have < meta["estimated_credits"]:
-        raise SystemExit(
-            f"{meta['estimated_credits']} credits needed, {have} available. "
-            "Shorten the window or lower --connections.")
 
     # One listing, indexed by name -- not find_jobs() per pair. At 174 pairs a
     # lookup each was 174 round trips before a single job was submitted, and
@@ -310,6 +305,18 @@ def _collect(name, pairs, meta, run_dir, wait):
     missing = [(jn, p) for jn, p in want.items() if jn not in known]
     print(f"{len(want) - len(missing)} already submitted, "
           f"{len(missing)} to submit")
+
+    # Price only what still has to be submitted. Charging for the whole network
+    # made the guard refuse to COLLECT a stack that was already paid for: on the
+    # four-year descending track it demanded 3540 credits to fetch 174 finished
+    # interferograms, because it counted the 180 already bought.
+    due = len(missing) * meta["credits_per_pair"]
+    have = hyp3.check_credits()
+    if missing and have is not None and have < due:
+        raise SystemExit(
+            f"{due} credits needed for the {len(missing)} pairs not yet "
+            f"submitted, {have} available. Shorten the window or lower "
+            "--connections. Pairs already submitted cost nothing to collect.")
 
     # Batch rather than one call each. The API caps a request, so chunk it.
     for i in range(0, len(missing), 100):
