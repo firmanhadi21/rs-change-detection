@@ -270,15 +270,38 @@ def _collect(name, pairs, meta, run_dir, wait):
             f"{meta['estimated_credits']} credits needed, {have} available. "
             "Shorten the window or lower --connections.")
 
-    jobs = {}
-    for pair in pairs:
-        jn = job_name(name, "ts", pair)
-        found = hyp3.find_jobs(name=jn)
-        jobs[jn] = (found[0] if len(found) > 0
-                    else hyp3.submit_insar_job(
-                        pair[0]["granule"], pair[1]["granule"], name=jn,
-                        apply_water_mask=True, looks="20x4")[0], pair)
-    print(f"{len(jobs)} jobs submitted or recovered")
+    # One listing, indexed by name -- not find_jobs() per pair. At 174 pairs a
+    # lookup each was 174 round trips before a single job was submitted, and
+    # two tracks doubled it.
+    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=180)
+    known = {}
+    for j in hyp3.find_jobs(start=since):
+        if j.name:
+            known.setdefault(j.name, j)
+
+    want = {job_name(name, "ts", pair): pair for pair in pairs}
+    missing = [(jn, p) for jn, p in want.items() if jn not in known]
+    print(f"{len(want) - len(missing)} already submitted, "
+          f"{len(missing)} to submit")
+
+    # Batch rather than one call each. The API caps a request, so chunk it.
+    for i in range(0, len(missing), 100):
+        chunk = missing[i:i + 100]
+        prepared = [{
+            "job_type": "INSAR_GAMMA",
+            "name": jn,
+            "job_parameters": {
+                "granules": [p[0]["granule"], p[1]["granule"]],
+                "apply_water_mask": True,
+                "looks": "20x4",
+            },
+        } for jn, p in chunk]
+        for j in hyp3.submit_prepared_jobs(prepared):
+            known[j.name] = j
+        print(f"  submitted {min(i + 100, len(missing))}/{len(missing)}")
+
+    jobs = {jn: (known[jn], pair) for jn, pair in want.items() if jn in known}
+    print(f"{len(jobs)} jobs tracked")
 
     if wait:
         print("waiting for HyP3 — hundreds of pairs takes hours...")
