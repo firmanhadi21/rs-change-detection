@@ -520,6 +520,15 @@ SCENARIOS = {
         "interpretation": ("Oranye/merah = permukaan terganggu (VH turun). "
                            "Lereng curam ≈ longsor; dataran ≈ endapan/genangan."),
     },
+    "insar": {
+        "label": ("InSAR — coherence change (damage proxy) or line-of-sight "
+                  "displacement, from Sentinel-1 SLC via ASF HyP3"),
+        "method": "insar", "needs": "none",
+        "radius": 30.0,
+        "interpretation": ("Koherensi turun = permukaan berubah, BUKAN otomatis "
+                           "kerusakan. Displacement = arah garis pandang satelit, "
+                           "bukan vertikal."),
+    },
     "smoke-track": {
         "label": ("Smoke trajectories — air-parcel paths from the fires "
                   "(kinematic, or HYSPLIT with --engine hysplit)"),
@@ -746,6 +755,9 @@ SCENARIO_FLAGS = {
                 "--rain-source", "--cdi", "--cdi-scale", "--cdi-grid",
                 "--cdi-mask", "--cdi-mask-name", "--cdi-basemap"),
     "smoke-exposure": ("--season", "--pop-year"),
+    # No --backend: SLC exists in neither GEE nor MPC, so offering the flag
+    # would promise a choice that does not exist.
+    "insar": ("--event-date", "--product", "--orbit-pass", "--wait"),
     # No --date or --days: the FIRMS public feed is a rolling seven days and
     # smoke_video.run takes neither, so offering them promised a window the
     # scenario cannot honour.
@@ -773,6 +785,17 @@ def unclaimed_flags(all_flags):
     return sorted(set(all_flags) - claimed)
 
 
+# Common flags a particular scenario genuinely cannot honour. Listing one here
+# hides it from that scenario's --help, because an offered flag that is silently
+# ignored is worse than a missing one: the user believes they chose something.
+NOT_APPLICABLE = {
+    # Interferometry needs SLC, and neither Earth Engine nor Planetary Computer
+    # serves it. insar reads ASF regardless of --backend, so offering the choice
+    # would be a lie about where the data came from.
+    "insar": ("--backend", "--ee-key", "--drive", "--drive-folder"),
+}
+
+
 def flags_for(scenario):
     """Options worth showing for one scenario: common, window, and its own.
 
@@ -780,6 +803,7 @@ def flags_for(scenario):
     the dispatcher branches on, so the two cannot disagree.
     """
     needs = (SCENARIOS.get(scenario) or {}).get("needs")
-    return (set(COMMON_FLAGS)
-            | set(_BY_NEEDS.get(needs, ()))
-            | set(SCENARIO_FLAGS.get(scenario, ())))
+    return ((set(COMMON_FLAGS)
+             | set(_BY_NEEDS.get(needs, ()))
+             | set(SCENARIO_FLAGS.get(scenario, ())))
+            - set(NOT_APPLICABLE.get(scenario, ())))

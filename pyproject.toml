@@ -41,6 +41,11 @@ transit = ["earthengine-api", "networkx", "scipy", "shapely", "numpy", "rasterio
 forge3d = ["forge3d", "numpy", "rasterio", "pillow"]
 # Zonal breakdowns against a polygon layer (fire-danger --zones)
 zones = ["geopandas", "pyogrio", "numpy", "rasterio", "shapely"]
+# InSAR (coherence change, line-of-sight displacement). Sentinel-1 SLC carries
+# the phase that GRD discards, and neither Earth Engine nor Planetary Computer
+# serves SLC — so this reaches ASF instead, and needs a free NASA Earthdata
+# login: https://urs.earthdata.nasa.gov/
+insar = ["hyp3_sdk", "numpy", "rasterio", "matplotlib"]
 # Wildfire smoke map video (smoke-video). Also needs ffmpeg on PATH, and a
 # Vulkan device — a GPU, or mesa-vulkan-drivers for headless llvmpipe.
 video = ["forge3d>=1.34", "numpy", "scipy", "pandas", "pillow", "requests"]

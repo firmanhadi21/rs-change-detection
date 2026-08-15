@@ -467,6 +467,13 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         _run_drought(args, lat, lon, radius, name, run_dir, run_id, ee_key)
         return True
 
+    if method == "insar":
+        from . import insar
+        insar.run(lat, lon, radius, name, run_dir, run_id,
+                  event_date=args.event_date, product=args.product,
+                  direction=args.orbit_pass, wait=args.wait, lang=args.lang)
+        return True
+
     if method == "smoke_track":
         from . import smoke_track
         tk_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
@@ -655,6 +662,28 @@ def build_parser():
                     help="smoke-track: 'forward' from fires, or 'backward' "
                          "from the worst-PM2.5 districts to ask where their "
                          "air came from. backward requires --engine hysplit")
+    ap.add_argument("--event-date", metavar="YYYY-MM-DD",
+                    help="insar: the day the event happened. Pairs are chosen "
+                         "around it; without it 'before' and 'after' have no "
+                         "meaning and the run refuses")
+    ap.add_argument("--product", choices=("coherence", "displacement"),
+                    default="coherence",
+                    help="insar: 'coherence' compares a pre-event pair with a "
+                         "co-event pair as a damage proxy (3 SLCs, 2 HyP3 "
+                         "jobs); 'displacement' is line-of-sight motion from "
+                         "unwrapped phase (1 pair, 1 job)")
+    # Not --direction: that flag already means trajectory sense for smoke-track
+    # and its choices are forward/backward. Overloading one flag with two
+    # meanings is how a user ends up passing a value the parser accepts and the
+    # scenario ignores.
+    ap.add_argument("--orbit-pass", choices=("ascending", "descending", "auto"),
+                    default="auto",
+                    help="insar: restrict to one Sentinel-1 pass. Ascending "
+                         "and descending see different components of motion, "
+                         "and only scenes on the same track can be interfered")
+    ap.add_argument("--wait", action="store_true",
+                    help="insar: block until the HyP3 jobs finish (20-40 min) "
+                         "instead of returning so you can collect them later")
     ap.add_argument("--track-heights", metavar="M[,M…]",
                     help="smoke-track --engine hysplit: release heights in m "
                          "above ground (default 100,500,1500). The spread "
