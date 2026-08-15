@@ -189,8 +189,16 @@ def velocity(products, wavelength_m=0.055465):
         "pairs_used": len(products),
         "reference_pixel_rowcol": [int(ref[0]), int(ref[1])],
         "min_pairs_per_pixel": int(max(3, len(products) // 4)),
-        "fitted_pct": round(
+        # Percent of pixels that HAD data, not of the whole array. The AOI is a
+        # bounding box over an island: most of it is sea, so dividing by
+        # vel.size reported 9.6% for a fit that actually covered most of the
+        # land, and made a usable result look like a failed one.
+        "fitted_pct_of_observed": round(
+            100 * float(np.isfinite(vel).sum())
+            / max(1, int((n_good > 0).sum())), 1),
+        "fitted_pct_of_frame": round(
             100 * float(np.isfinite(vel).sum()) / vel.size, 1),
+        "observed_pixels": int((n_good > 0).sum()),
         "median_pairs_per_fitted_pixel": int(np.median(n_good[np.isfinite(vel)]))
         if np.isfinite(vel).any() else 0,
         "p05": round(float(np.nanpercentile(vel, 5)), 2) if np.isfinite(vel).any() else None,
@@ -415,7 +423,7 @@ def run(lat, lon, radius, name, run_dir, run_id, start=None, end=None,
                    "note": NOTE}, f, indent=2)
 
     print(f"\n{os.path.basename(fig)}")
-    print(f"  {stats['fitted_pct']}% of pixels fitted, median "
+    print(f"  {stats['fitted_pct_of_observed']}% of observed pixels fitted, median "
           f"{stats['median_pairs_per_fitted_pixel']} pairs each")
     print(f"  LOS velocity p05..p95: {stats['p05']} .. {stats['p95']} mm/yr")
     print(f"  MintPy layout: {os.path.relpath(mintpy_dir, run_dir)}")
