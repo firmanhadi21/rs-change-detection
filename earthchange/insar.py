@@ -193,16 +193,33 @@ def _client():
             "InSAR needs the hyp3_sdk package:\n"
             "  pip install 'earthchange[insar]'\n"
             "and a free NASA Earthdata login: https://urs.earthdata.nasa.gov/")
+    user = os.environ.get("EARTHDATA_USERNAME")
+    pwd = os.environ.get("EARTHDATA_PASSWORD")
+
+    # hyp3_sdk requires both or neither: passing one and not the other fails
+    # inside its session setup with a message about the missing half, which
+    # reads like a credentials problem when it is really a typo in a shell rc.
+    if bool(user) != bool(pwd):
+        missing = "EARTHDATA_PASSWORD" if user else "EARTHDATA_USERNAME"
+        raise SystemExit(
+            f"{missing} is not set, but the other half is. Set both, or unset "
+            "both and use ~/.netrc instead.")
+
     try:
-        return hyp3_sdk.HyP3(
-            username=os.environ.get("EARTHDATA_USERNAME"),
-            password=os.environ.get("EARTHDATA_PASSWORD"))
+        # With neither set these are None, and hyp3_sdk falls back to ~/.netrc.
+        return hyp3_sdk.HyP3(username=user, password=pwd)
     except Exception as e:  # noqa: BLE001 -- give the actual next step
         raise SystemExit(
-            f"Could not authenticate to ASF HyP3: {e}\n"
-            "Set EARTHDATA_USERNAME and EARTHDATA_PASSWORD, or put your "
-            "credentials in ~/.netrc for machine urs.earthdata.nasa.gov.\n"
-            "Register free at https://urs.earthdata.nasa.gov/")
+            f"Could not authenticate to ASF HyP3: {e}\n\n"
+            "Put your NASA Earthdata credentials in ~/.netrc:\n"
+            "    machine urs.earthdata.nasa.gov\n"
+            "        login YOUR_USERNAME\n"
+            "        password YOUR_PASSWORD\n"
+            "then: chmod 600 ~/.netrc   (netrc is ignored if world-readable)\n\n"
+            "or export EARTHDATA_USERNAME and EARTHDATA_PASSWORD.\n"
+            "Register free at https://urs.earthdata.nasa.gov/\n"
+            "First use also needs HyP3 authorised once at "
+            "https://hyp3-api.asf.alaska.edu/")
 
 
 def job_name(name, kind, pair):
