@@ -397,6 +397,12 @@ def _collect(name, pairs, meta, run_dir, wait):
                 # first time cost a full reprocessing.
                 "include_dem": True,
                 "include_inc_map": True,
+                # MintPy's prep_hyp3 reads *_lv_theta.tif, which comes from
+                # include_look_vectors -- NOT from include_inc_map, which emits
+                # *_inc_map.tif instead. Setting only the latter produced 705
+                # products that still could not be decomposed into vertical and
+                # east-west. Ask for both; they are small.
+                "include_look_vectors": True,
             },
         } for jn, p in chunk]
         for j in hyp3.submit_prepared_jobs(prepared):

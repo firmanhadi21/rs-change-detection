@@ -323,7 +323,16 @@ def fetch(job, dest):
 # reads; the browse images and KMZs are another 9 MB. Over a 700-pair stack
 # that is the difference between 52 GB and 27 GB, on a disk with 65 GB free.
 KEEP_SUFFIXES = ("_corr.tif", "_unw_phase.tif", "_water_mask.tif",
-                 "_los_displacement.tif", "_dem.tif", "_lv_theta.tif", ".txt")
+                 "_los_displacement.tif", "_dem.tif",
+                 # Every geometry band HyP3 can emit, whichever flag produced
+                 # it. Listing only _lv_theta.tif deleted the _inc_map.tif that
+                 # 705 jobs had been resubmitted specifically to obtain -- the
+                 # keep-list silently undid the reprocessing. A geometry raster
+                 # is a few MB against a 70 MB product; there is no reason to be
+                 # selective here.
+                 "_lv_theta.tif", "_lv_phi.tif", "_inc_map.tif",
+                 "_inc_map_ell.tif",
+                 ".txt")
 
 
 def prune(product_dir):
