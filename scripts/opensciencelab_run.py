@@ -114,17 +114,38 @@ def main():
     #    survives one bad product instead of losing the batch. Rasters only --
     #    handing prep_hyp3 the .txt makes it try to open it with GDAL and abort.
     print("\n=== prep_hyp3 ===")
-    ok = bad = 0
+    ok, failed, skipped = 0, [], []
     for i, d in enumerate(products, 1):
         rasters = [p for p in sorted(glob.glob(f"{d}/*.tif"))]
         if not rasters:
+            # Silently dropping these hides a product that downloaded as an
+            # empty directory, which then never gets retried: the fetcher skips
+            # any directory that already exists.
+            skipped.append(d)
             continue
         if run(["prep_hyp3.py"] + rasters) == 0:
             ok += 1
         else:
-            bad += 1
+            failed.append(d)
         if i % 50 == 0 or i == len(products):
-            print(f"  {i}/{len(products)}  ok {ok}, failed {bad}", flush=True)
+            print(f"  {i}/{len(products)}  ok {ok}, failed {len(failed)}",
+                  flush=True)
+
+    # Name them. A count alone cannot be acted on, and each failure is one
+    # interferogram missing from the stack.
+    for label, items in (("failed", failed), ("no .tif at all", skipped)):
+        if items:
+            print(f"\n  {len(items)} {label}:")
+            for d in items[:10]:
+                print(f"      {os.path.basename(d)}")
+            if len(items) > 10:
+                print(f"      ... and {len(items) - 10} more")
+    if failed or skipped:
+        print(f"\n  diagnose and clear these with:"
+              f"\n      python3 repair_stack.py {a.stack}"
+              f"\n      python3 repair_stack.py {a.stack} --clean"
+              f"\n      python3 opensciencelab_fetch.py   # re-download, free")
+    bad = len(failed)
 
     # 3. Config, naming geometry only if it is actually there.
     mintpy_dir = os.path.join(a.stack, "mintpy")
