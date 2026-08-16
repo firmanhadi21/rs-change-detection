@@ -57,6 +57,57 @@ def flight_direction(granule):
     return "DESCENDING" if hour >= 16 else "ASCENDING"
 
 
+def _place_look_vectors(job, root, track):
+    """Put one lv_theta/lv_phi pair into the FIRST product dir of a track.
+
+    Look vectors describe the track, not a pair, so MintPy wants one file --
+    copying them into every product dir would multiply ~90 MB by the number of
+    products and, on a 705-product stack, fill the disk (it did, locally).
+    Named after the product they sit beside so per-product globs resolve.
+    """
+    import glob
+    import shutil
+    import tempfile
+
+    if job is None:
+        print(f"  {track}: no look-vector job — stack will have no azimuth "
+              f"angle, and ASF's notebook will reject it")
+        return
+
+    dirs = sorted(d for d in glob.glob(f"{root}/*") if os.path.isdir(d))
+    if not dirs:
+        return
+    target = dirs[0]
+    unw = glob.glob(f"{target}/*_unw_phase.tif")
+    if not unw:
+        return
+    stem = os.path.basename(unw[0])[:-len("_unw_phase.tif")]
+
+    if glob.glob(f"{target}/*_lv_phi.tif"):
+        print(f"  {track}: look vectors already present")
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            paths = job.download_files(tmp)
+        except Exception as e:  # noqa: BLE001
+            print(f"  {track}: look-vector download failed {type(e).__name__}")
+            return
+        for p in map(str, paths):
+            if not p.endswith(".zip"):
+                continue
+            with zipfile.ZipFile(p) as z:
+                for member in z.namelist():
+                    for suffix in ("_lv_theta.tif", "_lv_phi.tif",
+                                   "_inc_map.tif"):
+                        if member.endswith(suffix):
+                            dst = os.path.join(target, f"{stem}{suffix}")
+                            with z.open(member) as src, \
+                                 open(dst, "wb") as o:
+                                shutil.copyfileobj(src, o)
+    print(f"  {track}: look vectors placed in {os.path.basename(target)}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--prefix", default="earthchange-")
@@ -108,6 +159,18 @@ def main():
     if sorted_jobs["unknown"]:
         print("  WARNING: unknown flight direction — check asf_search is installed")
 
+    # The look-vector jobs carry no date pair, so the filter above drops them --
+    # and without lv_theta/lv_phi the stack has no azimuth angle and ASF's own
+    # notebook refuses it. They are per-track geometry, so one each is enough.
+    lv = {}
+    for j in hyp3.find_jobs(start=since):
+        if not j.name or not j.name.startswith("earthchange-lookvectors-"):
+            continue
+        if j.status_code != "SUCCEEDED":
+            continue
+        lv["asc" if "-asc-" in j.name else "desc"] = j
+    print(f"look-vector jobs found: {sorted(lv)}")
+
     wanted = (["asc", "desc"] if a.track == "both" else [a.track])
     plan = []
     for k in wanted:
@@ -147,6 +210,8 @@ def main():
                 os.remove(p)   # before the next fetch, so peak disk stays low
             if i % 25 == 0 or i == len(sel):
                 print(f"  {track} {i}/{len(sel)}", flush=True)
+
+        _place_look_vectors(lv.get(track), root, track)
 
     print(f"\nNext, in OpenScienceLab:\n"
           f"  prep_hyp3.py '{a.out}/insar_asc/hyp3/*/*_unw_phase.tif'\n"
