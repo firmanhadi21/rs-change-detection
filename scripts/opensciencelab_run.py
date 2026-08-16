@@ -152,8 +152,34 @@ def main():
               f"\n  python3 check_stack.py {a.stack}   # verify nothing was dropped")
         return 0
 
-    print("\n=== smallbaselineApp ===")
-    return run(["smallbaselineApp.py", "earthchange.cfg"], cwd=mintpy_dir)
+    # Stop BEFORE residual_RMS. That step dies in matplotlib
+    # ("Axis limits cannot be NaN or Inf") on both tracks of this stack -- a
+    # plotting failure, with every science product already written. Running the
+    # whole app instead means hours of correct work discarded by a broken
+    # figure, so end at correct_topography and compute velocity directly.
+    print("\n=== smallbaselineApp (load_data .. correct_topography) ===")
+    rc = run(["smallbaselineApp.py", "earthchange.cfg",
+              "--end", "correct_topography"], cwd=mintpy_dir)
+    if rc != 0:
+        print("  stopped early — inspect the log before continuing")
+        return rc
+
+    # Most-corrected file present wins; both tracks must end on the SAME one or
+    # a later asc/desc comparison measures processing asymmetry, not ground.
+    for cand in ("timeseries_SET_ERA5_demErr.h5",
+                 "timeseries_ERA5_demErr.h5",
+                 "timeseries_SET_ERA5.h5",
+                 "timeseries_ERA5.h5"):
+        if os.path.exists(os.path.join(mintpy_dir, cand)):
+            print(f"\n=== velocity from {cand} ===")
+            rc = run(["timeseries2velocity.py", cand,
+                      "-o", "velocityERA5.h5"], cwd=mintpy_dir)
+            if rc == 0:
+                print(f"  wrote {mintpy_dir}/velocityERA5.h5")
+            return rc
+
+    print("\nno corrected time series found — check the log")
+    return 1
 
 
 if __name__ == "__main__":
