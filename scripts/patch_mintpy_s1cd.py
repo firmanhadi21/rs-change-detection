@@ -32,6 +32,36 @@ import sys
 CLASS_RE = re.compile(r"S1\[([A-Za-z\-]+)\]")
 TARGET = "ABCD"
 
+# MintPy rejects S1C/S1D in TWO places. Widening the filename regex gets past
+# _get_product_name_and_type; add_hyp3_metadata then still raises
+#   ValueError: Un-recognized Sentinel-1 satellite from S1D_IW_SLC__1SDV_...
+# because it converts absolute to relative orbit with a per-satellite constant
+# and only knows S1A and S1B. The constants below are taken from a current
+# MintPy install, not derived here.
+ORBIT_BLOCK = re.compile(
+    r"(elif\s+ref_sat\s*==\s*'S1B':\s*\n)"      # the last known branch
+    r"(?P<ind>[ \t]+)(rel_orbit\s*=[^\n]*\n)"   # its body, capturing indent
+    r"(?P<eind>[ \t]*)(else:)"                  # the raise that follows
+)
+
+
+def orbit_patch(text):
+    """Insert S1C/S1D relative-orbit branches ahead of the else that raises."""
+    m = ORBIT_BLOCK.search(text)
+    if not m:
+        return None
+    ind, eind = m.group("ind"), m.group("eind")
+    added = (
+        f"{eind}elif ref_sat == 'S1C':\n"
+        f"{ind}if abs_orbit <= 8018:\n"
+        f"{ind}{ind[len(eind):] or '    '}rel_orbit = (abs_orbit - 172) % 175 + 1\n"
+        f"{ind}else:\n"
+        f"{ind}{ind[len(eind):] or '    '}rel_orbit = (abs_orbit - 99) % 175 + 1\n"
+        f"{eind}elif ref_sat == 'S1D':\n"
+        f"{ind}rel_orbit = (abs_orbit - 42) % 175 + 1\n"
+    )
+    return text[:m.start(4)] + added + text[m.start(4):]
+
 NAMES = [
     "S1AA_20220823T212849_20220904T212850_VVP012_INT80_G_weF_455D_unw_phase.tif",
     "S1AD_20260603T212832_20260704T212750_VVP031_INT80_G_weF_4778_unw_phase.tif",
@@ -109,6 +139,24 @@ def main():
         new_text = new_text.replace(f"S1[{c}]", f"S1[{TARGET}]")
     if new_text == text:
         raise SystemExit("no substitution made — nothing written")
+
+    # Site 2: the satellite -> relative-orbit table.
+    if "S1D" not in new_text:
+        patched = orbit_patch(new_text)
+        if patched is None:
+            print("  WARNING: could not find the S1B orbit branch to extend. "
+                  "The filename regex will be widened, but add_hyp3_metadata "
+                  "will still reject S1C/S1D.")
+        else:
+            new_text = patched
+            print("  inserted S1C/S1D relative-orbit branches")
+
+    # A syntax error here breaks all of MintPy, so refuse to write one.
+    try:
+        compile(new_text, path, "exec")
+    except SyntaxError as e:
+        raise SystemExit(f"patched source does not compile ({e}); "
+                         f"nothing written. Upgrade MintPy instead.")
 
     shutil.copyfile(path, path + ".bak")
     open(path, "w").write(new_text)
