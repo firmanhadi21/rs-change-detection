@@ -29,7 +29,15 @@ NICE = ("_dem.tif",)
 
 
 def inspect(d):
-    """Return a list of problems with one product directory."""
+    """Return (damage, pending) for one product directory.
+
+    The distinction decides whether deleting is right. `damage` means the files
+    on disk are missing or unusable, so the product must be downloaded again.
+    `pending` means the files are fine and only prep_hyp3 has not succeeded --
+    which is routinely an UPSTREAM problem, not a data problem: an older MintPy
+    rejecting Sentinel-1C/D names leaves 21 intact products with no .rsc.
+    Deleting those would discard good data and re-download it for nothing.
+    """
     problems = []
 
     for suffix in REQUIRED + NICE:
@@ -59,13 +67,14 @@ def inspect(d):
     except ImportError:
         pass
 
-    # prep_hyp3 writes a .rsc beside each raster; absence means it did not run
-    # or it failed on this product.
+    # Reported separately, and never a reason to delete: the rasters are intact
+    # and rerunning prep_hyp3 is enough.
+    pending = []
     unw = glob.glob(f"{d}/*_unw_phase.tif")
     if unw and not os.path.exists(unw[0] + ".rsc"):
-        problems.append("no .rsc (prep_hyp3 did not succeed)")
+        pending.append("no .rsc — rerun prep_hyp3 (data is fine)")
 
-    return problems
+    return problems, pending
 
 
 def main():
@@ -80,30 +89,43 @@ def main():
     if not dirs:
         raise SystemExit(f"no product dirs under {root}")
 
-    broken = {}
+    broken, waiting = {}, {}
     empty = []
     for d in dirs:
         if not glob.glob(f"{d}/*"):
             empty.append(d)
             continue
-        p = inspect(d)
-        if p:
-            broken[d] = p
+        dmg, pend = inspect(d)
+        if dmg:
+            broken[d] = dmg
+        elif pend:
+            waiting[d] = pend
 
-    print(f"{len(dirs)} products, {len(broken)} with problems, "
-          f"{len(empty)} empty")
+    print(f"{len(dirs)} products: {len(broken)} damaged, {len(empty)} empty, "
+          f"{len(waiting)} awaiting prep_hyp3")
 
-    for d, probs in sorted(broken.items()):
-        print(f"\n  {os.path.basename(d)}")
-        for p in probs[:4]:
-            print(f"      {p}")
+    if broken or empty:
+        print("\n=== need re-downloading ===")
+        for d, probs in sorted(broken.items()):
+            print(f"  {os.path.basename(d)}")
+            for p in probs[:4]:
+                print(f"      {p}")
+        for d in empty:
+            print(f"  {os.path.basename(d)}\n      EMPTY directory")
 
-    for d in empty:
-        print(f"\n  {os.path.basename(d)}\n      EMPTY directory")
+    if waiting:
+        print(f"\n=== intact, only missing .rsc ===")
+        print("  Data is fine. Rerun prep_hyp3 (opensciencelab_run.py); do NOT"
+              "\n  delete these. Commonly an older MintPy that cannot parse"
+              "\n  Sentinel-1C/D names — fix that instead.")
+        for d in sorted(waiting)[:8]:
+            print(f"      {os.path.basename(d)}")
+        if len(waiting) > 8:
+            print(f"      ... and {len(waiting) - 8} more")
 
     victims = list(broken) + empty
     if not victims:
-        print("\nnothing to repair")
+        print("\nnothing to re-download")
         return 0
 
     if not a.clean:
