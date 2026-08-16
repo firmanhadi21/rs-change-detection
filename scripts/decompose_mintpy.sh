@@ -9,12 +9,12 @@
 #
 # Requires both inputs geocoded at the same resolution, which the common
 # subset box already guarantees.
+#   bash decompose_mintpy.sh stack/insar_asc stack/insar_desc [outdir]
 set -u
-cd /Users/firmanhadi/GitHub/rs-change-detection || exit 1
 
-A=output/insar_geom_asc/mintpy
-D=output/insar_geom_desc/mintpy
-OUT=output/decomposition
+A="${1:?usage: decompose_mintpy.sh <asc_dir> <desc_dir> [outdir]}/mintpy"
+D="${2:?usage: decompose_mintpy.sh <asc_dir> <desc_dir> [outdir]}/mintpy"
+OUT="${3:-decomposition}"
 mkdir -p "$OUT"
 
 for f in "$A/velocityERA5.h5" "$D/velocityERA5.h5" \
@@ -22,7 +22,9 @@ for f in "$A/velocityERA5.h5" "$D/velocityERA5.h5" \
   [ -f "$f" ] || { echo "missing $f"; exit 1; }
 done
 
-env -u PROJ_LIB -u GDAL_DATA conda run --no-capture-output -n mintpy \
+# Called directly rather than via `conda run -n mintpy`: OpenScienceLab names
+# its environment opensarlab_mintpy_recipe_book, so hardcoding one fails there.
+env -u PROJ_LIB -u GDAL_DATA \
   asc_desc2horz_vert.py \
     "$A/velocityERA5.h5" "$D/velocityERA5.h5" \
     -g "$A/inputs/geometryGeo.h5" "$D/inputs/geometryGeo.h5" \

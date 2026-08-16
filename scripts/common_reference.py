@@ -13,8 +13,8 @@ The point is chosen inside the overlap of both tracks and required to be
 non-zero in every sampled epoch on BOTH tracks, so it is a pixel that actually
 carries a measurement rather than a hole that happens to sit in range.
 
-    python3 scripts/common_reference.py            # choose and report
-    python3 scripts/common_reference.py --apply
+    python3 common_reference.py stack/insar_asc stack/insar_desc
+    python3 common_reference.py stack/insar_asc stack/insar_desc --apply
 """
 
 import argparse
@@ -25,9 +25,8 @@ import sys
 import h5py
 import numpy as np
 
-OUT = "output"
-TS = "timeseries_SET_ERA5_demErr.h5"
-TRACKS = ("insar_geom_asc", "insar_geom_desc")
+TS_CANDIDATES = ("timeseries_SET_ERA5_demErr.h5", "timeseries_ERA5_demErr.h5",
+                 "timeseries_SET_ERA5.h5", "timeseries_ERA5.h5")
 
 
 def grid(path):
@@ -45,13 +44,26 @@ def to_rc(g, easting, northing):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("asc_dir", help="e.g. stack/insar_asc or output/insar_geom_asc")
+    ap.add_argument("desc_dir")
     ap.add_argument("--apply", action="store_true")
     a = ap.parse_args()
 
-    paths = {t: f"{OUT}/{t}/mintpy/{TS}" for t in TRACKS}
-    for p in paths.values():
-        if not os.path.exists(p):
-            raise SystemExit(f"missing {p}")
+    TRACKS = (a.asc_dir, a.desc_dir)
+
+    # Both tracks must use the SAME corrected product, or re-referencing lines
+    # up two fields that were processed differently.
+    paths, ts_name = {}, None
+    for cand in TS_CANDIDATES:
+        if all(os.path.exists(f"{t}/mintpy/{cand}") for t in TRACKS):
+            ts_name = cand
+            paths = {t: f"{t}/mintpy/{cand}" for t in TRACKS}
+            break
+    if not ts_name:
+        raise SystemExit(
+            "no corrected time series present on BOTH tracks; looked for "
+            + ", ".join(TS_CANDIDATES))
+    print(f"using {ts_name} on both tracks")
 
     grids, data, shapes = {}, {}, {}
     for t, p in paths.items():
@@ -112,17 +124,26 @@ def main():
 
     for t in TRACKS:
         r, c = to_rc(grids[t], e, n)
-        d = f"{OUT}/{t}/mintpy"
+        d = f"{t}/mintpy"
         print(f"\n=== {t} ===")
         env = {k: v for k, v in os.environ.items()
                if k not in ("PROJ_LIB", "GDAL_DATA")}
         for cmd in (
-            ["reference_point.py", TS, "--row", str(r), "--col", str(c)],
-            ["timeseries2velocity.py", TS, "-o", "velocityERA5.h5"],
+            ["reference_point.py", ts_name, "--row", str(r), "--col", str(c)],
+            ["timeseries2velocity.py", ts_name, "-o", "velocityERA5.h5"],
         ):
-            full = ["conda", "run", "--no-capture-output", "-n", "mintpy"] + cmd
-            p = subprocess.run(full, cwd=d, env=env,
-                               capture_output=True, text=True, timeout=1800)
+            # Called directly, not via `conda run -n mintpy`: the environment
+            # is named differently in OpenScienceLab
+            # (opensarlab_mintpy_recipe_book), so hardcoding it fails there.
+            # Whichever env is active must already provide these commands.
+            try:
+                p = subprocess.run(cmd, cwd=d, env=env,
+                                   capture_output=True, text=True, timeout=1800)
+            except FileNotFoundError:
+                raise SystemExit(
+                    f"{cmd[0]} is not on PATH — activate the MintPy "
+                    f"environment (in OpenScienceLab, switch the kernel) "
+                    f"and rerun.")
             tail = [x for x in p.stdout.splitlines() if x.strip()][-2:]
             print(f"  {cmd[0]}: rc={p.returncode}")
             for x in tail:
