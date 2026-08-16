@@ -31,8 +31,14 @@ import numpy as np  # noqa: E402
 import rasterio  # noqa: E402
 from rasterio.warp import Resampling, reproject  # noqa: E402
 
+# _lv_theta and _lv_phi belong here as much as the rest. They arrive from a
+# separate look-vector job at that job's own footprint, so leaving them out
+# left the geometry two pixels narrower than the stack and correct_SET died
+# with "operands could not be broadcast together with shapes (2995,3673)
+# (2995,3671)" -- hours in, after ERA5 had already run.
 BANDS = ("_unw_phase.tif", "_corr.tif", "_dem.tif",
-         "_inc_map.tif", "_water_mask.tif")
+         "_inc_map.tif", "_water_mask.tif",
+         "_lv_theta.tif", "_lv_phi.tif")
 
 
 def modal_grid(run_dir):
@@ -119,6 +125,28 @@ def main():
                   f"already ok {skipped}, failed {failed}", flush=True)
 
     print(f"\nrewrote {changed}, already conformed {skipped}, failed {failed}")
+
+    # Verify rather than assume. A band left at a different size does not fail
+    # here -- it fails hours later inside correct_SET, as a numpy broadcast
+    # error naming two shapes and no filename.
+    odd = []
+    for d in dirs:
+        for suffix in BANDS:
+            for p in glob.glob(f"{d}/*{suffix}"):
+                try:
+                    with rasterio.open(p) as src:
+                        if (src.width, src.height) != (w, h):
+                            odd.append((p, src.width, src.height))
+                except Exception:  # noqa: BLE001
+                    odd.append((p, None, None))
+
+    if odd:
+        print(f"\nWARNING: {len(odd)} file(s) still off the modal {w}x{h} grid:")
+        for p, pw, ph in odd[:8]:
+            print(f"    {pw}x{ph}  {os.path.basename(p)}")
+        return 1
+
+    print(f"all bands on the {w}x{h} grid")
     return 1 if failed else 0
 
 
