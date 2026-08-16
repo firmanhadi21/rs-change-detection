@@ -38,29 +38,44 @@ TARGET = "ABCD"
 # because it converts absolute to relative orbit with a per-satellite constant
 # and only knows S1A and S1B. The constants below are taken from a current
 # MintPy install, not derived here.
-ORBIT_BLOCK = re.compile(
-    r"(elif\s+ref_sat\s*==\s*'S1B':\s*\n)"      # the last known branch
-    r"(?P<ind>[ \t]+)(rel_orbit\s*=[^\n]*\n)"   # its body, capturing indent
-    r"(?P<eind>[ \t]*)(else:)"                  # the raise that follows
+# The last satellite branch before the `else:` that raises, whatever shape it
+# takes. MintPy has spelled this at least two ways --
+#   elif ref_sat == 'S1B':                 rel_orbit = (abs_orbit - 202) % 175 + 1
+#   elif ref_granule.startswith('S1C'):    meta['relative_orbit'] = ((abs_orbit - 172) % 175) + 1
+# -- so the S1D branch is CLONED from the branch already present rather than
+# written from a template. That keeps the condition style, the assignment
+# target and the indentation identical to the surrounding code.
+LAST_BRANCH = re.compile(
+    r"(?P<ind>[ \t]+)elif (?P<cond>[^\n]*'?S1(?P<sat>[BC])'?[^\n]*):[ \t]*\n"
+    r"(?P<bind>[ \t]+)(?P<body>[^\n]*(?:relative_orbit|rel_orbit)[^\n]*)\n"
+    r"(?P<tail>(?:[ \t]*#[^\n]*\n)*)"          # any comment lines before else
+    r"(?P=ind)else:"
 )
+S1D_CONSTANT = 42          # from a current MintPy install
 
 
 def orbit_patch(text):
-    """Insert S1C/S1D relative-orbit branches ahead of the else that raises."""
-    m = ORBIT_BLOCK.search(text)
+    """Add an S1D relative-orbit branch, cloned from the last one present.
+
+    Returns None if no branch can be found, so the caller can say so instead of
+    writing something invented.
+    """
+    m = LAST_BRANCH.search(text)
     if not m:
         return None
-    ind, eind = m.group("ind"), m.group("eind")
-    added = (
-        f"{eind}elif ref_sat == 'S1C':\n"
-        f"{ind}if abs_orbit <= 8018:\n"
-        f"{ind}{ind[len(eind):] or '    '}rel_orbit = (abs_orbit - 172) % 175 + 1\n"
-        f"{ind}else:\n"
-        f"{ind}{ind[len(eind):] or '    '}rel_orbit = (abs_orbit - 99) % 175 + 1\n"
-        f"{eind}elif ref_sat == 'S1D':\n"
-        f"{ind}rel_orbit = (abs_orbit - 42) % 175 + 1\n"
-    )
-    return text[:m.start(4)] + added + text[m.start(4):]
+
+    cond = m.group("cond").replace(f"S1{m.group('sat')}", "S1D")
+    # Swap only the leading orbit offset; the "% 175) + 1" tail must survive.
+    body, n = re.subn(r"-\s*\d+", f"- {S1D_CONSTANT}", m.group("body"), count=1)
+    if n != 1:
+        return None
+
+    branch = (f"{m.group('ind')}elif {cond}:\n"
+              f"{m.group('bind')}{body}\n")
+    # Insert ahead of any trailing comment block and the else itself.
+    cut = m.start("tail") if m.group("tail") else m.end() - len("else:") - \
+        len(m.group("ind"))
+    return text[:cut] + branch + text[cut:]
 
 NAMES = [
     "S1AA_20220823T212849_20220904T212850_VVP012_INT80_G_weF_455D_unw_phase.tif",
