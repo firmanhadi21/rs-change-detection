@@ -57,6 +57,35 @@ FIXED_JOB_PARAMETERS = {
 }
 
 
+# Variant tags used by earlier releases whose PRODUCTS are still usable, so a
+# rerun adopts those jobs instead of buying the same interferograms again.
+# "geom" jobs were submitted without look vectors: that matters for a rigorous
+# ascending/descending decomposition, but not for the interferograms
+# themselves, and the missing bands are recoverable from one extra job per
+# track rather than by reprocessing the whole network.
+LEGACY_VARIANTS = ("geom",)
+
+
+def _adopt_legacy(name, want, known):
+    """Map wanted job names onto equivalent jobs submitted under an old tag.
+
+    Deriving the variant from the parameters fixed a silent-reuse bug, but it
+    also renamed every job. Without this, 705 already-successful interferograms
+    look unsubmitted and a rerun repurchases all of them -- about 7,050 credits
+    against a balance of 930.
+    """
+    adopted = {}
+    for jn, pair in want.items():
+        if jn in known:
+            continue
+        for old in LEGACY_VARIANTS:
+            legacy = job_name(name, "ts", pair, old)
+            if legacy in known:
+                adopted[jn] = known[legacy]
+                break
+    return adopted
+
+
 def variant():
     """Job-name tag derived FROM the parameters, not hand-maintained.
 
@@ -424,9 +453,16 @@ def _collect(name, pairs, meta, run_dir, wait):
             known.setdefault(j.name, j)
 
     want = {job_name(name, "ts", pair, variant()): pair for pair in pairs}
+
+    adopted = _adopt_legacy(name, want, known)
+    known.update(adopted)
+
     missing = [(jn, p) for jn, p in want.items() if jn not in known]
     print(f"{len(want) - len(missing)} already submitted, "
           f"{len(missing)} to submit")
+    if adopted:
+        print(f"  ({len(adopted)} adopted from an earlier variant tag "
+              f"{sorted(LEGACY_VARIANTS)} — not resubmitted, not recharged)")
 
     # Price only what still has to be submitted. Charging for the whole network
     # made the guard refuse to COLLECT a stack that was already paid for: on the
