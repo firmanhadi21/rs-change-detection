@@ -125,46 +125,61 @@ def main():
     text = open(path).read()
     print(f"file: {path}")
 
-    print("\ncurrent behaviour:")
-    if selftest(m):
-        print("\nalready parses S1C/S1D — nothing to do")
-        return 0
+    # MintPy rejects S1D in TWO independent places, so check them
+    # independently. The filename parser passing says nothing about the
+    # orbit table -- an earlier run that widened only the regex leaves the
+    # self-test green while add_hyp3_metadata still raises.
+    print("\nsite 1 — filename parser:")
+    regex_ok = selftest(m)
 
     classes = set(CLASS_RE.findall(text))
-    print(f"\nplatform character classes found: {sorted(classes) or 'NONE'}")
-
     todo = {c for c in classes if not set(TARGET) <= set(c.upper())}
-    if not todo:
-        # The class is already wide enough, so the failure is elsewhere --
-        # a different regex shape, or a check further down the function.
-        print("classes already include A-D, so the rejection is elsewhere.")
-        show_context(text)
-        raise SystemExit(
-            "Cannot fix this automatically. Upgrade MintPy "
-            "(pip install -U mintpy), or paste the lines above.")
+    if regex_ok and not todo:
+        print("  OK — accepts S1C/S1D")
+    else:
+        print(f"  platform classes found: {sorted(classes) or 'NONE'}")
+        if todo:
+            print(f"  would widen: {sorted(todo)} -> {TARGET}")
 
-    print(f"would widen: {sorted(todo)} -> {TARGET}")
+    print("\nsite 2 — satellite to relative-orbit table:")
+    orbit_ok = "S1D" in text
+    if orbit_ok:
+        print("  OK — an S1D branch is present")
+    else:
+        preview = orbit_patch(text)
+        if preview is None:
+            print("  no satellite branch found to extend")
+        else:
+            for line in preview.splitlines():
+                if "S1D" in line or "- 42" in line:
+                    print(f"  would add: {line.strip()}")
+
+    if regex_ok and orbit_ok:
+        print("\nnothing to do")
+        return 0
+
     if not a.apply:
-        show_context(text)
+        if not todo and not orbit_ok and orbit_patch(text) is None:
+            show_context(text)
         print("\ndry run — rerun with --apply")
         return 1
 
     new_text = text
     for c in todo:
         new_text = new_text.replace(f"S1[{c}]", f"S1[{TARGET}]")
-    if new_text == text:
-        raise SystemExit("no substitution made — nothing written")
 
-    # Site 2: the satellite -> relative-orbit table.
-    if "S1D" not in new_text:
+    if not orbit_ok:
         patched = orbit_patch(new_text)
         if patched is None:
-            print("  WARNING: could not find the S1B orbit branch to extend. "
-                  "The filename regex will be widened, but add_hyp3_metadata "
-                  "will still reject S1C/S1D.")
+            print("\n  WARNING: could not find a satellite branch to extend; "
+                  "add_hyp3_metadata will still reject S1D.")
+            show_context(new_text)
         else:
             new_text = patched
-            print("  inserted S1C/S1D relative-orbit branches")
+            print("\n  inserted the S1D relative-orbit branch")
+
+    if new_text == text:
+        raise SystemExit("nothing changed — no edit written")
 
     # A syntax error here breaks all of MintPy, so refuse to write one.
     try:
@@ -180,11 +195,19 @@ def main():
     import importlib
     importlib.reload(m)
     print("\nafter patch:")
-    if selftest(m):
-        print("\nRestart the kernel, then rerun opensciencelab_run.py")
+    now_regex = selftest(m)
+    now_orbit = "S1D" in open(path).read()
+    print(f"  orbit table has an S1D branch: {now_orbit}")
+
+    # Both sites, not just the parser. Reporting success on the strength of the
+    # filename test alone is what let an earlier half-patch look finished while
+    # add_hyp3_metadata still rejected every S1D product.
+    if now_regex and now_orbit:
+        print("\nboth sites OK — rerun opensciencelab_run.py "
+              "(no kernel restart needed for terminal runs)")
         return 0
 
-    print("\nstill failing — restoring the original")
+    print("\nstill incomplete — restoring the original")
     shutil.copyfile(path + ".bak", path)
     show_context(text)
     return 1
