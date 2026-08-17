@@ -1,0 +1,64 @@
+---
+title: "Scripts"
+subtitle: "Semua skrip webinar, siap disalin"
+---
+
+Setiap skrip berdiri sendiri: salin seluruhnya ke Code Editor, ubah bagian
+AOI ke wilayah Anda, jalankan.
+
+| # | Skrip | Dipakai di |
+|---|-------|-----------|
+| 01 | [Hello, Code Editor](scripts/01-hello-code-editor.js) | Day 1 · 15 menit |
+| 02 | [Just enough JavaScript + client vs server](scripts/02-javascript-basics.js) | Day 1 · 60 menit |
+| 03 | [Cloud-free Sentinel-2 composite](scripts/03-sentinel2-composite.js) | Day 2 · 0–20 menit |
+| 04 | [NDVI dan grafik deret waktu](scripts/04-ndvi.js) | Day 2 · 20–40 menit |
+| 05 | [Land cover classification](scripts/05-land-cover-classification.js) | Day 2 · 40–70 menit |
+| 06 | [Change detection](scripts/06-change-detection.js) | Day 2 · 70–95 menit |
+| 07 | [Export for reports](scripts/07-export-for-reports.js) | Day 2 · 95–120 menit |
+
+Slide untuk hari pertama: [Day 1 — Concepts](slides.qmd).
+
+::: {.callout-note}
+## Skrip 03–07 berdiri sendiri
+
+Tiap skrip mengulang bagian setup-nya, jadi Anda bisa mulai dari mana saja
+tanpa harus menjalankan skrip sebelumnya. Pengulangan ini disengaja: peserta
+yang tertinggal bisa langsung mengejar, dan skrip yang dibuka kembali enam
+bulan lagi tetap jalan sendiri.
+:::
+
+## Cara memakai
+
+1. Klik tautan di atas — berkasnya terbuka sebagai teks biasa
+2. Pilih semua (`Ctrl/Cmd + A`), lalu salin
+3. Di Code Editor: **Scripts → NEW → File**, beri nama, tempel
+4. Ubah bagian **AOI** ke wilayah Anda
+5. Klik **Run**
+
+::: {.callout-tip}
+## Ubah satu hal saja pada percobaan pertama
+
+Ganti AOI-nya lebih dulu, jalankan, pastikan berhasil. Baru setelah itu ubah
+tahun, kelas, atau band. Kalau semuanya diubah sekaligus lalu muncul error,
+tidak ada cara tahu bagian mana yang salah.
+:::
+
+## Repositori Earth Engine
+
+Supaya peserta tidak perlu menyalin satu per satu, seluruh skrip juga akan
+dibagikan sebagai repositori Earth Engine — cukup satu klik untuk membuka
+semuanya di Code Editor Anda.
+
+Tautannya akan ditambahkan di sini sebelum hari pertama, dan berbentuk:
+
+```
+https://code.earthengine.google.com/?accept_repo=users/<nama>/webinar-gee
+```
+
+::: {.callout-warning}
+## Repositori bersifat baca-saja
+
+Anda bisa membuka dan menjalankan, tetapi perubahan Anda tidak tersimpan di
+sana. Simpan salinan Anda sendiri lewat **Scripts → NEW → File** sebelum
+mulai mengubah, atau pekerjaan Anda hilang saat menutup tab.
+:::

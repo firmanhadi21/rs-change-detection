@@ -1,0 +1,288 @@
+---
+title: "Google Earth Engine dengan JavaScript"
+subtitle: "Day 1 — Concepts"
+author: "Firman Hadi"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  revealjs:
+    theme: [default, slides.scss]
+    slide-number: c/t
+    width: 1280
+    height: 760
+    transition: none
+    incremental: false
+    code-line-numbers: false
+    highlight-style: github
+    footer: "Webinar GEE · Hari 1 · Konsep"
+    title-slide-attributes:
+      data-background-color: "#0f3d2e"
+lang: id
+---
+
+## Dua hari ini {background-color="#f7f9fb"}
+
+::: {.columns}
+::: {.column width="50%"}
+### Hari 1 — Concepts
+2 jam · **tidak menghasilkan peta**
+
+Yang dihasilkan: paham kenapa kode Earth Engine ditulis seperti itu.
+:::
+::: {.column width="50%"}
+### Hari 2 — Hands-on
+2 jam · semua orang mengetik
+
+Yang dihasilkan: peta tutupan lahan wilayah Anda + berkas untuk laporan.
+:::
+:::
+
+. . .
+
+Kalau hari pertama dilewati, skrip besok tetap jalan — tapi ketika
+wilayahnya diganti dan muncul error, tidak ada cara menebak letak
+masalahnya.
+
+# 1 · Why Earth Engine {background-color="#0f3d2e"}
+
+## Cara lama
+
+Memetakan perubahan lahan satu kabupaten, sepuluh tahun:
+
+1. cari scene di portal, satu per satu
+2. unduh — puluhan sampai ratusan GB
+3. koreksi radiometrik & atmosferik, per scene
+4. mosaik, potong sesuai batas
+5. **baru mulai analisis**
+6. ulangi semuanya kalau wilayahnya perlu diperluas
+
+## Yang berubah
+
+::: {.callout-important}
+## Bukan kecepatan mengunduh
+
+Yang berubah adalah **tidak ada unduhan sama sekali**.
+:::
+
+. . .
+
+Citranya sudah ada di sana, sudah terkoreksi.
+
+Yang Anda kirim adalah **perintah** — bukan Anda yang mendatangi data,
+melainkan perhitungan Anda yang dikirim ke tempat datanya berada.
+
+. . .
+
+Konsekuensinya: **komputasi tidak berjalan di komputer Anda.**
+Itu yang membuat cara kerjanya terasa aneh di awal.
+
+## Yang tersedia, gratis
+
+| Data | Resolusi | Sejak | Untuk apa |
+|------|---------:|------:|-----------|
+| Sentinel-2 | 10 m | 2015 | tutupan lahan, vegetasi |
+| Landsat 8/9 | 30 m | 2013 | rangkaian panjang |
+| Landsat 5/7 | 30 m | 1984 | perubahan jangka sangat panjang |
+| **Sentinel-1** | 10 m | 2014 | **radar — tembus awan** |
+| CHIRPS | 5 km | 1981 | curah hujan |
+
+::: {.fragment}
+Untuk Indonesia, baris radar sering menentukan: separuh tahun langit
+kita tertutup awan.
+:::
+
+# 2 · Code Editor {background-color="#0f3d2e"}
+
+## Empat panel
+
+| Panel | Letak | Isi |
+|-------|-------|-----|
+| **Scripts** | kiri atas | skrip tersimpan, contoh |
+| **Docs** | kiri (tab) | daftar seluruh fungsi |
+| **Editor** | tengah | tempat menulis kode |
+| **Console** | kanan atas | hasil `print`, pesan error |
+| **Inspector** | kanan (tab) | klik peta → nilai piksel |
+| **Tasks** | kanan (tab) | ekspor yang menunggu |
+
+## Dua kebiasaan yang menghemat waktu
+
+**Inspector** — cara tercepat memeriksa "apakah nilainya masuk akal".
+
+> Klik di laut, lihat NDVI negatif → perhitungan Anda benar.
+
+. . .
+
+**Tasks** — `Export` di dalam skrip **tidak** langsung mengekspor.
+
+> Ia hanya *mengantre*. Anda masih harus klik **RUN** di tab Tasks.
+
+::: {.fragment .fade-in}
+Ini keluhan nomor satu peserta webinar GEE. Tanpa kecuali.
+:::
+
+# 3 · JavaScript secukupnya {background-color="#0f3d2e"}
+
+## Enam hal, itu saja
+
+```javascript
+var kota = 'Maumere';        // teks
+var tahun = 2024;            // angka
+
+var bands = ['B4','B3','B2'];   // list — mulai dari NOL
+print(bands[0]);                // 'B4'
+
+var visual = {min: 0, max: 3000};   // dictionary
+```
+
+::: {.fragment}
+Hitungan mulai **nol** — sumber kesalahan nomor satu bagi yang terbiasa
+spreadsheet.
+:::
+
+## Functions dan chaining
+
+```javascript
+function tambahNDVI (image) {
+  var ndvi = image.normalizedDifference(['B8','B4']);
+  return image.addBands(ndvi.rename('NDVI'));
+}
+```
+
+. . .
+
+```javascript
+var citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+              .filterBounds(aoi)
+              .filterDate('2024-06-01', '2024-09-30')
+              .median();
+```
+
+Titik di awal baris = "lalu lakukan ini pada hasil sebelumnya".
+Dibaca seperti kalimat.
+
+# 4 · Client vs Server {background-color="#7d2b2b"}
+
+## Kalau hanya satu hal yang diingat hari ini
+
+::: {.callout-important}
+## Ingat yang ini
+
+Sebagian besar error membingungkan di Earth Engine berasal dari sini —
+dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.
+:::
+
+## Dua dunia dalam satu skrip
+
+::: {.columns}
+::: {.column width="50%"}
+### Client
+browser Anda
+
+`var`, angka biasa, `if`, `for`, teks
+:::
+::: {.column width="50%"}
+### Server
+komputer Google
+
+semua yang diawali **`ee.`**
+:::
+:::
+
+. . .
+
+Objek `ee.` **tidak berisi nilai** di browser Anda.
+
+Ia berisi **resep**: catatan tentang perhitungan yang akan dilakukan
+nanti, di sana.
+
+## Lihat bedanya
+
+```javascript
+var a = 5;                // client: benar-benar berisi 5
+var b = ee.Number(5);     // server: resep yang akan menghasilkan 5
+
+print(a + 1);             // 6
+print(b.add(1));          // 6 — lewat jalan yang sama sekali berbeda
+```
+
+::: {.fragment}
+Perhatikan: `b.add(1)`, **bukan** `b + 1`.
+:::
+
+## Yang tidak bisa
+
+```javascript
+var koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');
+
+if (koleksi.size() > 100) {      // ← SALAH
+  print('banyak citra');
+}
+```
+
+. . .
+
+`koleksi.size()` bukan angka. Ia **janji untuk menghitung**, nanti, di server.
+
+`if` berjalan **sekarang**, di browser — menilai sesuatu yang belum ada.
+
+::: {.fragment .fade-in}
+Yang berbahaya: skrip tetap "berjalan". Tidak ada error yang jelas.
+:::
+
+## Aturan praktis {background-color="#f7f9fb"}
+
+::: {.callout-tip}
+## Cukup ingat satu kalimat
+
+Kalau namanya diawali **`ee.`**, jangan pakai `if`, `for`, atau operator
+`+ - * /` biasa padanya.
+
+Pakai metodenya sendiri: `.add()` `.subtract()` `.gt()` `.map()`
+:::
+
+. . .
+
+Dari sinilah hampir semua kalimat *"kok hasilnya kosong"* berasal.
+
+Dan begitu dipahami, dokumentasi Earth Engine yang tadinya membingungkan
+langsung masuk akal — seluruh API-nya disusun mengikuti pembagian ini.
+
+# Latihan sebelum besok {background-color="#0f3d2e"}
+
+## Sepuluh menit
+
+1. Buat skrip baru, beri nama `latihan-hari-1`
+2. `print` nama kabupaten Anda
+3. Tampilkan satu citra Sentinel-2 di wilayah Anda
+4. Buka **Inspector**, klik satu titik di peta
+5. Di Console, telusuri isi `print(citra)`
+
+. . .
+
+Kalau nomor 5 membingungkan — itu wajar, dan itu justru intinya:
+
+> yang tercetak bukan gambar, melainkan **deskripsi** tentang gambar.
+
+## Besok {background-color="#f7f9fb"}
+
+| Menit | Hasil |
+|------:|-------|
+| 0–20 | komposit Sentinel-2 bebas awan |
+| 20–40 | peta NDVI + grafik deret waktu |
+| 40–70 | **peta tutupan lahan + angka akurasi** |
+| 70–95 | peta perubahan antara dua tahun |
+| 95–120 | GeoTIFF & PNG untuk laporan |
+
+::: {.fragment}
+Semua untuk **wilayah kerja Anda sendiri**.
+:::
+
+## {background-color="#0f3d2e"}
+
+::: {style="text-align:center; margin-top:2em"}
+### Sampai besok
+
+[firmanhadi21.github.io/rs-change-detection/gee-js](https://firmanhadi21.github.io/rs-change-detection/gee-js/)
+
+Materi, skrip, dan rujukan ada di sana.
+:::

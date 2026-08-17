@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Firman Hadi">
 
-<title>Google Earth Engine dengan JavaScript</title>
+<title>Scripts – Google Earth Engine dengan JavaScript</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -94,7 +93,7 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" aria-current="page"> 
+    <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Beranda</span></a>
   </li>  
   <li class="nav-item">
@@ -106,7 +105,7 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Day 2 — Hands-on</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./skrip.html"> 
+    <a class="nav-link active" href="./skrip.html" aria-current="page"> 
 <span class="menu-text">Scripts</span></a>
   </li>  
   <li class="nav-item">
@@ -136,15 +135,8 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Di halaman ini</h2>
    
   <ul>
-  <li><a href="#untuk-siapa" id="toc-untuk-siapa" class="nav-link active" data-scroll-target="#untuk-siapa">Untuk siapa materi ini</a></li>
-  <li><a href="#rundown" id="toc-rundown" class="nav-link" data-scroll-target="#rundown">Rundown</a>
-  <ul class="collapse">
-  <li><a href="#day-1-concepts-2-jam" id="toc-day-1-concepts-2-jam" class="nav-link" data-scroll-target="#day-1-concepts-2-jam">Day 1 — Concepts (2 jam)</a></li>
-  <li><a href="#day-2-hands-on-2-jam" id="toc-day-2-hands-on-2-jam" class="nav-link" data-scroll-target="#day-2-hands-on-2-jam">Day 2 — Hands-on (2 jam)</a></li>
-  </ul></li>
-  <li><a href="#hasil" id="toc-hasil" class="nav-link" data-scroll-target="#hasil">Yang akan Anda bawa pulang</a></li>
-  <li><a href="#persiapan" id="toc-persiapan" class="nav-link" data-scroll-target="#persiapan">Sebelum hari pertama</a></li>
-  <li><a href="#cara-pakai" id="toc-cara-pakai" class="nav-link" data-scroll-target="#cara-pakai">Cara memakai halaman ini</a></li>
+  <li><a href="#cara-memakai" id="toc-cara-memakai" class="nav-link active" data-scroll-target="#cara-memakai">Cara memakai</a></li>
+  <li><a href="#repositori-earth-engine" id="toc-repositori-earth-engine" class="nav-link" data-scroll-target="#repositori-earth-engine">Repositori Earth Engine</a></li>
   </ul>
 </nav>
     </div>
@@ -153,27 +145,15 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Google Earth Engine dengan JavaScript</h1>
-<p class="subtitle lead">Webinar dua hari · 2 jam per hari · untuk pemula</p>
+<h1 class="title">Scripts</h1>
+<p class="subtitle lead">Semua skrip webinar, siap disalin</p>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Penulis</div>
-    <div class="quarto-title-meta-contents">
-             <p>Firman Hadi </p>
-          </div>
-  </div>
     
-    <div>
-    <div class="quarto-title-meta-heading">Diterbitkan</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">17 Agustus 2026</p>
-    </div>
-  </div>
   
     
   </div>
@@ -183,136 +163,75 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="untuk-siapa" class="level2">
-<h2 class="anchored" data-anchor-id="untuk-siapa">Untuk siapa materi ini</h2>
-<p>Peserta webinar ini datang dari latar belakang yang beragam — akademisi, peneliti dan mahasiswa; ASN dan instansi pemerintah; praktisi GIS, survei dan pemetaan; konsultan dan engineering; serta bidang lingkungan, pertanian, perkebunan, kehutanan dan sumber daya alam.</p>
-<p>Yang menyatukan semuanya satu hal: <strong>ingin memakai Earth Engine untuk pekerjaan nyata</strong> — riset, laporan, dan peta yang bisa dipakai — bukan sekadar tahu bahwa alat ini ada.</p>
-<p>Materi ini ditulis dengan asumsi Anda <strong>belum pernah menulis kode</strong>. Yang diperlukan hanya kemampuan membaca peta dan kesediaan mengetik ulang beberapa baris.</p>
+<p>Setiap skrip berdiri sendiri: salin seluruhnya ke Code Editor, ubah bagian AOI ke wilayah Anda, jalankan.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Skrip</th>
+<th>Dipakai di</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>01</td>
+<td><a href="scripts/01-hello-code-editor.js">Hello, Code Editor</a></td>
+<td>Day 1 · 15 menit</td>
+</tr>
+<tr class="even">
+<td>02</td>
+<td><a href="scripts/02-javascript-basics.js">Just enough JavaScript + client vs server</a></td>
+<td>Day 1 · 60 menit</td>
+</tr>
+<tr class="odd">
+<td>03</td>
+<td><a href="scripts/03-sentinel2-composite.js">Cloud-free Sentinel-2 composite</a></td>
+<td>Day 2 · 0–20 menit</td>
+</tr>
+<tr class="even">
+<td>04</td>
+<td><a href="scripts/04-ndvi.js">NDVI dan grafik deret waktu</a></td>
+<td>Day 2 · 20–40 menit</td>
+</tr>
+<tr class="odd">
+<td>05</td>
+<td><a href="scripts/05-land-cover-classification.js">Land cover classification</a></td>
+<td>Day 2 · 40–70 menit</td>
+</tr>
+<tr class="even">
+<td>06</td>
+<td><a href="scripts/06-change-detection.js">Change detection</a></td>
+<td>Day 2 · 70–95 menit</td>
+</tr>
+<tr class="odd">
+<td>07</td>
+<td><a href="scripts/07-export-for-reports.js">Export for reports</a></td>
+<td>Day 2 · 95–120 menit</td>
+</tr>
+</tbody>
+</table>
+<p>Slide untuk hari pertama: <a href="./slides.html">Day 1 — Concepts</a>.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Catatan</span>Bahasa
+<span class="screen-reader-only">Catatan</span>Skrip 03–07 berdiri sendiri
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Narasi dalam Bahasa Indonesia. <strong>Judul bagian dan komentar di dalam kode sengaja dibiarkan Bahasa Inggris</strong>, supaya istilah yang Anda lihat di sini sama persis dengan yang muncul di dokumentasi resmi Earth Engine ketika nanti Anda mencari sendiri.</p>
+<p>Tiap skrip mengulang bagian setup-nya, jadi Anda bisa mulai dari mana saja tanpa harus menjalankan skrip sebelumnya. Pengulangan ini disengaja: peserta yang tertinggal bisa langsung mengejar, dan skrip yang dibuka kembali enam bulan lagi tetap jalan sendiri.</p>
 </div>
 </div>
-</section>
-<section id="rundown" class="level2">
-<h2 class="anchored" data-anchor-id="rundown">Rundown</h2>
-<p>Dua hari, masing-masing dua jam. Hari pertama membangun pemahaman; hari kedua mengerjakan satu alur analisis dari awal sampai peta jadi.</p>
-<section id="day-1-concepts-2-jam" class="level3">
-<h3 class="anchored" data-anchor-id="day-1-concepts-2-jam">Day 1 — Concepts (2 jam)</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 40%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">Menit</th>
-<th>Bagian</th>
-<th>Isi</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0–15</td>
-<td>Persiapan</td>
-<td>Akun, membuka Code Editor, memastikan semua orang siap</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">15–35</td>
-<td>Why Earth Engine</td>
-<td>Apa yang berubah kalau data tidak perlu diunduh</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">35–60</td>
-<td>Code Editor tour</td>
-<td>Empat panel, Docs, Assets, Tasks, Inspector</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">60–90</td>
-<td>JavaScript secukupnya</td>
-<td><code>var</code>, fungsi, dictionary — hanya yang dipakai</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">90–120</td>
-<td><strong>Client vs server</strong></td>
-<td>Bagian terpenting seluruh webinar</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="day-2-hands-on-2-jam" class="level3">
-<h3 class="anchored" data-anchor-id="day-2-hands-on-2-jam">Day 2 — Hands-on (2 jam)</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 31%">
-<col style="width: 36%">
-<col style="width: 31%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">Menit</th>
-<th>Bagian</th>
-<th>Hasil</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0–20</td>
-<td>Sentinel-2 composite</td>
-<td>Citra bebas awan untuk wilayah Anda</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">20–40</td>
-<td>NDVI</td>
-<td>Peta kehijauan + grafik deret waktu</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">40–70</td>
-<td>Land cover classification</td>
-<td>Peta tutupan lahan + angka akurasi</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">70–95</td>
-<td>Change detection</td>
-<td>Peta perubahan antara dua tahun</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">95–120</td>
-<td>Export for reports</td>
-<td>GeoTIFF, PNG, grafik, legenda</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="hasil" class="level2">
-<h2 class="anchored" data-anchor-id="hasil">Yang akan Anda bawa pulang</h2>
-<p>Di akhir hari kedua Anda memiliki, untuk wilayah kerja Anda sendiri:</p>
-<ul>
-<li>komposit Sentinel-2 bebas awan untuk dua periode waktu;</li>
-<li>peta NDVI beserta grafik perubahannya sepanjang tahun;</li>
-<li><strong>peta tutupan lahan hasil klasifikasi, lengkap dengan angka akurasi</strong>;</li>
-<li>peta perubahan tutupan lahan antara dua tahun;</li>
-<li>berkas GeoTIFF dan PNG yang bisa langsung masuk laporan atau presentasi;</li>
-<li>seluruh skrip, yang bisa Anda ubah wilayahnya lalu jalankan lagi.</li>
-</ul>
-</section>
-<section id="persiapan" class="level2">
-<h2 class="anchored" data-anchor-id="persiapan">Sebelum hari pertama</h2>
-<p>Tiga hal, semuanya gratis, semuanya sebaiknya diselesaikan <strong>sebelum</strong> webinar dimulai — supaya waktu dua jam tidak habis untuk pendaftaran.</p>
+<section id="cara-memakai" class="level2">
+<h2 class="anchored" data-anchor-id="cara-memakai">Cara memakai</h2>
 <ol type="1">
-<li><strong>Daftar Earth Engine.</strong> Buka <a href="https://earthengine.google.com/">earthengine.google.com</a> → <em>Get Started</em>. Gunakan akun Google. Persetujuan untuk penggunaan non-komersial biasanya keluar dalam hitungan menit sampai satu hari — jangan menunggu sampai hari-H.</li>
-<li><strong>Buka Code Editor</strong> di <a href="https://code.earthengine.google.com/">code.earthengine.google.com</a>. Kalau muncul empat panel dan peta dunia, Anda siap.</li>
-<li><strong>Siapkan satu wilayah</strong> yang Anda kenal betul — kabupaten tempat kerja, area proyek, DAS yang Anda pantau. Analisis jauh lebih mudah dipahami kalau Anda sudah tahu jawabannya secara kasar.</li>
+<li>Klik tautan di atas — berkasnya terbuka sebagai teks biasa</li>
+<li>Pilih semua (<code>Ctrl/Cmd + A</code>), lalu salin</li>
+<li>Di Code Editor: <strong>Scripts → NEW → File</strong>, beri nama, tempel</li>
+<li>Ubah bagian <strong>AOI</strong> ke wilayah Anda</li>
+<li>Klik <strong>Run</strong></li>
 </ol>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -320,20 +239,32 @@ ul.task-list li input[type="checkbox"] {
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>Kalau persetujuan akun belum keluar
+<span class="screen-reader-only">Tip</span>Ubah satu hal saja pada percobaan pertama
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Anda tetap bisa mengikuti hari pertama sepenuhnya — hari pertama tentang konsep, dan semua contoh bisa diikuti dengan membaca. Untuk hari kedua, pinjam layar teman satu instansi, atau ikuti dengan menyimak lalu jalankan ulang skripnya nanti.</p>
+<p>Ganti AOI-nya lebih dulu, jalankan, pastikan berhasil. Baru setelah itu ubah tahun, kelas, atau band. Kalau semuanya diubah sekaligus lalu muncul error, tidak ada cara tahu bagian mana yang salah.</p>
 </div>
 </div>
 </section>
-<section id="cara-pakai" class="level2">
-<h2 class="anchored" data-anchor-id="cara-pakai">Cara memakai halaman ini</h2>
-<p>Setiap blok kode punya tombol salin di pojok kanan atas. Tidak perlu mengetik ulang — tetapi <strong>mengetik ulang membuat Anda belajar lebih cepat</strong> daripada menyalin, terutama di hari pertama.</p>
-<p>Semua skrip juga tersedia sebagai berkas <code>.js</code> terpisah di halaman <a href="./skrip.html">Scripts</a>, dan sebagai repositori Earth Engine yang bisa Anda buka dengan satu klik.</p>
-<hr>
-<p><em>Materi ini bagian dari <a href="https://github.com/firmanhadi21/rs-change-detection">rs-change-detection</a>. Untuk analisis serupa dengan Python, lihat <a href="../buku/">buku <code>earthchange</code></a>.</em></p>
+<section id="repositori-earth-engine" class="level2">
+<h2 class="anchored" data-anchor-id="repositori-earth-engine">Repositori Earth Engine</h2>
+<p>Supaya peserta tidak perlu menyalin satu per satu, seluruh skrip juga akan dibagikan sebagai repositori Earth Engine — cukup satu klik untuk membuka semuanya di Code Editor Anda.</p>
+<p>Tautannya akan ditambahkan di sini sebelum hari pertama, dan berbentuk:</p>
+<pre><code>https://code.earthengine.google.com/?accept_repo=users/&lt;nama&gt;/webinar-gee</code></pre>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Peringatan</span>Repositori bersifat baca-saja
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Anda bisa membuka dan menjalankan, tetapi perubahan Anda tidak tersimpan di sana. Simpan salinan Anda sendiri lewat <strong>Scripts → NEW → File</strong> sebelum mulai mengubah, atau pekerjaan Anda hilang saat menutup tab.</p>
+</div>
+</div>
 
 
 </section>

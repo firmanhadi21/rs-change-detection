@@ -1,0 +1,310 @@
+[
+  {
+    "objectID": "rujukan.html",
+    "href": "rujukan.html",
+    "title": "Rujukan",
+    "section": "",
+    "text": "Earth Engine Guides — penjelasan konsep, ditulis untuk dibaca berurutan\nAPI Reference — daftar seluruh fungsi\nData Catalog — semua dataset yang tersedia"
+  },
+  {
+    "objectID": "rujukan.html#dokumentasi-resmi",
+    "href": "rujukan.html#dokumentasi-resmi",
+    "title": "Rujukan",
+    "section": "",
+    "text": "Earth Engine Guides — penjelasan konsep, ditulis untuk dibaca berurutan\nAPI Reference — daftar seluruh fungsi\nData Catalog — semua dataset yang tersedia"
+  },
+  {
+    "objectID": "rujukan.html#belajar-lanjut",
+    "href": "rujukan.html#belajar-lanjut",
+    "title": "Rujukan",
+    "section": "Belajar lanjut",
+    "text": "Belajar lanjut\n\nSpatial Thoughts: End-to-End GEE — kursus gratis, paling lengkap untuk pemula\nAwesome GEE Community Catalog — dataset tambahan dari komunitas, banyak yang relevan untuk Asia Tenggara\nEE Developers Google Group — tempat bertanya; cari dulu, biasanya sudah pernah ditanyakan"
+  },
+  {
+    "objectID": "rujukan.html#dataset-yang-sering-dipakai-di-indonesia",
+    "href": "rujukan.html#dataset-yang-sering-dipakai-di-indonesia",
+    "title": "Rujukan",
+    "section": "Dataset yang sering dipakai di Indonesia",
+    "text": "Dataset yang sering dipakai di Indonesia\n\n\n\n\n\n\n\n\nDataset\nID\nCatatan\n\n\n\n\nSentinel-2 SR\nCOPERNICUS/S2_SR_HARMONIZED\n10 m, sejak 2017\n\n\nLandsat 9\nLANDSAT/LC09/C02/T1_L2\n30 m, sejak 2021\n\n\nLandsat 5\nLANDSAT/LT05/C02/T1_L2\n30 m, 1984–2012 — untuk perubahan jangka panjang\n\n\nSentinel-1 GRD\nCOPERNICUS/S1_GRD\nradar, tembus awan\n\n\nBatas administrasi\nFAO/GAUL/2015/level2\nsampai tingkat kabupaten\n\n\nCurah hujan\nUCSB-CHG/CHIRPS/DAILY\n5 km, harian, sejak 1981\n\n\nTutupan lahan global\nESA/WorldCover/v200\n10 m, 2021 — berguna sebagai pembanding\n\n\nDEM\nCOPERNICUS/DEM/GLO30\n30 m\n\n\n\n\n\n\n\n\n\nTipMencari dataset lain\n\n\n\nBuka Data Catalog, cari dengan kata kunci Bahasa Inggris. Setiap halaman dataset punya tombol “Open in Code Editor” yang langsung memberi contoh skrip yang bisa jalan."
+  },
+  {
+    "objectID": "rujukan.html#untuk-analisis-dengan-python",
+    "href": "rujukan.html#untuk-analisis-dengan-python",
+    "title": "Rujukan",
+    "section": "Untuk analisis dengan Python",
+    "text": "Untuk analisis dengan Python\nPendekatan yang sama dengan Python ada di buku earthchange — berguna kalau analisis Anda perlu dijalankan ulang secara otomatis, atau digabungkan dengan alur kerja lain di luar Earth Engine."
+  },
+  {
+    "objectID": "slides.html#dua-hari-ini",
+    "href": "slides.html#dua-hari-ini",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Dua hari ini",
+    "text": "Dua hari ini\n\n\nHari 1 — Concepts\n2 jam · tidak menghasilkan peta\nYang dihasilkan: paham kenapa kode Earth Engine ditulis seperti itu.\n\nHari 2 — Hands-on\n2 jam · semua orang mengetik\nYang dihasilkan: peta tutupan lahan wilayah Anda + berkas untuk laporan.\n\n\nKalau hari pertama dilewati, skrip besok tetap jalan — tapi ketika wilayahnya diganti dan muncul error, tidak ada cara menebak letak masalahnya."
+  },
+  {
+    "objectID": "slides.html#cara-lama",
+    "href": "slides.html#cara-lama",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Cara lama",
+    "text": "Cara lama\nMemetakan perubahan lahan satu kabupaten, sepuluh tahun:\n\ncari scene di portal, satu per satu\nunduh — puluhan sampai ratusan GB\nkoreksi radiometrik & atmosferik, per scene\nmosaik, potong sesuai batas\nbaru mulai analisis\nulangi semuanya kalau wilayahnya perlu diperluas"
+  },
+  {
+    "objectID": "slides.html#yang-berubah",
+    "href": "slides.html#yang-berubah",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Yang berubah",
+    "text": "Yang berubah\n\n\n\n\n\n\nBukan kecepatan mengunduh\n\n\nYang berubah adalah tidak ada unduhan sama sekali.\n\n\n\n\nCitranya sudah ada di sana, sudah terkoreksi.\nYang Anda kirim adalah perintah — bukan Anda yang mendatangi data, melainkan perhitungan Anda yang dikirim ke tempat datanya berada.\n\n\nKonsekuensinya: komputasi tidak berjalan di komputer Anda. Itu yang membuat cara kerjanya terasa aneh di awal."
+  },
+  {
+    "objectID": "slides.html#yang-tersedia-gratis",
+    "href": "slides.html#yang-tersedia-gratis",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Yang tersedia, gratis",
+    "text": "Yang tersedia, gratis\n\n\n\nData\nResolusi\nSejak\nUntuk apa\n\n\n\n\nSentinel-2\n10 m\n2015\ntutupan lahan, vegetasi\n\n\nLandsat 8/9\n30 m\n2013\nrangkaian panjang\n\n\nLandsat 5/7\n30 m\n1984\nperubahan jangka sangat panjang\n\n\nSentinel-1\n10 m\n2014\nradar — tembus awan\n\n\nCHIRPS\n5 km\n1981\ncurah hujan\n\n\n\n\nUntuk Indonesia, baris radar sering menentukan: separuh tahun langit kita tertutup awan."
+  },
+  {
+    "objectID": "slides.html#empat-panel",
+    "href": "slides.html#empat-panel",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Empat panel",
+    "text": "Empat panel\n\n\n\nPanel\nLetak\nIsi\n\n\n\n\nScripts\nkiri atas\nskrip tersimpan, contoh\n\n\nDocs\nkiri (tab)\ndaftar seluruh fungsi\n\n\nEditor\ntengah\ntempat menulis kode\n\n\nConsole\nkanan atas\nhasil print, pesan error\n\n\nInspector\nkanan (tab)\nklik peta → nilai piksel\n\n\nTasks\nkanan (tab)\nekspor yang menunggu"
+  },
+  {
+    "objectID": "slides.html#dua-kebiasaan-yang-menghemat-waktu",
+    "href": "slides.html#dua-kebiasaan-yang-menghemat-waktu",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Dua kebiasaan yang menghemat waktu",
+    "text": "Dua kebiasaan yang menghemat waktu\nInspector — cara tercepat memeriksa “apakah nilainya masuk akal”.\n\nKlik di laut, lihat NDVI negatif → perhitungan Anda benar.\n\n\nTasks — Export di dalam skrip tidak langsung mengekspor.\n\nIa hanya mengantre. Anda masih harus klik RUN di tab Tasks.\n\n\nIni keluhan nomor satu peserta webinar GEE. Tanpa kecuali."
+  },
+  {
+    "objectID": "slides.html#enam-hal-itu-saja",
+    "href": "slides.html#enam-hal-itu-saja",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Enam hal, itu saja",
+    "text": "Enam hal, itu saja\nvar kota = 'Maumere';        // teks\nvar tahun = 2024;            // angka\n\nvar bands = ['B4','B3','B2'];   // list — mulai dari NOL\nprint(bands[0]);                // 'B4'\n\nvar visual = {min: 0, max: 3000};   // dictionary\n\nHitungan mulai nol — sumber kesalahan nomor satu bagi yang terbiasa spreadsheet."
+  },
+  {
+    "objectID": "slides.html#functions-dan-chaining",
+    "href": "slides.html#functions-dan-chaining",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Functions dan chaining",
+    "text": "Functions dan chaining\nfunction tambahNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8','B4']);\n  return image.addBands(ndvi.rename('NDVI'));\n}\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nTitik di awal baris = “lalu lakukan ini pada hasil sebelumnya”. Dibaca seperti kalimat."
+  },
+  {
+    "objectID": "slides.html#kalau-hanya-satu-hal-yang-diingat-hari-ini",
+    "href": "slides.html#kalau-hanya-satu-hal-yang-diingat-hari-ini",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Kalau hanya satu hal yang diingat hari ini",
+    "text": "Kalau hanya satu hal yang diingat hari ini\n\n\n\n\n\n\nIngat yang ini\n\n\nSebagian besar error membingungkan di Earth Engine berasal dari sini — dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain."
+  },
+  {
+    "objectID": "slides.html#dua-dunia-dalam-satu-skrip",
+    "href": "slides.html#dua-dunia-dalam-satu-skrip",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Dua dunia dalam satu skrip",
+    "text": "Dua dunia dalam satu skrip\n\n\nClient\nbrowser Anda\nvar, angka biasa, if, for, teks\n\nServer\nkomputer Google\nsemua yang diawali ee.\n\n\nObjek ee. tidak berisi nilai di browser Anda.\nIa berisi resep: catatan tentang perhitungan yang akan dilakukan nanti, di sana."
+  },
+  {
+    "objectID": "slides.html#lihat-bedanya",
+    "href": "slides.html#lihat-bedanya",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Lihat bedanya",
+    "text": "Lihat bedanya\nvar a = 5;                // client: benar-benar berisi 5\nvar b = ee.Number(5);     // server: resep yang akan menghasilkan 5\n\nprint(a + 1);             // 6\nprint(b.add(1));          // 6 — lewat jalan yang sama sekali berbeda\n\nPerhatikan: b.add(1), bukan b + 1."
+  },
+  {
+    "objectID": "slides.html#yang-tidak-bisa",
+    "href": "slides.html#yang-tidak-bisa",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Yang tidak bisa",
+    "text": "Yang tidak bisa\nvar koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');\n\nif (koleksi.size() &gt; 100) {      // ← SALAH\n  print('banyak citra');\n}\n\nkoleksi.size() bukan angka. Ia janji untuk menghitung, nanti, di server.\nif berjalan sekarang, di browser — menilai sesuatu yang belum ada.\n\nYang berbahaya: skrip tetap “berjalan”. Tidak ada error yang jelas."
+  },
+  {
+    "objectID": "slides.html#aturan-praktis",
+    "href": "slides.html#aturan-praktis",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Aturan praktis",
+    "text": "Aturan praktis\n\n\n\n\n\n\nCukup ingat satu kalimat\n\n\nKalau namanya diawali ee., jangan pakai if, for, atau operator + - * / biasa padanya.\nPakai metodenya sendiri: .add() .subtract() .gt() .map()\n\n\n\n\nDari sinilah hampir semua kalimat “kok hasilnya kosong” berasal.\nDan begitu dipahami, dokumentasi Earth Engine yang tadinya membingungkan langsung masuk akal — seluruh API-nya disusun mengikuti pembagian ini."
+  },
+  {
+    "objectID": "slides.html#sepuluh-menit",
+    "href": "slides.html#sepuluh-menit",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Sepuluh menit",
+    "text": "Sepuluh menit\n\nBuat skrip baru, beri nama latihan-hari-1\nprint nama kabupaten Anda\nTampilkan satu citra Sentinel-2 di wilayah Anda\nBuka Inspector, klik satu titik di peta\nDi Console, telusuri isi print(citra)\n\n\nKalau nomor 5 membingungkan — itu wajar, dan itu justru intinya:\n\nyang tercetak bukan gambar, melainkan deskripsi tentang gambar."
+  },
+  {
+    "objectID": "slides.html#besok",
+    "href": "slides.html#besok",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Besok",
+    "text": "Besok\n\n\n\nMenit\nHasil\n\n\n\n\n0–20\nkomposit Sentinel-2 bebas awan\n\n\n20–40\npeta NDVI + grafik deret waktu\n\n\n40–70\npeta tutupan lahan + angka akurasi\n\n\n70–95\npeta perubahan antara dua tahun\n\n\n95–120\nGeoTIFF & PNG untuk laporan\n\n\n\n\nSemua untuk wilayah kerja Anda sendiri."
+  },
+  {
+    "objectID": "slides.html#section",
+    "href": "slides.html#section",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "",
+    "text": "Sampai besok\nfirmanhadi21.github.io/rs-change-detection/gee-js\nMateri, skrip, dan rujukan ada di sana."
+  },
+  {
+    "objectID": "hari-2.html",
+    "href": "hari-2.html",
+    "title": "Day 2 — Hands-on",
+    "section": "",
+    "text": "Hari ini semua orang mengetik. Di akhir sesi Anda punya peta tutupan lahan wilayah Anda sendiri, angka akurasinya, dan berkas yang bisa langsung masuk laporan.\nKerjakan berurutan — tiap bagian memakai hasil bagian sebelumnya. Kalau tertinggal, jangan panik: tiap bagian punya skrip lengkap yang bisa disalin utuh untuk mengejar."
+  },
+  {
+    "objectID": "hari-2.html#komposit",
+    "href": "hari-2.html#komposit",
+    "title": "Day 2 — Hands-on",
+    "section": "1 · Cloud-free composite",
+    "text": "1 · Cloud-free composite\n20 menit\nSatu citra Sentinel-2 di Indonesia hampir selalu berawan. Solusinya bukan mencari hari yang cerah, melainkan menggabungkan banyak citra dan mengambil nilai tengahnya — awan yang berpindah-pindah akan kalah suara.\n// AOI — ganti ke wilayah Anda\nvar aoi = ee.Geometry.Point([121.35, -8.65]).buffer(15000);\nMap.centerObject(aoi, 11);\n\n// Cloud mask memakai Scene Classification Layer\nfunction maskS2 (image) {\n  var scl = image.select('SCL');\n  var buruk = scl.eq(3)      // cloud shadow\n        .or(scl.eq(8))       // cloud medium probability\n        .or(scl.eq(9))       // cloud high probability\n        .or(scl.eq(10));     // cirrus\n  return image.updateMask(buruk.not()).divide(10000);\n}\n\nvar komposit = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n  .filterBounds(aoi)\n  .filterDate('2024-06-01', '2024-09-30')\n  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 60))\n  .map(maskS2)\n  .median()\n  .clip(aoi);\n\nMap.addLayer(komposit, {bands: ['B4','B3','B2'], min: 0, max: 0.3}, 'True colour');\nPeriksa hasilnya sebelum lanjut. Kalau masih banyak lubang atau awan:\n\n\n\nGejala\nPerbaikan\n\n\n\n\nbanyak lubang kosong\nlebarkan rentang tanggal\n\n\nmasih berawan\nnaikkan filter CLOUDY_PIXEL_PERCENTAGE jadi 80\n\n\ngambar terlalu gelap/terang\nubah max di visualisasi (0.2–0.4)\n\n\n\n\n\n\n\n\n\nCatatanKenapa divide(10000)\n\n\n\nSentinel-2 menyimpan reflektansi sebagai bilangan bulat untuk menghemat ruang. Dibagi 10.000 supaya kembali ke skala 0–1, yang membuat nilai NDVI nanti masuk akal."
+  },
+  {
+    "objectID": "hari-2.html#ndvi",
+    "href": "hari-2.html#ndvi",
+    "title": "Day 2 — Hands-on",
+    "section": "2 · NDVI",
+    "text": "2 · NDVI\n20 menit\nNDVI membandingkan inframerah dekat dengan merah. Vegetasi sehat memantulkan banyak inframerah dan menyerap merah, jadi nilainya tinggi.\nvar ndvi = komposit.normalizedDifference(['B8', 'B4']).rename('NDVI');\n\nMap.addLayer(ndvi, {min: -0.2, max: 0.8,\n  palette: ['#c8553d', '#f0e6c8', '#2d6a4f']}, 'NDVI');\nPegangan membaca nilainya:\n\n\n\nNDVI\nBiasanya\n\n\n\n\n&lt; 0\nair\n\n\n0 – 0.2\nlahan terbuka, terbangun\n\n\n0.2 – 0.4\nvegetasi jarang, semak\n\n\n0.4 – 0.7\npertanian, perkebunan\n\n\n&gt; 0.7\nhutan rapat\n\n\n\nPakai Inspector untuk memverifikasi. Klik di laut — NDVI harus negatif. Klik di hutan — harus di atas 0.6. Kalau tidak, ada yang salah pada komposit Anda, dan lebih baik ketahuan sekarang daripada tiga bagian kemudian.\n\nGrafik deret waktu\nInilah yang biasanya diminta untuk laporan: bagaimana kehijauan berubah sepanjang tahun.\nvar koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n  .filterBounds(aoi)\n  .filterDate('2024-01-01', '2024-12-31')\n  .map(maskS2)\n  .map(function (img) {\n    return img.addBands(img.normalizedDifference(['B8','B4']).rename('NDVI'))\n              .copyProperties(img, ['system:time_start']);\n  });\n\nprint(ui.Chart.image.series({\n  imageCollection: koleksi.select('NDVI'),\n  region: aoi,\n  reducer: ee.Reducer.mean(),\n  scale: 100\n}).setOptions({\n  title: 'NDVI sepanjang 2024',\n  vAxis: {title: 'NDVI'},\n  lineWidth: 2\n}));\nGrafik muncul di Console. Klik ikon panah di pojoknya untuk membukanya di tab baru, lalu unduh sebagai PNG atau CSV — CSV berguna kalau Anda ingin mengolah angkanya di Excel."
+  },
+  {
+    "objectID": "hari-2.html#klasifikasi",
+    "href": "hari-2.html#klasifikasi",
+    "title": "Day 2 — Hands-on",
+    "section": "3 · Land cover classification",
+    "text": "3 · Land cover classification\n30 menit — bagian terpenting hari ini\nSkrip lengkapnya: 05-land-cover-classification.js. Buka, salin seluruhnya ke Code Editor, lalu ikuti bersama.\nAlurnya lima langkah:\n\nTentukan kelas. Mulai dari sedikit — air, hutan, pertanian, terbangun, lahan terbuka. Lima kelas yang benar jauh lebih berguna daripada dua belas kelas yang saling tertukar.\nGambar titik latih. 20–40 titik per kelas, di area yang Anda yakin. Ini satu-satunya bagian yang tidak bisa disalin dari siapa pun: hanya Anda yang tahu wilayah Anda.\nBagi data 70/30. 70% untuk melatih, 30% disisihkan untuk menguji.\nLatih Random Forest, lalu klasifikasikan seluruh citra.\nBaca angka akurasinya sebelum melihat petanya.\n\n\n\n\n\n\n\nPentingPeta klasifikasi selalu terlihat meyakinkan\n\n\n\nApa pun yang Anda masukkan, hasilnya berupa peta berwarna rapi yang terlihat profesional. Itu sebabnya langkah 3 dan 5 tidak boleh dilewati — angka akurasi adalah satu-satunya hal yang membedakan peta yang layak dipakai dari peta yang sekadar indah.\nKalau Anda menguji model dengan titik yang sama seperti yang dipakai melatih, akurasinya akan tinggi dan tidak berarti apa-apa — seperti mengujikan soal yang bocorannya sudah diberikan.\n\n\nCara membaca hasilnya:\n\n\n\nOverall accuracy\nArtinya\n\n\n\n\n&gt; 0.85\nlayak dipakai untuk laporan\n\n\n0.70 – 0.85\ncukup; sebutkan angkanya, waspadai kelas yang lemah\n\n\n&lt; 0.70\njangan dipakai; tambah titik latih dulu\n\n\n\nKalau rendah, lihat confusion matrix: baris yang nilainya tersebar menunjukkan kelas mana tertukar dengan apa. Yang paling sering di Indonesia: pertanian tertukar dengan lahan terbuka, karena sawah bera secara spektral memang mirip tanah kosong."
+  },
+  {
+    "objectID": "hari-2.html#perubahan",
+    "href": "hari-2.html#perubahan",
+    "title": "Day 2 — Hands-on",
+    "section": "4 · Change detection",
+    "text": "4 · Change detection\n25 menit\nCara paling sederhana dan paling mudah dijelaskan dalam laporan: bandingkan NDVI dua tahun.\nfunction ndviTahun (tahun) {\n  return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n    .filterBounds(aoi)\n    .filterDate(tahun + '-06-01', tahun + '-09-30')\n    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 60))\n    .map(maskS2)\n    .median()\n    .normalizedDifference(['B8','B4'])\n    .clip(aoi);\n}\n\nvar ndvi2019 = ndviTahun('2019');\nvar ndvi2024 = ndviTahun('2024');\nvar selisih  = ndvi2024.subtract(ndvi2019);\n\nMap.addLayer(selisih, {min: -0.3, max: 0.3,\n  palette: ['#b2182b', '#f7f7f7', '#1a9850']}, 'Perubahan NDVI');\n\n// Hanya penurunan tajam — kandidat kehilangan vegetasi\nvar hilang = selisih.lt(-0.2);\nMap.addLayer(hilang.selfMask(), {palette: ['#d73027']}, 'Vegetasi berkurang');\nMenghitung luasnya, untuk tabel laporan:\nvar luasHa = ee.Image.pixelArea().divide(1e4).updateMask(hilang)\n  .reduceRegion({\n    reducer: ee.Reducer.sum(),\n    geometry: aoi,\n    scale: 10,\n    maxPixels: 1e10\n  });\nprint('Luas vegetasi berkurang (ha):', luasHa);\n\n\n\n\n\n\nPeringatanTurunnya NDVI belum tentu deforestasi\n\n\n\nBisa juga panen, kekeringan musiman, atau perbedaan tanggal perekaman. Karena itu gunakan jendela musim yang sama untuk kedua tahun — dan verifikasi sebagian titik dengan citra resolusi tinggi sebelum menyebutnya “perubahan tutupan lahan” dalam laporan."
+  },
+  {
+    "objectID": "hari-2.html#ekspor",
+    "href": "hari-2.html#ekspor",
+    "title": "Day 2 — Hands-on",
+    "section": "5 · Export for reports",
+    "text": "5 · Export for reports\n25 menit\nExport.image.toDrive({\n  image: hasil.byte(),\n  description: 'tutupan_lahan_2024',\n  folder: 'GEE_webinar',\n  region: aoi,\n  scale: 10,\n  maxPixels: 1e10,\n  fileFormat: 'GeoTIFF'\n});\n\n\n\n\n\n\nPentingExport tidak langsung mengekspor\n\n\n\nMenjalankan skrip hanya mengantre tugasnya. Anda masih harus membuka tab Tasks di panel kanan dan menekan RUN pada tiap tugas. Ini keluhan nomor satu peserta webinar GEE, tanpa terkecuali.\n\n\nFormat mana untuk keperluan apa:\n\n\n\n\n\n\n\n\nKeperluan\nFormat\nCatatan\n\n\n\n\ndibuka di QGIS/ArcGIS\nGeoTIFF\npunya koordinat, bisa dianalisis lagi\n\n\ngambar untuk laporan Word\nGeoTIFF hasil .visualize()\nsudah berwarna sesuai palet\n\n\nangka untuk tabel\nCSV lewat Export.table\ndari reduceRegion\n\n\ngrafik\nPNG dari Console\nklik ikon panah di grafik\n\n\n\nUntuk peta yang benar-benar siap presentasi — dengan legenda, skala dan judul — ekspor GeoTIFF-nya, lalu susun tata letaknya di QGIS. Earth Engine bagus untuk analisis; QGIS lebih baik untuk kartografi."
+  },
+  {
+    "objectID": "hari-2.html#setelah",
+    "href": "hari-2.html#setelah",
+    "title": "Day 2 — Hands-on",
+    "section": "Setelah webinar",
+    "text": "Setelah webinar\nTiga langkah yang membuat materi ini benar-benar terpakai:\n\nJalankan ulang untuk wilayah Anda sendiri minggu ini juga, selagi masih ingat. Menunda sebulan berarti mengulang dari nol.\nGanti satu hal, lihat akibatnya. Ubah tahunnya. Ubah kelasnya. Ubah ambang batas perubahannya. Memahami datang dari mengubah, bukan dari menjalankan.\nSimpan skrip Anda lewat Scripts → NEW → File. Skrip yang tidak disimpan hilang saat tab ditutup.\n\nKalau ada yang tidak berjalan, bawa pesan error persisnya — pesan itu hampir selalu menunjukkan baris yang bermasalah, dan sebagian besar sudah pernah ditanyakan orang lain di EE Developers Group.\n\n← Day 1 — Concepts · Semua skrip · Rujukan"
+  },
+  {
+    "objectID": "hari-1.html",
+    "href": "hari-1.html",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "Hari ini tidak menghasilkan peta. Hari ini menghasilkan pemahaman kenapa kode Earth Engine ditulis seperti itu — supaya besok, ketika kita mengetik cepat, Anda tahu apa yang sedang terjadi dan bisa memperbaiki sendiri saat ada yang salah.\nKalau Anda hanya menyalin skrip tanpa hari pertama, skrip itu akan jalan. Tetapi ketika wilayahnya diganti dan muncul error, Anda tidak punya cara untuk menebak di mana letak masalahnya."
+  },
+  {
+    "objectID": "hari-1.html#setup",
+    "href": "hari-1.html#setup",
+    "title": "Day 1 — Concepts",
+    "section": "0 · Setup check",
+    "text": "0 · Setup check\nLima menit pertama, semua orang bersamaan:\n\nBuka code.earthengine.google.com\nKetik satu baris ini di panel tengah, lalu klik Run:\n\nprint('siap');\n\nKalau kata siap muncul di panel Console (kanan atas), Anda siap.\n\n\n\n\n\n\n\nPentingKalau print tidak muncul\n\n\n\nHampir selalu satu dari tiga hal: akun belum disetujui, tab lama masih terbuka dengan sesi kedaluwarsa (tutup semua lalu buka lagi), atau jaringan memblokir earthengine.google.com. Yang ketiga sering terjadi di jaringan kantor pemerintah — kalau begitu, pakai hotspot ponsel."
+  },
+  {
+    "objectID": "hari-1.html#kenapa",
+    "href": "hari-1.html#kenapa",
+    "title": "Day 1 — Concepts",
+    "section": "1 · Why Earth Engine",
+    "text": "1 · Why Earth Engine\nCara lama memetakan perubahan lahan satu kabupaten selama sepuluh tahun:\n\ncari scene di portal penyedia, satu per satu;\nunduh — puluhan sampai ratusan gigabyte;\nkoreksi radiometrik dan atmosferik, per scene;\nmosaik, potong sesuai batas wilayah;\nbaru mulai analisis;\nulangi semuanya kalau ternyata wilayahnya perlu diperluas.\n\nYang berubah dengan Earth Engine bukan kecepatan mengunduh. Yang berubah adalah tidak ada unduhan sama sekali. Citranya sudah ada di sana, sudah terkoreksi, dan yang Anda kirim adalah perintah — bukan Anda yang mendatangi data, melainkan perhitungan Anda yang dikirim ke tempat datanya berada.\nKonsekuensinya, dan ini yang membuat cara kerjanya terasa aneh di awal: komputasi tidak berjalan di komputer Anda. Bagian 4 membahas ini, dan itu bagian terpenting hari ini.\nYang tersedia gratis, antara lain:\n\n\n\nData\nResolusi\nSejak\nUntuk apa\n\n\n\n\nSentinel-2\n10 m\n2015\ntutupan lahan, vegetasi, tanaman\n\n\nLandsat 8/9\n30 m\n2013\nrangkaian panjang, konsistensi historis\n\n\nLandsat 5/7\n30 m\n1984\nperubahan jangka sangat panjang\n\n\nSentinel-1 (radar)\n10 m\n2014\ntembus awan — banjir, sawah\n\n\nSRTM / Copernicus DEM\n30 m\n—\nketinggian, lereng\n\n\nCHIRPS\n5 km\n1981\ncurah hujan\n\n\n\nUntuk Indonesia, dua baris terakhir sering menentukan: separuh tahun langit kita tertutup awan, dan Sentinel-1 tidak peduli pada awan."
+  },
+  {
+    "objectID": "hari-1.html#code-editor",
+    "href": "hari-1.html#code-editor",
+    "title": "Day 1 — Concepts",
+    "section": "2 · Code Editor tour",
+    "text": "2 · Code Editor tour\nEmpat panel. Kenali namanya sekarang, karena selanjutnya kita akan menyebut “lihat di Console” tanpa menjelaskan lagi.\n\n\n\n\n\n\n\n\nPanel\nLetak\nIsi\n\n\n\n\nScripts\nkiri atas\nskrip tersimpan Anda, contoh, repositori bersama\n\n\nDocs\nkiri (tab)\ndaftar seluruh fungsi — ini dokumentasi resminya\n\n\nAssets\nkiri (tab)\ndata yang Anda unggah sendiri (shapefile, dsb)\n\n\nEditor\ntengah\ntempat menulis kode\n\n\nConsole\nkanan atas\nhasil print, pesan error\n\n\nInspector\nkanan (tab)\nklik peta → lihat nilai piksel di titik itu\n\n\nTasks\nkanan (tab)\nekspor yang menunggu dijalankan\n\n\nMap\nbawah\npeta\n\n\n\nDua kebiasaan yang menghemat banyak waktu nanti:\n\nInspector adalah cara tercepat memeriksa “apakah nilainya masuk akal”. Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.\nTasks sering terlupakan. Export di dalam skrip tidak langsung mengekspor; ia hanya mengantre tugas. Anda masih harus klik Run di tab Tasks. Peserta yang bilang “ekspornya tidak jalan” hampir selalu lupa ini."
+  },
+  {
+    "objectID": "hari-1.html#javascript",
+    "href": "hari-1.html#javascript",
+    "title": "Day 1 — Concepts",
+    "section": "3 · JavaScript secukupnya",
+    "text": "3 · JavaScript secukupnya\nAnda tidak perlu belajar JavaScript. Anda perlu enam hal.\n\nVariables\nvar kota = 'Maumere';          // teks, pakai tanda kutip\nvar tahun = 2024;              // angka, tanpa kutip\nvar aktif = true;              // benar/salah\nvar artinya “simpan dengan nama ini”. Titik koma di akhir baris.\n\n\nLists\nvar bands = ['B4', 'B3', 'B2'];    // urutan: merah, hijau, biru\nprint(bands[0]);                   // 'B4' — hitungan mulai dari 0, bukan 1\nHitungan mulai dari nol. Ini sumber kesalahan nomor satu bagi pendatang baru dari dunia spreadsheet.\n\n\nDictionaries\nvar visual = {\n  bands: ['B4', 'B3', 'B2'],\n  min: 0,\n  max: 3000\n};\nPasangan nama: nilai. Hampir semua fungsi Earth Engine menerima dictionary seperti ini sebagai pengaturan tampilan atau parameter.\n\n\nFunctions\nfunction tambahNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI');\n  return image.addBands(ndvi);\n}\nSebuah fungsi adalah instruksi yang diberi nama, supaya bisa dipakai berulang pada banyak citra sekaligus.\n\n\nChaining\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nTitik di depan tiap baris berarti “lalu lakukan ini pada hasil sebelumnya”. Dibaca dari atas ke bawah seperti kalimat: ambil koleksi Sentinel-2, saring menurut wilayah, saring menurut tanggal, ambil nilai tengahnya.\n\n\nComments\n// Baris ini diabaikan komputer, ditulis untuk manusia."
+  },
+  {
+    "objectID": "hari-1.html#client-server",
+    "href": "hari-1.html#client-server",
+    "title": "Day 1 — Concepts",
+    "section": "4 · Client vs server",
+    "text": "4 · Client vs server\n\n\n\n\n\n\nPentingBagian terpenting hari ini\n\n\n\nKalau hanya satu hal dari hari pertama yang Anda ingat, ingat yang ini. Sebagian besar error yang membingungkan pemula berasal dari sini, dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.\n\n\nAda dua dunia di dalam satu skrip.\nClient — yang berjalan di browser Anda. Semua yang tadi: var, angka biasa, if, for, teks.\nServer — yang berjalan di komputer Google. Semua yang diawali ee.: ee.Image, ee.Number, ee.ImageCollection.\nObjek ee. tidak berisi nilai di browser Anda. Ia berisi resep: catatan tentang perhitungan apa yang harus dilakukan nanti, di sana.\nvar a = 5;                     // client: benar-benar berisi 5\nvar b = ee.Number(5);          // server: resep yang akan menghasilkan 5\n\nprint(a + 1);                  // 6\nprint(b.add(1));               // 6 — tapi lewat jalan yang sama sekali berbeda\nDan ini yang tidak bisa:\nvar koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');\n\nif (koleksi.size() &gt; 100) {        // ← SALAH, tidak akan berjalan benar\n  print('banyak citra');\n}\nkoleksi.size() bukan angka. Ia janji untuk menghitung, nanti, di server. if berjalan sekarang, di browser — jadi ia menilai sesuatu yang belum ada.\nAturan praktis yang cukup untuk seluruh webinar ini:\n\nKalau namanya diawali ee., jangan pakai if, for, atau operator + - * / biasa padanya. Pakai metodenya sendiri: .add(), .subtract(), .gt(), .map().\n\n\nKenapa ini penting untuk pekerjaan Anda\nKarena dari sinilah kalimat “kok hasilnya kosong” hampir selalu berasal. Dan karena begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan jadi masuk akal: hampir seluruh API-nya disusun mengikuti pembagian ini."
+  },
+  {
+    "objectID": "hari-1.html#latihan",
+    "href": "hari-1.html#latihan",
+    "title": "Day 1 — Concepts",
+    "section": "Latihan sebelum besok",
+    "text": "Latihan sebelum besok\nSepuluh menit, tidak perlu dikumpulkan. Tujuannya supaya besok tangan Anda sudah hafal Code Editor.\n\nBuka Code Editor, buat skrip baru, beri nama latihan-hari-1.\nBuat variabel berisi nama kabupaten Anda, lalu print.\nTampilkan satu citra Sentinel-2 apa saja di wilayah Anda:\n\nvar titik = ee.Geometry.Point([121.35, -8.65]);   // ganti ke wilayah Anda\nMap.centerObject(titik, 11);\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(titik)\n              .filterDate('2024-06-01', '2024-09-30')\n              .first();\n\nMap.addLayer(citra, {bands: ['B4', 'B3', 'B2'], min: 0, max: 3000}, 'Sentinel-2');\nprint(citra);\n\nKlik Inspector, lalu klik satu titik di peta. Lihat daftar nilai band yang muncul.\nDi Console, klik segitiga di sebelah hasil print(citra) dan telusuri isinya. Perhatikan ada berapa band, dan berapa system:time_start.\n\nKalau nomor 5 terasa membingungkan, itu wajar — dan itu justru inti hari pertama: yang dicetak bukan gambar, melainkan deskripsi tentang gambar.\n\nBesok: dari komposit bebas awan sampai peta tutupan lahan dan berkas GeoTIFF yang siap masuk laporan. → Day 2 — Hands-on"
+  },
+  {
+    "objectID": "skrip.html",
+    "href": "skrip.html",
+    "title": "Scripts",
+    "section": "",
+    "text": "Setiap skrip berdiri sendiri: salin seluruhnya ke Code Editor, ubah bagian AOI ke wilayah Anda, jalankan.\nSlide untuk hari pertama: Day 1 — Concepts."
+  },
+  {
+    "objectID": "skrip.html#cara-memakai",
+    "href": "skrip.html#cara-memakai",
+    "title": "Scripts",
+    "section": "Cara memakai",
+    "text": "Cara memakai\n\nKlik tautan di atas — berkasnya terbuka sebagai teks biasa\nPilih semua (Ctrl/Cmd + A), lalu salin\nDi Code Editor: Scripts → NEW → File, beri nama, tempel\nUbah bagian AOI ke wilayah Anda\nKlik Run\n\n\n\n\n\n\n\nTipUbah satu hal saja pada percobaan pertama\n\n\n\nGanti AOI-nya lebih dulu, jalankan, pastikan berhasil. Baru setelah itu ubah tahun, kelas, atau band. Kalau semuanya diubah sekaligus lalu muncul error, tidak ada cara tahu bagian mana yang salah."
+  },
+  {
+    "objectID": "skrip.html#repositori-earth-engine",
+    "href": "skrip.html#repositori-earth-engine",
+    "title": "Scripts",
+    "section": "Repositori Earth Engine",
+    "text": "Repositori Earth Engine\nSupaya peserta tidak perlu menyalin satu per satu, seluruh skrip juga akan dibagikan sebagai repositori Earth Engine — cukup satu klik untuk membuka semuanya di Code Editor Anda.\nTautannya akan ditambahkan di sini sebelum hari pertama, dan berbentuk:\nhttps://code.earthengine.google.com/?accept_repo=users/&lt;nama&gt;/webinar-gee\n\n\n\n\n\n\nPeringatanRepositori bersifat baca-saja\n\n\n\nAnda bisa membuka dan menjalankan, tetapi perubahan Anda tidak tersimpan di sana. Simpan salinan Anda sendiri lewat Scripts → NEW → File sebelum mulai mengubah, atau pekerjaan Anda hilang saat menutup tab."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "",
+    "text": "Peserta webinar ini datang dari latar belakang yang beragam — akademisi, peneliti dan mahasiswa; ASN dan instansi pemerintah; praktisi GIS, survei dan pemetaan; konsultan dan engineering; serta bidang lingkungan, pertanian, perkebunan, kehutanan dan sumber daya alam.\nYang menyatukan semuanya satu hal: ingin memakai Earth Engine untuk pekerjaan nyata — riset, laporan, dan peta yang bisa dipakai — bukan sekadar tahu bahwa alat ini ada.\nMateri ini ditulis dengan asumsi Anda belum pernah menulis kode. Yang diperlukan hanya kemampuan membaca peta dan kesediaan mengetik ulang beberapa baris.\n\n\n\n\n\n\nCatatanBahasa\n\n\n\nNarasi dalam Bahasa Indonesia. Judul bagian dan komentar di dalam kode sengaja dibiarkan Bahasa Inggris, supaya istilah yang Anda lihat di sini sama persis dengan yang muncul di dokumentasi resmi Earth Engine ketika nanti Anda mencari sendiri."
+  },
+  {
+    "objectID": "index.html#untuk-siapa",
+    "href": "index.html#untuk-siapa",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "",
+    "text": "Peserta webinar ini datang dari latar belakang yang beragam — akademisi, peneliti dan mahasiswa; ASN dan instansi pemerintah; praktisi GIS, survei dan pemetaan; konsultan dan engineering; serta bidang lingkungan, pertanian, perkebunan, kehutanan dan sumber daya alam.\nYang menyatukan semuanya satu hal: ingin memakai Earth Engine untuk pekerjaan nyata — riset, laporan, dan peta yang bisa dipakai — bukan sekadar tahu bahwa alat ini ada.\nMateri ini ditulis dengan asumsi Anda belum pernah menulis kode. Yang diperlukan hanya kemampuan membaca peta dan kesediaan mengetik ulang beberapa baris.\n\n\n\n\n\n\nCatatanBahasa\n\n\n\nNarasi dalam Bahasa Indonesia. Judul bagian dan komentar di dalam kode sengaja dibiarkan Bahasa Inggris, supaya istilah yang Anda lihat di sini sama persis dengan yang muncul di dokumentasi resmi Earth Engine ketika nanti Anda mencari sendiri."
+  },
+  {
+    "objectID": "index.html#rundown",
+    "href": "index.html#rundown",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Rundown",
+    "text": "Rundown\nDua hari, masing-masing dua jam. Hari pertama membangun pemahaman; hari kedua mengerjakan satu alur analisis dari awal sampai peta jadi.\n\nDay 1 — Concepts (2 jam)\n\n\n\n\n\n\n\n\nMenit\nBagian\nIsi\n\n\n\n\n0–15\nPersiapan\nAkun, membuka Code Editor, memastikan semua orang siap\n\n\n15–35\nWhy Earth Engine\nApa yang berubah kalau data tidak perlu diunduh\n\n\n35–60\nCode Editor tour\nEmpat panel, Docs, Assets, Tasks, Inspector\n\n\n60–90\nJavaScript secukupnya\nvar, fungsi, dictionary — hanya yang dipakai\n\n\n90–120\nClient vs server\nBagian terpenting seluruh webinar\n\n\n\n\n\nDay 2 — Hands-on (2 jam)\n\n\n\n\n\n\n\n\nMenit\nBagian\nHasil\n\n\n\n\n0–20\nSentinel-2 composite\nCitra bebas awan untuk wilayah Anda\n\n\n20–40\nNDVI\nPeta kehijauan + grafik deret waktu\n\n\n40–70\nLand cover classification\nPeta tutupan lahan + angka akurasi\n\n\n70–95\nChange detection\nPeta perubahan antara dua tahun\n\n\n95–120\nExport for reports\nGeoTIFF, PNG, grafik, legenda"
+  },
+  {
+    "objectID": "index.html#hasil",
+    "href": "index.html#hasil",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Yang akan Anda bawa pulang",
+    "text": "Yang akan Anda bawa pulang\nDi akhir hari kedua Anda memiliki, untuk wilayah kerja Anda sendiri:\n\nkomposit Sentinel-2 bebas awan untuk dua periode waktu;\npeta NDVI beserta grafik perubahannya sepanjang tahun;\npeta tutupan lahan hasil klasifikasi, lengkap dengan angka akurasi;\npeta perubahan tutupan lahan antara dua tahun;\nberkas GeoTIFF dan PNG yang bisa langsung masuk laporan atau presentasi;\nseluruh skrip, yang bisa Anda ubah wilayahnya lalu jalankan lagi."
+  },
+  {
+    "objectID": "index.html#persiapan",
+    "href": "index.html#persiapan",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Sebelum hari pertama",
+    "text": "Sebelum hari pertama\nTiga hal, semuanya gratis, semuanya sebaiknya diselesaikan sebelum webinar dimulai — supaya waktu dua jam tidak habis untuk pendaftaran.\n\nDaftar Earth Engine. Buka earthengine.google.com → Get Started. Gunakan akun Google. Persetujuan untuk penggunaan non-komersial biasanya keluar dalam hitungan menit sampai satu hari — jangan menunggu sampai hari-H.\nBuka Code Editor di code.earthengine.google.com. Kalau muncul empat panel dan peta dunia, Anda siap.\nSiapkan satu wilayah yang Anda kenal betul — kabupaten tempat kerja, area proyek, DAS yang Anda pantau. Analisis jauh lebih mudah dipahami kalau Anda sudah tahu jawabannya secara kasar.\n\n\n\n\n\n\n\nTipKalau persetujuan akun belum keluar\n\n\n\nAnda tetap bisa mengikuti hari pertama sepenuhnya — hari pertama tentang konsep, dan semua contoh bisa diikuti dengan membaca. Untuk hari kedua, pinjam layar teman satu instansi, atau ikuti dengan menyimak lalu jalankan ulang skripnya nanti."
+  },
+  {
+    "objectID": "index.html#cara-pakai",
+    "href": "index.html#cara-pakai",
+    "title": "Google Earth Engine dengan JavaScript",
+    "section": "Cara memakai halaman ini",
+    "text": "Cara memakai halaman ini\nSetiap blok kode punya tombol salin di pojok kanan atas. Tidak perlu mengetik ulang — tetapi mengetik ulang membuat Anda belajar lebih cepat daripada menyalin, terutama di hari pertama.\nSemua skrip juga tersedia sebagai berkas .js terpisah di halaman Scripts, dan sebagai repositori Earth Engine yang bisa Anda buka dengan satu klik.\n\nMateri ini bagian dari rs-change-detection. Untuk analisis serupa dengan Python, lihat buku earthchange."
+  }
+]

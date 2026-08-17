@@ -1,0 +1,71 @@
+/*-- scss:defaults --*/
+
+// Warna diambil dari materi rs-change-detection, supaya slide dan situs
+// terasa satu keluarga.
+$body-bg: #ffffff;
+$body-color: #1f2933;
+$link-color: #1a7d3a;
+
+$presentation-heading-color: #0f3d2e;
+$presentation-heading-font-weight: 650;
+$presentation-font-size-root: 34px;
+
+$code-block-font-size: 0.62em;
+
+/*-- scss:rules --*/
+
+// Judul bagian (slide dengan latar hijau) diperbesar dan dibuat terang.
+.reveal section[data-background-color="#0f3d2e"] h1,
+.reveal section[data-background-color="#7d2b2b"] h1,
+.reveal section[data-background-color="#0f3d2e"] h2,
+.reveal section[data-background-color="#7d2b2b"] h2,
+.reveal section[data-background-color="#0f3d2e"] h3,
+.reveal section[data-background-color="#0f3d2e"] p,
+.reveal section[data-background-color="#0f3d2e"] a {
+  color: #f2f7f4;
+}
+
+.reveal h1 { font-size: 2.1em; }
+.reveal h2 { font-size: 1.35em; margin-bottom: .5em; }
+.reveal h3 { font-size: 1.05em; color: #1a7d3a; }
+
+// Tabel: proyektor ruang seminar sering kurang kontras, jadi garisnya
+// dipertegas dan ukurannya dinaikkan.
+.reveal table {
+  font-size: 0.72em;
+  border-collapse: collapse;
+}
+.reveal table th {
+  background: #eef3f0;
+  border-bottom: 2px solid #0f3d2e;
+  padding: .4em .6em;
+}
+.reveal table td {
+  border-bottom: 1px solid #dde4e0;
+  padding: .35em .6em;
+}
+
+.reveal pre code {
+  padding: 1em 1.2em;
+  border-radius: 8px;
+  border-left: 4px solid #1a7d3a;
+}
+
+.reveal blockquote {
+  border-left: 4px solid #1a7d3a;
+  background: #f4f8f6;
+  padding: .6em 1em;
+  font-style: normal;
+  width: 100%;
+}
+
+.reveal .callout {
+  font-size: .8em;
+}
+
+// Footer dan nomor halaman agak diredupkan supaya tidak menarik perhatian.
+.reveal .footer,
+.reveal .slide-number {
+  color: #8a9a92;
+  font-size: 0.5em;
+}

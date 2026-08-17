@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Firman Hadi">
 
-<title>Google Earth Engine dengan JavaScript</title>
+<title>Rujukan – Google Earth Engine dengan JavaScript</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -94,7 +93,7 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" aria-current="page"> 
+    <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Beranda</span></a>
   </li>  
   <li class="nav-item">
@@ -110,7 +109,7 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Scripts</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./rujukan.html"> 
+    <a class="nav-link active" href="./rujukan.html" aria-current="page"> 
 <span class="menu-text">Rujukan</span></a>
   </li>  
 </ul>
@@ -136,15 +135,10 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Di halaman ini</h2>
    
   <ul>
-  <li><a href="#untuk-siapa" id="toc-untuk-siapa" class="nav-link active" data-scroll-target="#untuk-siapa">Untuk siapa materi ini</a></li>
-  <li><a href="#rundown" id="toc-rundown" class="nav-link" data-scroll-target="#rundown">Rundown</a>
-  <ul class="collapse">
-  <li><a href="#day-1-concepts-2-jam" id="toc-day-1-concepts-2-jam" class="nav-link" data-scroll-target="#day-1-concepts-2-jam">Day 1 — Concepts (2 jam)</a></li>
-  <li><a href="#day-2-hands-on-2-jam" id="toc-day-2-hands-on-2-jam" class="nav-link" data-scroll-target="#day-2-hands-on-2-jam">Day 2 — Hands-on (2 jam)</a></li>
-  </ul></li>
-  <li><a href="#hasil" id="toc-hasil" class="nav-link" data-scroll-target="#hasil">Yang akan Anda bawa pulang</a></li>
-  <li><a href="#persiapan" id="toc-persiapan" class="nav-link" data-scroll-target="#persiapan">Sebelum hari pertama</a></li>
-  <li><a href="#cara-pakai" id="toc-cara-pakai" class="nav-link" data-scroll-target="#cara-pakai">Cara memakai halaman ini</a></li>
+  <li><a href="#dokumentasi-resmi" id="toc-dokumentasi-resmi" class="nav-link active" data-scroll-target="#dokumentasi-resmi">Dokumentasi resmi</a></li>
+  <li><a href="#belajar-lanjut" id="toc-belajar-lanjut" class="nav-link" data-scroll-target="#belajar-lanjut">Belajar lanjut</a></li>
+  <li><a href="#dataset-yang-sering-dipakai-di-indonesia" id="toc-dataset-yang-sering-dipakai-di-indonesia" class="nav-link" data-scroll-target="#dataset-yang-sering-dipakai-di-indonesia">Dataset yang sering dipakai di Indonesia</a></li>
+  <li><a href="#untuk-analisis-dengan-python" id="toc-untuk-analisis-dengan-python" class="nav-link" data-scroll-target="#untuk-analisis-dengan-python">Untuk analisis dengan Python</a></li>
   </ul>
 </nav>
     </div>
@@ -153,27 +147,14 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Google Earth Engine dengan JavaScript</h1>
-<p class="subtitle lead">Webinar dua hari · 2 jam per hari · untuk pemula</p>
+<h1 class="title">Rujukan</h1>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Penulis</div>
-    <div class="quarto-title-meta-contents">
-             <p>Firman Hadi </p>
-          </div>
-  </div>
     
-    <div>
-    <div class="quarto-title-meta-heading">Diterbitkan</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">17 Agustus 2026</p>
-    </div>
-  </div>
   
     
   </div>
@@ -183,157 +164,97 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="untuk-siapa" class="level2">
-<h2 class="anchored" data-anchor-id="untuk-siapa">Untuk siapa materi ini</h2>
-<p>Peserta webinar ini datang dari latar belakang yang beragam — akademisi, peneliti dan mahasiswa; ASN dan instansi pemerintah; praktisi GIS, survei dan pemetaan; konsultan dan engineering; serta bidang lingkungan, pertanian, perkebunan, kehutanan dan sumber daya alam.</p>
-<p>Yang menyatukan semuanya satu hal: <strong>ingin memakai Earth Engine untuk pekerjaan nyata</strong> — riset, laporan, dan peta yang bisa dipakai — bukan sekadar tahu bahwa alat ini ada.</p>
-<p>Materi ini ditulis dengan asumsi Anda <strong>belum pernah menulis kode</strong>. Yang diperlukan hanya kemampuan membaca peta dan kesediaan mengetik ulang beberapa baris.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Catatan</span>Bahasa
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Narasi dalam Bahasa Indonesia. <strong>Judul bagian dan komentar di dalam kode sengaja dibiarkan Bahasa Inggris</strong>, supaya istilah yang Anda lihat di sini sama persis dengan yang muncul di dokumentasi resmi Earth Engine ketika nanti Anda mencari sendiri.</p>
-</div>
-</div>
-</section>
-<section id="rundown" class="level2">
-<h2 class="anchored" data-anchor-id="rundown">Rundown</h2>
-<p>Dua hari, masing-masing dua jam. Hari pertama membangun pemahaman; hari kedua mengerjakan satu alur analisis dari awal sampai peta jadi.</p>
-<section id="day-1-concepts-2-jam" class="level3">
-<h3 class="anchored" data-anchor-id="day-1-concepts-2-jam">Day 1 — Concepts (2 jam)</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 40%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">Menit</th>
-<th>Bagian</th>
-<th>Isi</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0–15</td>
-<td>Persiapan</td>
-<td>Akun, membuka Code Editor, memastikan semua orang siap</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">15–35</td>
-<td>Why Earth Engine</td>
-<td>Apa yang berubah kalau data tidak perlu diunduh</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">35–60</td>
-<td>Code Editor tour</td>
-<td>Empat panel, Docs, Assets, Tasks, Inspector</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">60–90</td>
-<td>JavaScript secukupnya</td>
-<td><code>var</code>, fungsi, dictionary — hanya yang dipakai</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">90–120</td>
-<td><strong>Client vs server</strong></td>
-<td>Bagian terpenting seluruh webinar</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="day-2-hands-on-2-jam" class="level3">
-<h3 class="anchored" data-anchor-id="day-2-hands-on-2-jam">Day 2 — Hands-on (2 jam)</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 31%">
-<col style="width: 36%">
-<col style="width: 31%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">Menit</th>
-<th>Bagian</th>
-<th>Hasil</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0–20</td>
-<td>Sentinel-2 composite</td>
-<td>Citra bebas awan untuk wilayah Anda</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">20–40</td>
-<td>NDVI</td>
-<td>Peta kehijauan + grafik deret waktu</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">40–70</td>
-<td>Land cover classification</td>
-<td>Peta tutupan lahan + angka akurasi</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">70–95</td>
-<td>Change detection</td>
-<td>Peta perubahan antara dua tahun</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">95–120</td>
-<td>Export for reports</td>
-<td>GeoTIFF, PNG, grafik, legenda</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="hasil" class="level2">
-<h2 class="anchored" data-anchor-id="hasil">Yang akan Anda bawa pulang</h2>
-<p>Di akhir hari kedua Anda memiliki, untuk wilayah kerja Anda sendiri:</p>
+<section id="dokumentasi-resmi" class="level2">
+<h2 class="anchored" data-anchor-id="dokumentasi-resmi">Dokumentasi resmi</h2>
 <ul>
-<li>komposit Sentinel-2 bebas awan untuk dua periode waktu;</li>
-<li>peta NDVI beserta grafik perubahannya sepanjang tahun;</li>
-<li><strong>peta tutupan lahan hasil klasifikasi, lengkap dengan angka akurasi</strong>;</li>
-<li>peta perubahan tutupan lahan antara dua tahun;</li>
-<li>berkas GeoTIFF dan PNG yang bisa langsung masuk laporan atau presentasi;</li>
-<li>seluruh skrip, yang bisa Anda ubah wilayahnya lalu jalankan lagi.</li>
+<li><a href="https://developers.google.com/earth-engine/guides">Earth Engine Guides</a> — penjelasan konsep, ditulis untuk dibaca berurutan</li>
+<li><a href="https://developers.google.com/earth-engine/apidocs">API Reference</a> — daftar seluruh fungsi</li>
+<li><a href="https://developers.google.com/earth-engine/datasets">Data Catalog</a> — semua dataset yang tersedia</li>
 </ul>
 </section>
-<section id="persiapan" class="level2">
-<h2 class="anchored" data-anchor-id="persiapan">Sebelum hari pertama</h2>
-<p>Tiga hal, semuanya gratis, semuanya sebaiknya diselesaikan <strong>sebelum</strong> webinar dimulai — supaya waktu dua jam tidak habis untuk pendaftaran.</p>
-<ol type="1">
-<li><strong>Daftar Earth Engine.</strong> Buka <a href="https://earthengine.google.com/">earthengine.google.com</a> → <em>Get Started</em>. Gunakan akun Google. Persetujuan untuk penggunaan non-komersial biasanya keluar dalam hitungan menit sampai satu hari — jangan menunggu sampai hari-H.</li>
-<li><strong>Buka Code Editor</strong> di <a href="https://code.earthengine.google.com/">code.earthengine.google.com</a>. Kalau muncul empat panel dan peta dunia, Anda siap.</li>
-<li><strong>Siapkan satu wilayah</strong> yang Anda kenal betul — kabupaten tempat kerja, area proyek, DAS yang Anda pantau. Analisis jauh lebih mudah dipahami kalau Anda sudah tahu jawabannya secara kasar.</li>
-</ol>
+<section id="belajar-lanjut" class="level2">
+<h2 class="anchored" data-anchor-id="belajar-lanjut">Belajar lanjut</h2>
+<ul>
+<li><a href="https://courses.spatialthoughts.com/end-to-end-gee.html">Spatial Thoughts: End-to-End GEE</a> — kursus gratis, paling lengkap untuk pemula</li>
+<li><a href="https://gee-community-catalog.org/">Awesome GEE Community Catalog</a> — dataset tambahan dari komunitas, banyak yang relevan untuk Asia Tenggara</li>
+<li><a href="https://groups.google.com/g/google-earth-engine-developers">EE Developers Google Group</a> — tempat bertanya; cari dulu, biasanya sudah pernah ditanyakan</li>
+</ul>
+</section>
+<section id="dataset-yang-sering-dipakai-di-indonesia" class="level2">
+<h2 class="anchored" data-anchor-id="dataset-yang-sering-dipakai-di-indonesia">Dataset yang sering dipakai di Indonesia</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Dataset</th>
+<th>ID</th>
+<th>Catatan</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Sentinel-2 SR</td>
+<td><code>COPERNICUS/S2_SR_HARMONIZED</code></td>
+<td>10 m, sejak 2017</td>
+</tr>
+<tr class="even">
+<td>Landsat 9</td>
+<td><code>LANDSAT/LC09/C02/T1_L2</code></td>
+<td>30 m, sejak 2021</td>
+</tr>
+<tr class="odd">
+<td>Landsat 5</td>
+<td><code>LANDSAT/LT05/C02/T1_L2</code></td>
+<td>30 m, 1984–2012 — untuk perubahan jangka panjang</td>
+</tr>
+<tr class="even">
+<td>Sentinel-1 GRD</td>
+<td><code>COPERNICUS/S1_GRD</code></td>
+<td>radar, tembus awan</td>
+</tr>
+<tr class="odd">
+<td>Batas administrasi</td>
+<td><code>FAO/GAUL/2015/level2</code></td>
+<td>sampai tingkat kabupaten</td>
+</tr>
+<tr class="even">
+<td>Curah hujan</td>
+<td><code>UCSB-CHG/CHIRPS/DAILY</code></td>
+<td>5 km, harian, sejak 1981</td>
+</tr>
+<tr class="odd">
+<td>Tutupan lahan global</td>
+<td><code>ESA/WorldCover/v200</code></td>
+<td>10 m, 2021 — berguna sebagai pembanding</td>
+</tr>
+<tr class="even">
+<td>DEM</td>
+<td><code>COPERNICUS/DEM/GLO30</code></td>
+<td>30 m</td>
+</tr>
+</tbody>
+</table>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>Kalau persetujuan akun belum keluar
+<span class="screen-reader-only">Tip</span>Mencari dataset lain
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Anda tetap bisa mengikuti hari pertama sepenuhnya — hari pertama tentang konsep, dan semua contoh bisa diikuti dengan membaca. Untuk hari kedua, pinjam layar teman satu instansi, atau ikuti dengan menyimak lalu jalankan ulang skripnya nanti.</p>
+<p>Buka <a href="https://developers.google.com/earth-engine/datasets">Data Catalog</a>, cari dengan kata kunci Bahasa Inggris. Setiap halaman dataset punya tombol <strong>“Open in Code Editor”</strong> yang langsung memberi contoh skrip yang bisa jalan.</p>
 </div>
 </div>
 </section>
-<section id="cara-pakai" class="level2">
-<h2 class="anchored" data-anchor-id="cara-pakai">Cara memakai halaman ini</h2>
-<p>Setiap blok kode punya tombol salin di pojok kanan atas. Tidak perlu mengetik ulang — tetapi <strong>mengetik ulang membuat Anda belajar lebih cepat</strong> daripada menyalin, terutama di hari pertama.</p>
-<p>Semua skrip juga tersedia sebagai berkas <code>.js</code> terpisah di halaman <a href="./skrip.html">Scripts</a>, dan sebagai repositori Earth Engine yang bisa Anda buka dengan satu klik.</p>
-<hr>
-<p><em>Materi ini bagian dari <a href="https://github.com/firmanhadi21/rs-change-detection">rs-change-detection</a>. Untuk analisis serupa dengan Python, lihat <a href="../buku/">buku <code>earthchange</code></a>.</em></p>
+<section id="untuk-analisis-dengan-python" class="level2">
+<h2 class="anchored" data-anchor-id="untuk-analisis-dengan-python">Untuk analisis dengan Python</h2>
+<p>Pendekatan yang sama dengan Python ada di <a href="../buku/">buku <code>earthchange</code></a> — berguna kalau analisis Anda perlu dijalankan ulang secara otomatis, atau digabungkan dengan alur kerja lain di luar Earth Engine.</p>
 
 
 </section>
