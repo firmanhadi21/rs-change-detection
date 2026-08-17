@@ -7,35 +7,51 @@ project:
     - scripts/
 
 website:
-  title: "Google Earth Engine dengan JavaScript"
+  title: "Workshop GEE JavaScript"
   description: >
     Webinar dua hari untuk pemula: hari pertama konsep, hari kedua praktik.
     Sentinel-2, NDVI, klasifikasi tutupan lahan, deteksi perubahan, dan
     ekspor peta untuk laporan.
   site-url: https://firmanhadi21.github.io/rs-change-detection/gee-js/
-  navbar:
-    left:
-      # Back to the parent tutorial, so the two are one site rather than two.
-      - href: ../index.html
-        text: "← Tutorial"
-      - href: index.qmd
-        text: Beranda
-      - href: hari-1.qmd
-        text: "Day 1 — Concepts"
-      - href: hari-2.qmd
-        text: "Day 2 — Hands-on"
-      # Slides are English, unlike the pages: on a projector the shorter
-      # English wording fits the slide width without shrinking the type.
-      - href: slides.qmd
-        text: Slides
-      - href: skrip.qmd
-        text: Scripts
-      - href: rujukan.qmd
-        text: Rujukan
-    right:
-      - icon: github
-        href: https://github.com/firmanhadi21/rs-change-detection
-        aria-label: GitHub
+
+  # A LEFT SIDEBAR, not a top navbar. The parent tutorial at docs/index.html
+  # keeps a persistent sidebar, and the hand-written page this replaced carried
+  # its own <nav class="side"> in the same style -- which is what made the two
+  # read as one site rather than two. A Quarto navbar put the navigation across
+  # the top and lost that entirely.
+  sidebar:
+    style: floating
+    search: true
+    collapse-level: 2
+    contents:
+      - section: "Webinar"
+        contents:
+          - href: index.qmd
+            text: Beranda
+          - href: hari-1.qmd
+            text: "Hari 1 · Konsep"
+          - href: hari-2.qmd
+            text: "Hari 2 · Praktik"
+          - href: slides.qmd
+            text: "Slides (Day 1)"
+      - section: "Bahan"
+        contents:
+          - href: skrip.qmd
+            text: Skrip
+          - href: rujukan.qmd
+            text: Rujukan
+      - section: "Tautan"
+        contents:
+          # Back to the parent tutorial, exactly as the original page did.
+          - text: "← Tutorial earthchange (Python)"
+            href: ../index.html
+          - text: "Code Editor ↗"
+            href: https://code.earthengine.google.com/
+          - text: "Dokumentasi GEE ↗"
+            href: https://developers.google.com/earth-engine
+          - text: "Sumber di GitHub ↗"
+            href: https://github.com/firmanhadi21/rs-change-detection
+
   page-footer:
     left: "Firman Hadi · Universitas Diponegoro"
     right: "Materi bebas dipakai ulang · CC BY 4.0"
@@ -43,9 +59,7 @@ website:
 format:
   html:
     # theme.scss carries the parent site's design tokens verbatim, so a reader
-    # arriving from docs/index.html stays on what looks like one site. The
-    # previous cosmo theme made this read as a separate site with its own
-    # styling, which is what the hand-written original never did.
+    # arriving from docs/index.html stays on what looks like one site.
     theme:
       - cosmo
       - theme.scss
