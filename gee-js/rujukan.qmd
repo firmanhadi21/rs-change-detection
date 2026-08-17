@@ -1,0 +1,42 @@
+---
+title: "Rujukan"
+---
+
+## Dokumentasi resmi
+
+- [Earth Engine Guides](https://developers.google.com/earth-engine/guides) — penjelasan konsep, ditulis untuk dibaca berurutan
+- [API Reference](https://developers.google.com/earth-engine/apidocs) — daftar seluruh fungsi
+- [Data Catalog](https://developers.google.com/earth-engine/datasets) — semua dataset yang tersedia
+
+## Belajar lanjut
+
+- [Spatial Thoughts: End-to-End GEE](https://courses.spatialthoughts.com/end-to-end-gee.html) — kursus gratis, paling lengkap untuk pemula
+- [Awesome GEE Community Catalog](https://gee-community-catalog.org/) — dataset tambahan dari komunitas, banyak yang relevan untuk Asia Tenggara
+- [EE Developers Google Group](https://groups.google.com/g/google-earth-engine-developers) — tempat bertanya; cari dulu, biasanya sudah pernah ditanyakan
+
+## Dataset yang sering dipakai di Indonesia
+
+| Dataset | ID | Catatan |
+|---|---|---|
+| Sentinel-2 SR | `COPERNICUS/S2_SR_HARMONIZED` | 10 m, sejak 2017 |
+| Landsat 9 | `LANDSAT/LC09/C02/T1_L2` | 30 m, sejak 2021 |
+| Landsat 5 | `LANDSAT/LT05/C02/T1_L2` | 30 m, 1984–2012 — untuk perubahan jangka panjang |
+| Sentinel-1 GRD | `COPERNICUS/S1_GRD` | radar, tembus awan |
+| Batas administrasi | `FAO/GAUL/2015/level2` | sampai tingkat kabupaten |
+| Curah hujan | `UCSB-CHG/CHIRPS/DAILY` | 5 km, harian, sejak 1981 |
+| Tutupan lahan global | `ESA/WorldCover/v200` | 10 m, 2021 — berguna sebagai pembanding |
+| DEM | `COPERNICUS/DEM/GLO30` | 30 m |
+
+::: {.callout-tip}
+## Mencari dataset lain
+
+Buka [Data Catalog](https://developers.google.com/earth-engine/datasets),
+cari dengan kata kunci Bahasa Inggris. Setiap halaman dataset punya tombol
+**"Open in Code Editor"** yang langsung memberi contoh skrip yang bisa jalan.
+:::
+
+## Untuk analisis dengan Python
+
+Pendekatan yang sama dengan Python ada di [buku `earthchange`](../buku/) —
+berguna kalau analisis Anda perlu dijalankan ulang secara otomatis, atau
+digabungkan dengan alur kerja lain di luar Earth Engine.

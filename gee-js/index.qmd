@@ -1,0 +1,106 @@
+---
+title: "Google Earth Engine dengan JavaScript"
+subtitle: "Webinar dua hari · 2 jam per hari · untuk pemula"
+author: "Firman Hadi"
+date: today
+date-format: "D MMMM YYYY"
+---
+
+## Untuk siapa materi ini {#untuk-siapa}
+
+Peserta webinar ini datang dari latar belakang yang beragam — akademisi,
+peneliti dan mahasiswa; ASN dan instansi pemerintah; praktisi GIS, survei dan
+pemetaan; konsultan dan engineering; serta bidang lingkungan, pertanian,
+perkebunan, kehutanan dan sumber daya alam.
+
+Yang menyatukan semuanya satu hal: **ingin memakai Earth Engine untuk pekerjaan
+nyata** — riset, laporan, dan peta yang bisa dipakai — bukan sekadar tahu
+bahwa alat ini ada.
+
+Materi ini ditulis dengan asumsi Anda **belum pernah menulis kode**. Yang
+diperlukan hanya kemampuan membaca peta dan kesediaan mengetik ulang beberapa
+baris.
+
+::: {.callout-note}
+## Bahasa
+
+Narasi dalam Bahasa Indonesia. **Judul bagian dan komentar di dalam kode
+sengaja dibiarkan Bahasa Inggris**, supaya istilah yang Anda lihat di sini
+sama persis dengan yang muncul di dokumentasi resmi Earth Engine ketika nanti
+Anda mencari sendiri.
+:::
+
+## Rundown {#rundown}
+
+Dua hari, masing-masing dua jam. Hari pertama membangun pemahaman; hari kedua
+mengerjakan satu alur analisis dari awal sampai peta jadi.
+
+### Day 1 — Concepts (2 jam)
+
+| Menit | Bagian | Isi |
+|------:|--------|-----|
+| 0–15 | Persiapan | Akun, membuka Code Editor, memastikan semua orang siap |
+| 15–35 | Why Earth Engine | Apa yang berubah kalau data tidak perlu diunduh |
+| 35–60 | Code Editor tour | Empat panel, Docs, Assets, Tasks, Inspector |
+| 60–90 | JavaScript secukupnya | `var`, fungsi, dictionary — hanya yang dipakai |
+| 90–120 | **Client vs server** | Bagian terpenting seluruh webinar |
+
+### Day 2 — Hands-on (2 jam)
+
+| Menit | Bagian | Hasil |
+|------:|--------|-------|
+| 0–20 | Sentinel-2 composite | Citra bebas awan untuk wilayah Anda |
+| 20–40 | NDVI | Peta kehijauan + grafik deret waktu |
+| 40–70 | Land cover classification | Peta tutupan lahan + angka akurasi |
+| 70–95 | Change detection | Peta perubahan antara dua tahun |
+| 95–120 | Export for reports | GeoTIFF, PNG, grafik, legenda |
+
+## Yang akan Anda bawa pulang {#hasil}
+
+Di akhir hari kedua Anda memiliki, untuk wilayah kerja Anda sendiri:
+
+- komposit Sentinel-2 bebas awan untuk dua periode waktu;
+- peta NDVI beserta grafik perubahannya sepanjang tahun;
+- **peta tutupan lahan hasil klasifikasi, lengkap dengan angka akurasi**;
+- peta perubahan tutupan lahan antara dua tahun;
+- berkas GeoTIFF dan PNG yang bisa langsung masuk laporan atau presentasi;
+- seluruh skrip, yang bisa Anda ubah wilayahnya lalu jalankan lagi.
+
+## Sebelum hari pertama {#persiapan}
+
+Tiga hal, semuanya gratis, semuanya sebaiknya diselesaikan **sebelum** webinar
+dimulai — supaya waktu dua jam tidak habis untuk pendaftaran.
+
+1. **Daftar Earth Engine.** Buka
+   [earthengine.google.com](https://earthengine.google.com/) → *Get Started*.
+   Gunakan akun Google. Persetujuan untuk penggunaan non-komersial biasanya
+   keluar dalam hitungan menit sampai satu hari — jangan menunggu sampai hari-H.
+2. **Buka Code Editor** di [code.earthengine.google.com](https://code.earthengine.google.com/).
+   Kalau muncul empat panel dan peta dunia, Anda siap.
+3. **Siapkan satu wilayah** yang Anda kenal betul — kabupaten tempat kerja,
+   area proyek, DAS yang Anda pantau. Analisis jauh lebih mudah dipahami kalau
+   Anda sudah tahu jawabannya secara kasar.
+
+::: {.callout-tip}
+## Kalau persetujuan akun belum keluar
+
+Anda tetap bisa mengikuti hari pertama sepenuhnya — hari pertama tentang
+konsep, dan semua contoh bisa diikuti dengan membaca. Untuk hari kedua,
+pinjam layar teman satu instansi, atau ikuti dengan menyimak lalu jalankan
+ulang skripnya nanti.
+:::
+
+## Cara memakai halaman ini {#cara-pakai}
+
+Setiap blok kode punya tombol salin di pojok kanan atas. Tidak perlu mengetik
+ulang — tetapi **mengetik ulang membuat Anda belajar lebih cepat** daripada
+menyalin, terutama di hari pertama.
+
+Semua skrip juga tersedia sebagai berkas `.js` terpisah di halaman
+[Scripts](skrip.qmd), dan sebagai repositori Earth Engine yang bisa Anda buka
+dengan satu klik.
+
+---
+
+*Materi ini bagian dari [rs-change-detection](https://github.com/firmanhadi21/rs-change-detection).
+Untuk analisis serupa dengan Python, lihat [buku `earthchange`](../buku/).*
