@@ -174,14 +174,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Di halaman ini</h2>
    
   <ul>
-  <li><a href="#komposit" id="toc-komposit" class="nav-link active" data-scroll-target="#komposit">1 · Cloud-free composite</a></li>
+  <li><a href="#area" id="toc-area" class="nav-link active" data-scroll-target="#area">Area kerja</a></li>
+  <li><a href="#komposit" id="toc-komposit" class="nav-link" data-scroll-target="#komposit">1 · Komposit bebas awan</a></li>
   <li><a href="#ndvi" id="toc-ndvi" class="nav-link" data-scroll-target="#ndvi">2 · NDVI</a>
   <ul class="collapse">
   <li><a href="#grafik-deret-waktu" id="toc-grafik-deret-waktu" class="nav-link" data-scroll-target="#grafik-deret-waktu">Grafik deret waktu</a></li>
   </ul></li>
-  <li><a href="#klasifikasi" id="toc-klasifikasi" class="nav-link" data-scroll-target="#klasifikasi">3 · Land cover classification</a></li>
-  <li><a href="#perubahan" id="toc-perubahan" class="nav-link" data-scroll-target="#perubahan">4 · Change detection</a></li>
-  <li><a href="#ekspor" id="toc-ekspor" class="nav-link" data-scroll-target="#ekspor">5 · Export for reports</a></li>
+  <li><a href="#klasifikasi" id="toc-klasifikasi" class="nav-link" data-scroll-target="#klasifikasi">3 · Klasifikasi tutupan lahan</a>
+  <ul class="collapse">
+  <li><a href="#langkah-1-siapkan-band-untuk-klasifikasi" id="toc-langkah-1-siapkan-band-untuk-klasifikasi" class="nav-link" data-scroll-target="#langkah-1-siapkan-band-untuk-klasifikasi">Langkah 1 · Siapkan band untuk klasifikasi</a></li>
+  <li><a href="#langkah-2-gambar-titik-latih-bagian-yang-tidak-bisa-disalin" id="toc-langkah-2-gambar-titik-latih-bagian-yang-tidak-bisa-disalin" class="nav-link" data-scroll-target="#langkah-2-gambar-titik-latih-bagian-yang-tidak-bisa-disalin">Langkah 2 · Gambar titik latih — bagian yang tidak bisa disalin</a></li>
+  <li><a href="#langkah-3-bagi-7030-latih-uji" id="toc-langkah-3-bagi-7030-latih-uji" class="nav-link" data-scroll-target="#langkah-3-bagi-7030-latih-uji">Langkah 3 · Bagi 70/30, latih, uji</a></li>
+  <li><a href="#langkah-4-baca-akurasinya-sebelum-melihat-petanya" id="toc-langkah-4-baca-akurasinya-sebelum-melihat-petanya" class="nav-link" data-scroll-target="#langkah-4-baca-akurasinya-sebelum-melihat-petanya">Langkah 4 · Baca akurasinya sebelum melihat petanya</a></li>
+  </ul></li>
+  <li><a href="#perubahan" id="toc-perubahan" class="nav-link" data-scroll-target="#perubahan">4 · Deteksi perubahan</a>
+  <ul class="collapse">
+  <li><a href="#untuk-pemateri-hasil-yang-seharusnya-muncul" id="toc-untuk-pemateri-hasil-yang-seharusnya-muncul" class="nav-link" data-scroll-target="#untuk-pemateri-hasil-yang-seharusnya-muncul">Untuk pemateri — hasil yang seharusnya muncul</a></li>
+  </ul></li>
+  <li><a href="#ekspor" id="toc-ekspor" class="nav-link" data-scroll-target="#ekspor">5 · Ekspor untuk laporan</a></li>
+  <li><a href="#tugas" id="toc-tugas" class="nav-link" data-scroll-target="#tugas">Tugas · 10 menit</a></li>
   <li><a href="#setelah" id="toc-setelah" class="nav-link" data-scroll-target="#setelah">Setelah webinar</a></li>
   </ul>
 </nav>
@@ -209,8 +220,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Hari ini semua orang mengetik. Di akhir sesi Anda punya peta tutupan lahan wilayah Anda sendiri, angka akurasinya, dan berkas yang bisa langsung masuk laporan.</p>
-<p>Kerjakan berurutan — tiap bagian memakai hasil bagian sebelumnya. Kalau tertinggal, jangan panik: tiap bagian punya skrip lengkap yang bisa disalin utuh untuk mengejar.</p>
+<p>Hari ini semua orang mengetik. Skripnya tumbuh sedikit demi sedikit — tidak ada langkah yang dibuang, dan yang kita bangun adalah satu alur utuh:</p>
+<blockquote class="blockquote">
+<p>Kawasan tambang nikel <strong>Konawe Utara, Sulawesi Tenggara</strong>: berapa hektar vegetasi hilang antara 2023 dan 2026, tutupan lahannya seperti apa, dan bagaimana mengeluarkannya sebagai berkas yang bisa dilampirkan.</p>
+</blockquote>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -224,79 +237,78 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Setengah kiri halaman ini, setengah kanan Code Editor. Peserta yang bolak-balik antar tab kehilangan banyak waktu.</p>
 </div>
 </div>
+<section id="area" class="level2">
+<h2 class="anchored" data-anchor-id="area">Area kerja</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Kawasan tambang nikel, Konawe Utara. Ganti ke wilayah Anda kalau mau —</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co">// semua bagian selanjutnya mengikuti variabel ini.</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> area <span class="op">=</span> ee<span class="op">.</span><span class="at">Geometry</span><span class="op">.</span><span class="fu">Rectangle</span>([<span class="fl">121.90</span><span class="op">,</span> <span class="op">-</span><span class="fl">3.30</span><span class="op">,</span> <span class="fl">122.05</span><span class="op">,</span> <span class="op">-</span><span class="fl">3.15</span>])<span class="op">;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">centerObject</span>(area<span class="op">,</span> <span class="dv">12</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Untuk wilayah Anda sendiri: cari di Google Maps, klik kanan, salin koordinatnya — lalu <strong>ingat membaliknya menjadi <code>[bujur, lintang]</code></strong>. Kalau peta Anda mendarat di Somalia, keduanya tertukar.</p>
+</section>
 <section id="komposit" class="level2">
-<h2 class="anchored" data-anchor-id="komposit">1 · Cloud-free composite</h2>
+<h2 class="anchored" data-anchor-id="komposit">1 · Komposit bebas awan</h2>
 <p><em>20 menit</em></p>
-<p>Satu citra Sentinel-2 di Indonesia hampir selalu berawan. Solusinya bukan mencari hari yang cerah, melainkan <strong>menggabungkan banyak citra dan mengambil nilai tengahnya</strong> — awan yang berpindah-pindah akan kalah suara.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">// AOI — ganti ke wilayah Anda</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> aoi <span class="op">=</span> ee<span class="op">.</span><span class="at">Geometry</span><span class="op">.</span><span class="fu">Point</span>([<span class="fl">121.35</span><span class="op">,</span> <span class="op">-</span><span class="fl">8.65</span>])<span class="op">.</span><span class="fu">buffer</span>(<span class="dv">15000</span>)<span class="op">;</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">centerObject</span>(aoi<span class="op">,</span> <span class="dv">11</span>)<span class="op">;</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Cloud mask memakai Scene Classification Layer</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">maskS2</span> (image) {</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> scl <span class="op">=</span> image<span class="op">.</span><span class="fu">select</span>(<span class="st">'SCL'</span>)<span class="op">;</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> buruk <span class="op">=</span> scl<span class="op">.</span><span class="fu">eq</span>(<span class="dv">3</span>)      <span class="co">// cloud shadow</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">or</span>(scl<span class="op">.</span><span class="fu">eq</span>(<span class="dv">8</span>))       <span class="co">// cloud medium probability</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">or</span>(scl<span class="op">.</span><span class="fu">eq</span>(<span class="dv">9</span>))       <span class="co">// cloud high probability</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">or</span>(scl<span class="op">.</span><span class="fu">eq</span>(<span class="dv">10</span>))<span class="op">;</span>     <span class="co">// cirrus</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> image<span class="op">.</span><span class="fu">updateMask</span>(buruk<span class="op">.</span><span class="fu">not</span>())<span class="op">.</span><span class="fu">divide</span>(<span class="dv">10000</span>)<span class="op">;</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> komposit <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">filterBounds</span>(aoi)</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-06-01'</span><span class="op">,</span> <span class="st">'2024-09-30'</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">filter</span>(ee<span class="op">.</span><span class="at">Filter</span><span class="op">.</span><span class="fu">lt</span>(<span class="st">'CLOUDY_PIXEL_PERCENTAGE'</span><span class="op">,</span> <span class="dv">60</span>))</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">map</span>(maskS2)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">median</span>()</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">clip</span>(aoi)<span class="op">;</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(komposit<span class="op">,</span> {<span class="dt">bands</span><span class="op">:</span> [<span class="st">'B4'</span><span class="op">,</span><span class="st">'B3'</span><span class="op">,</span><span class="st">'B2'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="fl">0.3</span>}<span class="op">,</span> <span class="st">'True colour'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>Periksa hasilnya sebelum lanjut.</strong> Kalau masih banyak lubang atau awan:</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Gejala</th>
-<th>Perbaikan</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>banyak lubang kosong</td>
-<td>lebarkan rentang tanggal</td>
-</tr>
-<tr class="even">
-<td>masih berawan</td>
-<td>naikkan filter <code>CLOUDY_PIXEL_PERCENTAGE</code> jadi 80</td>
-</tr>
-<tr class="odd">
-<td>gambar terlalu gelap/terang</td>
-<td>ubah <code>max</code> di visualisasi (0.2–0.4)</td>
-</tr>
-</tbody>
-</table>
+<p>Satu citra jarang cukup di Indonesia, dan pesertanya biasanya sudah tahu alasannya sebelum kita menyebutkannya: <strong>awan</strong>. Menunggu satu citra yang benar-benar bersih di atas Sulawesi bisa berarti menunggu berbulan-bulan.</p>
+<p>Solusinya bukan mencari citra sempurna, melainkan <strong>menggabungkan banyak citra tidak sempurna</strong>. Untuk setiap piksel: buang yang tertutup awan, lalu ambil nilai tengah (median) dari sisanya. Awan di citra A ditambal piksel bersih dari citra F — otomatis, per piksel.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Membuang piksel awan dengan band SCL (Scene Classification Layer)</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">maskAwan</span> (citra) {</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> scl <span class="op">=</span> citra<span class="op">.</span><span class="fu">select</span>(<span class="st">'SCL'</span>)<span class="op">;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> bersih <span class="op">=</span> scl<span class="op">.</span><span class="fu">neq</span>(<span class="dv">3</span>)        <span class="co">// 3  = bayangan awan</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">and</span>(scl<span class="op">.</span><span class="fu">neq</span>(<span class="dv">8</span>))         <span class="co">// 8  = awan probabilitas sedang</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">and</span>(scl<span class="op">.</span><span class="fu">neq</span>(<span class="dv">9</span>))         <span class="co">// 9  = awan probabilitas tinggi</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">and</span>(scl<span class="op">.</span><span class="fu">neq</span>(<span class="dv">10</span>))        <span class="co">// 10 = cirrus tipis</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">and</span>(scl<span class="op">.</span><span class="fu">neq</span>(<span class="dv">11</span>))<span class="op">;</span>       <span class="co">// 11 = salju / es</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> citra<span class="op">.</span><span class="fu">updateMask</span>(bersih)<span class="op">;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Satu komposit median untuk satu rentang tanggal</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">komposit</span> (mulai<span class="op">,</span> selesai) {</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filterBounds</span>(area)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filterDate</span>(mulai<span class="op">,</span> selesai)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filter</span>(ee<span class="op">.</span><span class="at">Filter</span><span class="op">.</span><span class="fu">lte</span>(<span class="st">'CLOUDY_PIXEL_PERCENTAGE'</span><span class="op">,</span> <span class="dv">60</span>))</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">map</span>(maskAwan)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">median</span>()<span class="op">;</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> sebelum <span class="op">=</span> <span class="fu">komposit</span>(<span class="st">'2023-01-01'</span><span class="op">,</span> <span class="st">'2023-12-31'</span>)<span class="op">;</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> sesudah <span class="op">=</span> <span class="fu">komposit</span>(<span class="st">'2026-01-01'</span><span class="op">,</span> <span class="st">'2026-06-30'</span>)<span class="op">;</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(sebelum<span class="op">.</span><span class="fu">clip</span>(area)<span class="op">,</span> {<span class="dt">bands</span><span class="op">:</span>[<span class="st">'B4'</span><span class="op">,</span><span class="st">'B3'</span><span class="op">,</span><span class="st">'B2'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span><span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span><span class="dv">3000</span>}<span class="op">,</span> <span class="st">'Sebelum 2023'</span>)<span class="op">;</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(sesudah<span class="op">.</span><span class="fu">clip</span>(area)<span class="op">,</span> {<span class="dt">bands</span><span class="op">:</span>[<span class="st">'B4'</span><span class="op">,</span><span class="st">'B3'</span><span class="op">,</span><span class="st">'B2'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span><span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span><span class="dv">3000</span>}<span class="op">,</span> <span class="st">'Sesudah 2026'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Jalankan, lalu bandingkan kedua lapisan dengan menyalakan–mematikannya lewat panel <strong>Layers</strong>. Perbedaannya seharusnya sudah terlihat dengan mata telanjang.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Catatan</span>Kenapa <code>divide(10000)</code>
+<span class="screen-reader-only">Catatan</span>Kenapa <code>max: 3000</code>, bukan 255?
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Sentinel-2 menyimpan reflektansi sebagai bilangan bulat untuk menghemat ruang. Dibagi 10.000 supaya kembali ke skala 0–1, yang membuat nilai NDVI nanti masuk akal.</p>
+<p>Sentinel-2 Level-2A menyimpan pantulan permukaan dalam bilangan bulat yang dikalikan 10.000. Jadi nilai 3000 berarti pantulan 0,30 alias 30% — kira-kira batas atas yang wajar untuk vegetasi dan tanah. Kalau citra tampak terlalu gelap, naikkan; terlalu terang, turunkan.</p>
 </div>
 </div>
+<p>Tambahkan juga versi <strong>warna semu</strong>, lalu nyalakan bergantian:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(sesudah<span class="op">.</span><span class="fu">clip</span>(area)<span class="op">,</span> {<span class="dt">bands</span><span class="op">:</span>[<span class="st">'B8'</span><span class="op">,</span><span class="st">'B4'</span><span class="op">,</span><span class="st">'B3'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span><span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span><span class="dv">3000</span>}<span class="op">,</span> <span class="st">'Warna semu'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Pada warna semu, vegetasi sehat menyala <strong>merah terang</strong> — karena daun memantulkan inframerah-dekat jauh lebih kuat daripada cahaya tampak. Sifat inilah yang dipakai NDVI di bagian berikutnya.</p>
 </section>
 <section id="ndvi" class="level2">
 <h2 class="anchored" data-anchor-id="ndvi">2 · NDVI</h2>
 <p><em>20 menit</em></p>
-<p>NDVI membandingkan inframerah dekat dengan merah. Vegetasi sehat memantulkan banyak inframerah dan menyerap merah, jadi nilainya tinggi.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> ndvi <span class="op">=</span> komposit<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span> <span class="st">'B4'</span>])<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDVI'</span>)<span class="op">;</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(ndvi<span class="op">,</span> {<span class="dt">min</span><span class="op">:</span> <span class="op">-</span><span class="fl">0.2</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="fl">0.8</span><span class="op">,</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">palette</span><span class="op">:</span> [<span class="st">'#c8553d'</span><span class="op">,</span> <span class="st">'#f0e6c8'</span><span class="op">,</span> <span class="st">'#2d6a4f'</span>]}<span class="op">,</span> <span class="st">'NDVI'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Pegangan membaca nilainya:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">ndvi</span> (citra) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> citra<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span> <span class="st">'B4'</span>])<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDVI'</span>)<span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> ndviSebelum <span class="op">=</span> <span class="fu">ndvi</span>(sebelum)<span class="op">.</span><span class="fu">clip</span>(area)<span class="op">;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> ndviSesudah <span class="op">=</span> <span class="fu">ndvi</span>(sesudah)<span class="op">.</span><span class="fu">clip</span>(area)<span class="op">;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> visNDVI <span class="op">=</span> {<span class="dt">min</span><span class="op">:</span> <span class="op">-</span><span class="fl">0.2</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="fl">0.8</span><span class="op">,</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>               <span class="dt">palette</span><span class="op">:</span> [<span class="st">'#c8553d'</span><span class="op">,</span> <span class="st">'#f0e6c8'</span><span class="op">,</span> <span class="st">'#2d6a4f'</span>]}<span class="op">;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(ndviSebelum<span class="op">,</span> visNDVI<span class="op">,</span> <span class="st">'NDVI 2023'</span>)<span class="op">;</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(ndviSesudah<span class="op">,</span> visNDVI<span class="op">,</span> <span class="st">'NDVI 2026'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -311,7 +323,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td style="text-align: right;">0 – 0.2</td>
-<td>lahan terbuka, terbangun</td>
+<td>lahan terbuka, terbangun, tambang</td>
 </tr>
 <tr class="odd">
 <td style="text-align: right;">0.2 – 0.4</td>
@@ -327,44 +339,103 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p><strong>Pakai Inspector untuk memverifikasi.</strong> Klik di laut — NDVI harus negatif. Klik di hutan — harus di atas 0.6. Kalau tidak, ada yang salah pada komposit Anda, dan lebih baik ketahuan sekarang daripada tiga bagian kemudian.</p>
+<p><strong>Verifikasi dengan Inspector sebelum lanjut.</strong> Klik di badan air — harus negatif. Klik di hutan — harus di atas 0,6. Kalau tidak sesuai, ada yang salah pada komposit Anda, dan lebih baik ketahuan sekarang daripada tiga bagian kemudian.</p>
 <section id="grafik-deret-waktu" class="level3">
 <h3 class="anchored" data-anchor-id="grafik-deret-waktu">Grafik deret waktu</h3>
-<p>Inilah yang biasanya diminta untuk laporan: bagaimana kehijauan berubah sepanjang tahun.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> koleksi <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">filterBounds</span>(aoi)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-01-01'</span><span class="op">,</span> <span class="st">'2024-12-31'</span>)</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">map</span>(maskS2)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">map</span>(<span class="kw">function</span> (img) {</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> img<span class="op">.</span><span class="fu">addBands</span>(img<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span><span class="st">'B4'</span>])<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDVI'</span>))</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">copyProperties</span>(img<span class="op">,</span> [<span class="st">'system:time_start'</span>])<span class="op">;</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(ui<span class="op">.</span><span class="at">Chart</span><span class="op">.</span><span class="at">image</span><span class="op">.</span><span class="fu">series</span>({</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">imageCollection</span><span class="op">:</span> koleksi<span class="op">.</span><span class="fu">select</span>(<span class="st">'NDVI'</span>)<span class="op">,</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">region</span><span class="op">:</span> aoi<span class="op">,</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">reducer</span><span class="op">:</span> ee<span class="op">.</span><span class="at">Reducer</span><span class="op">.</span><span class="fu">mean</span>()<span class="op">,</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">scale</span><span class="op">:</span> <span class="dv">100</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>})<span class="op">.</span><span class="fu">setOptions</span>({</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span><span class="op">:</span> <span class="st">'NDVI sepanjang 2024'</span><span class="op">,</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">vAxis</span><span class="op">:</span> {<span class="dt">title</span><span class="op">:</span> <span class="st">'NDVI'</span>}<span class="op">,</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">lineWidth</span><span class="op">:</span> <span class="dv">2</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>}))<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Grafik muncul di Console. Klik ikon panah di pojoknya untuk membukanya di tab baru, lalu unduh sebagai PNG atau CSV — CSV berguna kalau Anda ingin mengolah angkanya di Excel.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> setahun <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">filterBounds</span>(area)<span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2025-01-01'</span><span class="op">,</span> <span class="st">'2025-12-31'</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">map</span>(maskAwan)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">map</span>(<span class="kw">function</span> (img) {</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> img<span class="op">.</span><span class="fu">addBands</span>(<span class="fu">ndvi</span>(img))<span class="op">.</span><span class="fu">copyProperties</span>(img<span class="op">,</span> [<span class="st">'system:time_start'</span>])<span class="op">;</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(ui<span class="op">.</span><span class="at">Chart</span><span class="op">.</span><span class="at">image</span><span class="op">.</span><span class="fu">series</span>({</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">imageCollection</span><span class="op">:</span> setahun<span class="op">.</span><span class="fu">select</span>(<span class="st">'NDVI'</span>)<span class="op">,</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">region</span><span class="op">:</span> area<span class="op">,</span> <span class="dt">reducer</span><span class="op">:</span> ee<span class="op">.</span><span class="at">Reducer</span><span class="op">.</span><span class="fu">mean</span>()<span class="op">,</span> <span class="dt">scale</span><span class="op">:</span> <span class="dv">100</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>})<span class="op">.</span><span class="fu">setOptions</span>({<span class="dt">title</span><span class="op">:</span> <span class="st">'NDVI sepanjang 2025'</span><span class="op">,</span> <span class="dt">vAxis</span><span class="op">:</span> {<span class="dt">title</span><span class="op">:</span> <span class="st">'NDVI'</span>}}))<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Grafik muncul di Console. Klik ikon panah di pojoknya untuk membukanya di tab baru, lalu unduh sebagai PNG untuk laporan atau CSV kalau angkanya mau diolah di Excel.</p>
 </section>
 </section>
 <section id="klasifikasi" class="level2">
-<h2 class="anchored" data-anchor-id="klasifikasi">3 · Land cover classification</h2>
-<p><em>30 menit — bagian terpenting hari ini</em></p>
-<p>Skrip lengkapnya: <a href="scripts/05-land-cover-classification.js"><code>05-land-cover-classification.js</code></a>. Buka, salin seluruhnya ke Code Editor, lalu ikuti bersama.</p>
-<p>Alurnya lima langkah:</p>
-<ol type="1">
-<li><strong>Tentukan kelas.</strong> Mulai dari sedikit — air, hutan, pertanian, terbangun, lahan terbuka. Lima kelas yang benar jauh lebih berguna daripada dua belas kelas yang saling tertukar.</li>
-<li><strong>Gambar titik latih.</strong> 20–40 titik per kelas, di area yang Anda yakin. Ini satu-satunya bagian yang tidak bisa disalin dari siapa pun: hanya Anda yang tahu wilayah Anda.</li>
-<li><strong>Bagi data 70/30.</strong> 70% untuk melatih, 30% disisihkan untuk menguji.</li>
-<li><strong>Latih Random Forest</strong>, lalu klasifikasikan seluruh citra.</li>
-<li><strong>Baca angka akurasinya</strong> sebelum melihat petanya.</li>
-</ol>
+<h2 class="anchored" data-anchor-id="klasifikasi">3 · Klasifikasi tutupan lahan</h2>
+<p><em>30 menit · bagian baru, dan yang paling sering diminta</em></p>
+<p>NDVI memberi tahu seberapa hijau. Klasifikasi memberi tahu <strong>apa</strong> — hutan, tambang, air, terbangun — dan itu yang biasanya diminta dalam laporan.</p>
+<p>Skrip lengkapnya: <a href="scripts/05-land-cover-classification.js"><code>05-land-cover-classification.js</code></a>.</p>
+<section id="langkah-1-siapkan-band-untuk-klasifikasi" class="level3">
+<h3 class="anchored" data-anchor-id="langkah-1-siapkan-band-untuk-klasifikasi">Langkah 1 · Siapkan band untuk klasifikasi</h3>
+<p>Menambahkan indeks hampir selalu menaikkan akurasi, karena air dan lahan terbuka jadi lebih mudah dibedakan dari vegetasi.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> citra <span class="op">=</span> sesudah<span class="op">.</span><span class="fu">select</span>([<span class="st">'B2'</span><span class="op">,</span><span class="st">'B3'</span><span class="op">,</span><span class="st">'B4'</span><span class="op">,</span><span class="st">'B8'</span><span class="op">,</span><span class="st">'B11'</span><span class="op">,</span><span class="st">'B12'</span>])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">addBands</span>(<span class="fu">ndvi</span>(sesudah))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">addBands</span>(sesudah<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B3'</span><span class="op">,</span><span class="st">'B8'</span>])<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDWI'</span>))</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">addBands</span>(sesudah<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B11'</span><span class="op">,</span><span class="st">'B8'</span>])<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDBI'</span>))</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">clip</span>(area)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="langkah-2-gambar-titik-latih-bagian-yang-tidak-bisa-disalin" class="level3">
+<h3 class="anchored" data-anchor-id="langkah-2-gambar-titik-latih-bagian-yang-tidak-bisa-disalin">Langkah 2 · Gambar titik latih — bagian yang tidak bisa disalin</h3>
+<p>Komputer tidak tahu seperti apa “tambang” di wilayah Anda. Anda yang memberi tahu.</p>
+<p>Di panel <strong>Geometry Imports</strong> (kiri atas peta): klik <code>+ new layer</code>, ganti namanya, klik ikon roda gigi → <strong>Import as: FeatureCollection</strong>, tambahkan property <code>kelas</code> berisi angka. Lalu gambar 20–40 titik di area yang <strong>jelas</strong> kelas itu.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Kelas</th>
+<th style="text-align: right;">Nilai</th>
+<th>Warna</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>air</td>
+<td style="text-align: right;">0</td>
+<td>biru tua</td>
+</tr>
+<tr class="even">
+<td>hutan</td>
+<td style="text-align: right;">1</td>
+<td>hijau tua</td>
+</tr>
+<tr class="odd">
+<td>pertanian / semak</td>
+<td style="text-align: right;">2</td>
+<td>hijau muda</td>
+</tr>
+<tr class="even">
+<td>terbangun</td>
+<td style="text-align: right;">3</td>
+<td>merah</td>
+</tr>
+<tr class="odd">
+<td>lahan terbuka / tambang</td>
+<td style="text-align: right;">4</td>
+<td>coklat</td>
+</tr>
+</tbody>
+</table>
+<p>Mulai dari sedikit kelas. <strong>Lima kelas yang benar jauh lebih berguna daripada dua belas kelas yang saling tertukar.</strong></p>
+</section>
+<section id="langkah-3-bagi-7030-latih-uji" class="level3">
+<h3 class="anchored" data-anchor-id="langkah-3-bagi-7030-latih-uji">Langkah 3 · Bagi 70/30, latih, uji</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> contoh <span class="op">=</span> citra<span class="op">.</span><span class="fu">sampleRegions</span>({</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">collection</span><span class="op">:</span> titikLatih<span class="op">,</span> <span class="dt">properties</span><span class="op">:</span> [<span class="st">'kelas'</span>]<span class="op">,</span> <span class="dt">scale</span><span class="op">:</span> <span class="dv">10</span><span class="op">,</span> <span class="dt">tileScale</span><span class="op">:</span> <span class="dv">2</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> acak <span class="op">=</span> contoh<span class="op">.</span><span class="fu">randomColumn</span>(<span class="st">'acak'</span><span class="op">,</span> <span class="dv">42</span>)<span class="op">;</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> latih <span class="op">=</span> acak<span class="op">.</span><span class="fu">filter</span>(ee<span class="op">.</span><span class="at">Filter</span><span class="op">.</span><span class="fu">lt</span>(<span class="st">'acak'</span><span class="op">,</span> <span class="fl">0.7</span>))<span class="op">;</span>    <span class="co">// 70% melatih</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> uji   <span class="op">=</span> acak<span class="op">.</span><span class="fu">filter</span>(ee<span class="op">.</span><span class="at">Filter</span><span class="op">.</span><span class="fu">gte</span>(<span class="st">'acak'</span><span class="op">,</span> <span class="fl">0.7</span>))<span class="op">;</span>   <span class="co">// 30% menguji</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> model <span class="op">=</span> ee<span class="op">.</span><span class="at">Classifier</span><span class="op">.</span><span class="fu">smileRandomForest</span>(<span class="dv">100</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">train</span>({<span class="dt">features</span><span class="op">:</span> latih<span class="op">,</span> <span class="dt">classProperty</span><span class="op">:</span> <span class="st">'kelas'</span><span class="op">,</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>          <span class="dt">inputProperties</span><span class="op">:</span> citra<span class="op">.</span><span class="fu">bandNames</span>()})<span class="op">;</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> hasil <span class="op">=</span> citra<span class="op">.</span><span class="fu">classify</span>(model)<span class="op">;</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(hasil<span class="op">,</span> {<span class="dt">min</span><span class="op">:</span><span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span><span class="dv">4</span><span class="op">,</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">palette</span><span class="op">:</span>[<span class="st">'1f4e79'</span><span class="op">,</span><span class="st">'1a7d3a'</span><span class="op">,</span><span class="st">'9acd32'</span><span class="op">,</span><span class="st">'c0392b'</span><span class="op">,</span><span class="st">'d9b38c'</span>]}<span class="op">,</span> <span class="st">'Tutupan lahan'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="langkah-4-baca-akurasinya-sebelum-melihat-petanya" class="level3">
+<h3 class="anchored" data-anchor-id="langkah-4-baca-akurasinya-sebelum-melihat-petanya">Langkah 4 · Baca akurasinya sebelum melihat petanya</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> matriks <span class="op">=</span> uji<span class="op">.</span><span class="fu">classify</span>(model)<span class="op">.</span><span class="fu">errorMatrix</span>(<span class="st">'kelas'</span><span class="op">,</span> <span class="st">'classification'</span>)<span class="op">;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">'Overall accuracy:'</span><span class="op">,</span> matriks<span class="op">.</span><span class="fu">accuracy</span>())<span class="op">;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">'Kappa:'</span><span class="op">,</span> matriks<span class="op">.</span><span class="fu">kappa</span>())<span class="op">;</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">'Confusion matrix:'</span><span class="op">,</span> matriks)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-important callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -375,11 +446,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Apa pun yang Anda masukkan, hasilnya berupa peta berwarna rapi yang terlihat profesional. Itu sebabnya langkah 3 dan 5 tidak boleh dilewati — angka akurasi adalah satu-satunya hal yang membedakan peta yang layak dipakai dari peta yang sekadar indah.</p>
-<p>Kalau Anda menguji model dengan titik yang sama seperti yang dipakai melatih, akurasinya akan tinggi dan tidak berarti apa-apa — seperti mengujikan soal yang bocorannya sudah diberikan.</p>
+<p>Apa pun yang Anda masukkan, hasilnya berupa peta berwarna rapi yang terlihat profesional. Itu sebabnya pembagian 70/30 tidak boleh dilewati.</p>
+<p>Kalau model diuji dengan titik yang sama seperti yang dipakai melatih, akurasinya hampir selalu tinggi — persis seperti murid yang sudah diberi bocoran soal. Angka itu tidak berarti apa-apa.</p>
 </div>
 </div>
-<p>Cara membaca hasilnya:</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -403,67 +473,104 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 <p>Kalau rendah, lihat <strong>confusion matrix</strong>: baris yang nilainya tersebar menunjukkan kelas mana tertukar dengan apa. Yang paling sering di Indonesia: pertanian tertukar dengan lahan terbuka, karena sawah bera secara spektral memang mirip tanah kosong.</p>
-</section>
-<section id="perubahan" class="level2">
-<h2 class="anchored" data-anchor-id="perubahan">4 · Change detection</h2>
-<p><em>25 menit</em></p>
-<p>Cara paling sederhana dan paling mudah dijelaskan dalam laporan: bandingkan NDVI dua tahun.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">ndviTahun</span> (tahun) {</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filterBounds</span>(aoi)</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filterDate</span>(tahun <span class="op">+</span> <span class="st">'-06-01'</span><span class="op">,</span> tahun <span class="op">+</span> <span class="st">'-09-30'</span>)</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filter</span>(ee<span class="op">.</span><span class="at">Filter</span><span class="op">.</span><span class="fu">lt</span>(<span class="st">'CLOUDY_PIXEL_PERCENTAGE'</span><span class="op">,</span> <span class="dv">60</span>))</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">map</span>(maskS2)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">median</span>()</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span><span class="st">'B4'</span>])</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">clip</span>(aoi)<span class="op">;</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> ndvi2019 <span class="op">=</span> <span class="fu">ndviTahun</span>(<span class="st">'2019'</span>)<span class="op">;</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> ndvi2024 <span class="op">=</span> <span class="fu">ndviTahun</span>(<span class="st">'2024'</span>)<span class="op">;</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> selisih  <span class="op">=</span> ndvi2024<span class="op">.</span><span class="fu">subtract</span>(ndvi2019)<span class="op">;</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(selisih<span class="op">,</span> {<span class="dt">min</span><span class="op">:</span> <span class="op">-</span><span class="fl">0.3</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="fl">0.3</span><span class="op">,</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">palette</span><span class="op">:</span> [<span class="st">'#b2182b'</span><span class="op">,</span> <span class="st">'#f7f7f7'</span><span class="op">,</span> <span class="st">'#1a9850'</span>]}<span class="op">,</span> <span class="st">'Perubahan NDVI'</span>)<span class="op">;</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co">// Hanya penurunan tajam — kandidat kehilangan vegetasi</span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> hilang <span class="op">=</span> selisih<span class="op">.</span><span class="fu">lt</span>(<span class="op">-</span><span class="fl">0.2</span>)<span class="op">;</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(hilang<span class="op">.</span><span class="fu">selfMask</span>()<span class="op">,</span> {<span class="dt">palette</span><span class="op">:</span> [<span class="st">'#d73027'</span>]}<span class="op">,</span> <span class="st">'Vegetasi berkurang'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Menghitung luasnya, untuk tabel laporan:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> luasHa <span class="op">=</span> ee<span class="op">.</span><span class="at">Image</span><span class="op">.</span><span class="fu">pixelArea</span>()<span class="op">.</span><span class="fu">divide</span>(<span class="fl">1e4</span>)<span class="op">.</span><span class="fu">updateMask</span>(hilang)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">reduceRegion</span>({</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">reducer</span><span class="op">:</span> ee<span class="op">.</span><span class="at">Reducer</span><span class="op">.</span><span class="fu">sum</span>()<span class="op">,</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">geometry</span><span class="op">:</span> aoi<span class="op">,</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">scale</span><span class="op">:</span> <span class="dv">10</span><span class="op">,</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">maxPixels</span><span class="op">:</span> <span class="fl">1e10</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">'Luas vegetasi berkurang (ha):'</span><span class="op">,</span> luasHa)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Peringatan</span>Turunnya NDVI belum tentu deforestasi
+<span class="screen-reader-only">Peringatan</span>Di sinilah kuota itu terasa
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Bisa juga panen, kekeringan musiman, atau perbedaan tanggal perekaman. Karena itu gunakan jendela musim yang sama untuk kedua tahun — dan verifikasi sebagian titik dengan citra resolusi tinggi sebelum menyebutnya “perubahan tutupan lahan” dalam laporan.</p>
+<p>Kalau muncul <strong>“User memory limit exceeded”</strong>, inilah batas yang disebut kemarin. Tiga cara mengatasinya, dari yang paling ringan: naikkan <code>tileScale</code> (2 → 4 → 8), perkecil AOI, atau naikkan <code>scale</code> dari 10 ke 20 selagi masih bereksperimen.</p>
 </div>
 </div>
 </section>
-<section id="ekspor" class="level2">
-<h2 class="anchored" data-anchor-id="ekspor">5 · Export for reports</h2>
+</section>
+<section id="perubahan" class="level2">
+<h2 class="anchored" data-anchor-id="perubahan">4 · Deteksi perubahan</h2>
 <p><em>25 menit</em></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>Export<span class="op">.</span><span class="at">image</span><span class="op">.</span><span class="fu">toDrive</span>({</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">image</span><span class="op">:</span> hasil<span class="op">.</span><span class="fu">byte</span>()<span class="op">,</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">description</span><span class="op">:</span> <span class="st">'tutupan_lahan_2024'</span><span class="op">,</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">folder</span><span class="op">:</span> <span class="st">'GEE_webinar'</span><span class="op">,</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">region</span><span class="op">:</span> aoi<span class="op">,</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">scale</span><span class="op">:</span> <span class="dv">10</span><span class="op">,</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">maxPixels</span><span class="op">:</span> <span class="fl">1e10</span><span class="op">,</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">fileFormat</span><span class="op">:</span> <span class="st">'GeoTIFF'</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> selisih <span class="op">=</span> ndviSesudah<span class="op">.</span><span class="fu">subtract</span>(ndviSebelum)<span class="op">;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(selisih<span class="op">,</span> {<span class="dt">min</span><span class="op">:-</span><span class="fl">0.3</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span><span class="fl">0.3</span><span class="op">,</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">palette</span><span class="op">:</span>[<span class="st">'#b2182b'</span><span class="op">,</span><span class="st">'#f7f7f7'</span><span class="op">,</span><span class="st">'#1a9850'</span>]}<span class="op">,</span> <span class="st">'Perubahan NDVI'</span>)<span class="op">;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> AMBANG <span class="op">=</span> <span class="op">-</span><span class="fl">0.15</span><span class="op">;</span>              <span class="co">// turun lebih dari 0,15 dianggap kehilangan</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> hilang <span class="op">=</span> selisih<span class="op">.</span><span class="fu">lt</span>(AMBANG)<span class="op">;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(hilang<span class="op">.</span><span class="fu">selfMask</span>()<span class="op">.</span><span class="fu">clip</span>(area)<span class="op">,</span> {<span class="dt">palette</span><span class="op">:</span>[<span class="st">'red'</span>]}<span class="op">,</span> <span class="st">'Kehilangan vegetasi'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>.selfMask()</code> menyembunyikan piksel bernilai nol, sehingga yang tergambar hanya area yang benar-benar berubah.</p>
+<p>Lalu ubah peta menjadi angka — bagian yang biasanya paling ditunggu:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> luas <span class="op">=</span> hilang<span class="op">.</span><span class="fu">multiply</span>(ee<span class="op">.</span><span class="at">Image</span><span class="op">.</span><span class="fu">pixelArea</span>())   <span class="co">// luas tiap piksel, m2</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">divide</span>(<span class="dv">10000</span>)                                    <span class="co">// m2 -&gt; hektar</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">.</span><span class="fu">reduceRegion</span>({</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">reducer</span><span class="op">:</span> ee<span class="op">.</span><span class="at">Reducer</span><span class="op">.</span><span class="fu">sum</span>()<span class="op">,</span> <span class="dt">geometry</span><span class="op">:</span> area<span class="op">,</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">scale</span><span class="op">:</span> <span class="dv">20</span><span class="op">,</span> <span class="dt">maxPixels</span><span class="op">:</span> <span class="fl">1e10</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">'Luas kehilangan vegetasi (ha):'</span><span class="op">,</span> luas)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>reduceRegion</code> meringkas seluruh piksel dalam sebuah wilayah menjadi satu angka. Parameter <code>scale</code> menentukan resolusi perhitungan, dan berpengaruh besar pada waktu proses; untuk latihan 20 m sudah memadai.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Penting</span>Angka −0,15 itu pilihan, bukan kebenaran
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Tidak ada yang menurunkannya dari langit. Ubah menjadi −0,10 dan area merah melebar; −0,25 dan ia menyempit.</p>
+<p>Karena itu, saat melaporkan hasil, <strong>selalu sebutkan ambang yang dipakai</strong>. Pernyataan <em>“wilayah A dua kali wilayah B pada ambang yang sama”</em> jauh lebih kokoh daripada <em>“wilayah A rusak 37,2%”</em>.</p>
+</div>
+</div>
+<section id="untuk-pemateri-hasil-yang-seharusnya-muncul" class="level3">
+<h3 class="anchored" data-anchor-id="untuk-pemateri-hasil-yang-seharusnya-muncul">Untuk pemateri — hasil yang seharusnya muncul</h3>
+<p>Sudah diuji lebih dulu pada AOI seluas 11.175 ha (30 citra pada 2023, 13 citra pada 2026):</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">Ambang</th>
+<th style="text-align: right;">Luas terdeteksi</th>
+<th style="text-align: right;">Porsi AOI</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">−0,10</td>
+<td style="text-align: right;">1.681 ha</td>
+<td style="text-align: right;">15,0%</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;"><strong>−0,15</strong> (nilai di skrip)</td>
+<td style="text-align: right;"><strong>1.178 ha</strong></td>
+<td style="text-align: right;"><strong>10,5%</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">−0,25</td>
+<td style="text-align: right;">560 ha</td>
+<td style="text-align: right;">5,0%</td>
+</tr>
+</tbody>
+</table>
+<p>Inilah inti latihan berikutnya, dan sebaiknya ditulis di papan: <strong>menggeser satu angka dari −0,10 ke −0,25 mengubah jawaban tiga kali lipat</strong> — 1.681 ha versus 560 ha — pada data yang sama persis. Tidak ada yang keliru, tidak ada bug. Yang berubah cuma satu keputusan yang biasanya tidak pernah disebutkan dalam laporan.</p>
+<p>Kalau angka peserta meleset agak jauh dari tabel ini, penyebabnya kemungkinan besar arsip yang bertambah — citra 2026 masih terus masuk — bukan kesalahan pengetikan.</p>
+</section>
+</section>
+<section id="ekspor" class="level2">
+<h2 class="anchored" data-anchor-id="ekspor">5 · Ekspor untuk laporan</h2>
+<p><em>25 menit</em></p>
+<p>Peta di layar bagus untuk diskusi, tapi cepat atau lambat hasilnya perlu masuk QGIS, ArcGIS, atau lampiran laporan.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>Export<span class="op">.</span><span class="at">image</span><span class="op">.</span><span class="fu">toDrive</span>({</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">image</span><span class="op">:</span> hasil<span class="op">.</span><span class="fu">byte</span>()<span class="op">,</span>                  <span class="co">// byte: berkas jauh lebih kecil</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">description</span><span class="op">:</span> <span class="st">'tutupan_lahan_2026'</span><span class="op">,</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">folder</span><span class="op">:</span> <span class="st">'GEE_webinar'</span><span class="op">,</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">region</span><span class="op">:</span> area<span class="op">,</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">scale</span><span class="op">:</span> <span class="dv">10</span><span class="op">,</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">maxPixels</span><span class="op">:</span> <span class="fl">1e10</span><span class="op">,</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">fileFormat</span><span class="op">:</span> <span class="st">'GeoTIFF'</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="callout callout-style-default callout-important callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -477,52 +584,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Menjalankan skrip hanya <strong>mengantre</strong> tugasnya. Anda masih harus membuka tab <strong>Tasks</strong> di panel kanan dan menekan <strong>RUN</strong> pada tiap tugas. Ini keluhan nomor satu peserta webinar GEE, tanpa terkecuali.</p>
 </div>
 </div>
-<p>Format mana untuk keperluan apa:</p>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Keperluan</th>
 <th>Format</th>
-<th>Catatan</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td>dibuka di QGIS/ArcGIS</td>
 <td>GeoTIFF</td>
-<td>punya koordinat, bisa dianalisis lagi</td>
 </tr>
 <tr class="even">
 <td>gambar untuk laporan Word</td>
 <td>GeoTIFF hasil <code>.visualize()</code></td>
-<td>sudah berwarna sesuai palet</td>
 </tr>
 <tr class="odd">
 <td>angka untuk tabel</td>
 <td>CSV lewat <code>Export.table</code></td>
-<td>dari <code>reduceRegion</code></td>
 </tr>
 <tr class="even">
 <td>grafik</td>
 <td>PNG dari Console</td>
-<td>klik ikon panah di grafik</td>
 </tr>
 </tbody>
 </table>
-<p>Untuk peta yang benar-benar siap presentasi — dengan legenda, skala dan judul — ekspor GeoTIFF-nya, lalu susun tata letaknya di QGIS. Earth Engine bagus untuk analisis; QGIS lebih baik untuk kartografi.</p>
+<p>Untuk peta yang benar-benar siap cetak — dengan skala, arah utara dan kotak judul — ekspor GeoTIFF-nya, lalu susun tata letaknya di QGIS. Earth Engine unggul untuk analisis; QGIS lebih baik untuk kartografi.</p>
+</section>
+<section id="tugas" class="level2">
+<h2 class="anchored" data-anchor-id="tugas">Tugas · 10 menit</h2>
+<p><strong>a.</strong> Ganti <code>AMBANG</code> menjadi −0,10 lalu −0,25. Catat luasnya masing-masing. Seberapa besar pengaruh satu keputusan kecil itu terhadap angka yang akan Anda kutip dalam laporan?</p>
+<p><strong>b.</strong> Ganti koordinat <code>area</code> ke wilayah kerja Anda sendiri, dan jalankan seluruh skrip dari awal. Apakah kelas-kelas yang Anda pilih masih masuk akal di sana?</p>
+<p><strong>c.</strong> Lihat <em>overall accuracy</em> klasifikasi Anda. Kalau di bawah 0,70, tambah titik latih pada kelas yang paling tertukar di confusion matrix, lalu ulangi.</p>
 </section>
 <section id="setelah" class="level2">
 <h2 class="anchored" data-anchor-id="setelah">Setelah webinar</h2>
-<p>Tiga langkah yang membuat materi ini benar-benar terpakai:</p>
 <ol type="1">
-<li><strong>Jalankan ulang untuk wilayah Anda sendiri</strong> minggu ini juga, selagi masih ingat. Menunda sebulan berarti mengulang dari nol.</li>
-<li><strong>Ganti satu hal, lihat akibatnya.</strong> Ubah tahunnya. Ubah kelasnya. Ubah ambang batas perubahannya. Memahami datang dari mengubah, bukan dari menjalankan.</li>
-<li><strong>Simpan skrip Anda</strong> lewat Scripts → NEW → File. Skrip yang tidak disimpan hilang saat tab ditutup.</li>
+<li><strong>Jalankan ulang untuk wilayah Anda minggu ini juga</strong>, selagi masih ingat. Menunda sebulan berarti mengulang dari nol.</li>
+<li><strong>Ganti satu hal, lihat akibatnya.</strong> Memahami datang dari mengubah, bukan dari menjalankan.</li>
+<li><strong>Simpan skrip Anda</strong> lewat Scripts → NEW → File, dan pakai <strong>Get Link</strong> untuk membagikannya.</li>
 </ol>
 <p>Kalau ada yang tidak berjalan, bawa <strong>pesan error persisnya</strong> — pesan itu hampir selalu menunjukkan baris yang bermasalah, dan sebagian besar sudah pernah ditanyakan orang lain di <a href="https://groups.google.com/g/google-earth-engine-developers">EE Developers Group</a>.</p>
 <hr>
