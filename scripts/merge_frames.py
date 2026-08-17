@@ -1,5 +1,19 @@
 """Mosaic two along-track HyP3 frames into one raster.
 
+SUPERSEDED by scripts/merge_frames_otb.sh — use that instead.
+
+On frames 1148 + 1153 this produced statistics inconsistent with the inputs:
+median 0.239 where each frame alone is 0.350 and 0.373, and where OTB Mosaic
+on the same files returns 0.370. The valid-pixel count matched exactly, so the
+error is in how the custom overlap callback interacts with rasterio's
+NaN-nodata fill, not in which pixels were kept. It has not been chased down,
+because OTB does the job better anyway: it feathers the seam, which rasterio
+cannot do at all.
+
+Kept for its overlap-agreement check, which is still useful on its own and is
+what established that the two frames agree to 0.002 before either mosaic was
+trusted.
+
 Frames 1148 and 1153 are consecutive along ascending path 112 and overlap by a
 few kilometres. Merging gives a single coherence map covering Flores plus the
 sea north of it, which is what a report figure needs.
