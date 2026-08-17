@@ -1,6 +1,10 @@
 ---
-title: "Google Earth Engine dengan JavaScript"
+title: "Google Earth Engine with JavaScript"
 subtitle: "Day 1 — Concepts"
+# Without this the browser tab reads "…dengan JavaScript – …with JavaScript",
+# because a deck inside a Quarto website inherits the site title as a prefix.
+pagetitle: "GEE with JavaScript — Day 1"
+title-prefix: ""
 author: "Firman Hadi"
 date: today
 date-format: "D MMMM YYYY"
@@ -14,135 +18,134 @@ format:
     incremental: false
     code-line-numbers: false
     highlight-style: github
-    footer: "Webinar GEE · Hari 1 · Konsep"
+    footer: "GEE Webinar · Day 1 · Concepts"
     title-slide-attributes:
       data-background-color: "#0f3d2e"
-lang: id
+lang: en
 ---
 
-## Dua hari ini {background-color="#f7f9fb"}
+## Two days {background-color="#f7f9fb"}
 
 ::: {.columns}
 ::: {.column width="50%"}
-### Hari 1 — Concepts
-2 jam · **tidak menghasilkan peta**
+### Day 1 — Concepts
+2 hours · **no maps produced**
 
-Yang dihasilkan: paham kenapa kode Earth Engine ditulis seperti itu.
+Output: understanding *why* Earth Engine code looks the way it does.
 :::
 ::: {.column width="50%"}
-### Hari 2 — Hands-on
-2 jam · semua orang mengetik
+### Day 2 — Hands-on
+2 hours · everyone types
 
-Yang dihasilkan: peta tutupan lahan wilayah Anda + berkas untuk laporan.
+Output: a land cover map of your own district, and files for your report.
 :::
 :::
 
 . . .
 
-Kalau hari pertama dilewati, skrip besok tetap jalan — tapi ketika
-wilayahnya diganti dan muncul error, tidak ada cara menebak letak
-masalahnya.
+Skip Day 1 and tomorrow's scripts still run — until you change the area, hit an
+error, and have no way to guess where it came from.
 
 # 1 · Why Earth Engine {background-color="#0f3d2e"}
 
-## Cara lama
+## The old way
 
-Memetakan perubahan lahan satu kabupaten, sepuluh tahun:
+Mapping land change for one district, ten years:
 
-1. cari scene di portal, satu per satu
-2. unduh — puluhan sampai ratusan GB
-3. koreksi radiometrik & atmosferik, per scene
-4. mosaik, potong sesuai batas
-5. **baru mulai analisis**
-6. ulangi semuanya kalau wilayahnya perlu diperluas
+1. find scenes in a portal, one by one
+2. download — tens to hundreds of GB
+3. radiometric and atmospheric correction, per scene
+4. mosaic, clip to the boundary
+5. **only now start the analysis**
+6. repeat everything if the area needs extending
 
-## Yang berubah
+## What changes
 
 ::: {.callout-important}
-## Bukan kecepatan mengunduh
+## Not download speed
 
-Yang berubah adalah **tidak ada unduhan sama sekali**.
+What changes is that **there is no download at all**.
 :::
 
 . . .
 
-Citranya sudah ada di sana, sudah terkoreksi.
+The imagery is already there, already corrected.
 
-Yang Anda kirim adalah **perintah** — bukan Anda yang mendatangi data,
-melainkan perhitungan Anda yang dikirim ke tempat datanya berada.
+You send an **instruction** — the computation travels to the data, not the
+other way round.
 
 . . .
 
-Konsekuensinya: **komputasi tidak berjalan di komputer Anda.**
-Itu yang membuat cara kerjanya terasa aneh di awal.
+Consequence: **the computing does not happen on your machine.**
+That is what makes it feel strange at first.
 
-## Yang tersedia, gratis
+## Free, and already loaded
 
-| Data | Resolusi | Sejak | Untuk apa |
-|------|---------:|------:|-----------|
-| Sentinel-2 | 10 m | 2015 | tutupan lahan, vegetasi |
-| Landsat 8/9 | 30 m | 2013 | rangkaian panjang |
-| Landsat 5/7 | 30 m | 1984 | perubahan jangka sangat panjang |
-| **Sentinel-1** | 10 m | 2014 | **radar — tembus awan** |
-| CHIRPS | 5 km | 1981 | curah hujan |
+| Data | Resolution | Since | Good for |
+|------|-----------:|------:|----------|
+| Sentinel-2 | 10 m | 2015 | land cover, vegetation |
+| Landsat 8/9 | 30 m | 2013 | long consistent records |
+| Landsat 5/7 | 30 m | 1984 | decadal change |
+| **Sentinel-1** | 10 m | 2014 | **radar — sees through cloud** |
+| CHIRPS | 5 km | 1981 | rainfall |
 
 ::: {.fragment}
-Untuk Indonesia, baris radar sering menentukan: separuh tahun langit
-kita tertutup awan.
+For Indonesia the radar row often decides things: half the year our sky is
+covered.
 :::
 
-# 2 · Code Editor {background-color="#0f3d2e"}
+# 2 · The Code Editor {background-color="#0f3d2e"}
 
-## Empat panel
+## Four panels
 
-| Panel | Letak | Isi |
-|-------|-------|-----|
-| **Scripts** | kiri atas | skrip tersimpan, contoh |
-| **Docs** | kiri (tab) | daftar seluruh fungsi |
-| **Editor** | tengah | tempat menulis kode |
-| **Console** | kanan atas | hasil `print`, pesan error |
-| **Inspector** | kanan (tab) | klik peta → nilai piksel |
-| **Tasks** | kanan (tab) | ekspor yang menunggu |
+| Panel | Where | What |
+|-------|-------|------|
+| **Scripts** | top left | your saved scripts, examples |
+| **Docs** | left tab | every function — this *is* the reference |
+| **Editor** | centre | where you write |
+| **Console** | top right | `print` output, error messages |
+| **Inspector** | right tab | click the map → pixel values |
+| **Tasks** | right tab | exports waiting to run |
 
-## Dua kebiasaan yang menghemat waktu
+## Two habits that save hours
 
-**Inspector** — cara tercepat memeriksa "apakah nilainya masuk akal".
+**Inspector** — the fastest way to ask "is this number sensible?"
 
-> Klik di laut, lihat NDVI negatif → perhitungan Anda benar.
+> Click on the sea, see NDVI negative → your calculation is right.
 
 . . .
 
-**Tasks** — `Export` di dalam skrip **tidak** langsung mengekspor.
+**Tasks** — `Export` in a script does **not** export.
 
-> Ia hanya *mengantre*. Anda masih harus klik **RUN** di tab Tasks.
+> It only *queues*. You still click **RUN** in the Tasks tab.
 
 ::: {.fragment .fade-in}
-Ini keluhan nomor satu peserta webinar GEE. Tanpa kecuali.
+This is the number one complaint at every GEE workshop. Without exception.
 :::
 
-# 3 · JavaScript secukupnya {background-color="#0f3d2e"}
+# 3 · Just enough JavaScript {background-color="#0f3d2e"}
 
-## Enam hal, itu saja
+## Six things, that's all
 
 ```javascript
-var kota = 'Maumere';        // teks
-var tahun = 2024;            // angka
+var city = 'Maumere';        // text
+var year = 2024;             // number
 
-var bands = ['B4','B3','B2'];   // list — mulai dari NOL
+var bands = ['B4','B3','B2'];   // list — starts at ZERO
 print(bands[0]);                // 'B4'
 
 var visual = {min: 0, max: 3000};   // dictionary
 ```
 
 ::: {.fragment}
-Hitungan mulai **nol** — sumber kesalahan nomor satu bagi yang terbiasa
-spreadsheet.
+Counting starts at **zero** — mistake number one for anyone coming from
+spreadsheets.
 :::
 
-## Functions dan chaining
+## Functions and chaining
 
 ```javascript
-function tambahNDVI (image) {
+function addNDVI (image) {
   var ndvi = image.normalizedDifference(['B8','B4']);
   return image.addBands(ndvi.rename('NDVI'));
 }
@@ -151,138 +154,138 @@ function tambahNDVI (image) {
 . . .
 
 ```javascript
-var citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+var image = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
               .filterBounds(aoi)
               .filterDate('2024-06-01', '2024-09-30')
               .median();
 ```
 
-Titik di awal baris = "lalu lakukan ini pada hasil sebelumnya".
-Dibaca seperti kalimat.
+A leading dot means "then do this to the result above". Read it top to bottom,
+like a sentence.
 
 # 4 · Client vs Server {background-color="#7d2b2b"}
 
-## Kalau hanya satu hal yang diingat hari ini
+## If you remember one thing today
 
 ::: {.callout-important}
-## Ingat yang ini
+## This is it
 
-Sebagian besar error membingungkan di Earth Engine berasal dari sini —
-dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.
+Most confusing Earth Engine errors come from here — and none of them can be
+solved by copying someone else's script.
 :::
 
-## Dua dunia dalam satu skrip
+## Two worlds, one script
 
 ::: {.columns}
 ::: {.column width="50%"}
 ### Client
-browser Anda
+your browser
 
-`var`, angka biasa, `if`, `for`, teks
+`var`, plain numbers, `if`, `for`, text
 :::
 ::: {.column width="50%"}
 ### Server
-komputer Google
+Google's computers
 
-semua yang diawali **`ee.`**
+everything starting with **`ee.`**
 :::
 :::
 
 . . .
 
-Objek `ee.` **tidak berisi nilai** di browser Anda.
+An `ee.` object **holds no value** in your browser.
 
-Ia berisi **resep**: catatan tentang perhitungan yang akan dilakukan
-nanti, di sana.
+It holds a **recipe**: a note about a computation to be done later, over there.
 
-## Lihat bedanya
+## See the difference
 
 ```javascript
-var a = 5;                // client: benar-benar berisi 5
-var b = ee.Number(5);     // server: resep yang akan menghasilkan 5
+var a = 5;                // client: actually contains 5
+var b = ee.Number(5);     // server: a recipe that will produce 5
 
 print(a + 1);             // 6
-print(b.add(1));          // 6 — lewat jalan yang sama sekali berbeda
+print(b.add(1));          // 6 — by a completely different route
 ```
 
 ::: {.fragment}
-Perhatikan: `b.add(1)`, **bukan** `b + 1`.
+Note `b.add(1)`, **not** `b + 1`.
 :::
 
-## Yang tidak bisa
+## What does not work
 
 ```javascript
-var koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');
+var collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');
 
-if (koleksi.size() > 100) {      // ← SALAH
-  print('banyak citra');
+if (collection.size() > 100) {      // ← WRONG
+  print('plenty of images');
 }
 ```
 
 . . .
 
-`koleksi.size()` bukan angka. Ia **janji untuk menghitung**, nanti, di server.
+`collection.size()` is not a number. It is a **promise to count**, later, on the
+server.
 
-`if` berjalan **sekarang**, di browser — menilai sesuatu yang belum ada.
+`if` runs **now**, in the browser — judging something that does not exist yet.
 
 ::: {.fragment .fade-in}
-Yang berbahaya: skrip tetap "berjalan". Tidak ada error yang jelas.
+The dangerous part: the script still "runs". No clear error.
 :::
 
-## Aturan praktis {background-color="#f7f9fb"}
+## The rule of thumb {background-color="#f7f9fb"}
 
 ::: {.callout-tip}
-## Cukup ingat satu kalimat
+## One sentence is enough
 
-Kalau namanya diawali **`ee.`**, jangan pakai `if`, `for`, atau operator
-`+ - * /` biasa padanya.
+If the name starts with **`ee.`**, do not use `if`, `for`, or plain
+`+ - * /` on it.
 
-Pakai metodenya sendiri: `.add()` `.subtract()` `.gt()` `.map()`
+Use its own methods: `.add()` `.subtract()` `.gt()` `.map()`
 :::
 
 . . .
 
-Dari sinilah hampir semua kalimat *"kok hasilnya kosong"* berasal.
+Almost every *"why is my result empty?"* starts here.
 
-Dan begitu dipahami, dokumentasi Earth Engine yang tadinya membingungkan
-langsung masuk akal — seluruh API-nya disusun mengikuti pembagian ini.
+And once it clicks, the Earth Engine documentation stops being confusing — the
+whole API is organised around this split.
 
-# Latihan sebelum besok {background-color="#0f3d2e"}
+# Before tomorrow {background-color="#0f3d2e"}
 
-## Sepuluh menit
+## Ten minutes
 
-1. Buat skrip baru, beri nama `latihan-hari-1`
-2. `print` nama kabupaten Anda
-3. Tampilkan satu citra Sentinel-2 di wilayah Anda
-4. Buka **Inspector**, klik satu titik di peta
-5. Di Console, telusuri isi `print(citra)`
+1. New script, name it `day-1-practice`
+2. `print` your district name
+3. Display one Sentinel-2 image over your area
+4. Open **Inspector**, click a point on the map
+5. In the Console, expand `print(image)` and look inside
 
 . . .
 
-Kalau nomor 5 membingungkan — itu wajar, dan itu justru intinya:
+If step 5 is confusing — that is the point:
 
-> yang tercetak bukan gambar, melainkan **deskripsi** tentang gambar.
+> what gets printed is not a picture, it is a **description** of one.
 
-## Besok {background-color="#f7f9fb"}
+## Tomorrow {background-color="#f7f9fb"}
 
-| Menit | Hasil |
-|------:|-------|
-| 0–20 | komposit Sentinel-2 bebas awan |
-| 20–40 | peta NDVI + grafik deret waktu |
-| 40–70 | **peta tutupan lahan + angka akurasi** |
-| 70–95 | peta perubahan antara dua tahun |
-| 95–120 | GeoTIFF & PNG untuk laporan |
+| Minutes | Output |
+|--------:|--------|
+| 0–20 | cloud-free Sentinel-2 composite |
+| 20–40 | NDVI map + time series chart |
+| 40–70 | **land cover map + accuracy figures** |
+| 70–95 | change map between two years |
+| 95–120 | GeoTIFF & PNG for your report |
 
 ::: {.fragment}
-Semua untuk **wilayah kerja Anda sendiri**.
+All for **your own working area**.
 :::
 
 ## {background-color="#0f3d2e"}
 
 ::: {style="text-align:center; margin-top:2em"}
-### Sampai besok
+### See you tomorrow
 
 [firmanhadi21.github.io/rs-change-detection/gee-js](https://firmanhadi21.github.io/rs-change-detection/gee-js/)
 
-Materi, skrip, dan rujukan ada di sana.
+Materials, scripts and references are all there.
 :::

@@ -35,116 +35,116 @@
     "text": "Untuk analisis dengan Python\nPendekatan yang sama dengan Python ada di buku earthchange — berguna kalau analisis Anda perlu dijalankan ulang secara otomatis, atau digabungkan dengan alur kerja lain di luar Earth Engine."
   },
   {
-    "objectID": "slides.html#dua-hari-ini",
-    "href": "slides.html#dua-hari-ini",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Dua hari ini",
-    "text": "Dua hari ini\n\n\nHari 1 — Concepts\n2 jam · tidak menghasilkan peta\nYang dihasilkan: paham kenapa kode Earth Engine ditulis seperti itu.\n\nHari 2 — Hands-on\n2 jam · semua orang mengetik\nYang dihasilkan: peta tutupan lahan wilayah Anda + berkas untuk laporan.\n\n\nKalau hari pertama dilewati, skrip besok tetap jalan — tapi ketika wilayahnya diganti dan muncul error, tidak ada cara menebak letak masalahnya."
+    "objectID": "slides.html#two-days",
+    "href": "slides.html#two-days",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Two days",
+    "text": "Two days\n\n\nDay 1 — Concepts\n2 hours · no maps produced\nOutput: understanding why Earth Engine code looks the way it does.\n\nDay 2 — Hands-on\n2 hours · everyone types\nOutput: a land cover map of your own district, and files for your report.\n\n\nSkip Day 1 and tomorrow’s scripts still run — until you change the area, hit an error, and have no way to guess where it came from."
   },
   {
-    "objectID": "slides.html#cara-lama",
-    "href": "slides.html#cara-lama",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Cara lama",
-    "text": "Cara lama\nMemetakan perubahan lahan satu kabupaten, sepuluh tahun:\n\ncari scene di portal, satu per satu\nunduh — puluhan sampai ratusan GB\nkoreksi radiometrik & atmosferik, per scene\nmosaik, potong sesuai batas\nbaru mulai analisis\nulangi semuanya kalau wilayahnya perlu diperluas"
+    "objectID": "slides.html#the-old-way",
+    "href": "slides.html#the-old-way",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The old way",
+    "text": "The old way\nMapping land change for one district, ten years:\n\nfind scenes in a portal, one by one\ndownload — tens to hundreds of GB\nradiometric and atmospheric correction, per scene\nmosaic, clip to the boundary\nonly now start the analysis\nrepeat everything if the area needs extending"
   },
   {
-    "objectID": "slides.html#yang-berubah",
-    "href": "slides.html#yang-berubah",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Yang berubah",
-    "text": "Yang berubah\n\n\n\n\n\n\nBukan kecepatan mengunduh\n\n\nYang berubah adalah tidak ada unduhan sama sekali.\n\n\n\n\nCitranya sudah ada di sana, sudah terkoreksi.\nYang Anda kirim adalah perintah — bukan Anda yang mendatangi data, melainkan perhitungan Anda yang dikirim ke tempat datanya berada.\n\n\nKonsekuensinya: komputasi tidak berjalan di komputer Anda. Itu yang membuat cara kerjanya terasa aneh di awal."
+    "objectID": "slides.html#what-changes",
+    "href": "slides.html#what-changes",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "What changes",
+    "text": "What changes\n\n\n\n\n\n\nNot download speed\n\n\nWhat changes is that there is no download at all.\n\n\n\n\nThe imagery is already there, already corrected.\nYou send an instruction — the computation travels to the data, not the other way round.\n\n\nConsequence: the computing does not happen on your machine. That is what makes it feel strange at first."
   },
   {
-    "objectID": "slides.html#yang-tersedia-gratis",
-    "href": "slides.html#yang-tersedia-gratis",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Yang tersedia, gratis",
-    "text": "Yang tersedia, gratis\n\n\n\nData\nResolusi\nSejak\nUntuk apa\n\n\n\n\nSentinel-2\n10 m\n2015\ntutupan lahan, vegetasi\n\n\nLandsat 8/9\n30 m\n2013\nrangkaian panjang\n\n\nLandsat 5/7\n30 m\n1984\nperubahan jangka sangat panjang\n\n\nSentinel-1\n10 m\n2014\nradar — tembus awan\n\n\nCHIRPS\n5 km\n1981\ncurah hujan\n\n\n\n\nUntuk Indonesia, baris radar sering menentukan: separuh tahun langit kita tertutup awan."
+    "objectID": "slides.html#free-and-already-loaded",
+    "href": "slides.html#free-and-already-loaded",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Free, and already loaded",
+    "text": "Free, and already loaded\n\n\n\nData\nResolution\nSince\nGood for\n\n\n\n\nSentinel-2\n10 m\n2015\nland cover, vegetation\n\n\nLandsat 8/9\n30 m\n2013\nlong consistent records\n\n\nLandsat 5/7\n30 m\n1984\ndecadal change\n\n\nSentinel-1\n10 m\n2014\nradar — sees through cloud\n\n\nCHIRPS\n5 km\n1981\nrainfall\n\n\n\n\nFor Indonesia the radar row often decides things: half the year our sky is covered."
   },
   {
-    "objectID": "slides.html#empat-panel",
-    "href": "slides.html#empat-panel",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Empat panel",
-    "text": "Empat panel\n\n\n\nPanel\nLetak\nIsi\n\n\n\n\nScripts\nkiri atas\nskrip tersimpan, contoh\n\n\nDocs\nkiri (tab)\ndaftar seluruh fungsi\n\n\nEditor\ntengah\ntempat menulis kode\n\n\nConsole\nkanan atas\nhasil print, pesan error\n\n\nInspector\nkanan (tab)\nklik peta → nilai piksel\n\n\nTasks\nkanan (tab)\nekspor yang menunggu"
+    "objectID": "slides.html#four-panels",
+    "href": "slides.html#four-panels",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Four panels",
+    "text": "Four panels\n\n\n\nPanel\nWhere\nWhat\n\n\n\n\nScripts\ntop left\nyour saved scripts, examples\n\n\nDocs\nleft tab\nevery function — this is the reference\n\n\nEditor\ncentre\nwhere you write\n\n\nConsole\ntop right\nprint output, error messages\n\n\nInspector\nright tab\nclick the map → pixel values\n\n\nTasks\nright tab\nexports waiting to run"
   },
   {
-    "objectID": "slides.html#dua-kebiasaan-yang-menghemat-waktu",
-    "href": "slides.html#dua-kebiasaan-yang-menghemat-waktu",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Dua kebiasaan yang menghemat waktu",
-    "text": "Dua kebiasaan yang menghemat waktu\nInspector — cara tercepat memeriksa “apakah nilainya masuk akal”.\n\nKlik di laut, lihat NDVI negatif → perhitungan Anda benar.\n\n\nTasks — Export di dalam skrip tidak langsung mengekspor.\n\nIa hanya mengantre. Anda masih harus klik RUN di tab Tasks.\n\n\nIni keluhan nomor satu peserta webinar GEE. Tanpa kecuali."
+    "objectID": "slides.html#two-habits-that-save-hours",
+    "href": "slides.html#two-habits-that-save-hours",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Two habits that save hours",
+    "text": "Two habits that save hours\nInspector — the fastest way to ask “is this number sensible?”\n\nClick on the sea, see NDVI negative → your calculation is right.\n\n\nTasks — Export in a script does not export.\n\nIt only queues. You still click RUN in the Tasks tab.\n\n\nThis is the number one complaint at every GEE workshop. Without exception."
   },
   {
-    "objectID": "slides.html#enam-hal-itu-saja",
-    "href": "slides.html#enam-hal-itu-saja",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Enam hal, itu saja",
-    "text": "Enam hal, itu saja\nvar kota = 'Maumere';        // teks\nvar tahun = 2024;            // angka\n\nvar bands = ['B4','B3','B2'];   // list — mulai dari NOL\nprint(bands[0]);                // 'B4'\n\nvar visual = {min: 0, max: 3000};   // dictionary\n\nHitungan mulai nol — sumber kesalahan nomor satu bagi yang terbiasa spreadsheet."
+    "objectID": "slides.html#six-things-thats-all",
+    "href": "slides.html#six-things-thats-all",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Six things, that’s all",
+    "text": "Six things, that’s all\nvar city = 'Maumere';        // text\nvar year = 2024;             // number\n\nvar bands = ['B4','B3','B2'];   // list — starts at ZERO\nprint(bands[0]);                // 'B4'\n\nvar visual = {min: 0, max: 3000};   // dictionary\n\nCounting starts at zero — mistake number one for anyone coming from spreadsheets."
   },
   {
-    "objectID": "slides.html#functions-dan-chaining",
-    "href": "slides.html#functions-dan-chaining",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Functions dan chaining",
-    "text": "Functions dan chaining\nfunction tambahNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8','B4']);\n  return image.addBands(ndvi.rename('NDVI'));\n}\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nTitik di awal baris = “lalu lakukan ini pada hasil sebelumnya”. Dibaca seperti kalimat."
+    "objectID": "slides.html#functions-and-chaining",
+    "href": "slides.html#functions-and-chaining",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Functions and chaining",
+    "text": "Functions and chaining\nfunction addNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8','B4']);\n  return image.addBands(ndvi.rename('NDVI'));\n}\n\nvar image = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nA leading dot means “then do this to the result above”. Read it top to bottom, like a sentence."
   },
   {
-    "objectID": "slides.html#kalau-hanya-satu-hal-yang-diingat-hari-ini",
-    "href": "slides.html#kalau-hanya-satu-hal-yang-diingat-hari-ini",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Kalau hanya satu hal yang diingat hari ini",
-    "text": "Kalau hanya satu hal yang diingat hari ini\n\n\n\n\n\n\nIngat yang ini\n\n\nSebagian besar error membingungkan di Earth Engine berasal dari sini — dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain."
+    "objectID": "slides.html#if-you-remember-one-thing-today",
+    "href": "slides.html#if-you-remember-one-thing-today",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "If you remember one thing today",
+    "text": "If you remember one thing today\n\n\n\n\n\n\nThis is it\n\n\nMost confusing Earth Engine errors come from here — and none of them can be solved by copying someone else’s script."
   },
   {
-    "objectID": "slides.html#dua-dunia-dalam-satu-skrip",
-    "href": "slides.html#dua-dunia-dalam-satu-skrip",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Dua dunia dalam satu skrip",
-    "text": "Dua dunia dalam satu skrip\n\n\nClient\nbrowser Anda\nvar, angka biasa, if, for, teks\n\nServer\nkomputer Google\nsemua yang diawali ee.\n\n\nObjek ee. tidak berisi nilai di browser Anda.\nIa berisi resep: catatan tentang perhitungan yang akan dilakukan nanti, di sana."
+    "objectID": "slides.html#two-worlds-one-script",
+    "href": "slides.html#two-worlds-one-script",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Two worlds, one script",
+    "text": "Two worlds, one script\n\n\nClient\nyour browser\nvar, plain numbers, if, for, text\n\nServer\nGoogle’s computers\neverything starting with ee.\n\n\nAn ee. object holds no value in your browser.\nIt holds a recipe: a note about a computation to be done later, over there."
   },
   {
-    "objectID": "slides.html#lihat-bedanya",
-    "href": "slides.html#lihat-bedanya",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Lihat bedanya",
-    "text": "Lihat bedanya\nvar a = 5;                // client: benar-benar berisi 5\nvar b = ee.Number(5);     // server: resep yang akan menghasilkan 5\n\nprint(a + 1);             // 6\nprint(b.add(1));          // 6 — lewat jalan yang sama sekali berbeda\n\nPerhatikan: b.add(1), bukan b + 1."
+    "objectID": "slides.html#see-the-difference",
+    "href": "slides.html#see-the-difference",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "See the difference",
+    "text": "See the difference\nvar a = 5;                // client: actually contains 5\nvar b = ee.Number(5);     // server: a recipe that will produce 5\n\nprint(a + 1);             // 6\nprint(b.add(1));          // 6 — by a completely different route\n\nNote b.add(1), not b + 1."
   },
   {
-    "objectID": "slides.html#yang-tidak-bisa",
-    "href": "slides.html#yang-tidak-bisa",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Yang tidak bisa",
-    "text": "Yang tidak bisa\nvar koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');\n\nif (koleksi.size() &gt; 100) {      // ← SALAH\n  print('banyak citra');\n}\n\nkoleksi.size() bukan angka. Ia janji untuk menghitung, nanti, di server.\nif berjalan sekarang, di browser — menilai sesuatu yang belum ada.\n\nYang berbahaya: skrip tetap “berjalan”. Tidak ada error yang jelas."
+    "objectID": "slides.html#what-does-not-work",
+    "href": "slides.html#what-does-not-work",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "What does not work",
+    "text": "What does not work\nvar collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');\n\nif (collection.size() &gt; 100) {      // ← WRONG\n  print('plenty of images');\n}\n\ncollection.size() is not a number. It is a promise to count, later, on the server.\nif runs now, in the browser — judging something that does not exist yet.\n\nThe dangerous part: the script still “runs”. No clear error."
   },
   {
-    "objectID": "slides.html#aturan-praktis",
-    "href": "slides.html#aturan-praktis",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Aturan praktis",
-    "text": "Aturan praktis\n\n\n\n\n\n\nCukup ingat satu kalimat\n\n\nKalau namanya diawali ee., jangan pakai if, for, atau operator + - * / biasa padanya.\nPakai metodenya sendiri: .add() .subtract() .gt() .map()\n\n\n\n\nDari sinilah hampir semua kalimat “kok hasilnya kosong” berasal.\nDan begitu dipahami, dokumentasi Earth Engine yang tadinya membingungkan langsung masuk akal — seluruh API-nya disusun mengikuti pembagian ini."
+    "objectID": "slides.html#the-rule-of-thumb",
+    "href": "slides.html#the-rule-of-thumb",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The rule of thumb",
+    "text": "The rule of thumb\n\n\n\n\n\n\nOne sentence is enough\n\n\nIf the name starts with ee., do not use if, for, or plain + - * / on it.\nUse its own methods: .add() .subtract() .gt() .map()\n\n\n\n\nAlmost every “why is my result empty?” starts here.\nAnd once it clicks, the Earth Engine documentation stops being confusing — the whole API is organised around this split."
   },
   {
-    "objectID": "slides.html#sepuluh-menit",
-    "href": "slides.html#sepuluh-menit",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Sepuluh menit",
-    "text": "Sepuluh menit\n\nBuat skrip baru, beri nama latihan-hari-1\nprint nama kabupaten Anda\nTampilkan satu citra Sentinel-2 di wilayah Anda\nBuka Inspector, klik satu titik di peta\nDi Console, telusuri isi print(citra)\n\n\nKalau nomor 5 membingungkan — itu wajar, dan itu justru intinya:\n\nyang tercetak bukan gambar, melainkan deskripsi tentang gambar."
+    "objectID": "slides.html#ten-minutes",
+    "href": "slides.html#ten-minutes",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Ten minutes",
+    "text": "Ten minutes\n\nNew script, name it day-1-practice\nprint your district name\nDisplay one Sentinel-2 image over your area\nOpen Inspector, click a point on the map\nIn the Console, expand print(image) and look inside\n\n\nIf step 5 is confusing — that is the point:\n\nwhat gets printed is not a picture, it is a description of one."
   },
   {
-    "objectID": "slides.html#besok",
-    "href": "slides.html#besok",
-    "title": "Google Earth Engine dengan JavaScript",
-    "section": "Besok",
-    "text": "Besok\n\n\n\nMenit\nHasil\n\n\n\n\n0–20\nkomposit Sentinel-2 bebas awan\n\n\n20–40\npeta NDVI + grafik deret waktu\n\n\n40–70\npeta tutupan lahan + angka akurasi\n\n\n70–95\npeta perubahan antara dua tahun\n\n\n95–120\nGeoTIFF & PNG untuk laporan\n\n\n\n\nSemua untuk wilayah kerja Anda sendiri."
+    "objectID": "slides.html#tomorrow",
+    "href": "slides.html#tomorrow",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Tomorrow",
+    "text": "Tomorrow\n\n\n\nMinutes\nOutput\n\n\n\n\n0–20\ncloud-free Sentinel-2 composite\n\n\n20–40\nNDVI map + time series chart\n\n\n40–70\nland cover map + accuracy figures\n\n\n70–95\nchange map between two years\n\n\n95–120\nGeoTIFF & PNG for your report\n\n\n\n\nAll for your own working area."
   },
   {
     "objectID": "slides.html#section",
     "href": "slides.html#section",
-    "title": "Google Earth Engine dengan JavaScript",
+    "title": "Google Earth Engine with JavaScript",
     "section": "",
-    "text": "Sampai besok\nfirmanhadi21.github.io/rs-change-detection/gee-js\nMateri, skrip, dan rujukan ada di sana."
+    "text": "See you tomorrow\nfirmanhadi21.github.io/rs-change-detection/gee-js\nMaterials, scripts and references are all there."
   },
   {
     "objectID": "hari-2.html",

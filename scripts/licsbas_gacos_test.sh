@@ -63,7 +63,7 @@ for dir in GEOCml4ctrl GEOCml4GACOS; do
   echo
   echo "=== $dir ==="
   LiCSBAS11_check_unw.py    -d "$dir" -t "$ts" -u 0.5 -c 0.02 || continue
-  LiCSBAS12_loop_closure.py -d "$dir" -t "$ts" -l 1.5        || continue
+  LiCSBAS12_loop_closure.py -d "$dir" -t "$ts" -l 1.5 --multi_prime || continue
   LiCSBAS13_sb_inv.py       -d "$dir" -t "$ts" --mem_size 2000 || continue
   LiCSBAS14_vel_std.py -t "$ts"
   LiCSBAS15_mask_ts.py -t "$ts"
