@@ -15,6 +15,9 @@ website:
   site-url: https://firmanhadi21.github.io/rs-change-detection/gee-js/
   navbar:
     left:
+      # Back to the parent tutorial, so the two are one site rather than two.
+      - href: ../index.html
+        text: "← Tutorial"
       - href: index.qmd
         text: Beranda
       - href: hari-1.qmd
@@ -39,8 +42,13 @@ website:
 
 format:
   html:
+    # theme.scss carries the parent site's design tokens verbatim, so a reader
+    # arriving from docs/index.html stays on what looks like one site. The
+    # previous cosmo theme made this read as a separate site with its own
+    # styling, which is what the hand-written original never did.
     theme:
       - cosmo
+      - theme.scss
     css: styles.css
     toc: true
     toc-depth: 3

@@ -1,0 +1,109 @@
+/*-- scss:defaults --*/
+
+// Design tokens lifted verbatim from docs/index.html, the parent site.
+//
+// The point is continuity: the original gee-js page was hand-written HTML
+// sharing these exact variables, so clicking through from the main page felt
+// like staying on one site. The Quarto rewrite arrived wearing Bootstrap's
+// cosmo theme and read as a different site entirely. Same tokens, same green
+// accent, same dark-mode pair -- so the seam disappears again.
+
+$primary:        #1a7f4b;   // --accent
+$body-bg:        #ffffff;   // --bg
+$body-color:     #1a1d21;   // --fg
+$link-color:     #0b5cad;   // --accent2
+$border-color:   #e5e8ec;   // --line
+$code-bg:        #f6f8fa;   // --code-bg
+$code-color:     #24292f;   // --code-fg
+
+$navbar-bg:      #f7f9fb;   // --sidebar
+$navbar-fg:      #1a1d21;
+$navbar-hl:      #1a7f4b;
+
+$font-size-root: 17px;
+$toc-color:      #5b6570;   // --muted
+
+/*-- scss:rules --*/
+
+:root {
+  --bg: #ffffff;
+  --fg: #1a1d21;
+  --muted: #5b6570;
+  --line: #e5e8ec;
+  --card: #f9fafb;
+  --accent: #1a7f4b;
+  --accent2: #0b5cad;
+  --sidebar: #f7f9fb;
+  --code-bg: #f6f8fa;
+  --code-fg: #24292f;
+  --warn-bg: #fff8e6;
+  --warn-line: #e9c46a;
+}
+
+// The parent site follows the reader's OS setting rather than offering a
+// switch, so this does too -- a page that stays light while the site it was
+// linked from goes dark is the same discontinuity in a different form.
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --fg: #e6e9ee;
+    --muted: #9aa4b0;
+    --line: #242a31;
+    --card: #151a20;
+    --accent: #4cc38a;
+    --accent2: #5aa2e6;
+    --sidebar: #0c0f13;
+    --code-bg: #161b22;
+    --code-fg: #d6dde6;
+    --warn-bg: #2a2410;
+    --warn-line: #7a6320;
+  }
+
+  body, .quarto-container { background: var(--bg); color: var(--fg); }
+  .navbar { background: var(--sidebar) !important; border-bottom: 1px solid var(--line); }
+  .navbar .navbar-brand, .navbar .nav-link { color: var(--fg) !important; }
+  .navbar .nav-link:hover { color: var(--accent) !important; }
+  pre, code, div.sourceCode { background: var(--code-bg) !important; color: var(--code-fg); }
+  table { color: var(--fg); }
+  th { border-bottom-color: var(--line); }
+  td { border-bottom-color: var(--line); }
+  #TOC, .sidebar { color: var(--muted); }
+  .callout { background: var(--card); border-color: var(--line); }
+  a { color: var(--accent2); }
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.7;
+}
+
+.navbar {
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--line);
+}
+
+h1, h2, h3 { font-weight: 650; color: var(--fg); }
+h2 {
+  margin-top: 2.2rem;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: .3rem;
+}
+
+pre { font-size: 15px; }
+code { font-size: .95em; }
+div.sourceCode { background: var(--code-bg); border: 1px solid var(--line); }
+
+table { font-size: 15.5px; }
+th { color: var(--muted); border-bottom: 2px solid var(--line); }
+td { border-bottom: 1px solid var(--line); }
+
+.callout { margin: 1.4rem 0; }
+
+// Match the parent site's badge row on the landing page.
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 1rem 0;
+}
