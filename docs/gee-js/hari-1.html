@@ -174,23 +174,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Di halaman ini</h2>
    
   <ul>
-  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">0 · Setup check</a></li>
-  <li><a href="#kenapa" id="toc-kenapa" class="nav-link" data-scroll-target="#kenapa">1 · Why Earth Engine</a></li>
+  <li><a href="#target" id="toc-target" class="nav-link active" data-scroll-target="#target">What we are building</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">0 · Setup check</a></li>
+  <li><a href="#kenapa" id="toc-kenapa" class="nav-link" data-scroll-target="#kenapa">1 · Why Earth Engine</a>
+  <ul class="collapse">
+  <li><a href="#yang-tersedia-gratis" id="toc-yang-tersedia-gratis" class="nav-link" data-scroll-target="#yang-tersedia-gratis">Yang tersedia, gratis</a></li>
+  </ul></li>
   <li><a href="#code-editor" id="toc-code-editor" class="nav-link" data-scroll-target="#code-editor">2 · Code Editor tour</a></li>
   <li><a href="#javascript" id="toc-javascript" class="nav-link" data-scroll-target="#javascript">3 · JavaScript secukupnya</a>
   <ul class="collapse">
-  <li><a href="#variables" id="toc-variables" class="nav-link" data-scroll-target="#variables">Variables</a></li>
-  <li><a href="#lists" id="toc-lists" class="nav-link" data-scroll-target="#lists">Lists</a></li>
-  <li><a href="#dictionaries" id="toc-dictionaries" class="nav-link" data-scroll-target="#dictionaries">Dictionaries</a></li>
-  <li><a href="#functions" id="toc-functions" class="nav-link" data-scroll-target="#functions">Functions</a></li>
-  <li><a href="#chaining" id="toc-chaining" class="nav-link" data-scroll-target="#chaining">Chaining</a></li>
-  <li><a href="#comments" id="toc-comments" class="nav-link" data-scroll-target="#comments">Comments</a></li>
+  <li><a href="#functions-dan-chaining" id="toc-functions-dan-chaining" class="nav-link" data-scroll-target="#functions-dan-chaining">Functions dan chaining</a></li>
   </ul></li>
   <li><a href="#client-server" id="toc-client-server" class="nav-link" data-scroll-target="#client-server">4 · Client vs server</a>
   <ul class="collapse">
-  <li><a href="#kenapa-ini-penting-untuk-pekerjaan-anda" id="toc-kenapa-ini-penting-untuk-pekerjaan-anda" class="nav-link" data-scroll-target="#kenapa-ini-penting-untuk-pekerjaan-anda">Kenapa ini penting untuk pekerjaan Anda</a></li>
+  <li><a href="#kenapa-if-tidak-boleh-dipakai-pada-objek-server" id="toc-kenapa-if-tidak-boleh-dipakai-pada-objek-server" class="nav-link" data-scroll-target="#kenapa-if-tidak-boleh-dipakai-pada-objek-server">Kenapa <code>if</code> tidak boleh dipakai pada objek server</a></li>
+  <li><a href="#hal-yang-sama-berlaku-untuk-perulangan" id="toc-hal-yang-sama-berlaku-untuk-perulangan" class="nav-link" data-scroll-target="#hal-yang-sama-berlaku-untuk-perulangan">Hal yang sama berlaku untuk perulangan</a></li>
+  <li><a href="#aturan-praktis" id="toc-aturan-praktis" class="nav-link" data-scroll-target="#aturan-praktis">Aturan praktis</a></li>
   </ul></li>
-  <li><a href="#latihan" id="toc-latihan" class="nav-link" data-scroll-target="#latihan">Latihan sebelum besok</a></li>
+  <li><a href="#tugas" id="toc-tugas" class="nav-link" data-scroll-target="#tugas">Tugas · 10 menit</a></li>
   </ul>
 </nav>
     </div>
@@ -200,7 +201,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">Day 1 — Concepts</h1>
-<p class="subtitle lead">2 jam · memahami sebelum mengetik</p>
+<p class="subtitle lead">2 jam · paham dulu, mengetik besok</p>
 </div>
 
 
@@ -217,47 +218,106 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Hari ini tidak menghasilkan peta. Hari ini menghasilkan <strong>pemahaman kenapa kode Earth Engine ditulis seperti itu</strong> — supaya besok, ketika kita mengetik cepat, Anda tahu apa yang sedang terjadi dan bisa memperbaiki sendiri saat ada yang salah.</p>
-<p>Kalau Anda hanya menyalin skrip tanpa hari pertama, skrip itu akan jalan. Tetapi ketika wilayahnya diganti dan muncul error, Anda tidak punya cara untuk menebak di mana letak masalahnya.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Catatan</span>Tujuan hari ini adalah paham, bukan lomba mengetik
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Hari ini tidak menghasilkan peta. Yang dihasilkan adalah pengertian <strong>kenapa kode Earth Engine ditulis seperti itu</strong> — sehingga besok, ketika kita mengetik cepat, Anda tahu apa yang sedang terjadi dan bisa memperbaiki sendiri ketika ada yang salah.</p>
+<p>Peserta yang melewati hari pertama tetap bisa menjalankan skrip besok. Sampai wilayahnya diganti, muncul error, dan tidak ada cara menebak dari mana datangnya.</p>
+</div>
+</div>
+<section id="target" class="level2">
+<h2 class="anchored" data-anchor-id="target">What we are building</h2>
+<p>Satu alur analisis yang tumbuh sedikit demi sedikit sepanjang dua hari:</p>
+<blockquote class="blockquote">
+<p>Membandingkan tutupan vegetasi di <strong>kawasan tambang nikel Konawe Utara, Sulawesi Tenggara</strong> antara 2023 dan 2026 — menghitung berapa hektar vegetasi yang hilang, membuat peta tutupan lahannya, dan mengekspor hasilnya sebagai GeoTIFF yang bisa masuk laporan.</p>
+</blockquote>
+<p>Tidak ada langkah yang dibuang. Skrip hari kedua adalah skrip hari pertama yang diteruskan. Kalau wilayah kerja Anda berbeda — dan hampir pasti berbeda — semua contoh bisa dipindah ke sana dengan mengganti satu variabel.</p>
+</section>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">0 · Setup check</h2>
-<p>Lima menit pertama, semua orang bersamaan:</p>
-<ol type="1">
-<li>Buka <a href="https://code.earthengine.google.com/">code.earthengine.google.com</a></li>
-<li>Ketik satu baris ini di panel tengah, lalu klik <strong>Run</strong>:</li>
-</ol>
+<p><em>10 menit</em></p>
+<p>Lima menit pertama, semua orang bersamaan. Buka <a href="https://code.earthengine.google.com/">code.earthengine.google.com</a>, ketik satu baris ini, klik <strong>Run</strong>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">'siap'</span>)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<ol start="3" type="1">
-<li>Kalau kata <code>siap</code> muncul di panel Console (kanan atas), Anda siap.</li>
-</ol>
+<p>Kalau kata <code>siap</code> muncul di panel Console (kanan atas), Anda siap.</p>
 <div class="callout callout-style-default callout-important callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Penting</span>Kalau <code>print</code> tidak muncul
+<span class="screen-reader-only">Penting</span>Kalau tidak muncul
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Hampir selalu satu dari tiga hal: akun belum disetujui, tab lama masih terbuka dengan sesi kedaluwarsa (tutup semua lalu buka lagi), atau jaringan memblokir <code>earthengine.google.com</code>. Yang ketiga sering terjadi di jaringan kantor pemerintah — kalau begitu, pakai hotspot ponsel.</p>
+<p>Hampir selalu satu dari tiga hal: akun belum disetujui; tab lama masih terbuka dengan sesi kedaluwarsa (tutup semua, buka lagi); atau jaringan memblokir <code>earthengine.google.com</code> — sering terjadi di jaringan kantor pemerintah, dan solusinya hotspot ponsel.</p>
 </div>
 </div>
 </section>
 <section id="kenapa" class="level2">
 <h2 class="anchored" data-anchor-id="kenapa">1 · Why Earth Engine</h2>
-<p>Cara lama memetakan perubahan lahan satu kabupaten selama sepuluh tahun:</p>
-<ul>
-<li>cari scene di portal penyedia, satu per satu;</li>
-<li>unduh — puluhan sampai ratusan gigabyte;</li>
-<li>koreksi radiometrik dan atmosferik, per scene;</li>
-<li>mosaik, potong sesuai batas wilayah;</li>
-<li>baru mulai analisis;</li>
-<li>ulangi semuanya kalau ternyata wilayahnya perlu diperluas.</li>
-</ul>
-<p>Yang berubah dengan Earth Engine bukan kecepatan mengunduh. <strong>Yang berubah adalah tidak ada unduhan sama sekali.</strong> Citranya sudah ada di sana, sudah terkoreksi, dan yang Anda kirim adalah perintah — bukan Anda yang mendatangi data, melainkan perhitungan Anda yang dikirim ke tempat datanya berada.</p>
-<p>Konsekuensinya, dan ini yang membuat cara kerjanya terasa aneh di awal: <strong>komputasi tidak berjalan di komputer Anda</strong>. Bagian 4 membahas ini, dan itu bagian terpenting hari ini.</p>
-<p>Yang tersedia gratis, antara lain:</p>
+<p><em>20 menit</em></p>
+<p>Mulai dengan pertanyaan: <strong>kalau ingin melihat perubahan tutupan lahan satu kabupaten selama sepuluh tahun, apa yang harus dilakukan?</strong></p>
+<p>Jawaban cara lama: cari citra di katalog, unduh satu per satu, tiap scene ratusan MB, koreksi atmosfer, mozaik, potong, baru analisis. Untuk sepuluh tahun satu kabupaten itu bisa ratusan gigabyte dan berminggu-minggu kerja — sebelum satu pun kesimpulan lahir.</p>
+<p>Earth Engine membalik urutannya. <strong>Datanya tidak pindah ke Anda; kode Anda yang pindah ke datanya.</strong> Seluruh arsip Landsat sejak 1984, Sentinel sejak 2015, MODIS sejak 2000, ditambah ratusan dataset lain, sudah duduk di server Google. Anda menuliskan apa yang ingin dihitung, Google yang mengerjakan, dan yang dikirim balik ke layar Anda hanya gambar petanya.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Cara lama</th>
+<th>Earth Engine</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Unduhan</td>
+<td>Ratusan GB</td>
+<td>Nol</td>
+</tr>
+<tr class="even">
+<td>Perangkat keras</td>
+<td>Komputer kuat + penyimpanan</td>
+<td>Peramban</td>
+</tr>
+<tr class="odd">
+<td>Waktu ke hasil pertama</td>
+<td>Berhari-hari</td>
+<td>Menit</td>
+</tr>
+<tr class="even">
+<td>Menambah 10 tahun lagi</td>
+<td>Ulangi semuanya</td>
+<td>Ubah satu tanggal</td>
+</tr>
+<tr class="odd">
+<td>Biaya</td>
+<td>Waktu &amp; penyimpanan</td>
+<td>Gratis untuk riset &amp; pendidikan</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Peringatan</span>Dua hal yang perlu ditegaskan sejak awal
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Gratisnya untuk penggunaan non-komersial</strong> — riset, pendidikan, dan sebagian besar kerja lembaga publik. Penggunaan komersial berbayar.</p>
+<p><strong>“Gratis” bukan berarti “tanpa batas”.</strong> Ada kuota memori dan waktu komputasi. Kita akan menabraknya sendiri besok, di bagian klasifikasi — dan cara mengatasinya ada di sana.</p>
+</div>
+</div>
+<section id="yang-tersedia-gratis" class="level3">
+<h3 class="anchored" data-anchor-id="yang-tersedia-gratis">Yang tersedia, gratis</h3>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -290,7 +350,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Sentinel-1 (radar)</td>
 <td style="text-align: right;">10 m</td>
 <td style="text-align: right;">2014</td>
-<td>tembus awan — banjir, sawah</td>
+<td><strong>tembus awan</strong> — banjir, sawah</td>
 </tr>
 <tr class="odd">
 <td>SRTM / Copernicus DEM</td>
@@ -306,182 +366,177 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p>Untuk Indonesia, dua baris terakhir sering menentukan: separuh tahun langit kita tertutup awan, dan Sentinel-1 tidak peduli pada awan.</p>
+<p>Untuk Indonesia, baris radar sering menentukan: separuh tahun langit kita tertutup awan, dan Sentinel-1 tidak peduli pada awan.</p>
+</section>
 </section>
 <section id="code-editor" class="level2">
 <h2 class="anchored" data-anchor-id="code-editor">2 · Code Editor tour</h2>
-<p>Empat panel. Kenali namanya sekarang, karena selanjutnya kita akan menyebut “lihat di Console” tanpa menjelaskan lagi.</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 36%">
-<col style="width: 36%">
-<col style="width: 26%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Panel</th>
-<th>Letak</th>
-<th>Isi</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>Scripts</strong></td>
-<td>kiri atas</td>
-<td>skrip tersimpan Anda, contoh, repositori bersama</td>
-</tr>
-<tr class="even">
-<td><strong>Docs</strong></td>
-<td>kiri (tab)</td>
-<td>daftar seluruh fungsi — ini dokumentasi resminya</td>
-</tr>
-<tr class="odd">
-<td><strong>Assets</strong></td>
-<td>kiri (tab)</td>
-<td>data yang Anda unggah sendiri (shapefile, dsb)</td>
-</tr>
-<tr class="even">
-<td><strong>Editor</strong></td>
-<td>tengah</td>
-<td>tempat menulis kode</td>
-</tr>
-<tr class="odd">
-<td><strong>Console</strong></td>
-<td>kanan atas</td>
-<td>hasil <code>print</code>, pesan error</td>
-</tr>
-<tr class="even">
-<td><strong>Inspector</strong></td>
-<td>kanan (tab)</td>
-<td>klik peta → lihat nilai piksel di titik itu</td>
-</tr>
-<tr class="odd">
-<td><strong>Tasks</strong></td>
-<td>kanan (tab)</td>
-<td>ekspor yang menunggu dijalankan</td>
-</tr>
-<tr class="even">
-<td><strong>Map</strong></td>
-<td>bawah</td>
-<td>peta</td>
-</tr>
-</tbody>
-</table>
-<p>Dua kebiasaan yang menghemat banyak waktu nanti:</p>
-<ul>
-<li><strong>Inspector</strong> adalah cara tercepat memeriksa “apakah nilainya masuk akal”. Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.</li>
-<li><strong>Tasks</strong> sering terlupakan. <code>Export</code> di dalam skrip tidak langsung mengekspor; ia hanya <em>mengantre</em> tugas. Anda masih harus klik <strong>Run</strong> di tab Tasks. Peserta yang bilang “ekspornya tidak jalan” hampir selalu lupa ini.</li>
-</ul>
+<p><em>20 menit</em></p>
+<p>Sekilas layarnya padat, tetapi hanya ada empat bagian yang perlu dikenali hari ini.</p>
+<p><strong>Kiri — Scripts / Docs / Assets.</strong> <em>Scripts</em> menyimpan skrip Anda. <em>Docs</em> adalah dokumentasi lengkap semua fungsi — ini yang paling sering dilupakan pemula, padahal isinya jawaban dari 90% pertanyaan. <em>Assets</em> untuk data Anda sendiri, misalnya shapefile batas wilayah.</p>
+<p><strong>Tengah — Editor kode.</strong> Tempat mengetik. Tombol <strong>Run</strong> menjalankan seluruh skrip dari atas ke bawah. <strong>Save</strong> menyimpan. <strong>Get Link</strong> membuat URL yang berisi skrip Anda — cara terbaik membagikan pekerjaan ke rekan atau ke dosen pembimbing.</p>
+<p><strong>Kanan — Console / Inspector / Tasks.</strong> <em>Console</em> menampilkan hasil <code>print()</code>. <em>Inspector</em> membaca nilai piksel saat Anda mengklik peta — alat debug paling berguna di GEE. <em>Tasks</em> tempat ekspor dijalankan.</p>
+<p><strong>Bawah — Peta.</strong> Setiap <code>Map.addLayer()</code> menambah satu lapisan. Panel <strong>Layers</strong> di pojok kanan atas peta mengatur transparansi dan mematikan lapisan — sangat membantu saat membandingkan sebelum/sesudah.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Dua kebiasaan yang menghemat berjam-jam
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Inspector</strong> adalah cara tercepat memeriksa “apakah nilainya masuk akal”. Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.</p>
+<p><strong>Tasks</strong> sering terlupakan. <code>Export</code> di dalam skrip tidak langsung mengekspor; ia hanya <em>mengantre</em>. Anda masih harus klik <strong>RUN</strong> di tab Tasks. Peserta yang bilang “ekspornya tidak jalan” hampir selalu lupa ini.</p>
+</div>
+</div>
 </section>
 <section id="javascript" class="level2">
 <h2 class="anchored" data-anchor-id="javascript">3 · JavaScript secukupnya</h2>
+<p><em>30 menit</em></p>
 <p>Anda tidak perlu belajar JavaScript. Anda perlu enam hal.</p>
-<section id="variables" class="level3">
-<h3 class="anchored" data-anchor-id="variables">Variables</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> kota <span class="op">=</span> <span class="st">'Maumere'</span><span class="op">;</span>          <span class="co">// teks, pakai tanda kutip</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> tahun <span class="op">=</span> <span class="dv">2024</span><span class="op">;</span>              <span class="co">// angka, tanpa kutip</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> aktif <span class="op">=</span> <span class="kw">true</span><span class="op">;</span>              <span class="co">// benar/salah</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>var</code> artinya “simpan dengan nama ini”. Titik koma di akhir baris.</p>
-</section>
-<section id="lists" class="level3">
-<h3 class="anchored" data-anchor-id="lists">Lists</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> bands <span class="op">=</span> [<span class="st">'B4'</span><span class="op">,</span> <span class="st">'B3'</span><span class="op">,</span> <span class="st">'B2'</span>]<span class="op">;</span>    <span class="co">// urutan: merah, hijau, biru</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(bands[<span class="dv">0</span>])<span class="op">;</span>                   <span class="co">// 'B4' — hitungan mulai dari 0, bukan 1</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Hitungan mulai dari <strong>nol</strong>. Ini sumber kesalahan nomor satu bagi pendatang baru dari dunia spreadsheet.</p>
-</section>
-<section id="dictionaries" class="level3">
-<h3 class="anchored" data-anchor-id="dictionaries">Dictionaries</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> visual <span class="op">=</span> {</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">bands</span><span class="op">:</span> [<span class="st">'B4'</span><span class="op">,</span> <span class="st">'B3'</span><span class="op">,</span> <span class="st">'B2'</span>]<span class="op">,</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>}<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Pasangan <code>nama: nilai</code>. Hampir semua fungsi Earth Engine menerima dictionary seperti ini sebagai pengaturan tampilan atau parameter.</p>
-</section>
-<section id="functions" class="level3">
-<h3 class="anchored" data-anchor-id="functions">Functions</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">tambahNDVI</span> (image) {</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> ndvi <span class="op">=</span> image<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span> <span class="st">'B4'</span>])<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDVI'</span>)<span class="op">;</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> image<span class="op">.</span><span class="fu">addBands</span>(ndvi)<span class="op">;</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Sebuah fungsi adalah instruksi yang diberi nama, supaya bisa dipakai berulang pada banyak citra sekaligus.</p>
-</section>
-<section id="chaining" class="level3">
-<h3 class="anchored" data-anchor-id="chaining">Chaining</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> citra <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterBounds</span>(aoi)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-06-01'</span><span class="op">,</span> <span class="st">'2024-09-30'</span>)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">median</span>()<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Titik di depan tiap baris berarti “lalu lakukan ini pada hasil sebelumnya”. Dibaca dari atas ke bawah seperti kalimat: ambil koleksi Sentinel-2, saring menurut wilayah, saring menurut tanggal, ambil nilai tengahnya.</p>
-</section>
-<section id="comments" class="level3">
-<h3 class="anchored" data-anchor-id="comments">Comments</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Baris ini diabaikan komputer, ditulis untuk manusia.</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> kota  <span class="op">=</span> <span class="st">'Maumere'</span><span class="op">;</span>           <span class="co">// teks, pakai tanda kutip</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> tahun <span class="op">=</span> <span class="dv">2024</span><span class="op">;</span>                <span class="co">// angka, tanpa kutip</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> bands <span class="op">=</span> [<span class="st">'B4'</span><span class="op">,</span> <span class="st">'B3'</span><span class="op">,</span> <span class="st">'B2'</span>]<span class="op">;</span>  <span class="co">// daftar — hitungan mulai NOL</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(bands[<span class="dv">0</span>])<span class="op">;</span>                 <span class="co">// 'B4', bukan bands[1]</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> visual <span class="op">=</span> {                   <span class="co">// kamus: pasangan nama: nilai</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">bands</span><span class="op">:</span> [<span class="st">'B4'</span><span class="op">,</span> <span class="st">'B3'</span><span class="op">,</span> <span class="st">'B2'</span>]<span class="op">,</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>}<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Perhatikan kamus di atas. Bentuk <code>{nama: nilai}</code> akan muncul terus, karena hampir semua fungsi Earth Engine menerima pengaturannya dalam bentuk itu.</p>
+<p>Hitungan mulai <strong>nol</strong> adalah sumber kesalahan nomor satu bagi orang yang terbiasa dengan spreadsheet.</p>
+<section id="functions-dan-chaining" class="level3">
+<h3 class="anchored" data-anchor-id="functions-dan-chaining">Functions dan chaining</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">tambahNDVI</span> (image) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> ndvi <span class="op">=</span> image<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span> <span class="st">'B4'</span>])<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDVI'</span>)<span class="op">;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> image<span class="op">.</span><span class="fu">addBands</span>(ndvi)<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> citra <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterBounds</span>(aoi)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-06-01'</span><span class="op">,</span> <span class="st">'2024-09-30'</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">median</span>()<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Titik di awal baris berarti “lalu lakukan ini pada hasil sebelumnya”. Dibaca dari atas ke bawah seperti kalimat.</p>
 </section>
 </section>
 <section id="client-server" class="level2">
 <h2 class="anchored" data-anchor-id="client-server">4 · Client vs server</h2>
+<p><em>40 menit · bagian terpenting seluruh webinar</em></p>
 <div class="callout callout-style-default callout-important callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Penting</span>Bagian terpenting hari ini
+<span class="screen-reader-only">Penting</span>Kalau hanya satu hal yang diingat, jadikan yang ini
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Kalau hanya satu hal dari hari pertama yang Anda ingat, ingat yang ini. Sebagian besar error yang membingungkan pemula berasal dari sini, dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.</p>
+<p>Hampir semua kebingungan pemula di GEE berakar di sini — dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.</p>
 </div>
 </div>
-<p>Ada <strong>dua dunia</strong> di dalam satu skrip.</p>
-<p><strong>Client</strong> — yang berjalan di browser Anda. Semua yang tadi: <code>var</code>, angka biasa, <code>if</code>, <code>for</code>, teks.</p>
-<p><strong>Server</strong> — yang berjalan di komputer Google. Semua yang diawali <code>ee.</code>: <code>ee.Image</code>, <code>ee.Number</code>, <code>ee.ImageCollection</code>.</p>
-<p>Objek <code>ee.</code> <strong>tidak berisi nilai</strong> di browser Anda. Ia berisi <em>resep</em>: catatan tentang perhitungan apa yang harus dilakukan nanti, di sana.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> a <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>                     <span class="co">// client: benar-benar berisi 5</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> b <span class="op">=</span> ee<span class="op">.</span><span class="fu">Number</span>(<span class="dv">5</span>)<span class="op">;</span>          <span class="co">// server: resep yang akan menghasilkan 5</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(a <span class="op">+</span> <span class="dv">1</span>)<span class="op">;</span>                  <span class="co">// 6</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(b<span class="op">.</span><span class="fu">add</span>(<span class="dv">1</span>))<span class="op">;</span>               <span class="co">// 6 — tapi lewat jalan yang sama sekali berbeda</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Dan ini yang tidak bisa:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> koleksi <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)<span class="op">;</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (koleksi<span class="op">.</span><span class="fu">size</span>() <span class="op">&gt;</span> <span class="dv">100</span>) {        <span class="co">// ← SALAH, tidak akan berjalan benar</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">'banyak citra'</span>)<span class="op">;</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>koleksi.size()</code> bukan angka. Ia janji untuk menghitung, nanti, di server. <code>if</code> berjalan sekarang, di browser — jadi ia menilai sesuatu yang belum ada.</p>
-<p>Aturan praktis yang cukup untuk seluruh webinar ini:</p>
+<p>Ada dua dunia yang hidup berdampingan di dalam satu skrip:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Klien (peramban Anda)</th>
+<th>Server (Google)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Contoh</td>
+<td><code>var a = 5;</code></td>
+<td><code>var b = ee.Number(5);</code></td>
+</tr>
+<tr class="even">
+<td>Ciri</td>
+<td>JavaScript biasa</td>
+<td>Selalu diawali <code>ee.</code></td>
+</tr>
+<tr class="odd">
+<td>Dihitung di</td>
+<td>Laptop Anda</td>
+<td>Data center Google</td>
+</tr>
+<tr class="even">
+<td>Boleh pakai <code>if</code>/<code>for</code>?</td>
+<td>Boleh</td>
+<td><strong>Tidak</strong></td>
+</tr>
+</tbody>
+</table>
+<section id="kenapa-if-tidak-boleh-dipakai-pada-objek-server" class="level3">
+<h3 class="anchored" data-anchor-id="kenapa-if-tidak-boleh-dipakai-pada-objek-server">Kenapa <code>if</code> tidak boleh dipakai pada objek server</h3>
+<p>Contoh ini yang paling jelas menunjukkannya. Jalankan sendiri:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> b <span class="op">=</span> ee<span class="op">.</span><span class="fu">Number</span>(<span class="dv">1</span>)<span class="op">;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (b<span class="op">.</span><span class="fu">gt</span>(<span class="dv">3</span>)) {</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">'lebih besar dari 3'</span>)<span class="op">;</span>   <span class="co">// ini TETAP tercetak!</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Padahal 1 jelas tidak lebih besar dari 3. Kenapa tetap tercetak?</p>
+<p>Karena <code>b.gt(3)</code> <strong>tidak mengembalikan <code>true</code> atau <code>false</code></strong>. Ia mengembalikan sebuah objek <code>ee.Number</code> — perintah yang belum dijalankan, yang baru akan dievaluasi di server nanti. Dan di JavaScript, objek apa pun dianggap “benar”. Jadi blok <code>if</code> itu selalu jalan, apa pun isinya.</p>
+<p><strong>Ini bukan bug.</strong> Ini konsekuensi dari kenyataan bahwa peramban Anda belum tahu nilainya — dan tidak akan tahu sampai server menghitungnya.</p>
+</section>
+<section id="hal-yang-sama-berlaku-untuk-perulangan" class="level3">
+<h3 class="anchored" data-anchor-id="hal-yang-sama-berlaku-untuk-perulangan">Hal yang sama berlaku untuk perulangan</h3>
+<p>Jangan pernah menulis <code>for</code> untuk memproses isi sebuah koleksi citra:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// SALAH — for-loop tidak bisa menyentuh isi ImageCollection</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (<span class="kw">var</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> koleksi<span class="op">.</span><span class="fu">size</span>()<span class="op">;</span> i<span class="op">++</span>) { <span class="op">...</span> }</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co">// BENAR — .map() menyuruh server melakukannya untuk setiap citra</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> hasil <span class="op">=</span> koleksi<span class="op">.</span><span class="fu">map</span>(<span class="kw">function</span> (citra) {</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> citra<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span> <span class="st">'B4'</span>])<span class="op">;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>.map()</code> adalah cara Earth Engine berkata “kerjakan fungsi ini pada setiap elemen, di sisimu, secara paralel”. Untuk ribuan citra, bedanya bukan soal gaya penulisan — <code>for</code> memang tidak akan berhasil sama sekali.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Peringatan</span><code>getInfo()</code> — pakai sehemat mungkin
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>getInfo()</code> memaksa hasil dari server pindah ke peramban <strong>sekarang juga</strong>, dan peramban membeku sampai selesai.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(koleksi<span class="op">.</span><span class="fu">size</span>())<span class="op">;</span>              <span class="co">// benar — print menanganinya secara asinkron</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> n <span class="op">=</span> koleksi<span class="op">.</span><span class="fu">size</span>()<span class="op">.</span><span class="fu">getInfo</span>()<span class="op">;</span>   <span class="co">// jalan, tapi memblokir; hindari kecuali perlu</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Jangan pernah memakainya di dalam <code>.map()</code>.</p>
+</div>
+</div>
+</section>
+<section id="aturan-praktis" class="level3">
+<h3 class="anchored" data-anchor-id="aturan-praktis">Aturan praktis</h3>
 <blockquote class="blockquote">
-<p><strong>Kalau namanya diawali <code>ee.</code>, jangan pakai <code>if</code>, <code>for</code>, atau operator <code>+ - * /</code> biasa padanya.</strong> Pakai metodenya sendiri: <code>.add()</code>, <code>.subtract()</code>, <code>.gt()</code>, <code>.map()</code>.</p>
+<p>Kalau namanya diawali <code>ee.</code>, jangan pakai <code>if</code>, <code>for</code>, atau operator <code>+ - * /</code> biasa padanya. Pakai metodenya sendiri: <code>.add()</code>, <code>.subtract()</code>, <code>.gt()</code>, <code>.map()</code>.</p>
 </blockquote>
-<section id="kenapa-ini-penting-untuk-pekerjaan-anda" class="level3">
-<h3 class="anchored" data-anchor-id="kenapa-ini-penting-untuk-pekerjaan-anda">Kenapa ini penting untuk pekerjaan Anda</h3>
-<p>Karena dari sinilah kalimat “kok hasilnya kosong” hampir selalu berasal. Dan karena begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan jadi masuk akal: hampir seluruh API-nya disusun mengikuti pembagian ini.</p>
+<p>Dari sinilah hampir semua kalimat <em>“kok hasilnya kosong”</em> berasal. Dan begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan langsung masuk akal: seluruh API-nya disusun mengikuti pembagian ini.</p>
 </section>
 </section>
-<section id="latihan" class="level2">
-<h2 class="anchored" data-anchor-id="latihan">Latihan sebelum besok</h2>
-<p>Sepuluh menit, tidak perlu dikumpulkan. Tujuannya supaya besok tangan Anda sudah hafal Code Editor.</p>
-<ol type="1">
-<li>Buka Code Editor, buat skrip baru, beri nama <code>latihan-hari-1</code>.</li>
-<li>Buat variabel berisi nama kabupaten Anda, lalu <code>print</code>.</li>
-<li>Tampilkan satu citra Sentinel-2 apa saja di wilayah Anda:</li>
-</ol>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> titik <span class="op">=</span> ee<span class="op">.</span><span class="at">Geometry</span><span class="op">.</span><span class="fu">Point</span>([<span class="fl">121.35</span><span class="op">,</span> <span class="op">-</span><span class="fl">8.65</span>])<span class="op">;</span>   <span class="co">// ganti ke wilayah Anda</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">centerObject</span>(titik<span class="op">,</span> <span class="dv">11</span>)<span class="op">;</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> citra <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterBounds</span>(titik)</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-06-01'</span><span class="op">,</span> <span class="st">'2024-09-30'</span>)</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">first</span>()<span class="op">;</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(citra<span class="op">,</span> {<span class="dt">bands</span><span class="op">:</span> [<span class="st">'B4'</span><span class="op">,</span> <span class="st">'B3'</span><span class="op">,</span> <span class="st">'B2'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span>}<span class="op">,</span> <span class="st">'Sentinel-2'</span>)<span class="op">;</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(citra)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
-<ol start="4" type="1">
-<li>Klik <strong>Inspector</strong>, lalu klik satu titik di peta. Lihat daftar nilai band yang muncul.</li>
-<li>Di Console, klik segitiga di sebelah hasil <code>print(citra)</code> dan telusuri isinya. Perhatikan ada berapa band, dan berapa <code>system:time_start</code>.</li>
-</ol>
-<p>Kalau nomor 5 terasa membingungkan, itu wajar — dan itu justru inti hari pertama: yang dicetak bukan gambar, melainkan <strong>deskripsi</strong> tentang gambar.</p>
+<section id="tugas" class="level2">
+<h2 class="anchored" data-anchor-id="tugas">Tugas · 10 menit</h2>
+<p>Dikerjakan sekarang, tidak dikumpulkan. Tujuannya supaya besok tangan Anda sudah hafal Code Editor.</p>
+<p><strong>1.</strong> Ubah <code>ee.Number(1)</code> pada contoh <code>if</code> di atas menjadi <code>ee.Number(5)</code>. Apakah hasilnya berubah? Kenapa tidak?</p>
+<p><strong>2.</strong> Buat skrip baru bernama <code>latihan-hari-1</code>, lalu tampilkan satu citra Sentinel-2 di wilayah kerja Anda:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> titik <span class="op">=</span> ee<span class="op">.</span><span class="at">Geometry</span><span class="op">.</span><span class="fu">Point</span>([<span class="fl">121.35</span><span class="op">,</span> <span class="op">-</span><span class="fl">8.65</span>])<span class="op">;</span>   <span class="co">// ganti ke wilayah Anda</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">centerObject</span>(titik<span class="op">,</span> <span class="dv">11</span>)<span class="op">;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> citra <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterBounds</span>(titik)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-06-01'</span><span class="op">,</span> <span class="st">'2024-09-30'</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">first</span>()<span class="op">;</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="bu">Map</span><span class="op">.</span><span class="fu">addLayer</span>(citra<span class="op">,</span> {<span class="dt">bands</span><span class="op">:</span> [<span class="st">'B4'</span><span class="op">,</span><span class="st">'B3'</span><span class="op">,</span><span class="st">'B2'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span>}<span class="op">,</span> <span class="st">'Sentinel-2'</span>)<span class="op">;</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(citra)<span class="op">;</span></span></code></pre></div><button title="Salin ke Papan Klip" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>3.</strong> Klik <strong>Inspector</strong>, lalu klik satu titik di peta. Lihat daftar nilai band.</p>
+<p><strong>4.</strong> Di Console, buka segitiga di sebelah hasil <code>print(citra)</code> dan telusuri isinya. Ada berapa band? Kapan citra itu direkam?</p>
+<p>Kalau nomor 4 terasa membingungkan, itu wajar — dan itu justru inti hari pertama: <strong>yang dicetak bukan gambar, melainkan deskripsi tentang gambar.</strong></p>
 <hr>
 <p>Besok: dari komposit bebas awan sampai peta tutupan lahan dan berkas GeoTIFF yang siap masuk laporan. → <a href="./hari-2.html">Day 2 — Hands-on</a></p>
 

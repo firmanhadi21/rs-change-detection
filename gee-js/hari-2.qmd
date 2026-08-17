@@ -3,160 +3,229 @@ title: "Day 2 — Hands-on"
 subtitle: "2 jam · dari citra mentah sampai berkas untuk laporan"
 ---
 
-Hari ini semua orang mengetik. Di akhir sesi Anda punya peta tutupan lahan
-wilayah Anda sendiri, angka akurasinya, dan berkas yang bisa langsung masuk
-laporan.
+Hari ini semua orang mengetik. Skripnya tumbuh sedikit demi sedikit — tidak ada
+langkah yang dibuang, dan yang kita bangun adalah satu alur utuh:
 
-Kerjakan berurutan — tiap bagian memakai hasil bagian sebelumnya. Kalau
-tertinggal, jangan panik: tiap bagian punya skrip lengkap yang bisa disalin
-utuh untuk mengejar.
+> Kawasan tambang nikel **Konawe Utara, Sulawesi Tenggara**: berapa hektar
+> vegetasi hilang antara 2023 dan 2026, tutupan lahannya seperti apa, dan
+> bagaimana mengeluarkannya sebagai berkas yang bisa dilampirkan.
 
 ::: {.callout-tip}
 ## Susun layar Anda sekarang
 
-Setengah kiri halaman ini, setengah kanan Code Editor. Peserta yang
-bolak-balik antar tab kehilangan banyak waktu.
+Setengah kiri halaman ini, setengah kanan Code Editor. Peserta yang bolak-balik
+antar tab kehilangan banyak waktu.
 :::
 
-## 1 · Cloud-free composite {#komposit}
-*20 menit*
-
-Satu citra Sentinel-2 di Indonesia hampir selalu berawan. Solusinya bukan
-mencari hari yang cerah, melainkan **menggabungkan banyak citra dan mengambil
-nilai tengahnya** — awan yang berpindah-pindah akan kalah suara.
+## Area kerja {#area}
 
 ```javascript
-// AOI — ganti ke wilayah Anda
-var aoi = ee.Geometry.Point([121.35, -8.65]).buffer(15000);
-Map.centerObject(aoi, 11);
-
-// Cloud mask memakai Scene Classification Layer
-function maskS2 (image) {
-  var scl = image.select('SCL');
-  var buruk = scl.eq(3)      // cloud shadow
-        .or(scl.eq(8))       // cloud medium probability
-        .or(scl.eq(9))       // cloud high probability
-        .or(scl.eq(10));     // cirrus
-  return image.updateMask(buruk.not()).divide(10000);
-}
-
-var komposit = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-  .filterBounds(aoi)
-  .filterDate('2024-06-01', '2024-09-30')
-  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 60))
-  .map(maskS2)
-  .median()
-  .clip(aoi);
-
-Map.addLayer(komposit, {bands: ['B4','B3','B2'], min: 0, max: 0.3}, 'True colour');
+// Kawasan tambang nikel, Konawe Utara. Ganti ke wilayah Anda kalau mau —
+// semua bagian selanjutnya mengikuti variabel ini.
+var area = ee.Geometry.Rectangle([121.90, -3.30, 122.05, -3.15]);
+Map.centerObject(area, 12);
 ```
 
-**Periksa hasilnya sebelum lanjut.** Kalau masih banyak lubang atau awan:
+Untuk wilayah Anda sendiri: cari di Google Maps, klik kanan, salin
+koordinatnya — lalu **ingat membaliknya menjadi `[bujur, lintang]`**. Kalau peta
+Anda mendarat di Somalia, keduanya tertukar.
 
-| Gejala | Perbaikan |
-|---|---|
-| banyak lubang kosong | lebarkan rentang tanggal |
-| masih berawan | naikkan filter `CLOUDY_PIXEL_PERCENTAGE` jadi 80 |
-| gambar terlalu gelap/terang | ubah `max` di visualisasi (0.2–0.4) |
+## 1 · Komposit bebas awan {#komposit}
+*20 menit*
+
+Satu citra jarang cukup di Indonesia, dan pesertanya biasanya sudah tahu
+alasannya sebelum kita menyebutkannya: **awan**. Menunggu satu citra yang
+benar-benar bersih di atas Sulawesi bisa berarti menunggu berbulan-bulan.
+
+Solusinya bukan mencari citra sempurna, melainkan **menggabungkan banyak citra
+tidak sempurna**. Untuk setiap piksel: buang yang tertutup awan, lalu ambil
+nilai tengah (median) dari sisanya. Awan di citra A ditambal piksel bersih dari
+citra F — otomatis, per piksel.
+
+```javascript
+// Membuang piksel awan dengan band SCL (Scene Classification Layer)
+function maskAwan (citra) {
+  var scl = citra.select('SCL');
+  var bersih = scl.neq(3)        // 3  = bayangan awan
+        .and(scl.neq(8))         // 8  = awan probabilitas sedang
+        .and(scl.neq(9))         // 9  = awan probabilitas tinggi
+        .and(scl.neq(10))        // 10 = cirrus tipis
+        .and(scl.neq(11));       // 11 = salju / es
+  return citra.updateMask(bersih);
+}
+
+// Satu komposit median untuk satu rentang tanggal
+function komposit (mulai, selesai) {
+  return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+    .filterBounds(area)
+    .filterDate(mulai, selesai)
+    .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 60))
+    .map(maskAwan)
+    .median();
+}
+
+var sebelum = komposit('2023-01-01', '2023-12-31');
+var sesudah = komposit('2026-01-01', '2026-06-30');
+
+Map.addLayer(sebelum.clip(area), {bands:['B4','B3','B2'], min:0, max:3000}, 'Sebelum 2023');
+Map.addLayer(sesudah.clip(area), {bands:['B4','B3','B2'], min:0, max:3000}, 'Sesudah 2026');
+```
+
+Jalankan, lalu bandingkan kedua lapisan dengan menyalakan–mematikannya lewat
+panel **Layers**. Perbedaannya seharusnya sudah terlihat dengan mata telanjang.
 
 ::: {.callout-note}
-## Kenapa `divide(10000)`
+## Kenapa `max: 3000`, bukan 255?
 
-Sentinel-2 menyimpan reflektansi sebagai bilangan bulat untuk menghemat
-ruang. Dibagi 10.000 supaya kembali ke skala 0–1, yang membuat nilai NDVI
-nanti masuk akal.
+Sentinel-2 Level-2A menyimpan pantulan permukaan dalam bilangan bulat yang
+dikalikan 10.000. Jadi nilai 3000 berarti pantulan 0,30 alias 30% — kira-kira
+batas atas yang wajar untuk vegetasi dan tanah. Kalau citra tampak terlalu
+gelap, naikkan; terlalu terang, turunkan.
 :::
+
+Tambahkan juga versi **warna semu**, lalu nyalakan bergantian:
+
+```javascript
+Map.addLayer(sesudah.clip(area), {bands:['B8','B4','B3'], min:0, max:3000}, 'Warna semu');
+```
+
+Pada warna semu, vegetasi sehat menyala **merah terang** — karena daun
+memantulkan inframerah-dekat jauh lebih kuat daripada cahaya tampak. Sifat
+inilah yang dipakai NDVI di bagian berikutnya.
 
 ## 2 · NDVI {#ndvi}
 *20 menit*
 
-NDVI membandingkan inframerah dekat dengan merah. Vegetasi sehat memantulkan
-banyak inframerah dan menyerap merah, jadi nilainya tinggi.
-
 ```javascript
-var ndvi = komposit.normalizedDifference(['B8', 'B4']).rename('NDVI');
+function ndvi (citra) {
+  return citra.normalizedDifference(['B8', 'B4']).rename('NDVI');
+}
 
-Map.addLayer(ndvi, {min: -0.2, max: 0.8,
-  palette: ['#c8553d', '#f0e6c8', '#2d6a4f']}, 'NDVI');
+var ndviSebelum = ndvi(sebelum).clip(area);
+var ndviSesudah = ndvi(sesudah).clip(area);
+
+var visNDVI = {min: -0.2, max: 0.8,
+               palette: ['#c8553d', '#f0e6c8', '#2d6a4f']};
+
+Map.addLayer(ndviSebelum, visNDVI, 'NDVI 2023');
+Map.addLayer(ndviSesudah, visNDVI, 'NDVI 2026');
 ```
-
-Pegangan membaca nilainya:
 
 | NDVI | Biasanya |
 |---:|---|
 | < 0 | air |
-| 0 – 0.2 | lahan terbuka, terbangun |
+| 0 – 0.2 | lahan terbuka, terbangun, tambang |
 | 0.2 – 0.4 | vegetasi jarang, semak |
 | 0.4 – 0.7 | pertanian, perkebunan |
 | > 0.7 | hutan rapat |
 
-**Pakai Inspector untuk memverifikasi.** Klik di laut — NDVI harus negatif.
-Klik di hutan — harus di atas 0.6. Kalau tidak, ada yang salah pada komposit
-Anda, dan lebih baik ketahuan sekarang daripada tiga bagian kemudian.
+**Verifikasi dengan Inspector sebelum lanjut.** Klik di badan air — harus
+negatif. Klik di hutan — harus di atas 0,6. Kalau tidak sesuai, ada yang salah
+pada komposit Anda, dan lebih baik ketahuan sekarang daripada tiga bagian
+kemudian.
 
 ### Grafik deret waktu
 
-Inilah yang biasanya diminta untuk laporan: bagaimana kehijauan berubah
-sepanjang tahun.
-
 ```javascript
-var koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-  .filterBounds(aoi)
-  .filterDate('2024-01-01', '2024-12-31')
-  .map(maskS2)
+var setahun = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(area).filterDate('2025-01-01', '2025-12-31')
+  .map(maskAwan)
   .map(function (img) {
-    return img.addBands(img.normalizedDifference(['B8','B4']).rename('NDVI'))
-              .copyProperties(img, ['system:time_start']);
+    return img.addBands(ndvi(img)).copyProperties(img, ['system:time_start']);
   });
 
 print(ui.Chart.image.series({
-  imageCollection: koleksi.select('NDVI'),
-  region: aoi,
-  reducer: ee.Reducer.mean(),
-  scale: 100
-}).setOptions({
-  title: 'NDVI sepanjang 2024',
-  vAxis: {title: 'NDVI'},
-  lineWidth: 2
-}));
+  imageCollection: setahun.select('NDVI'),
+  region: area, reducer: ee.Reducer.mean(), scale: 100
+}).setOptions({title: 'NDVI sepanjang 2025', vAxis: {title: 'NDVI'}}));
 ```
 
-Grafik muncul di Console. Klik ikon panah di pojoknya untuk membukanya di
-tab baru, lalu unduh sebagai PNG atau CSV — CSV berguna kalau Anda ingin
-mengolah angkanya di Excel.
+Grafik muncul di Console. Klik ikon panah di pojoknya untuk membukanya di tab
+baru, lalu unduh sebagai PNG untuk laporan atau CSV kalau angkanya mau diolah
+di Excel.
 
-## 3 · Land cover classification {#klasifikasi}
-*30 menit — bagian terpenting hari ini*
+## 3 · Klasifikasi tutupan lahan {#klasifikasi}
+*30 menit · bagian baru, dan yang paling sering diminta*
 
-Skrip lengkapnya: [`05-land-cover-classification.js`](scripts/05-land-cover-classification.js).
-Buka, salin seluruhnya ke Code Editor, lalu ikuti bersama.
+NDVI memberi tahu seberapa hijau. Klasifikasi memberi tahu **apa** — hutan,
+tambang, air, terbangun — dan itu yang biasanya diminta dalam laporan.
 
-Alurnya lima langkah:
+Skrip lengkapnya:
+[`05-land-cover-classification.js`](scripts/05-land-cover-classification.js).
 
-1. **Tentukan kelas.** Mulai dari sedikit — air, hutan, pertanian,
-   terbangun, lahan terbuka. Lima kelas yang benar jauh lebih berguna
-   daripada dua belas kelas yang saling tertukar.
-2. **Gambar titik latih.** 20–40 titik per kelas, di area yang Anda yakin.
-   Ini satu-satunya bagian yang tidak bisa disalin dari siapa pun: hanya
-   Anda yang tahu wilayah Anda.
-3. **Bagi data 70/30.** 70% untuk melatih, 30% disisihkan untuk menguji.
-4. **Latih Random Forest**, lalu klasifikasikan seluruh citra.
-5. **Baca angka akurasinya** sebelum melihat petanya.
+### Langkah 1 · Siapkan band untuk klasifikasi
+
+Menambahkan indeks hampir selalu menaikkan akurasi, karena air dan lahan
+terbuka jadi lebih mudah dibedakan dari vegetasi.
+
+```javascript
+var citra = sesudah.select(['B2','B3','B4','B8','B11','B12'])
+  .addBands(ndvi(sesudah))
+  .addBands(sesudah.normalizedDifference(['B3','B8']).rename('NDWI'))
+  .addBands(sesudah.normalizedDifference(['B11','B8']).rename('NDBI'))
+  .clip(area);
+```
+
+### Langkah 2 · Gambar titik latih — bagian yang tidak bisa disalin
+
+Komputer tidak tahu seperti apa "tambang" di wilayah Anda. Anda yang memberi
+tahu.
+
+Di panel **Geometry Imports** (kiri atas peta): klik `+ new layer`, ganti
+namanya, klik ikon roda gigi → **Import as: FeatureCollection**, tambahkan
+property `kelas` berisi angka. Lalu gambar 20–40 titik di area yang **jelas**
+kelas itu.
+
+| Kelas | Nilai | Warna |
+|---|---:|---|
+| air | 0 | biru tua |
+| hutan | 1 | hijau tua |
+| pertanian / semak | 2 | hijau muda |
+| terbangun | 3 | merah |
+| lahan terbuka / tambang | 4 | coklat |
+
+Mulai dari sedikit kelas. **Lima kelas yang benar jauh lebih berguna daripada
+dua belas kelas yang saling tertukar.**
+
+### Langkah 3 · Bagi 70/30, latih, uji
+
+```javascript
+var contoh = citra.sampleRegions({
+  collection: titikLatih, properties: ['kelas'], scale: 10, tileScale: 2
+});
+
+var acak = contoh.randomColumn('acak', 42);
+var latih = acak.filter(ee.Filter.lt('acak', 0.7));    // 70% melatih
+var uji   = acak.filter(ee.Filter.gte('acak', 0.7));   // 30% menguji
+
+var model = ee.Classifier.smileRandomForest(100)
+  .train({features: latih, classProperty: 'kelas',
+          inputProperties: citra.bandNames()});
+
+var hasil = citra.classify(model);
+Map.addLayer(hasil, {min:0, max:4,
+  palette:['1f4e79','1a7d3a','9acd32','c0392b','d9b38c']}, 'Tutupan lahan');
+```
+
+### Langkah 4 · Baca akurasinya sebelum melihat petanya
+
+```javascript
+var matriks = uji.classify(model).errorMatrix('kelas', 'classification');
+print('Overall accuracy:', matriks.accuracy());
+print('Kappa:', matriks.kappa());
+print('Confusion matrix:', matriks);
+```
 
 ::: {.callout-important}
 ## Peta klasifikasi selalu terlihat meyakinkan
 
 Apa pun yang Anda masukkan, hasilnya berupa peta berwarna rapi yang terlihat
-profesional. Itu sebabnya langkah 3 dan 5 tidak boleh dilewati — angka
-akurasi adalah satu-satunya hal yang membedakan peta yang layak dipakai dari
-peta yang sekadar indah.
+profesional. Itu sebabnya pembagian 70/30 tidak boleh dilewati.
 
-Kalau Anda menguji model dengan titik yang sama seperti yang dipakai melatih,
-akurasinya akan tinggi dan tidak berarti apa-apa — seperti mengujikan soal
-yang bocorannya sudah diberikan.
+Kalau model diuji dengan titik yang sama seperti yang dipakai melatih,
+akurasinya hampir selalu tinggi — persis seperti murid yang sudah diberi
+bocoran soal. Angka itu tidak berarti apa-apa.
 :::
-
-Cara membaca hasilnya:
 
 | Overall accuracy | Artinya |
 |---:|---|
@@ -169,67 +238,92 @@ menunjukkan kelas mana tertukar dengan apa. Yang paling sering di Indonesia:
 pertanian tertukar dengan lahan terbuka, karena sawah bera secara spektral
 memang mirip tanah kosong.
 
-## 4 · Change detection {#perubahan}
-*25 menit*
-
-Cara paling sederhana dan paling mudah dijelaskan dalam laporan: bandingkan
-NDVI dua tahun.
-
-```javascript
-function ndviTahun (tahun) {
-  return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-    .filterBounds(aoi)
-    .filterDate(tahun + '-06-01', tahun + '-09-30')
-    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 60))
-    .map(maskS2)
-    .median()
-    .normalizedDifference(['B8','B4'])
-    .clip(aoi);
-}
-
-var ndvi2019 = ndviTahun('2019');
-var ndvi2024 = ndviTahun('2024');
-var selisih  = ndvi2024.subtract(ndvi2019);
-
-Map.addLayer(selisih, {min: -0.3, max: 0.3,
-  palette: ['#b2182b', '#f7f7f7', '#1a9850']}, 'Perubahan NDVI');
-
-// Hanya penurunan tajam — kandidat kehilangan vegetasi
-var hilang = selisih.lt(-0.2);
-Map.addLayer(hilang.selfMask(), {palette: ['#d73027']}, 'Vegetasi berkurang');
-```
-
-Menghitung luasnya, untuk tabel laporan:
-
-```javascript
-var luasHa = ee.Image.pixelArea().divide(1e4).updateMask(hilang)
-  .reduceRegion({
-    reducer: ee.Reducer.sum(),
-    geometry: aoi,
-    scale: 10,
-    maxPixels: 1e10
-  });
-print('Luas vegetasi berkurang (ha):', luasHa);
-```
-
 ::: {.callout-warning}
-## Turunnya NDVI belum tentu deforestasi
+## Di sinilah kuota itu terasa
 
-Bisa juga panen, kekeringan musiman, atau perbedaan tanggal perekaman. Karena
-itu gunakan jendela musim yang sama untuk kedua tahun — dan verifikasi
-sebagian titik dengan citra resolusi tinggi sebelum menyebutnya "perubahan
-tutupan lahan" dalam laporan.
+Kalau muncul **"User memory limit exceeded"**, inilah batas yang disebut kemarin.
+Tiga cara mengatasinya, dari yang paling ringan: naikkan `tileScale` (2 → 4 → 8),
+perkecil AOI, atau naikkan `scale` dari 10 ke 20 selagi masih bereksperimen.
 :::
 
-## 5 · Export for reports {#ekspor}
+## 4 · Deteksi perubahan {#perubahan}
 *25 menit*
+
+```javascript
+var selisih = ndviSesudah.subtract(ndviSebelum);
+
+Map.addLayer(selisih, {min:-0.3, max:0.3,
+  palette:['#b2182b','#f7f7f7','#1a9850']}, 'Perubahan NDVI');
+
+var AMBANG = -0.15;              // turun lebih dari 0,15 dianggap kehilangan
+var hilang = selisih.lt(AMBANG);
+
+Map.addLayer(hilang.selfMask().clip(area), {palette:['red']}, 'Kehilangan vegetasi');
+```
+
+`.selfMask()` menyembunyikan piksel bernilai nol, sehingga yang tergambar hanya
+area yang benar-benar berubah.
+
+Lalu ubah peta menjadi angka — bagian yang biasanya paling ditunggu:
+
+```javascript
+var luas = hilang.multiply(ee.Image.pixelArea())   // luas tiap piksel, m2
+  .divide(10000)                                    // m2 -> hektar
+  .reduceRegion({
+    reducer: ee.Reducer.sum(), geometry: area,
+    scale: 20, maxPixels: 1e10
+  });
+
+print('Luas kehilangan vegetasi (ha):', luas);
+```
+
+`reduceRegion` meringkas seluruh piksel dalam sebuah wilayah menjadi satu angka.
+Parameter `scale` menentukan resolusi perhitungan, dan berpengaruh besar pada
+waktu proses; untuk latihan 20 m sudah memadai.
+
+::: {.callout-important}
+## Angka −0,15 itu pilihan, bukan kebenaran
+
+Tidak ada yang menurunkannya dari langit. Ubah menjadi −0,10 dan area merah
+melebar; −0,25 dan ia menyempit.
+
+Karena itu, saat melaporkan hasil, **selalu sebutkan ambang yang dipakai**.
+Pernyataan *"wilayah A dua kali wilayah B pada ambang yang sama"* jauh lebih
+kokoh daripada *"wilayah A rusak 37,2%"*.
+:::
+
+### Untuk pemateri — hasil yang seharusnya muncul
+
+Sudah diuji lebih dulu pada AOI seluas 11.175 ha (30 citra pada 2023, 13 citra
+pada 2026):
+
+| Ambang | Luas terdeteksi | Porsi AOI |
+|---:|---:|---:|
+| −0,10 | 1.681 ha | 15,0% |
+| **−0,15** (nilai di skrip) | **1.178 ha** | **10,5%** |
+| −0,25 | 560 ha | 5,0% |
+
+Inilah inti latihan berikutnya, dan sebaiknya ditulis di papan: **menggeser satu
+angka dari −0,10 ke −0,25 mengubah jawaban tiga kali lipat** — 1.681 ha versus
+560 ha — pada data yang sama persis. Tidak ada yang keliru, tidak ada bug. Yang
+berubah cuma satu keputusan yang biasanya tidak pernah disebutkan dalam laporan.
+
+Kalau angka peserta meleset agak jauh dari tabel ini, penyebabnya kemungkinan
+besar arsip yang bertambah — citra 2026 masih terus masuk — bukan kesalahan
+pengetikan.
+
+## 5 · Ekspor untuk laporan {#ekspor}
+*25 menit*
+
+Peta di layar bagus untuk diskusi, tapi cepat atau lambat hasilnya perlu masuk
+QGIS, ArcGIS, atau lampiran laporan.
 
 ```javascript
 Export.image.toDrive({
-  image: hasil.byte(),
-  description: 'tutupan_lahan_2024',
+  image: hasil.byte(),                  // byte: berkas jauh lebih kecil
+  description: 'tutupan_lahan_2026',
   folder: 'GEE_webinar',
-  region: aoi,
+  region: area,
   scale: 10,
   maxPixels: 1e10,
   fileFormat: 'GeoTIFF'
@@ -240,38 +334,46 @@ Export.image.toDrive({
 ## `Export` tidak langsung mengekspor
 
 Menjalankan skrip hanya **mengantre** tugasnya. Anda masih harus membuka tab
-**Tasks** di panel kanan dan menekan **RUN** pada tiap tugas. Ini keluhan
-nomor satu peserta webinar GEE, tanpa terkecuali.
+**Tasks** di panel kanan dan menekan **RUN** pada tiap tugas. Ini keluhan nomor
+satu peserta webinar GEE, tanpa terkecuali.
 :::
 
-Format mana untuk keperluan apa:
+| Keperluan | Format |
+|---|---|
+| dibuka di QGIS/ArcGIS | GeoTIFF |
+| gambar untuk laporan Word | GeoTIFF hasil `.visualize()` |
+| angka untuk tabel | CSV lewat `Export.table` |
+| grafik | PNG dari Console |
 
-| Keperluan | Format | Catatan |
-|---|---|---|
-| dibuka di QGIS/ArcGIS | GeoTIFF | punya koordinat, bisa dianalisis lagi |
-| gambar untuk laporan Word | GeoTIFF hasil `.visualize()` | sudah berwarna sesuai palet |
-| angka untuk tabel | CSV lewat `Export.table` | dari `reduceRegion` |
-| grafik | PNG dari Console | klik ikon panah di grafik |
-
-Untuk peta yang benar-benar siap presentasi — dengan legenda, skala dan
+Untuk peta yang benar-benar siap cetak — dengan skala, arah utara dan kotak
 judul — ekspor GeoTIFF-nya, lalu susun tata letaknya di QGIS. Earth Engine
-bagus untuk analisis; QGIS lebih baik untuk kartografi.
+unggul untuk analisis; QGIS lebih baik untuk kartografi.
+
+## Tugas · 10 menit {#tugas}
+
+**a.** Ganti `AMBANG` menjadi −0,10 lalu −0,25. Catat luasnya masing-masing.
+Seberapa besar pengaruh satu keputusan kecil itu terhadap angka yang akan Anda
+kutip dalam laporan?
+
+**b.** Ganti koordinat `area` ke wilayah kerja Anda sendiri, dan jalankan
+seluruh skrip dari awal. Apakah kelas-kelas yang Anda pilih masih masuk akal di
+sana?
+
+**c.** Lihat *overall accuracy* klasifikasi Anda. Kalau di bawah 0,70, tambah
+titik latih pada kelas yang paling tertukar di confusion matrix, lalu ulangi.
 
 ## Setelah webinar {#setelah}
 
-Tiga langkah yang membuat materi ini benar-benar terpakai:
+1. **Jalankan ulang untuk wilayah Anda minggu ini juga**, selagi masih ingat.
+   Menunda sebulan berarti mengulang dari nol.
+2. **Ganti satu hal, lihat akibatnya.** Memahami datang dari mengubah, bukan
+   dari menjalankan.
+3. **Simpan skrip Anda** lewat Scripts → NEW → File, dan pakai **Get Link**
+   untuk membagikannya.
 
-1. **Jalankan ulang untuk wilayah Anda sendiri** minggu ini juga, selagi
-   masih ingat. Menunda sebulan berarti mengulang dari nol.
-2. **Ganti satu hal, lihat akibatnya.** Ubah tahunnya. Ubah kelasnya. Ubah
-   ambang batas perubahannya. Memahami datang dari mengubah, bukan dari
-   menjalankan.
-3. **Simpan skrip Anda** lewat Scripts → NEW → File. Skrip yang tidak
-   disimpan hilang saat tab ditutup.
-
-Kalau ada yang tidak berjalan, bawa **pesan error persisnya** — pesan itu
-hampir selalu menunjukkan baris yang bermasalah, dan sebagian besar sudah
-pernah ditanyakan orang lain di
+Kalau ada yang tidak berjalan, bawa **pesan error persisnya** — pesan itu hampir
+selalu menunjukkan baris yang bermasalah, dan sebagian besar sudah pernah
+ditanyakan orang lain di
 [EE Developers Group](https://groups.google.com/g/google-earth-engine-developers).
 
 ---

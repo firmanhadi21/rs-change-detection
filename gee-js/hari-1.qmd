@@ -1,228 +1,276 @@
 ---
 title: "Day 1 — Concepts"
-subtitle: "2 jam · memahami sebelum mengetik"
+subtitle: "2 jam · paham dulu, mengetik besok"
 ---
 
-Hari ini tidak menghasilkan peta. Hari ini menghasilkan **pemahaman kenapa
-kode Earth Engine ditulis seperti itu** — supaya besok, ketika kita mengetik
-cepat, Anda tahu apa yang sedang terjadi dan bisa memperbaiki sendiri saat
+::: {.callout-note}
+## Tujuan hari ini adalah paham, bukan lomba mengetik
+
+Hari ini tidak menghasilkan peta. Yang dihasilkan adalah pengertian **kenapa
+kode Earth Engine ditulis seperti itu** — sehingga besok, ketika kita mengetik
+cepat, Anda tahu apa yang sedang terjadi dan bisa memperbaiki sendiri ketika
 ada yang salah.
 
-Kalau Anda hanya menyalin skrip tanpa hari pertama, skrip itu akan jalan.
-Tetapi ketika wilayahnya diganti dan muncul error, Anda tidak punya cara
-untuk menebak di mana letak masalahnya.
+Peserta yang melewati hari pertama tetap bisa menjalankan skrip besok. Sampai
+wilayahnya diganti, muncul error, dan tidak ada cara menebak dari mana
+datangnya.
+:::
+
+## What we are building {#target}
+
+Satu alur analisis yang tumbuh sedikit demi sedikit sepanjang dua hari:
+
+> Membandingkan tutupan vegetasi di **kawasan tambang nikel Konawe Utara,
+> Sulawesi Tenggara** antara 2023 dan 2026 — menghitung berapa hektar vegetasi
+> yang hilang, membuat peta tutupan lahannya, dan mengekspor hasilnya sebagai
+> GeoTIFF yang bisa masuk laporan.
+
+Tidak ada langkah yang dibuang. Skrip hari kedua adalah skrip hari pertama yang
+diteruskan. Kalau wilayah kerja Anda berbeda — dan hampir pasti berbeda — semua
+contoh bisa dipindah ke sana dengan mengganti satu variabel.
 
 ## 0 · Setup check {#setup}
+*10 menit*
 
-Lima menit pertama, semua orang bersamaan:
-
-1. Buka [code.earthengine.google.com](https://code.earthengine.google.com/)
-2. Ketik satu baris ini di panel tengah, lalu klik **Run**:
+Lima menit pertama, semua orang bersamaan. Buka
+[code.earthengine.google.com](https://code.earthengine.google.com/), ketik satu
+baris ini, klik **Run**:
 
 ```javascript
 print('siap');
 ```
 
-3. Kalau kata `siap` muncul di panel Console (kanan atas), Anda siap.
+Kalau kata `siap` muncul di panel Console (kanan atas), Anda siap.
 
 ::: {.callout-important}
-## Kalau `print` tidak muncul
+## Kalau tidak muncul
 
-Hampir selalu satu dari tiga hal: akun belum disetujui, tab lama masih
-terbuka dengan sesi kedaluwarsa (tutup semua lalu buka lagi), atau jaringan
-memblokir `earthengine.google.com`. Yang ketiga sering terjadi di jaringan
-kantor pemerintah — kalau begitu, pakai hotspot ponsel.
+Hampir selalu satu dari tiga hal: akun belum disetujui; tab lama masih terbuka
+dengan sesi kedaluwarsa (tutup semua, buka lagi); atau jaringan memblokir
+`earthengine.google.com` — sering terjadi di jaringan kantor pemerintah, dan
+solusinya hotspot ponsel.
 :::
 
 ## 1 · Why Earth Engine {#kenapa}
+*20 menit*
 
-Cara lama memetakan perubahan lahan satu kabupaten selama sepuluh tahun:
+Mulai dengan pertanyaan: **kalau ingin melihat perubahan tutupan lahan satu
+kabupaten selama sepuluh tahun, apa yang harus dilakukan?**
 
-- cari scene di portal penyedia, satu per satu;
-- unduh — puluhan sampai ratusan gigabyte;
-- koreksi radiometrik dan atmosferik, per scene;
-- mosaik, potong sesuai batas wilayah;
-- baru mulai analisis;
-- ulangi semuanya kalau ternyata wilayahnya perlu diperluas.
+Jawaban cara lama: cari citra di katalog, unduh satu per satu, tiap scene
+ratusan MB, koreksi atmosfer, mozaik, potong, baru analisis. Untuk sepuluh
+tahun satu kabupaten itu bisa ratusan gigabyte dan berminggu-minggu kerja —
+sebelum satu pun kesimpulan lahir.
 
-Yang berubah dengan Earth Engine bukan kecepatan mengunduh. **Yang berubah
-adalah tidak ada unduhan sama sekali.** Citranya sudah ada di sana, sudah
-terkoreksi, dan yang Anda kirim adalah perintah — bukan Anda yang mendatangi
-data, melainkan perhitungan Anda yang dikirim ke tempat datanya berada.
+Earth Engine membalik urutannya. **Datanya tidak pindah ke Anda; kode Anda yang
+pindah ke datanya.** Seluruh arsip Landsat sejak 1984, Sentinel sejak 2015,
+MODIS sejak 2000, ditambah ratusan dataset lain, sudah duduk di server Google.
+Anda menuliskan apa yang ingin dihitung, Google yang mengerjakan, dan yang
+dikirim balik ke layar Anda hanya gambar petanya.
 
-Konsekuensinya, dan ini yang membuat cara kerjanya terasa aneh di awal:
-**komputasi tidak berjalan di komputer Anda**. Bagian 4 membahas ini, dan itu
-bagian terpenting hari ini.
+| | Cara lama | Earth Engine |
+|---|---|---|
+| Unduhan | Ratusan GB | Nol |
+| Perangkat keras | Komputer kuat + penyimpanan | Peramban |
+| Waktu ke hasil pertama | Berhari-hari | Menit |
+| Menambah 10 tahun lagi | Ulangi semuanya | Ubah satu tanggal |
+| Biaya | Waktu & penyimpanan | Gratis untuk riset & pendidikan |
 
-Yang tersedia gratis, antara lain:
+::: {.callout-warning}
+## Dua hal yang perlu ditegaskan sejak awal
+
+**Gratisnya untuk penggunaan non-komersial** — riset, pendidikan, dan sebagian
+besar kerja lembaga publik. Penggunaan komersial berbayar.
+
+**"Gratis" bukan berarti "tanpa batas".** Ada kuota memori dan waktu komputasi.
+Kita akan menabraknya sendiri besok, di bagian klasifikasi — dan cara
+mengatasinya ada di sana.
+:::
+
+### Yang tersedia, gratis
 
 | Data | Resolusi | Sejak | Untuk apa |
 |------|---------:|------:|-----------|
 | Sentinel-2 | 10 m | 2015 | tutupan lahan, vegetasi, tanaman |
 | Landsat 8/9 | 30 m | 2013 | rangkaian panjang, konsistensi historis |
 | Landsat 5/7 | 30 m | 1984 | perubahan jangka sangat panjang |
-| Sentinel-1 (radar) | 10 m | 2014 | tembus awan — banjir, sawah |
+| Sentinel-1 (radar) | 10 m | 2014 | **tembus awan** — banjir, sawah |
 | SRTM / Copernicus DEM | 30 m | — | ketinggian, lereng |
 | CHIRPS | 5 km | 1981 | curah hujan |
 
-Untuk Indonesia, dua baris terakhir sering menentukan: separuh tahun langit
-kita tertutup awan, dan Sentinel-1 tidak peduli pada awan.
+Untuk Indonesia, baris radar sering menentukan: separuh tahun langit kita
+tertutup awan, dan Sentinel-1 tidak peduli pada awan.
 
 ## 2 · Code Editor tour {#code-editor}
+*20 menit*
 
-Empat panel. Kenali namanya sekarang, karena selanjutnya kita akan menyebut
-"lihat di Console" tanpa menjelaskan lagi.
+Sekilas layarnya padat, tetapi hanya ada empat bagian yang perlu dikenali hari
+ini.
 
-| Panel | Letak | Isi |
-|-------|-------|-----|
-| **Scripts** | kiri atas | skrip tersimpan Anda, contoh, repositori bersama |
-| **Docs** | kiri (tab) | daftar seluruh fungsi — ini dokumentasi resminya |
-| **Assets** | kiri (tab) | data yang Anda unggah sendiri (shapefile, dsb) |
-| **Editor** | tengah | tempat menulis kode |
-| **Console** | kanan atas | hasil `print`, pesan error |
-| **Inspector** | kanan (tab) | klik peta → lihat nilai piksel di titik itu |
-| **Tasks** | kanan (tab) | ekspor yang menunggu dijalankan |
-| **Map** | bawah | peta |
+**Kiri — Scripts / Docs / Assets.** *Scripts* menyimpan skrip Anda. *Docs*
+adalah dokumentasi lengkap semua fungsi — ini yang paling sering dilupakan
+pemula, padahal isinya jawaban dari 90% pertanyaan. *Assets* untuk data Anda
+sendiri, misalnya shapefile batas wilayah.
 
-Dua kebiasaan yang menghemat banyak waktu nanti:
+**Tengah — Editor kode.** Tempat mengetik. Tombol **Run** menjalankan seluruh
+skrip dari atas ke bawah. **Save** menyimpan. **Get Link** membuat URL yang
+berisi skrip Anda — cara terbaik membagikan pekerjaan ke rekan atau ke dosen
+pembimbing.
 
-- **Inspector** adalah cara tercepat memeriksa "apakah nilainya masuk akal".
-  Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.
-- **Tasks** sering terlupakan. `Export` di dalam skrip tidak langsung
-  mengekspor; ia hanya *mengantre* tugas. Anda masih harus klik **Run** di tab
-  Tasks. Peserta yang bilang "ekspornya tidak jalan" hampir selalu lupa ini.
+**Kanan — Console / Inspector / Tasks.** *Console* menampilkan hasil `print()`.
+*Inspector* membaca nilai piksel saat Anda mengklik peta — alat debug paling
+berguna di GEE. *Tasks* tempat ekspor dijalankan.
+
+**Bawah — Peta.** Setiap `Map.addLayer()` menambah satu lapisan. Panel
+**Layers** di pojok kanan atas peta mengatur transparansi dan mematikan
+lapisan — sangat membantu saat membandingkan sebelum/sesudah.
+
+::: {.callout-tip}
+## Dua kebiasaan yang menghemat berjam-jam
+
+**Inspector** adalah cara tercepat memeriksa "apakah nilainya masuk akal".
+Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.
+
+**Tasks** sering terlupakan. `Export` di dalam skrip tidak langsung
+mengekspor; ia hanya *mengantre*. Anda masih harus klik **RUN** di tab Tasks.
+Peserta yang bilang "ekspornya tidak jalan" hampir selalu lupa ini.
+:::
 
 ## 3 · JavaScript secukupnya {#javascript}
+*30 menit*
 
 Anda tidak perlu belajar JavaScript. Anda perlu enam hal.
 
-### Variables
-
 ```javascript
-var kota = 'Maumere';          // teks, pakai tanda kutip
-var tahun = 2024;              // angka, tanpa kutip
-var aktif = true;              // benar/salah
-```
+var kota  = 'Maumere';           // teks, pakai tanda kutip
+var tahun = 2024;                // angka, tanpa kutip
 
-`var` artinya "simpan dengan nama ini". Titik koma di akhir baris.
+var bands = ['B4', 'B3', 'B2'];  // daftar — hitungan mulai NOL
+print(bands[0]);                 // 'B4', bukan bands[1]
 
-### Lists
-
-```javascript
-var bands = ['B4', 'B3', 'B2'];    // urutan: merah, hijau, biru
-print(bands[0]);                   // 'B4' — hitungan mulai dari 0, bukan 1
-```
-
-Hitungan mulai dari **nol**. Ini sumber kesalahan nomor satu bagi pendatang
-baru dari dunia spreadsheet.
-
-### Dictionaries
-
-```javascript
-var visual = {
+var visual = {                   // kamus: pasangan nama: nilai
   bands: ['B4', 'B3', 'B2'],
   min: 0,
   max: 3000
 };
 ```
 
-Pasangan `nama: nilai`. Hampir semua fungsi Earth Engine menerima dictionary
-seperti ini sebagai pengaturan tampilan atau parameter.
+Perhatikan kamus di atas. Bentuk `{nama: nilai}` akan muncul terus, karena
+hampir semua fungsi Earth Engine menerima pengaturannya dalam bentuk itu.
 
-### Functions
+Hitungan mulai **nol** adalah sumber kesalahan nomor satu bagi orang yang
+terbiasa dengan spreadsheet.
+
+### Functions dan chaining
 
 ```javascript
 function tambahNDVI (image) {
   var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI');
   return image.addBands(ndvi);
 }
-```
 
-Sebuah fungsi adalah instruksi yang diberi nama, supaya bisa dipakai berulang
-pada banyak citra sekaligus.
-
-### Chaining
-
-```javascript
 var citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
               .filterBounds(aoi)
               .filterDate('2024-06-01', '2024-09-30')
               .median();
 ```
 
-Titik di depan tiap baris berarti "lalu lakukan ini pada hasil sebelumnya".
-Dibaca dari atas ke bawah seperti kalimat: ambil koleksi Sentinel-2, saring
-menurut wilayah, saring menurut tanggal, ambil nilai tengahnya.
-
-### Comments
-
-```javascript
-// Baris ini diabaikan komputer, ditulis untuk manusia.
-```
+Titik di awal baris berarti "lalu lakukan ini pada hasil sebelumnya". Dibaca
+dari atas ke bawah seperti kalimat.
 
 ## 4 · Client vs server {#client-server}
+*40 menit · bagian terpenting seluruh webinar*
 
 ::: {.callout-important}
-## Bagian terpenting hari ini
+## Kalau hanya satu hal yang diingat, jadikan yang ini
 
-Kalau hanya satu hal dari hari pertama yang Anda ingat, ingat yang ini.
-Sebagian besar error yang membingungkan pemula berasal dari sini, dan tidak
-satupun bisa dipecahkan dengan menyalin skrip orang lain.
+Hampir semua kebingungan pemula di GEE berakar di sini — dan tidak satupun
+bisa dipecahkan dengan menyalin skrip orang lain.
 :::
 
-Ada **dua dunia** di dalam satu skrip.
+Ada dua dunia yang hidup berdampingan di dalam satu skrip:
 
-**Client** — yang berjalan di browser Anda. Semua yang tadi: `var`, angka
-biasa, `if`, `for`, teks.
+| | Klien (peramban Anda) | Server (Google) |
+|---|---|---|
+| Contoh | `var a = 5;` | `var b = ee.Number(5);` |
+| Ciri | JavaScript biasa | Selalu diawali `ee.` |
+| Dihitung di | Laptop Anda | Data center Google |
+| Boleh pakai `if`/`for`? | Boleh | **Tidak** |
 
-**Server** — yang berjalan di komputer Google. Semua yang diawali `ee.`:
-`ee.Image`, `ee.Number`, `ee.ImageCollection`.
+### Kenapa `if` tidak boleh dipakai pada objek server
 
-Objek `ee.` **tidak berisi nilai** di browser Anda. Ia berisi *resep*: catatan
-tentang perhitungan apa yang harus dilakukan nanti, di sana.
-
-```javascript
-var a = 5;                     // client: benar-benar berisi 5
-var b = ee.Number(5);          // server: resep yang akan menghasilkan 5
-
-print(a + 1);                  // 6
-print(b.add(1));               // 6 — tapi lewat jalan yang sama sekali berbeda
-```
-
-Dan ini yang tidak bisa:
+Contoh ini yang paling jelas menunjukkannya. Jalankan sendiri:
 
 ```javascript
-var koleksi = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');
+var b = ee.Number(1);
 
-if (koleksi.size() > 100) {        // ← SALAH, tidak akan berjalan benar
-  print('banyak citra');
+if (b.gt(3)) {
+  print('lebih besar dari 3');   // ini TETAP tercetak!
 }
 ```
 
-`koleksi.size()` bukan angka. Ia janji untuk menghitung, nanti, di server.
-`if` berjalan sekarang, di browser — jadi ia menilai sesuatu yang belum ada.
+Padahal 1 jelas tidak lebih besar dari 3. Kenapa tetap tercetak?
 
-Aturan praktis yang cukup untuk seluruh webinar ini:
+Karena `b.gt(3)` **tidak mengembalikan `true` atau `false`**. Ia mengembalikan
+sebuah objek `ee.Number` — perintah yang belum dijalankan, yang baru akan
+dievaluasi di server nanti. Dan di JavaScript, objek apa pun dianggap "benar".
+Jadi blok `if` itu selalu jalan, apa pun isinya.
 
-> **Kalau namanya diawali `ee.`, jangan pakai `if`, `for`, atau operator
-> `+ - * /` biasa padanya.** Pakai metodenya sendiri: `.add()`,
-> `.subtract()`, `.gt()`, `.map()`.
+**Ini bukan bug.** Ini konsekuensi dari kenyataan bahwa peramban Anda belum
+tahu nilainya — dan tidak akan tahu sampai server menghitungnya.
 
-### Kenapa ini penting untuk pekerjaan Anda
+### Hal yang sama berlaku untuk perulangan
 
-Karena dari sinilah kalimat "kok hasilnya kosong" hampir selalu berasal. Dan
-karena begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya
-membingungkan jadi masuk akal: hampir seluruh API-nya disusun mengikuti
-pembagian ini.
+Jangan pernah menulis `for` untuk memproses isi sebuah koleksi citra:
 
-## Latihan sebelum besok {#latihan}
+```javascript
+// SALAH — for-loop tidak bisa menyentuh isi ImageCollection
+for (var i = 0; i < koleksi.size(); i++) { ... }
 
-Sepuluh menit, tidak perlu dikumpulkan. Tujuannya supaya besok tangan Anda
+// BENAR — .map() menyuruh server melakukannya untuk setiap citra
+var hasil = koleksi.map(function (citra) {
+  return citra.normalizedDifference(['B8', 'B4']);
+});
+```
+
+`.map()` adalah cara Earth Engine berkata "kerjakan fungsi ini pada setiap
+elemen, di sisimu, secara paralel". Untuk ribuan citra, bedanya bukan soal gaya
+penulisan — `for` memang tidak akan berhasil sama sekali.
+
+::: {.callout-warning}
+## `getInfo()` — pakai sehemat mungkin
+
+`getInfo()` memaksa hasil dari server pindah ke peramban **sekarang juga**, dan
+peramban membeku sampai selesai.
+
+```javascript
+print(koleksi.size());              // benar — print menanganinya secara asinkron
+var n = koleksi.size().getInfo();   // jalan, tapi memblokir; hindari kecuali perlu
+```
+
+Jangan pernah memakainya di dalam `.map()`.
+:::
+
+### Aturan praktis
+
+> Kalau namanya diawali `ee.`, jangan pakai `if`, `for`, atau operator
+> `+ - * /` biasa padanya. Pakai metodenya sendiri: `.add()`, `.subtract()`,
+> `.gt()`, `.map()`.
+
+Dari sinilah hampir semua kalimat *"kok hasilnya kosong"* berasal. Dan begitu
+Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan langsung
+masuk akal: seluruh API-nya disusun mengikuti pembagian ini.
+
+## Tugas · 10 menit {#tugas}
+
+Dikerjakan sekarang, tidak dikumpulkan. Tujuannya supaya besok tangan Anda
 sudah hafal Code Editor.
 
-1. Buka Code Editor, buat skrip baru, beri nama `latihan-hari-1`.
-2. Buat variabel berisi nama kabupaten Anda, lalu `print`.
-3. Tampilkan satu citra Sentinel-2 apa saja di wilayah Anda:
+**1.** Ubah `ee.Number(1)` pada contoh `if` di atas menjadi `ee.Number(5)`.
+Apakah hasilnya berubah? Kenapa tidak?
+
+**2.** Buat skrip baru bernama `latihan-hari-1`, lalu tampilkan satu citra
+Sentinel-2 di wilayah kerja Anda:
 
 ```javascript
 var titik = ee.Geometry.Point([121.35, -8.65]);   // ganti ke wilayah Anda
@@ -233,19 +281,19 @@ var citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
               .filterDate('2024-06-01', '2024-09-30')
               .first();
 
-Map.addLayer(citra, {bands: ['B4', 'B3', 'B2'], min: 0, max: 3000}, 'Sentinel-2');
+Map.addLayer(citra, {bands: ['B4','B3','B2'], min: 0, max: 3000}, 'Sentinel-2');
 print(citra);
 ```
 
-4. Klik **Inspector**, lalu klik satu titik di peta. Lihat daftar nilai band
-   yang muncul.
-5. Di Console, klik segitiga di sebelah hasil `print(citra)` dan telusuri
-   isinya. Perhatikan ada berapa band, dan berapa `system:time_start`.
+**3.** Klik **Inspector**, lalu klik satu titik di peta. Lihat daftar nilai band.
 
-Kalau nomor 5 terasa membingungkan, itu wajar — dan itu justru inti hari
-pertama: yang dicetak bukan gambar, melainkan **deskripsi** tentang gambar.
+**4.** Di Console, buka segitiga di sebelah hasil `print(citra)` dan telusuri
+isinya. Ada berapa band? Kapan citra itu direkam?
+
+Kalau nomor 4 terasa membingungkan, itu wajar — dan itu justru inti hari
+pertama: **yang dicetak bukan gambar, melainkan deskripsi tentang gambar.**
 
 ---
 
-Besok: dari komposit bebas awan sampai peta tutupan lahan dan berkas
-GeoTIFF yang siap masuk laporan. → [Day 2 — Hands-on](hari-2.qmd)
+Besok: dari komposit bebas awan sampai peta tutupan lahan dan berkas GeoTIFF
+yang siap masuk laporan. → [Day 2 — Hands-on](hari-2.qmd)
