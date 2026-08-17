@@ -16,7 +16,7 @@
 #################
 ### Settings ####
 #################
-start_step="02"	# 01-05, 11-16
+start_step="11"	# 01-05, 11-16
 end_step="16"	# 01-05, 11-16
 
 nlook="4"	# multilook factor, used in step02
@@ -45,9 +45,9 @@ p01_start_date=""	# default: 20141001
 p01_end_date=""	# default: today
 p01_unwrate_min="" # default: 0.3, only for AIST_AL
 p01_get_gacos="n" # y/n, only for COMET_S1
-p11_unw_thre=""	# default: 0.3
-p11_coh_thre=""	# default: 0.05
-p12_loop_thre=""	# default: 1.5 rad
+p11_unw_thre="0.5"	# default: 0.3
+p11_coh_thre="0.02"	# default: 0.05
+p12_loop_thre="3"	# default: 1.5 rad
 p12_multi_prime="y"	# y/n. y recommended
 p12_rm_ifg_list=""	# List file containing ifgs to be manually removed
 p12_rm_noloop_ifg="n"	# y/n. default: n
@@ -101,7 +101,7 @@ p12_n_para=""	# default: # of usable CPU-1
 p13_GEOCmldir=""        # default: $GEOCmldir
 p13_TSdir=""    # default: TS_$GEOCmldir
 p13_inv_alg=""	# LS (default) or WLS
-p13_mem_size=""	# default: 8000 (MB)
+p13_mem_size="2000"	# default: 8000 (MB)
 p13_gamma=""	# default: 0.0001
 p13_n_para=""	# default: # of usable CPU-1
 p13_n_unw_r_thre=""	# defualt: 1
