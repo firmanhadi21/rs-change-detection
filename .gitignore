@@ -5,6 +5,12 @@ scripts/config/ee-geodetic.json
 scripts/config/*.json
 scripts/config/*.txt
 *-service-account*.json
+# conf/ holds a Google service-account key with a private_key field. The rules
+# above only covered scripts/config/, so a `git add .` here would have
+# committed it to a public repo. Match the filename anywhere, not just one dir.
+conf/
+ee-geodetic.json
+**/ee-geodetic.json
 
 # Raw satellite inputs (large / licensed) — keep the folder's README
 data/*
