@@ -5,6 +5,7 @@ project:
   output-dir: ../docs/gee-js
   resources:
     - scripts/
+    - parent.css
 
 website:
   title: "Workshop GEE JavaScript"
@@ -14,57 +15,29 @@ website:
     ekspor peta untuk laporan.
   site-url: https://firmanhadi21.github.io/rs-change-detection/gee-js/
 
-  # A LEFT SIDEBAR, not a top navbar. The parent tutorial at docs/index.html
-  # keeps a persistent sidebar, and the hand-written page this replaced carried
-  # its own <nav class="side"> in the same style -- which is what made the two
-  # read as one site rather than two. A Quarto navbar put the navigation across
-  # the top and lost that entirely.
-  sidebar:
-    style: floating
-    search: true
-    collapse-level: 2
-    contents:
-      - section: "Webinar"
-        contents:
-          - href: index.qmd
-            text: Beranda
-          - href: hari-1.qmd
-            text: "Hari 1 · Konsep"
-          - href: hari-2.qmd
-            text: "Hari 2 · Praktik"
-          - href: slides.qmd
-            text: "Slides (Day 1)"
-      - section: "Bahan"
-        contents:
-          - href: skrip.qmd
-            text: Skrip
-          - href: rujukan.qmd
-            text: Rujukan
-      - section: "Tautan"
-        contents:
-          # Back to the parent tutorial, exactly as the original page did.
-          - text: "← Tutorial earthchange (Python)"
-            href: ../index.html
-          - text: "Code Editor ↗"
-            href: https://code.earthengine.google.com/
-          - text: "Dokumentasi GEE ↗"
-            href: https://developers.google.com/earth-engine
-          - text: "Sumber di GitHub ↗"
-            href: https://github.com/firmanhadi21/rs-change-detection
-
-  page-footer:
-    left: "Firman Hadi · Universitas Diponegoro"
-    right: "Materi bebas dipakai ulang · CC BY 4.0"
+  # NO navbar and NO Quarto sidebar. The navigation on these pages is the
+  # PARENT tutorial's own <nav class="side">, injected below -- so the reader
+  # stays inside the same furniture instead of meeting a second, similar-looking
+  # one. Regenerate the injected markup with: python3 gee-js/build_shell.py
 
 format:
   html:
-    # theme.scss carries the parent site's design tokens verbatim, so a reader
-    # arriving from docs/index.html stays on what looks like one site.
+    # parent.css is docs/index.html's stylesheet verbatim, so tokens and layout
+    # cannot drift from the tutorial's. theme.scss adds nothing structural now
+    # and is kept only for Quarto's own components.
     theme:
       - cosmo
       - theme.scss
-    css: styles.css
+    css:
+      - parent.css
+      - styles.css
+    # Wrap every page in the parent's grid: sidebar on the left, content in
+    # <main>. Generated from docs/index.html rather than hand-copied, so the
+    # tutorial's nav and these pages cannot fall out of step.
+    include-before-body: _shell-open.html
+    include-after-body: _shell-close.html
     toc: true
+    toc-location: right
     toc-depth: 3
     toc-title: "Di halaman ini"
     number-sections: false
