@@ -79,6 +79,30 @@ def main():
                 # a Tuesday into "tomorrow". Report hours and the weekday.
                 delta = nxt - dt.datetime.now(dt.timezone.utc)
                 hours = delta.total_seconds() / 3600
+
+                # A "next pass" in the past reads as nonsense -- it printed
+                # "next pass ~Tue 10:16 UTC (-1 h)". Once the nominal time has
+                # gone, the useful thing to say is that the satellite has flown
+                # and the product is in ASF's pipeline, which takes hours.
+                if hours < 0:
+                    late = -hours
+                    print(f"  acquisition was due {nxt:%a %H:%M} UTC, "
+                          f"{late:.1f} h ago — not published yet")
+                    if late < 8:
+                        eta = nxt + dt.timedelta(hours=6)
+                        print(f"    normal: ASF publishes ~3-6 h after "
+                              f"acquisition (so by ~{eta:%H:%M} UTC)")
+                    elif late < 30:
+                        print(f"    later than usual; still plausible, "
+                              f"but worth watching")
+                    else:
+                        nxt2 = nxt + dt.timedelta(days=cadence)
+                        print(f"    {late/24:.1f} days late — this pass was "
+                              f"probably not acquired.")
+                        print(f"    next opportunity ~{nxt2:%a %Y-%m-%d} "
+                              f"({(nxt2 - dt.datetime.now(dt.timezone.utc)).total_seconds()/86400:.1f} d)")
+                    continue
+
                 print(f"  no post-event scene yet; next pass "
                       f"~{nxt:%a %Y-%m-%d %H:%M} UTC "
                       f"({hours/24:.1f} days / {hours:.0f} h)")
