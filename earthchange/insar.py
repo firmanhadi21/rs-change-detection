@@ -129,7 +129,7 @@ def _next_pass(stack, today=None):
     return nxt
 
 
-def choose_pairs(scenes, event_date, product, direction=None):
+def choose_pairs(scenes, event_date, product, direction=None, today=None):
     """Pick the SLCs to interfere, or explain precisely what is missing.
 
     For coherence change three scenes are needed on one track: two before the
@@ -149,7 +149,7 @@ def choose_pairs(scenes, event_date, product, direction=None):
 
         if not post:
             why.append(f"{label}: no post-event scene yet"
-                       + (f" (next pass about {_next_pass(stack)})" if stack else ""))
+                       + (f" (next pass about {_next_pass(stack, today)})" if stack else ""))
             continue
         if not pre:
             why.append(f"{label}: no pre-event scene")

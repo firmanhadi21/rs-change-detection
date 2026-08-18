@@ -65,14 +65,42 @@ def test_displacement_needs_only_the_straddling_pair():
 
 
 def test_refuses_when_no_post_event_scene_and_says_when():
-    """The pre-event-only case, which is where Flores actually stood."""
+    """The pre-event-only case, which is where Flores actually stood.
+
+    `today` is pinned. Without it this test asserted against dt.date.today(),
+    so it passed until the wall clock reached 2026-08-18 and then failed --
+    _next_pass rolls forward past today, correctly, and the expected date moved
+    to 2026-08-30. A test that depends on the day it is run is not testing the
+    code.
+    """
+    import datetime as dt
+
     pick, why = choose_pairs([s for s in ASC if s["date"] < EVENT],
-                             EVENT, "coherence")
+                             EVENT, "coherence",
+                             today=dt.date(2026, 8, 10))
     assert pick is None
     assert any("no post-event scene" in w for w in why)
     # The next pass is 12 days after the last one, and saying so is the
     # difference between a refusal and a useful refusal.
     assert any("2026-08-18" in w for w in why)
+
+
+def test_next_pass_is_never_in_the_past():
+    """A refusal offering a date that has already gone is worse than no date.
+
+    This is the behaviour that broke the test above, and it is correct: the
+    projection rolls forward until it is genuinely in the future.
+    """
+    import datetime as dt
+
+    from earthchange.insar import _next_pass
+
+    stack = [{"date": "2026-08-06"}]
+    assert _next_pass(stack, today=dt.date(2026, 8, 10)) == dt.date(2026, 8, 18)
+    # On the day itself, the next USEFUL pass is the following one.
+    assert _next_pass(stack, today=dt.date(2026, 8, 18)) == dt.date(2026, 8, 30)
+    # And a stack that ended weeks ago still yields a future date.
+    assert _next_pass(stack, today=dt.date(2026, 9, 20)) > dt.date(2026, 9, 20)
 
 
 def test_rejects_a_pair_that_straddles_too_loosely():
