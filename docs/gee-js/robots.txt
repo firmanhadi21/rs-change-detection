@@ -1,1 +1,0 @@
-Sitemap: https://firmanhadi21.github.io/rs-change-detection/gee-js/sitemap.xml

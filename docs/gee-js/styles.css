@@ -1,9 +1,0 @@
-/* Ukuran teks dinaikkan: sebagian peserta menonton lewat proyektor atau
-   layar terbagi dengan Code Editor, jadi ukuran default terlalu kecil. */
-body { font-size: 17px; line-height: 1.7; }
-h1, h2, h3 { font-weight: 650; }
-h2 { margin-top: 2.2rem; border-bottom: 2px solid #e9ecef; padding-bottom: .3rem; }
-pre { font-size: 15px; }
-code { font-size: .95em; }
-table { font-size: 15.5px; }
-.callout { margin: 1.4rem 0; }
