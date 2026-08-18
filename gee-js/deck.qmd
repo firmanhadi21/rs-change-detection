@@ -1,0 +1,291 @@
+---
+title: "Google Earth Engine with JavaScript"
+subtitle: "Day 1 — Concepts"
+# Without this the browser tab reads "…dengan JavaScript – …with JavaScript",
+# because a deck inside a Quarto website inherits the site title as a prefix.
+pagetitle: "GEE with JavaScript — Day 1 (deck)"
+title-prefix: ""
+author: "Firman Hadi"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  revealjs:
+    theme: [default, slides.scss]
+    slide-number: c/t
+    width: 1280
+    height: 760
+    transition: none
+    incremental: false
+    code-line-numbers: false
+    highlight-style: github
+    footer: "GEE Webinar · Day 1 · Concepts"
+    title-slide-attributes:
+      data-background-color: "#0f3d2e"
+lang: en
+---
+
+## Two days {background-color="#f7f9fb"}
+
+::: {.columns}
+::: {.column width="50%"}
+### Day 1 — Concepts
+2 hours · **no maps produced**
+
+Output: understanding *why* Earth Engine code looks the way it does.
+:::
+::: {.column width="50%"}
+### Day 2 — Hands-on
+2 hours · everyone types
+
+Output: a land cover map of your own district, and files for your report.
+:::
+:::
+
+. . .
+
+Skip Day 1 and tomorrow's scripts still run — until you change the area, hit an
+error, and have no way to guess where it came from.
+
+# 1 · Why Earth Engine {background-color="#0f3d2e"}
+
+## The old way
+
+Mapping land change for one district, ten years:
+
+1. find scenes in a portal, one by one
+2. download — tens to hundreds of GB
+3. radiometric and atmospheric correction, per scene
+4. mosaic, clip to the boundary
+5. **only now start the analysis**
+6. repeat everything if the area needs extending
+
+## What changes
+
+::: {.callout-important}
+## Not download speed
+
+What changes is that **there is no download at all**.
+:::
+
+. . .
+
+The imagery is already there, already corrected.
+
+You send an **instruction** — the computation travels to the data, not the
+other way round.
+
+. . .
+
+Consequence: **the computing does not happen on your machine.**
+That is what makes it feel strange at first.
+
+## Free, and already loaded
+
+| Data | Resolution | Since | Good for |
+|------|-----------:|------:|----------|
+| Sentinel-2 | 10 m | 2015 | land cover, vegetation |
+| Landsat 8/9 | 30 m | 2013 | long consistent records |
+| Landsat 5/7 | 30 m | 1984 | decadal change |
+| **Sentinel-1** | 10 m | 2014 | **radar — sees through cloud** |
+| CHIRPS | 5 km | 1981 | rainfall |
+
+::: {.fragment}
+For Indonesia the radar row often decides things: half the year our sky is
+covered.
+:::
+
+# 2 · The Code Editor {background-color="#0f3d2e"}
+
+## Four panels
+
+| Panel | Where | What |
+|-------|-------|------|
+| **Scripts** | top left | your saved scripts, examples |
+| **Docs** | left tab | every function — this *is* the reference |
+| **Editor** | centre | where you write |
+| **Console** | top right | `print` output, error messages |
+| **Inspector** | right tab | click the map → pixel values |
+| **Tasks** | right tab | exports waiting to run |
+
+## Two habits that save hours
+
+**Inspector** — the fastest way to ask "is this number sensible?"
+
+> Click on the sea, see NDVI negative → your calculation is right.
+
+. . .
+
+**Tasks** — `Export` in a script does **not** export.
+
+> It only *queues*. You still click **RUN** in the Tasks tab.
+
+::: {.fragment .fade-in}
+This is the number one complaint at every GEE workshop. Without exception.
+:::
+
+# 3 · Just enough JavaScript {background-color="#0f3d2e"}
+
+## Six things, that's all
+
+```javascript
+var city = 'Maumere';        // text
+var year = 2024;             // number
+
+var bands = ['B4','B3','B2'];   // list — starts at ZERO
+print(bands[0]);                // 'B4'
+
+var visual = {min: 0, max: 3000};   // dictionary
+```
+
+::: {.fragment}
+Counting starts at **zero** — mistake number one for anyone coming from
+spreadsheets.
+:::
+
+## Functions and chaining
+
+```javascript
+function addNDVI (image) {
+  var ndvi = image.normalizedDifference(['B8','B4']);
+  return image.addBands(ndvi.rename('NDVI'));
+}
+```
+
+. . .
+
+```javascript
+var image = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+              .filterBounds(aoi)
+              .filterDate('2024-06-01', '2024-09-30')
+              .median();
+```
+
+A leading dot means "then do this to the result above". Read it top to bottom,
+like a sentence.
+
+# 4 · Client vs Server {background-color="#7d2b2b"}
+
+## If you remember one thing today
+
+::: {.callout-important}
+## This is it
+
+Most confusing Earth Engine errors come from here — and none of them can be
+solved by copying someone else's script.
+:::
+
+## Two worlds, one script
+
+::: {.columns}
+::: {.column width="50%"}
+### Client
+your browser
+
+`var`, plain numbers, `if`, `for`, text
+:::
+::: {.column width="50%"}
+### Server
+Google's computers
+
+everything starting with **`ee.`**
+:::
+:::
+
+. . .
+
+An `ee.` object **holds no value** in your browser.
+
+It holds a **recipe**: a note about a computation to be done later, over there.
+
+## See the difference
+
+```javascript
+var a = 5;                // client: actually contains 5
+var b = ee.Number(5);     // server: a recipe that will produce 5
+
+print(a + 1);             // 6
+print(b.add(1));          // 6 — by a completely different route
+```
+
+::: {.fragment}
+Note `b.add(1)`, **not** `b + 1`.
+:::
+
+## What does not work
+
+```javascript
+var collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED');
+
+if (collection.size() > 100) {      // ← WRONG
+  print('plenty of images');
+}
+```
+
+. . .
+
+`collection.size()` is not a number. It is a **promise to count**, later, on the
+server.
+
+`if` runs **now**, in the browser — judging something that does not exist yet.
+
+::: {.fragment .fade-in}
+The dangerous part: the script still "runs". No clear error.
+:::
+
+## The rule of thumb {background-color="#f7f9fb"}
+
+::: {.callout-tip}
+## One sentence is enough
+
+If the name starts with **`ee.`**, do not use `if`, `for`, or plain
+`+ - * /` on it.
+
+Use its own methods: `.add()` `.subtract()` `.gt()` `.map()`
+:::
+
+. . .
+
+Almost every *"why is my result empty?"* starts here.
+
+And once it clicks, the Earth Engine documentation stops being confusing — the
+whole API is organised around this split.
+
+# Before tomorrow {background-color="#0f3d2e"}
+
+## Ten minutes
+
+1. New script, name it `day-1-practice`
+2. `print` your district name
+3. Display one Sentinel-2 image over your area
+4. Open **Inspector**, click a point on the map
+5. In the Console, expand `print(image)` and look inside
+
+. . .
+
+If step 5 is confusing — that is the point:
+
+> what gets printed is not a picture, it is a **description** of one.
+
+## Tomorrow {background-color="#f7f9fb"}
+
+| Minutes | Output |
+|--------:|--------|
+| 0–20 | cloud-free Sentinel-2 composite |
+| 20–40 | NDVI map + time series chart |
+| 40–70 | **land cover map + accuracy figures** |
+| 70–95 | change map between two years |
+| 95–120 | GeoTIFF & PNG for your report |
+
+::: {.fragment}
+All for **your own working area**.
+:::
+
+## {background-color="#0f3d2e"}
+
+::: {style="text-align:center; margin-top:2em"}
+### See you tomorrow
+
+[firmanhadi21.github.io/rs-change-detection/gee-js](https://firmanhadi21.github.io/rs-change-detection/gee-js/)
+
+Materials, scripts and references are all there.
+:::

@@ -1,0 +1,16 @@
+</main>
+</div>
+<script>
+
+  function setLang(l){
+    var h=document.documentElement;
+    h.classList.remove('lang-en','lang-id');
+    h.classList.add('lang-'+l);
+    h.setAttribute('lang',l);
+    try{localStorage.setItem('lang',l)}catch(e){}
+  }
+  document.querySelectorAll('.langtoggle button').forEach(function(b){
+    b.addEventListener('click',function(){setLang(b.getAttribute('data-lang'));});
+  });
+
+</script>
