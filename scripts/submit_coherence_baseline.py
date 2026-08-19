@@ -68,6 +68,16 @@ def sat(granule):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--start", default="2026-01-01")
+    # Defaults to the event, so a plain run buys baseline only. Pass a later
+    # date to pick up the CO-EVENT pair as well: 6 Aug -> 18 Aug is itself a
+    # 12-day S1D->S1D pair, so it passes this filter unchanged and is therefore
+    # processed identically to the baseline it will be compared against. That
+    # identity is the whole basis of the z-score, and getting it by reusing the
+    # same filter is safer than adding a special case for the pair that matters
+    # most.
+    ap.add_argument("--end", default=None,
+                    help="default: the event date (baseline only). Use "
+                         "--end today to include the co-event pair.")
     ap.add_argument("--frame", type=int, default=FRAME)
     # ASF only returns frames containing the search point, so the point decides
     # which frames are even visible. Frame 1148 covers central and southern
@@ -82,10 +92,10 @@ def main():
     ap.add_argument("--submit", action="store_true")
     a = ap.parse_args()
 
-    end = EVENT.isoformat()
+    end = a.end or EVENT.isoformat()
     scenes = search_slc(a.lat, a.lon, a.start, end)
     (path, frame, drn), stack = pick_track(scenes, "ascending", a.frame)
-    print(f"path {path} frame {frame} {drn}: {len(stack)} pre-event scenes "
+    print(f"path {path} frame {frame} {drn}: {len(stack)} scenes "
           f"{stack[0]['date']} .. {stack[-1]['date']}")
 
     pairs = []
@@ -127,8 +137,16 @@ def main():
 
     if not a.submit:
         print("\nNothing submitted. Re-run with --submit.")
-        print("The co-event pair (6->18 Aug) cannot be added until ASF mirrors")
-        print("the 18 Aug scene; this buys the baseline half meanwhile.")
+        spans = [p for p in pairs
+                 if dt.date.fromisoformat(p[0]["date"]) <= EVENT
+                 < dt.date.fromisoformat(p[1]["date"])]
+        if spans:
+            print(f"Includes the CO-EVENT pair "
+                  f"{spans[0][0]['date']} -> {spans[0][1]['date']}, processed "
+                  f"identically to the baseline it will be compared against.")
+        else:
+            print(f"Baseline only. Add --end {dt.date.today()} to pick up the "
+                  f"co-event pair.")
         return 0
 
     run_dir = os.path.join(os.path.dirname(os.path.dirname(
