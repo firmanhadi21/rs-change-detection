@@ -69,6 +69,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--start", default="2026-01-01")
     ap.add_argument("--frame", type=int, default=FRAME)
+    # ASF only returns frames containing the search point, so the point decides
+    # which frames are even visible. Frame 1148 covers central and southern
+    # Flores but drops to 72-82% missing north of -8.45, which is where the
+    # towns nearest the rupture are. Its northern neighbour 1153 needs a
+    # northern search point to appear at all.
+    ap.add_argument("--lat", type=float, default=SEARCH_POINT[0])
+    ap.add_argument("--lon", type=float, default=SEARCH_POINT[1])
     ap.add_argument("--satellite", default=None,
                     help="restrict to one platform, e.g. S1D, to match the "
                          "co-event pair exactly")
@@ -76,7 +83,7 @@ def main():
     a = ap.parse_args()
 
     end = EVENT.isoformat()
-    scenes = search_slc(SEARCH_POINT[0], SEARCH_POINT[1], a.start, end)
+    scenes = search_slc(a.lat, a.lon, a.start, end)
     (path, frame, drn), stack = pick_track(scenes, "ascending", a.frame)
     print(f"path {path} frame {frame} {drn}: {len(stack)} pre-event scenes "
           f"{stack[0]['date']} .. {stack[-1]['date']}")
