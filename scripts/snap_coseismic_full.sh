@@ -42,6 +42,25 @@ STAGE1="$OUT/swaths"
 SWATHS=("IW1:6:9" "IW2:6:9" "IW3:4:9")
 
 PAIR="${1:?usage: snap_coseismic_full.sh prepre|prepost}"
+
+# Mbay (18 km from the rupture, the closest town to it), Riung and Larantuka
+# came back with ZERO observed pixels -- not low coherence, no data at all.
+# Terrain-Correction's nodataValueAtSea uses the DEM's sea mask, and these
+# towns sit on low-lying coastal delta that SRTM flags as sea. The damage
+# analysis was therefore blind exactly where damage would be largest.
+#
+#   NOSEA=1 bash scripts/snap_coseismic_full.sh prepost
+#
+# writes ${PAIR}_fullsea alongside, so the two are comparable rather than one
+# silently replacing the other. Stage 1 is untouched and reused.
+NOSEA="${NOSEA:-0}"
+if [ "$NOSEA" = "1" ]; then
+  SEA_FLAG=false
+  STAGE2_SUFFIX=fullsea
+else
+  SEA_FLAG=true
+  STAGE2_SUFFIX=full
+fi
 case "$PAIR" in
   prepre)  M=20260725T101603; S=20260806T101603 ;;
   prepost) M=20260806T101603; S=20260818T101604 ;;
@@ -168,8 +187,8 @@ XML
 done
 
 # ---------------------------------------------------------------- stage 2 ----
-TARGET="$OUT/${PAIR}_full"
-GM="$OUT/graph_${PAIR}_merge.xml"
+TARGET="$OUT/${PAIR}_${STAGE2_SUFFIX}"
+GM="$OUT/graph_${PAIR}_merge_${STAGE2_SUFFIX}.xml"
 
 SRC=""; REFS=""; n=0
 for SPEC in "${SWATHS[@]}"; do
@@ -224,7 +243,7 @@ $REFS
       <imgResamplingMethod>BILINEAR_INTERPOLATION</imgResamplingMethod>
       <pixelSpacingInMeter>40.0</pixelSpacingInMeter>
       <mapProjection>WGS84(DD)</mapProjection>
-      <nodataValueAtSea>true</nodataValueAtSea>
+      <nodataValueAtSea>$SEA_FLAG</nodataValueAtSea>
       <saveDEM>true</saveDEM>
       <saveIncidenceAngleFromEllipsoid>true</saveIncidenceAngleFromEllipsoid>
     </parameters></node>
