@@ -39,9 +39,16 @@ import numpy as np  # noqa: E402
 SNAP = os.path.expanduser(
     "~/GitHub/rs-change-detection/output/coseismic/snap")
 FRINGE_CM = 5.5465 / 2
-# Box 1 from plot_focus_area.py: the clearest ground in the scene, and the
-# panel the bands are most visible in.
-BOX = dict(lon0=121.118, lon1=121.371, lat0=-8.806, lat1=-8.552)
+# Boxes from plot_focus_area.py. Box 2 matters more: it is the closest
+# workable ground to the rupture, so a co-seismic fringe would be strongest
+# there and weakest in box 1.
+BOXES = {
+    1: dict(lon0=121.118, lon1=121.371, lat0=-8.806, lat1=-8.552,
+            what="clearest ground in scene, 42 km out"),
+    2: dict(lon0=121.126, lon1=121.380, lat0=-8.618, lat1=-8.364,
+            what="closest workable ground, 23 km out"),
+}
+BOX = BOXES[1]
 
 
 def read_img(data_dir, prefix):
@@ -137,7 +144,12 @@ def main():
                     help="along-transect boxcar; 25 px = 1 km, suppresses "
                          "noise that would inflate total variation")
     ap.add_argument("--n", type=int, default=7)
+    ap.add_argument("--box", type=int, default=1, choices=(1, 2))
     a = ap.parse_args()
+
+    global BOX
+    BOX = BOXES[a.box]
+    print(f"box {a.box}: {BOX['what']}")
 
     res = {}
     for pair in ("prepost", "prepre"):
@@ -218,7 +230,7 @@ def main():
                  "co-event against an earthquake-free control",
                  fontsize=13, y=.98)
     fig.tight_layout(rect=[0, 0, 1, .96])
-    out = f"{SNAP}/fringe_test.png"
+    out = f"{SNAP}/fringe_test_box{a.box}.png"
     fig.savefig(out, dpi=135)
     print(f"\nwrote {out}")
     return 0
