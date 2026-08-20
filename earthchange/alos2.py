@@ -211,6 +211,146 @@ def slc(image, lines=None, first_line=0):
     return out
 
 
+# --- the SLC accessor ---------------------------------------------------
+#
+# insardev reads NISAR's SLC in exactly two shapes, and both have to be met
+# for the align and transform layers to be inherited rather than rewritten:
+#
+#     with h5py.File(path) as f:  ds = f[dsname];  ds.shape;  ds[y0:y1, x0:x1]
+#     nisar_slc(path, pol=, frequency=, row_slice=, col_slice=)
+#
+# The constraint that shapes the design is that both take a PATH and open it
+# inside a worker process -- _xcorr_batch(h5_path1, h5_path2, ...) runs under
+# joblib. So the accessor must be constructible from a string and must not
+# hold anything unpicklable across the call; it cannot be a live handle passed
+# down from the parent.
+#
+# CEOS makes this easy in a way HDF5 does not: every line is the same length,
+# so line k starts at a computable offset and random access is a seek. A
+# memmap over a structured dtype expresses that directly and lets the OS page
+# in only the windows actually touched, which matters when the file is 1.5 GB
+# and a cross-correlation wants two hundred 512x512 patches.
+
+
+def _slc_dtype(n_bins):
+    """One CEOS image record: opaque prefix, then interleaved re/im."""
+    return np.dtype([("prefix", "V%d" % IMG_PREFIX_LEN),
+                     ("samp", ">f4", (n_bins, 2))])
+
+
+class CeosSLC:
+    """h5py.Dataset-alike over the samples of a CEOS L1.1 image.
+
+    Supports what insardev actually uses -- `.shape`, `.dtype`, `.ndim` and
+    NumPy-style 2D indexing returning complex64 -- and nothing else. Indexing
+    is deliberately eager, like h5py: `ds[a:b, c:d]` returns a real array, not
+    a lazy view, so callers cannot accidentally keep the mapping alive.
+    """
+
+    def __init__(self, path):
+        self.path = path
+        m = image_meta(path)
+        self.meta = m
+        self._n_bins = m["num_rng_bins"]
+        # Guard the layout before mapping: a record length that does not
+        # divide the file is the signature of a wrong prefix or sample width,
+        # and a memmap of the wrong shape reads plausible garbage instead of
+        # raising.
+        size = os.path.getsize(path)
+        span = size - IMG_DESC_LEN
+        if span % m["record_length"]:
+            raise ValueError(
+                f"{os.path.basename(path)}: {span} payload bytes is not a "
+                f"whole number of {m['record_length']}-byte records; the "
+                f"prefix length or sample width is wrong")
+        self._mm = np.memmap(path, dtype=_slc_dtype(self._n_bins), mode="r",
+                             offset=IMG_DESC_LEN, shape=(m["num_lines"],))
+        self._samp = self._mm["samp"]
+
+    shape = property(lambda self: (self.meta["num_lines"], self._n_bins))
+    dtype = property(lambda self: np.dtype(np.complex64))
+    ndim = 2
+    size = property(lambda self: self.shape[0] * self.shape[1])
+    nbytes = property(lambda self: self.size * 8)
+
+    def __len__(self):
+        return self.shape[0]
+
+    def __getitem__(self, key):
+        # Index the (lines, bins, 2) view with whatever the caller gave, then
+        # fold the trailing axis into a complex number. Assembling through
+        # .real/.imag avoids the temporary that `a + 1j*b` builds, which for a
+        # 512x512 patch is not much but for a full-swath row block is.
+        v = self._samp[key]
+        if v.shape[-1] != 2:
+            raise IndexError(
+                "the trailing axis indexes real/imaginary and cannot be "
+                "sliced; index lines and range bins only")
+        out = np.empty(v.shape[:-1], dtype=np.complex64)
+        out.real = v[..., 0]
+        out.imag = v[..., 1]
+        return out
+
+    def __array__(self, dtype=None):
+        a = self[...]
+        return a if dtype is None else a.astype(dtype)
+
+    def __repr__(self):
+        return (f"<CeosSLC {os.path.basename(self.path)} "
+                f"{self.shape[0]}x{self.shape[1]} complex64>")
+
+
+class CeosFile:
+    """h5py.File-alike wrapper, so `with open_slc(p) as f: f[name]` works.
+
+    A CEOS image file holds exactly one polarisation -- it is in the filename,
+    not in the file -- so the dataset name is accepted and ignored rather than
+    looked up. That is a real difference from NISAR, where one HDF5 holds every
+    polarisation and both frequencies, and it is why the ALOS-2 scanner keys
+    its DataFrame on (scene, pol) with a distinct path per row.
+    """
+
+    def __init__(self, path):
+        self._ds = CeosSLC(path)
+
+    def __getitem__(self, name):
+        return self._ds
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def close(self):
+        pass
+
+
+def open_slc(path):
+    """Open a CEOS L1.1 image the way h5py.File opens an RSLC."""
+    return CeosFile(path)
+
+
+def read_slc(path, pol=None, frequency=None,
+             row_slice=None, col_slice=None):
+    """Mirror of utils_nisar.nisar_slc for a CEOS image.
+
+    `pol` and `frequency` are accepted so the call site can stay identical to
+    the NISAR one; both are properties of the file itself here, so they are
+    checked against the filename rather than used to select a dataset.
+    """
+    if pol is not None:
+        want = f"IMG-{pol}-"
+        if want not in os.path.basename(path):
+            raise ValueError(
+                f"asked for {pol} but {os.path.basename(path)} is not a "
+                f"{pol} image; ALOS-2 stores one polarisation per file")
+    ds = CeosSLC(path)
+    rs = slice(None) if row_slice is None else row_slice
+    cs = slice(None) if col_slice is None else col_slice
+    return ds[rs, cs]
+
+
 # --- geometry -----------------------------------------------------------
 def _ecef_to_geodetic(x, y, z, a, b):
     """Bowring's method -- one iteration is ample at orbital altitude."""
