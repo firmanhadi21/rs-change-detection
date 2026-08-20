@@ -101,10 +101,19 @@ def _float_at(payload, off):
     return float(m.group(1).replace("D", "E").replace("d", "e"))
 
 
-def find_scene(datadir, pol="HH"):
-    """Locate the LED-/IMG- pair for one polarisation."""
+def find_scene(datadir, pol="HH", scene=None):
+    """Locate the LED-/IMG- pair for one polarisation.
+
+    `scene` is any substring of the scene id -- a date, an orbit number. A
+    GMTSAR working directory holds every scene of the pair side by side, so
+    without it this silently returns whichever sorts first, which is how a
+    "validation" can end up re-testing the scene the offsets were derived from.
+    """
     led = sorted(glob.glob(os.path.join(datadir, "LED-*")))
     img = sorted(glob.glob(os.path.join(datadir, f"IMG-{pol}-*")))
+    if scene:
+        led = [p for p in led if scene in os.path.basename(p)]
+        img = [p for p in img if scene in os.path.basename(p)]
     # GMTSAR writes IMG-*.PRM/.SLC/.LED/.raw beside the originals, so the
     # derived products must be filtered out. NOT by "has a dot": the CEOS name
     # itself contains one, in the product code FBDR1.1. Match the known
@@ -205,16 +214,19 @@ def _read_gmtsar_prm(path):
     return prm
 
 
-def validate(datadir, pol="HH"):
-    leader, image = find_scene(datadir, pol)
+def validate(datadir, pol="HH", scene=None):
+    leader, image = find_scene(datadir, pol, scene)
     print(f"leader: {os.path.basename(leader)}")
     print(f"image : {os.path.basename(image)}\n")
 
     prm = alos2_prm(leader, image)
     orb = alos2_orbit(leader)
 
-    ref = sorted(glob.glob(os.path.join(
-        datadir, f"IMG-{pol}-*.PRM")))
+    # The reference must come from the SAME scene, or the validation silently
+    # compares scene 2 against scene 1's ground truth and reports whichever
+    # answer the glob happened to sort first.
+    pat = f"IMG-{pol}-*{scene}*.PRM" if scene else f"IMG-{pol}-*.PRM"
+    ref = sorted(glob.glob(os.path.join(datadir, pat)))
     if not ref:
         print("no GMTSAR .PRM alongside; reporting values without comparison")
         for k, v in prm.items():
@@ -238,7 +250,8 @@ def validate(datadir, pol="HH"):
         print(f"{key:<20}{mine:>20.6f}{theirs:>20.6f}   "
               f"{'yes' if good else 'NO'}")
 
-    led_ref = sorted(glob.glob(os.path.join(datadir, f"IMG-{pol}-*.LED")))
+    lpat = f"IMG-{pol}-*{scene}*.LED" if scene else f"IMG-{pol}-*.LED"
+    led_ref = sorted(glob.glob(os.path.join(datadir, lpat)))
     if led_ref:
         rows = [l.split() for l in open(led_ref[0]).read().split("\n")
                 if l.strip()]
@@ -260,12 +273,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("datadir")
     ap.add_argument("--pol", default="HH")
+    ap.add_argument("--scene", default=None,
+                    help="substring of the scene id, e.g. a date. Without it "
+                         "the first scene in the directory is used.")
     ap.add_argument("--validate", action="store_true")
     a = ap.parse_args()
     d = os.path.expanduser(a.datadir)
     if a.validate:
-        return validate(d, a.pol)
-    leader, image = find_scene(d, a.pol)
+        return validate(d, a.pol, a.scene)
+    leader, image = find_scene(d, a.pol, a.scene)
     for k, v in alos2_prm(leader, image).items():
         print(f"  {k:<20} {v}")
     return 0
