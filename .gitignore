@@ -51,6 +51,16 @@ dist/
 *.egg-info/
 .eggs/
 
+# ...but reveal.js ships its core CSS and JS in a directory called dist/, and
+# the blanket rule above silently swallowed it. The published deck then loaded
+# as an unstyled single-page document -- every slide stacked vertically, no
+# reveal.js at all -- while rendering perfectly from the local filesystem,
+# because the files WERE on disk and only missing from the repository.
+# Negate the directory itself: git will not descend into an excluded directory,
+# so re-including only the files inside it would not work.
+!docs/gee-js/site_libs/revealjs/dist/
+!docs/gee-js/site_libs/revealjs/dist/**
+
 # API docs are generated in CI (pdoc) and deployed by the docs workflow
 docs/api/
 grok_understand.md
