@@ -1,9 +1,18 @@
 #!/bin/bash
 # Watch for the post-event DESCENDING scene on path 163, Flores M7.7.
 #
-# Path 163 runs a 12-day cycle from 2026-08-09, so it acquires 2026-08-21 and
-# should mirror to ASF within a day or so -- the 18 Aug ascending scene took
-# about that. The co-event pair will be 9 Aug -> 21 Aug, 12 days, matching the
+# Path 163 runs a 12-day cycle from 2026-08-09, so it acquires
+#
+#     Friday   21 Aug 2026, 21:27 UTC
+#     Saturday 22 Aug 2026, 04:27 Jakarta  (WIB, UTC+7)
+#     Saturday 22 Aug 2026, 05:27 Flores   (WITA, UTC+8)
+#
+# The +7 rolls past midnight, so the local DATE is a day later than the UTC
+# one -- easy to state wrongly, and it was, twice. Flores is WITA not WIB, an
+# hour further on again. Mirroring to ASF takes about a day (the 18 Aug
+# ascending scene did), so expect the pair to be fetchable ~Sunday 23 Aug.
+#
+# The co-event pair will be 9 Aug -> 21 Aug UTC, 12 days, matching the
 # ascending baseline.
 #
 # Path 61 is not watched here. Its 14 Aug slot acquired at 21:36 UTC, twenty-two
@@ -68,7 +77,8 @@ prev=$(cat "$STATE" 2>/dev/null || echo 0)
     echo "check failed:"
     printf '%s\n' "$report" | tail -12
   else
-    echo "no post-event descending scene yet (expected ~22-23 Aug)"
+    echo "no post-event descending scene yet -- acquires Sat 22 Aug 04:27 WIB"
+    echo "(Fri 21 Aug 21:27 UTC); expect it fetchable ~Sun 23 Aug"
   fi
   echo
 } >> "$LOG"
