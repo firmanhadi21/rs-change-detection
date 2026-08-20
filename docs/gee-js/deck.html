@@ -503,6 +503,45 @@ Firman Hadi
 <p>Tomorrow you will do exactly this, in about fifteen lines of code.</p>
 </div>
 </section>
+<section id="the-whole-algorithm-in-one-figure" class="slide level2">
+<h2>The whole algorithm, in one figure</h2>
+
+<img data-src="img/classification.svg" class="quarto-figure quarto-figure-center r-stretch" style="width:96.0%"><div class="fragment">
+<p>48 labelled pixels out of 8100 — under 1% — and 95.8% of the rest land in the right class.</p>
+</div>
+</section>
+<section id="look-at-the-middle-panel-again" class="slide level2">
+<h2>Look at the middle panel again</h2>
+<p>Vegetation and water sit far apart. Nothing can confuse them.</p>
+<div class="fragment">
+<p><strong>Bare soil and settlement overlap.</strong> Their numbers are genuinely similar — both are dry, bright surfaces with moderate infrared.</p>
+</div>
+<div class="fragment">
+<div class="callout callout-important callout-titled callout-style-default">
+<div class="callout-body">
+<div class="callout-title">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<p><strong>That overlap is your error, and no algorithm removes it</strong></p>
+</div>
+<div class="callout-content">
+<p>It shows up as speckle in the right-hand panel. When your accuracy stalls at 80%, look for the two classes sitting on top of each other in band space — then add a band that separates them, or merge them and say so.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="which-is-why-more-bands-help" class="slide level2">
+<h2>Which is why more bands help</h2>
+<p>Two bands give a flat scatter plot. Sentinel-2 gives you thirteen.</p>
+<div class="fragment">
+<p>Soil and settlement that overlap in red and near infrared may separate in <strong>shortwave infrared</strong>, where moisture and material differ.</p>
+</div>
+<div class="fragment">
+<p>You are not choosing prettier colours. You are choosing <strong>axes that pull your classes apart</strong>.</p>
+</div>
+</section>
 <section id="so-the-vocabulary-is-set" class="slide level2" data-background-color="#f7f9fb">
 <h2>So the vocabulary is set</h2>
 <table class="caption-top">

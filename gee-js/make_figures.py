@@ -278,8 +278,112 @@ def signatures():
     print(f"wrote spectral-signatures.{FMT}")
 
 
+# --------------------------------------------------------- 4. classification
+def classification():
+    """Three panels that actually run the algorithm the slide describes.
+
+    Nothing here is drawn by hand. A small scene is synthesised from the SAME
+    reflectance values as the signatures figure, a handful of pixels are taken
+    as training data, class centroids are computed from those pixels only, and
+    every remaining pixel is assigned to its nearest centroid in band space.
+
+    Nearest-centroid on purpose, rather than a random forest: it is the
+    algorithm the slide states in words -- "which group of numbers is this list
+    closest to" -- so the picture and the sentence describe one thing. Real
+    classifiers are cleverer about the shape of each cluster; none of them are
+    doing anything different in kind.
+    """
+    rng = np.random.default_rng(7)
+    n = 90
+    # A scene with four regions: river, vegetation either side, bare ground,
+    # and a settlement block.
+    lab = np.zeros((n, n), dtype=int)          # 0 vegetation
+    yy, xx = np.mgrid[0:n, 0:n]
+    river = np.abs(xx - (28 + 9 * np.sin(yy / 14))) < 4.5
+    lab[river] = 1                             # water
+    lab[(yy > 58) & (xx > 46)] = 2             # bare soil
+    lab[(yy > 16) & (yy < 40) & (xx > 58) & (xx < 80)] = 3   # urban
+
+    names = ["Vegetation", "Water", "Bare soil", "Settlement"]
+    cols = ["#2e7d32", "#1565a8", "#a5733d", "#7a7a7a"]
+    # red and NIR reflectance (%), matching the signatures figure
+    truth = np.array([[4, 50], [3, 1], [22, 31], [25, 28]], dtype=float)
+
+    red = truth[lab, 0] + rng.normal(0, 2.0, lab.shape)
+    nir = truth[lab, 1] + rng.normal(0, 3.0, lab.shape)
+
+    # Training pixels: a few per class, as a person would digitise them.
+    train_r, train_n, train_y = [], [], []
+    pts = []
+    for c in range(4):
+        idx = np.argwhere(lab == c)
+        pick = idx[rng.choice(len(idx), 12, replace=False)]
+        for r, cc in pick:
+            train_r.append(red[r, cc]); train_n.append(nir[r, cc])
+            train_y.append(c); pts.append((cc, r))
+    train_r = np.array(train_r); train_n = np.array(train_n)
+    train_y = np.array(train_y)
+
+    # Centroids from the TRAINING pixels only -- not from the truth.
+    cent = np.array([[train_r[train_y == c].mean(),
+                      train_n[train_y == c].mean()] for c in range(4)])
+    d = ((red[..., None] - cent[:, 0]) ** 2
+         + (nir[..., None] - cent[:, 1]) ** 2)
+    pred = np.argmin(d, axis=-1)
+    acc = float((pred == lab).mean())
+
+    cmap = matplotlib.colors.ListedColormap(cols)
+    fig, ax = plt.subplots(1, 3, figsize=(12.6, 4.5))
+    fig.patch.set_facecolor(FACE)
+
+    # 1 — false colour, with the training pixels marked
+    fc = np.dstack([np.clip(nir / 55, 0, 1), np.clip(red / 30, 0, 1),
+                    np.clip(red / 45, 0, 1)])
+    ax[0].imshow(fc)
+    for (cx, cy), c in zip(pts, train_y):
+        ax[0].plot(cx, cy, "o", ms=3.6, mfc=cols[c], mec="white", mew=.7)
+    ax[0].set_title("1 · you label a few pixels\n48 of 8100 — under 1%",
+                    fontsize=10.5, loc="left")
+    ax[0].set_xticks([]); ax[0].set_yticks([])
+
+    # 2 — the same pixels as points in band space
+    ax[1].scatter(red.ravel()[::7], nir.ravel()[::7], s=3, c="#c9d3d8",
+                  zorder=1, label="every other pixel")
+    for c in range(4):
+        m = train_y == c
+        ax[1].scatter(train_r[m], train_n[m], s=26, c=cols[c],
+                      edgecolor="white", linewidth=.6, zorder=3,
+                      label=names[c])
+        ax[1].plot(*cent[c], "X", ms=13, mfc=cols[c], mec="black", mew=1.1,
+                   zorder=4)
+    ax[1].set_xlabel("red reflectance (%)")
+    ax[1].set_ylabel("near infrared reflectance (%)")
+    ax[1].set_title("2 · each pixel is a point\nX = the class average",
+                    fontsize=10.5, loc="left")
+    ax[1].legend(fontsize=7.5, frameon=False, loc="upper right")
+    for s in ("top", "right"):
+        ax[1].spines[s].set_visible(False)
+
+    # 3 — every pixel assigned
+    ax[2].imshow(pred, cmap=cmap, vmin=-.5, vmax=3.5, interpolation="nearest")
+    ax[2].set_title(f"3 · every pixel joins the nearest class\n"
+                    f"{acc*100:.1f}% agree with the truth",
+                    fontsize=10.5, loc="left")
+    ax[2].set_xticks([]); ax[2].set_yticks([])
+
+    fig.suptitle("Classification is sorting lists of numbers — no shapes, no "
+                 "edges, no objects", fontsize=12.5, fontweight="bold",
+                 x=.02, ha="left", y=1.02)
+    fig.tight_layout()
+    fig.savefig(f"{OUT}/classification.{FMT}", bbox_inches="tight",
+                facecolor=FACE)
+    plt.close(fig)
+    print(f"wrote classification.{FMT}  (accuracy {acc*100:.1f}%)")
+
+
 if __name__ == "__main__":
     em_spectrum()
     interaction()
     signatures()
+    classification()
     print(f"\nin {OUT}")

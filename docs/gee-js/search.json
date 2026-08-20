@@ -446,5 +446,26 @@
     "title": "Google Earth Engine with JavaScript",
     "section": "Four surfaces, measured",
     "text": "Four surfaces, measured\n\n\nIn the visible band the four curves crowd together. Past 700 nm they separate. That is the whole argument for multispectral imaging."
+  },
+  {
+    "objectID": "deck.html#the-whole-algorithm-in-one-figure",
+    "href": "deck.html#the-whole-algorithm-in-one-figure",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The whole algorithm, in one figure",
+    "text": "The whole algorithm, in one figure\n\n\n48 labelled pixels out of 8100 — under 1% — and 95.8% of the rest land in the right class."
+  },
+  {
+    "objectID": "deck.html#look-at-the-middle-panel-again",
+    "href": "deck.html#look-at-the-middle-panel-again",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Look at the middle panel again",
+    "text": "Look at the middle panel again\nVegetation and water sit far apart. Nothing can confuse them.\n\nBare soil and settlement overlap. Their numbers are genuinely similar — both are dry, bright surfaces with moderate infrared.\n\n\n\n\n\n\n\n\nThat overlap is your error, and no algorithm removes it\n\n\nIt shows up as speckle in the right-hand panel. When your accuracy stalls at 80%, look for the two classes sitting on top of each other in band space — then add a band that separates them, or merge them and say so."
+  },
+  {
+    "objectID": "deck.html#which-is-why-more-bands-help",
+    "href": "deck.html#which-is-why-more-bands-help",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Which is why more bands help",
+    "text": "Which is why more bands help\nTwo bands give a flat scatter plot. Sentinel-2 gives you thirteen.\n\nSoil and settlement that overlap in red and near infrared may separate in shortwave infrared, where moisture and material differ.\n\n\nYou are not choosing prettier colours. You are choosing axes that pull your classes apart."
   }
 ]

@@ -285,6 +285,47 @@ Just: *which group of numbers is this list closest to?*
 
 Tomorrow you will do exactly this, in about fifteen lines of code.
 
+## The whole algorithm, in one figure
+
+![](img/classification.svg){fig-align="center" width="96%"}
+
+::: {.fragment}
+48 labelled pixels out of 8100 — under 1% — and 95.8% of the rest land in the
+right class.
+:::
+
+## Look at the middle panel again
+
+Vegetation and water sit far apart. Nothing can confuse them.
+
+. . .
+
+**Bare soil and settlement overlap.** Their numbers are genuinely similar —
+both are dry, bright surfaces with moderate infrared.
+
+. . .
+
+::: {.callout-important}
+## That overlap is your error, and no algorithm removes it
+It shows up as speckle in the right-hand panel. When your accuracy stalls at
+80%, look for the two classes sitting on top of each other in band space —
+then add a band that separates them, or merge them and say so.
+:::
+
+## Which is why more bands help
+
+Two bands give a flat scatter plot. Sentinel-2 gives you thirteen.
+
+. . .
+
+Soil and settlement that overlap in red and near infrared may separate in
+**shortwave infrared**, where moisture and material differ.
+
+. . .
+
+You are not choosing prettier colours. You are choosing **axes that pull your
+classes apart**.
+
 ## So the vocabulary is set {background-color="#f7f9fb"}
 
 | word | what it actually means |
