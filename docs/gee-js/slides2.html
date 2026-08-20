@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Firman Hadi">
 
-<title>Google Earth Engine dengan JavaScript – Workshop GEE JavaScript</title>
+<title>Slides — Day 2 – Workshop GEE JavaScript</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -88,15 +87,9 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Di halaman ini</h2>
    
   <ul>
-  <li><a href="#untuk-siapa" id="toc-untuk-siapa" class="nav-link active" data-scroll-target="#untuk-siapa">Untuk siapa materi ini</a></li>
-  <li><a href="#rundown" id="toc-rundown" class="nav-link" data-scroll-target="#rundown">Rundown</a>
-  <ul class="collapse">
-  <li><a href="#day-1-concepts-2-jam" id="toc-day-1-concepts-2-jam" class="nav-link" data-scroll-target="#day-1-concepts-2-jam">Day 1 — Concepts (2 jam)</a></li>
-  <li><a href="#day-2-hands-on-2-jam" id="toc-day-2-hands-on-2-jam" class="nav-link" data-scroll-target="#day-2-hands-on-2-jam">Day 2 — Hands-on (2 jam)</a></li>
-  </ul></li>
-  <li><a href="#hasil" id="toc-hasil" class="nav-link" data-scroll-target="#hasil">Yang akan Anda bawa pulang</a></li>
-  <li><a href="#persiapan" id="toc-persiapan" class="nav-link" data-scroll-target="#persiapan">Sebelum hari pertama</a></li>
-  <li><a href="#cara-pakai" id="toc-cara-pakai" class="nav-link" data-scroll-target="#cara-pakai">Cara memakai halaman ini</a></li>
+  <li><a href="#isi" id="toc-isi" class="nav-link active" data-scroll-target="#isi">Isi slide</a></li>
+  <li><a href="#penting" id="toc-penting" class="nav-link" data-scroll-target="#penting">Tiga slide yang jangan dilewati</a></li>
+  <li><a href="#gambar" id="toc-gambar" class="nav-link" data-scroll-target="#gambar">Gambar yang dipakai ulang</a></li>
   </ul>
 </nav>
     </div>
@@ -141,27 +134,15 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Google Earth Engine dengan JavaScript</h1>
-<p class="subtitle lead">Webinar dua hari · 2 jam per hari · untuk pemula</p>
+<h1 class="title">Slides — Day 2</h1>
+<p class="subtitle lead">Praktik · dipakai pemateri di hari kedua</p>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Penulis</div>
-    <div class="quarto-title-meta-contents">
-             <p>Firman Hadi </p>
-          </div>
-  </div>
     
-    <div>
-    <div class="quarto-title-meta-heading">Diterbitkan</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">20 Agustus 2026</p>
-    </div>
-  </div>
   
     
   </div>
@@ -171,157 +152,175 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="untuk-siapa" class="level2">
-<h2 class="anchored" data-anchor-id="untuk-siapa">Untuk siapa materi ini</h2>
-<p>Peserta webinar ini datang dari latar belakang yang beragam — akademisi, peneliti dan mahasiswa; ASN dan instansi pemerintah; praktisi GIS, survei dan pemetaan; konsultan dan engineering; serta bidang lingkungan, pertanian, perkebunan, kehutanan dan sumber daya alam.</p>
-<p>Yang menyatukan semuanya satu hal: <strong>ingin memakai Earth Engine untuk pekerjaan nyata</strong> — riset, laporan, dan peta yang bisa dipakai — bukan sekadar tahu bahwa alat ini ada.</p>
-<p>Materi ini ditulis dengan asumsi Anda <strong>belum pernah menulis kode</strong>. Yang diperlukan hanya kemampuan membaca peta dan kesediaan mengetik ulang beberapa baris.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Catatan</span>Bahasa
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Narasi dalam Bahasa Indonesia. <strong>Judul bagian dan komentar di dalam kode sengaja dibiarkan Bahasa Inggris</strong>, supaya istilah yang Anda lihat di sini sama persis dengan yang muncul di dokumentasi resmi Earth Engine ketika nanti Anda mencari sendiri.</p>
-</div>
-</div>
-</section>
-<section id="rundown" class="level2">
-<h2 class="anchored" data-anchor-id="rundown">Rundown</h2>
-<p>Dua hari, masing-masing dua jam. Hari pertama membangun pemahaman; hari kedua mengerjakan satu alur analisis dari awal sampai peta jadi.</p>
-<section id="day-1-concepts-2-jam" class="level3">
-<h3 class="anchored" data-anchor-id="day-1-concepts-2-jam">Day 1 — Concepts (2 jam)</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 35%">
-<col style="width: 40%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">Menit</th>
-<th>Bagian</th>
-<th>Isi</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0–15</td>
-<td>Persiapan</td>
-<td>Akun, membuka Code Editor, memastikan semua orang siap</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">15–35</td>
-<td>Why Earth Engine</td>
-<td>Apa yang berubah kalau data tidak perlu diunduh</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">35–60</td>
-<td>Code Editor tour</td>
-<td>Empat panel, Docs, Assets, Tasks, Inspector</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">60–90</td>
-<td>JavaScript secukupnya</td>
-<td><code>var</code>, fungsi, dictionary — hanya yang dipakai</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">90–120</td>
-<td><strong>Client vs server</strong></td>
-<td>Bagian terpenting seluruh webinar</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="day-2-hands-on-2-jam" class="level3">
-<h3 class="anchored" data-anchor-id="day-2-hands-on-2-jam">Day 2 — Hands-on (2 jam)</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 31%">
-<col style="width: 36%">
-<col style="width: 31%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">Menit</th>
-<th>Bagian</th>
-<th>Hasil</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0–20</td>
-<td>Sentinel-2 composite</td>
-<td>Citra bebas awan untuk wilayah Anda</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">20–40</td>
-<td>NDVI</td>
-<td>Peta kehijauan + grafik deret waktu</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">40–70</td>
-<td>Land cover classification</td>
-<td>Peta tutupan lahan + angka akurasi</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">70–95</td>
-<td>Change detection</td>
-<td>Peta perubahan antara dua tahun</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">95–120</td>
-<td>Export for reports</td>
-<td>GeoTIFF, PNG, grafik, legenda</td>
-</tr>
-</tbody>
-</table>
-</section>
-</section>
-<section id="hasil" class="level2">
-<h2 class="anchored" data-anchor-id="hasil">Yang akan Anda bawa pulang</h2>
-<p>Di akhir hari kedua Anda memiliki, untuk wilayah kerja Anda sendiri:</p>
-<ul>
-<li>komposit Sentinel-2 bebas awan untuk dua periode waktu;</li>
-<li>peta NDVI beserta grafik perubahannya sepanjang tahun;</li>
-<li><strong>peta tutupan lahan hasil klasifikasi, lengkap dengan angka akurasi</strong>;</li>
-<li>peta perubahan tutupan lahan antara dua tahun;</li>
-<li>berkas GeoTIFF dan PNG yang bisa langsung masuk laporan atau presentasi;</li>
-<li>seluruh skrip, yang bisa Anda ubah wilayahnya lalu jalankan lagi.</li>
-</ul>
-</section>
-<section id="persiapan" class="level2">
-<h2 class="anchored" data-anchor-id="persiapan">Sebelum hari pertama</h2>
-<p>Tiga hal, semuanya gratis, semuanya sebaiknya diselesaikan <strong>sebelum</strong> webinar dimulai — supaya waktu dua jam tidak habis untuk pendaftaran.</p>
-<ol type="1">
-<li><strong>Daftar Earth Engine.</strong> Buka <a href="https://earthengine.google.com/">earthengine.google.com</a> → <em>Get Started</em>. Gunakan akun Google. Persetujuan untuk penggunaan non-komersial biasanya keluar dalam hitungan menit sampai satu hari — jangan menunggu sampai hari-H.</li>
-<li><strong>Buka Code Editor</strong> di <a href="https://code.earthengine.google.com/">code.earthengine.google.com</a>. Kalau muncul empat panel dan peta dunia, Anda siap.</li>
-<li><strong>Siapkan satu wilayah</strong> yang Anda kenal betul — kabupaten tempat kerja, area proyek, DAS yang Anda pantau. Analisis jauh lebih mudah dipahami kalau Anda sudah tahu jawabannya secara kasar.</li>
-</ol>
+<p>Slide hari kedua tertanam di bawah. Berbeda dengan hari pertama, slide ini tipis dengan sengaja: hari kedua peserta mengetik, jadi layar utama adalah Code Editor, bukan slide.</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>Kalau persetujuan akun belum keluar
+<span class="screen-reader-only">Tip</span>Menjalankan slide
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Anda tetap bisa mengikuti hari pertama sepenuhnya — hari pertama tentang konsep, dan semua contoh bisa diikuti dengan membaca. Untuk hari kedua, pinjam layar teman satu instansi, atau ikuti dengan menyimak lalu jalankan ulang skripnya nanti.</p>
+<p>Klik dulu di dalam bingkai, lalu:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Tombol</th>
+<th>Fungsi</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>→</code> <code>←</code></td>
+<td>maju / mundur</td>
+</tr>
+<tr class="even">
+<td><code>F</code></td>
+<td>layar penuh</td>
+</tr>
+<tr class="odd">
+<td><code>O</code></td>
+<td>tampilan semua slide sekaligus</td>
+</tr>
+<tr class="even">
+<td><code>Esc</code></td>
+<td>keluar dari layar penuh</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div style="position:relative;padding-top:62%;border:1px solid var(--line);
+            border-radius:10px;overflow:hidden;margin:1.2rem 0;background:#000">
+<p><iframe src="deck2.html" title="Slide Hari 2 — Praktik" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen=""></iframe></p>
+</div>
+<p><a href="deck2.html" class="btn btn-primary">Buka slide di tab terpisah ↗</a></p>
+<section id="isi" class="level2">
+<h2 class="anchored" data-anchor-id="isi">Isi slide</h2>
+<p>Urutannya mengikuti <a href="./hari-2.html">Hari 2 — Praktik</a> dan skrip di <a href="./skrip.html">Skrip</a>, jadi slide, halaman, dan berkas <code>.js</code> bergerak seiring.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Bagian</th>
+<th>Isi</th>
+<th>Skrip</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Today you type</td>
+<td>apa yang dibawa pulang peserta</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Yesterday, in four lines</td>
+<td>ringkasan hari pertama; client vs server jadi sumber error hari ini</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td>1 · Cloud-free composite</td>
+<td>kenapa satu citra tidak cukup di Indonesia, <code>max: 3000</code></td>
+<td><code>03</code></td>
+</tr>
+<tr class="even">
+<td>2 · NDVI</td>
+<td>satu pengurangan, kenapa dibagi, membaca angkanya</td>
+<td><code>04</code></td>
+</tr>
+<tr class="odd">
+<td><strong>3 · Classification</strong></td>
+<td>titik latih yang harus digambar sendiri, 70/30, <strong>akurasi dibaca sebelum peta</strong></td>
+<td><code>05</code></td>
+</tr>
+<tr class="even">
+<td>4 · Change detection</td>
+<td>dua tanggal, ambang −0,15 sebagai pilihan, perubahan palsu</td>
+<td><code>06</code></td>
+</tr>
+<tr class="odd">
+<td>5 · Export</td>
+<td><code>Export</code> membuat tugas, bukan berkas; kuota</td>
+<td><code>07</code></td>
+</tr>
+<tr class="even">
+<td>Your turn</td>
+<td>sepuluh menit mengganti wilayah dan tahun</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="penting" class="level2">
+<h2 class="anchored" data-anchor-id="penting">Tiga slide yang jangan dilewati</h2>
+<p>Sisanya boleh dipercepat kalau waktu menipis. Tiga ini tidak, karena ketiganya mencegah peserta menerbitkan angka yang salah:</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Penting</span>Read the accuracy before you look at the map
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Peta klasifikasi selalu terlihat meyakinkan — batasnya rapi, warnanya masuk akal. Tidak satu pun dari itu bukti. Urutannya: akurasi dulu, peta kemudian.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Penting</span>−0,15 itu pilihan, bukan kebenaran
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Geser ambangnya, luas “perubahan” ikut bergeser. Yang jujur: sebutkan angka yang dipakai, dan tunjukkan hasilnya satu langkah di kiri dan kanan.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Penting</span><code>Export</code> tidak mengekspor
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Barisnya membuat <em>task</em>. Tidak ada berkas yang keluar sampai tab <strong>Tasks</strong> dibuka dan <strong>Run</strong> ditekan. Ini penyebab setengah jam yang paling sering hilang di hari kedua.</p>
 </div>
 </div>
 </section>
-<section id="cara-pakai" class="level2">
-<h2 class="anchored" data-anchor-id="cara-pakai">Cara memakai halaman ini</h2>
-<p>Setiap blok kode punya tombol salin di pojok kanan atas. Tidak perlu mengetik ulang — tetapi <strong>mengetik ulang membuat Anda belajar lebih cepat</strong> daripada menyalin, terutama di hari pertama.</p>
-<p>Semua skrip juga tersedia sebagai berkas <code>.js</code> terpisah di halaman <a href="./skrip.html">Scripts</a>, dan sebagai repositori Earth Engine yang bisa Anda buka dengan satu klik.</p>
-<hr>
-<p><em>Materi ini bagian dari <a href="https://github.com/firmanhadi21/rs-change-detection">rs-change-detection</a>. Untuk analisis serupa dengan Python, lihat <a href="../buku/">buku <code>earthchange</code></a>.</em></p>
+<section id="gambar" class="level2">
+<h2 class="anchored" data-anchor-id="gambar">Gambar yang dipakai ulang</h2>
+<p>Slide klasifikasi memakai figur yang sama dengan hari pertama — sengaja, supaya peserta mengenalinya dan langsung ingat titik pentingnya: vegetasi dan air terpisah jauh, <strong>tanah terbuka dan permukiman bertumpuk</strong>. Di situlah error akurasi mereka akan muncul.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="img/classification.svg" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:88.0%"></p>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Catatan</span>Kenapa slide berbahasa Inggris
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Sama dengan hari pertama: narasi lisan Bahasa Indonesia, slide Bahasa Inggris. Teks Inggris lebih pendek, jadi tabel tidak terpotong di proyektor dan ukuran hurufnya tidak perlu dikecilkan.</p>
+</div>
+</div>
 
 
 </section>

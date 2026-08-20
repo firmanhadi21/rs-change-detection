@@ -39,11 +39,23 @@ peserta setelahnya.
 | Bagian | Isi |
 |---|---|
 | Two days | apa yang dihasilkan tiap hari |
-| 1 · Why Earth Engine | cara lama vs Earth Engine, data yang tersedia |
-| 2 · The Code Editor | empat panel, Inspector, Tasks |
-| 3 · Just enough JavaScript | enam hal, functions, chaining |
-| **4 · Client vs server** | bagian terpenting — `if` yang tetap tercetak |
+| **1 · How we see** | dasar penginderaan jauh: mata sebagai sensor, warna, spektrum, pantul–serap–terus, angka digital, RGB dan false colour, klasifikasi |
+| 2 · Why Earth Engine | cara lama vs Earth Engine, data yang tersedia |
+| 3 · The Code Editor | empat panel, Inspector, Tasks |
+| 4 · Just enough JavaScript | enam hal, functions, chaining |
+| **5 · Client vs server** | bagian terpenting — `if` yang tetap tercetak |
 | Before tomorrow | latihan sepuluh menit |
+
+::: {.callout-tip}
+## Menggambar di atas slide
+
+Ada tombol kecil di kiri bawah slide: ikon pena untuk mencoret di slide yang
+sedang tampil, ikon papan untuk papan tulis kosong. Bekerja dengan Apple
+Pencil di iPad — buka `deck.html` langsung, bukan lewat bingkai ini.
+
+Coretan hilang bila halaman dimuat ulang, jadi unduh dari tombol yang sama
+kalau ingin disimpan.
+:::
 
 ::: {.callout-note}
 ## Kenapa slide berbahasa Inggris

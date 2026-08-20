@@ -98,62 +98,6 @@
     "text": "Supaya peserta tidak perlu menyalin satu per satu, seluruh skrip juga akan dibagikan sebagai repositori Earth Engine — cukup satu klik untuk membuka semuanya di Code Editor Anda.\nTautannya akan ditambahkan di sini sebelum hari pertama, dan berbentuk:\nhttps://code.earthengine.google.com/?accept_repo=users/&lt;nama&gt;/webinar-gee\n\n\n\n\n\n\nPeringatanRepositori bersifat baca-saja\n\n\n\nAnda bisa membuka dan menjalankan, tetapi perubahan Anda tidak tersimpan di sana. Simpan salinan Anda sendiri lewat Scripts → NEW → File sebelum mulai mengubah, atau pekerjaan Anda hilang saat menutup tab."
   },
   {
-    "objectID": "hari-1.html",
-    "href": "hari-1.html",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "◺ Change Detection\n  Hands-on tutorialTutorial praktis\n  \n    EN\n    ID\n  \n  \n  1 · What you'll buildYang akan dibuat\n  2 · How it worksCara kerja\n  3 · SetupPersiapan\n  4 · Your first runRun pertama\n  5 · Reading the outputsMembaca keluaran\n  \n  6 · Every scenarioSetiap skenario\n  7 · Make a mapMembuat peta\n  8 · Your own areaArea Anda\n  9 · ReproducibilityReproduksibilitas\n  10 · TroubleshootingPemecahan masalah\n  11 · Further readingBacaan lanjut\n  \n  ◆ GEE JavaScript workshop◆ Workshop GEE JavaScript\n    Two-day webinar (ID)Webinar dua hari\n  API reference ↗Referensi API ↗\n  Source on GitHub ↗Sumber di GitHub ↗\n\n\nBeranda\nHari 1 · Konsep\nHari 2 · Praktik\nSlides\nSkrip\nRujukan\n\n\n\n\n\n\n\n\n\n\n\n\nCatatanTujuan hari ini adalah paham, bukan lomba mengetik\n\n\n\nHari ini tidak menghasilkan peta. Yang dihasilkan adalah pengertian kenapa kode Earth Engine ditulis seperti itu — sehingga besok, ketika kita mengetik cepat, Anda tahu apa yang sedang terjadi dan bisa memperbaiki sendiri ketika ada yang salah.\nPeserta yang melewati hari pertama tetap bisa menjalankan skrip besok. Sampai wilayahnya diganti, muncul error, dan tidak ada cara menebak dari mana datangnya.\n\n\n\n\nSatu alur analisis yang tumbuh sedikit demi sedikit sepanjang dua hari:\n\nMembandingkan tutupan vegetasi di kawasan tambang nikel Konawe Utara, Sulawesi Tenggara antara 2023 dan 2026 — menghitung berapa hektar vegetasi yang hilang, membuat peta tutupan lahannya, dan mengekspor hasilnya sebagai GeoTIFF yang bisa masuk laporan.\n\nTidak ada langkah yang dibuang. Skrip hari kedua adalah skrip hari pertama yang diteruskan. Kalau wilayah kerja Anda berbeda — dan hampir pasti berbeda — semua contoh bisa dipindah ke sana dengan mengganti satu variabel.\n\n\n\n10 menit\nLima menit pertama, semua orang bersamaan. Buka code.earthengine.google.com, ketik satu baris ini, klik Run:\nprint('siap');\nKalau kata siap muncul di panel Console (kanan atas), Anda siap.\n\n\n\n\n\n\nPentingKalau tidak muncul\n\n\n\nHampir selalu satu dari tiga hal: akun belum disetujui; tab lama masih terbuka dengan sesi kedaluwarsa (tutup semua, buka lagi); atau jaringan memblokir earthengine.google.com — sering terjadi di jaringan kantor pemerintah, dan solusinya hotspot ponsel.\n\n\n\n\n\n20 menit\nMulai dengan pertanyaan: kalau ingin melihat perubahan tutupan lahan satu kabupaten selama sepuluh tahun, apa yang harus dilakukan?\nJawaban cara lama: cari citra di katalog, unduh satu per satu, tiap scene ratusan MB, koreksi atmosfer, mozaik, potong, baru analisis. Untuk sepuluh tahun satu kabupaten itu bisa ratusan gigabyte dan berminggu-minggu kerja — sebelum satu pun kesimpulan lahir.\nEarth Engine membalik urutannya. Datanya tidak pindah ke Anda; kode Anda yang pindah ke datanya. Seluruh arsip Landsat sejak 1984, Sentinel sejak 2015, MODIS sejak 2000, ditambah ratusan dataset lain, sudah duduk di server Google. Anda menuliskan apa yang ingin dihitung, Google yang mengerjakan, dan yang dikirim balik ke layar Anda hanya gambar petanya.\n\n\n\n\nCara lama\nEarth Engine\n\n\n\n\nUnduhan\nRatusan GB\nNol\n\n\nPerangkat keras\nKomputer kuat + penyimpanan\nPeramban\n\n\nWaktu ke hasil pertama\nBerhari-hari\nMenit\n\n\nMenambah 10 tahun lagi\nUlangi semuanya\nUbah satu tanggal\n\n\nBiaya\nWaktu & penyimpanan\nGratis untuk riset & pendidikan\n\n\n\n\n\n\n\n\n\nPeringatanDua hal yang perlu ditegaskan sejak awal\n\n\n\nGratisnya untuk penggunaan non-komersial — riset, pendidikan, dan sebagian besar kerja lembaga publik. Penggunaan komersial berbayar.\n“Gratis” bukan berarti “tanpa batas”. Ada kuota memori dan waktu komputasi. Kita akan menabraknya sendiri besok, di bagian klasifikasi — dan cara mengatasinya ada di sana.\n\n\n\n\n\n\n\nData\nResolusi\nSejak\nUntuk apa\n\n\n\n\nSentinel-2\n10 m\n2015\ntutupan lahan, vegetasi, tanaman\n\n\nLandsat 8/9\n30 m\n2013\nrangkaian panjang, konsistensi historis\n\n\nLandsat 5/7\n30 m\n1984\nperubahan jangka sangat panjang\n\n\nSentinel-1 (radar)\n10 m\n2014\ntembus awan — banjir, sawah\n\n\nSRTM / Copernicus DEM\n30 m\n—\nketinggian, lereng\n\n\nCHIRPS\n5 km\n1981\ncurah hujan\n\n\n\nUntuk Indonesia, baris radar sering menentukan: separuh tahun langit kita tertutup awan, dan Sentinel-1 tidak peduli pada awan.\n\n\n\n\n20 menit\nSekilas layarnya padat, tetapi hanya ada empat bagian yang perlu dikenali hari ini.\nKiri — Scripts / Docs / Assets. Scripts menyimpan skrip Anda. Docs adalah dokumentasi lengkap semua fungsi — ini yang paling sering dilupakan pemula, padahal isinya jawaban dari 90% pertanyaan. Assets untuk data Anda sendiri, misalnya shapefile batas wilayah.\nTengah — Editor kode. Tempat mengetik. Tombol Run menjalankan seluruh skrip dari atas ke bawah. Save menyimpan. Get Link membuat URL yang berisi skrip Anda — cara terbaik membagikan pekerjaan ke rekan atau ke dosen pembimbing.\nKanan — Console / Inspector / Tasks. Console menampilkan hasil print(). Inspector membaca nilai piksel saat Anda mengklik peta — alat debug paling berguna di GEE. Tasks tempat ekspor dijalankan.\nBawah — Peta. Setiap Map.addLayer() menambah satu lapisan. Panel Layers di pojok kanan atas peta mengatur transparansi dan mematikan lapisan — sangat membantu saat membandingkan sebelum/sesudah.\n\n\n\n\n\n\nTipDua kebiasaan yang menghemat berjam-jam\n\n\n\nInspector adalah cara tercepat memeriksa “apakah nilainya masuk akal”. Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.\nTasks sering terlupakan. Export di dalam skrip tidak langsung mengekspor; ia hanya mengantre. Anda masih harus klik RUN di tab Tasks. Peserta yang bilang “ekspornya tidak jalan” hampir selalu lupa ini.\n\n\n\n\n\n30 menit\nAnda tidak perlu belajar JavaScript. Anda perlu enam hal.\nvar kota  = 'Maumere';           // teks, pakai tanda kutip\nvar tahun = 2024;                // angka, tanpa kutip\n\nvar bands = ['B4', 'B3', 'B2'];  // daftar — hitungan mulai NOL\nprint(bands[0]);                 // 'B4', bukan bands[1]\n\nvar visual = {                   // kamus: pasangan nama: nilai\n  bands: ['B4', 'B3', 'B2'],\n  min: 0,\n  max: 3000\n};\nPerhatikan kamus di atas. Bentuk {nama: nilai} akan muncul terus, karena hampir semua fungsi Earth Engine menerima pengaturannya dalam bentuk itu.\nHitungan mulai nol adalah sumber kesalahan nomor satu bagi orang yang terbiasa dengan spreadsheet.\n\n\nfunction tambahNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI');\n  return image.addBands(ndvi);\n}\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nTitik di awal baris berarti “lalu lakukan ini pada hasil sebelumnya”. Dibaca dari atas ke bawah seperti kalimat.\n\n\n\n\n40 menit · bagian terpenting seluruh webinar\n\n\n\n\n\n\nPentingKalau hanya satu hal yang diingat, jadikan yang ini\n\n\n\nHampir semua kebingungan pemula di GEE berakar di sini — dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.\n\n\nAda dua dunia yang hidup berdampingan di dalam satu skrip:\n\n\n\n\nKlien (peramban Anda)\nServer (Google)\n\n\n\n\nContoh\nvar a = 5;\nvar b = ee.Number(5);\n\n\nCiri\nJavaScript biasa\nSelalu diawali ee.\n\n\nDihitung di\nLaptop Anda\nData center Google\n\n\nBoleh pakai if/for?\nBoleh\nTidak\n\n\n\n\n\nContoh ini yang paling jelas menunjukkannya. Jalankan sendiri:\nvar b = ee.Number(1);\n\nif (b.gt(3)) {\n  print('lebih besar dari 3');   // ini TETAP tercetak!\n}\nPadahal 1 jelas tidak lebih besar dari 3. Kenapa tetap tercetak?\nKarena b.gt(3) tidak mengembalikan true atau false. Ia mengembalikan sebuah objek ee.Number — perintah yang belum dijalankan, yang baru akan dievaluasi di server nanti. Dan di JavaScript, objek apa pun dianggap “benar”. Jadi blok if itu selalu jalan, apa pun isinya.\nIni bukan bug. Ini konsekuensi dari kenyataan bahwa peramban Anda belum tahu nilainya — dan tidak akan tahu sampai server menghitungnya.\n\n\n\nJangan pernah menulis for untuk memproses isi sebuah koleksi citra:\n// SALAH — for-loop tidak bisa menyentuh isi ImageCollection\nfor (var i = 0; i &lt; koleksi.size(); i++) { ... }\n\n// BENAR — .map() menyuruh server melakukannya untuk setiap citra\nvar hasil = koleksi.map(function (citra) {\n  return citra.normalizedDifference(['B8', 'B4']);\n});\n.map() adalah cara Earth Engine berkata “kerjakan fungsi ini pada setiap elemen, di sisimu, secara paralel”. Untuk ribuan citra, bedanya bukan soal gaya penulisan — for memang tidak akan berhasil sama sekali.\n\n\n\n\n\n\nPeringatangetInfo() — pakai sehemat mungkin\n\n\n\ngetInfo() memaksa hasil dari server pindah ke peramban sekarang juga, dan peramban membeku sampai selesai.\nprint(koleksi.size());              // benar — print menanganinya secara asinkron\nvar n = koleksi.size().getInfo();   // jalan, tapi memblokir; hindari kecuali perlu\nJangan pernah memakainya di dalam .map().\n\n\n\n\n\n\nKalau namanya diawali ee., jangan pakai if, for, atau operator + - * / biasa padanya. Pakai metodenya sendiri: .add(), .subtract(), .gt(), .map().\n\nDari sinilah hampir semua kalimat “kok hasilnya kosong” berasal. Dan begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan langsung masuk akal: seluruh API-nya disusun mengikuti pembagian ini.\n\n\n\n\nDikerjakan sekarang, tidak dikumpulkan. Tujuannya supaya besok tangan Anda sudah hafal Code Editor.\n1. Ubah ee.Number(1) pada contoh if di atas menjadi ee.Number(5). Apakah hasilnya berubah? Kenapa tidak?\n2. Buat skrip baru bernama latihan-hari-1, lalu tampilkan satu citra Sentinel-2 di wilayah kerja Anda:\nvar titik = ee.Geometry.Point([121.35, -8.65]);   // ganti ke wilayah Anda\nMap.centerObject(titik, 11);\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(titik)\n              .filterDate('2024-06-01', '2024-09-30')\n              .first();\n\nMap.addLayer(citra, {bands: ['B4','B3','B2'], min: 0, max: 3000}, 'Sentinel-2');\nprint(citra);\n3. Klik Inspector, lalu klik satu titik di peta. Lihat daftar nilai band.\n4. Di Console, buka segitiga di sebelah hasil print(citra) dan telusuri isinya. Ada berapa band? Kapan citra itu direkam?\nKalau nomor 4 terasa membingungkan, itu wajar — dan itu justru inti hari pertama: yang dicetak bukan gambar, melainkan deskripsi tentang gambar.\n\nBesok: dari komposit bebas awan sampai peta tutupan lahan dan berkas GeoTIFF yang siap masuk laporan. → Day 2 — Hands-on"
-  },
-  {
-    "objectID": "hari-1.html#target",
-    "href": "hari-1.html#target",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "Satu alur analisis yang tumbuh sedikit demi sedikit sepanjang dua hari:\n\nMembandingkan tutupan vegetasi di kawasan tambang nikel Konawe Utara, Sulawesi Tenggara antara 2023 dan 2026 — menghitung berapa hektar vegetasi yang hilang, membuat peta tutupan lahannya, dan mengekspor hasilnya sebagai GeoTIFF yang bisa masuk laporan.\n\nTidak ada langkah yang dibuang. Skrip hari kedua adalah skrip hari pertama yang diteruskan. Kalau wilayah kerja Anda berbeda — dan hampir pasti berbeda — semua contoh bisa dipindah ke sana dengan mengganti satu variabel."
-  },
-  {
-    "objectID": "hari-1.html#setup",
-    "href": "hari-1.html#setup",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "10 menit\nLima menit pertama, semua orang bersamaan. Buka code.earthengine.google.com, ketik satu baris ini, klik Run:\nprint('siap');\nKalau kata siap muncul di panel Console (kanan atas), Anda siap.\n\n\n\n\n\n\nPentingKalau tidak muncul\n\n\n\nHampir selalu satu dari tiga hal: akun belum disetujui; tab lama masih terbuka dengan sesi kedaluwarsa (tutup semua, buka lagi); atau jaringan memblokir earthengine.google.com — sering terjadi di jaringan kantor pemerintah, dan solusinya hotspot ponsel."
-  },
-  {
-    "objectID": "hari-1.html#kenapa",
-    "href": "hari-1.html#kenapa",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "20 menit\nMulai dengan pertanyaan: kalau ingin melihat perubahan tutupan lahan satu kabupaten selama sepuluh tahun, apa yang harus dilakukan?\nJawaban cara lama: cari citra di katalog, unduh satu per satu, tiap scene ratusan MB, koreksi atmosfer, mozaik, potong, baru analisis. Untuk sepuluh tahun satu kabupaten itu bisa ratusan gigabyte dan berminggu-minggu kerja — sebelum satu pun kesimpulan lahir.\nEarth Engine membalik urutannya. Datanya tidak pindah ke Anda; kode Anda yang pindah ke datanya. Seluruh arsip Landsat sejak 1984, Sentinel sejak 2015, MODIS sejak 2000, ditambah ratusan dataset lain, sudah duduk di server Google. Anda menuliskan apa yang ingin dihitung, Google yang mengerjakan, dan yang dikirim balik ke layar Anda hanya gambar petanya.\n\n\n\n\nCara lama\nEarth Engine\n\n\n\n\nUnduhan\nRatusan GB\nNol\n\n\nPerangkat keras\nKomputer kuat + penyimpanan\nPeramban\n\n\nWaktu ke hasil pertama\nBerhari-hari\nMenit\n\n\nMenambah 10 tahun lagi\nUlangi semuanya\nUbah satu tanggal\n\n\nBiaya\nWaktu & penyimpanan\nGratis untuk riset & pendidikan\n\n\n\n\n\n\n\n\n\nPeringatanDua hal yang perlu ditegaskan sejak awal\n\n\n\nGratisnya untuk penggunaan non-komersial — riset, pendidikan, dan sebagian besar kerja lembaga publik. Penggunaan komersial berbayar.\n“Gratis” bukan berarti “tanpa batas”. Ada kuota memori dan waktu komputasi. Kita akan menabraknya sendiri besok, di bagian klasifikasi — dan cara mengatasinya ada di sana.\n\n\n\n\n\n\n\nData\nResolusi\nSejak\nUntuk apa\n\n\n\n\nSentinel-2\n10 m\n2015\ntutupan lahan, vegetasi, tanaman\n\n\nLandsat 8/9\n30 m\n2013\nrangkaian panjang, konsistensi historis\n\n\nLandsat 5/7\n30 m\n1984\nperubahan jangka sangat panjang\n\n\nSentinel-1 (radar)\n10 m\n2014\ntembus awan — banjir, sawah\n\n\nSRTM / Copernicus DEM\n30 m\n—\nketinggian, lereng\n\n\nCHIRPS\n5 km\n1981\ncurah hujan\n\n\n\nUntuk Indonesia, baris radar sering menentukan: separuh tahun langit kita tertutup awan, dan Sentinel-1 tidak peduli pada awan."
-  },
-  {
-    "objectID": "hari-1.html#code-editor",
-    "href": "hari-1.html#code-editor",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "20 menit\nSekilas layarnya padat, tetapi hanya ada empat bagian yang perlu dikenali hari ini.\nKiri — Scripts / Docs / Assets. Scripts menyimpan skrip Anda. Docs adalah dokumentasi lengkap semua fungsi — ini yang paling sering dilupakan pemula, padahal isinya jawaban dari 90% pertanyaan. Assets untuk data Anda sendiri, misalnya shapefile batas wilayah.\nTengah — Editor kode. Tempat mengetik. Tombol Run menjalankan seluruh skrip dari atas ke bawah. Save menyimpan. Get Link membuat URL yang berisi skrip Anda — cara terbaik membagikan pekerjaan ke rekan atau ke dosen pembimbing.\nKanan — Console / Inspector / Tasks. Console menampilkan hasil print(). Inspector membaca nilai piksel saat Anda mengklik peta — alat debug paling berguna di GEE. Tasks tempat ekspor dijalankan.\nBawah — Peta. Setiap Map.addLayer() menambah satu lapisan. Panel Layers di pojok kanan atas peta mengatur transparansi dan mematikan lapisan — sangat membantu saat membandingkan sebelum/sesudah.\n\n\n\n\n\n\nTipDua kebiasaan yang menghemat berjam-jam\n\n\n\nInspector adalah cara tercepat memeriksa “apakah nilainya masuk akal”. Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.\nTasks sering terlupakan. Export di dalam skrip tidak langsung mengekspor; ia hanya mengantre. Anda masih harus klik RUN di tab Tasks. Peserta yang bilang “ekspornya tidak jalan” hampir selalu lupa ini."
-  },
-  {
-    "objectID": "hari-1.html#javascript",
-    "href": "hari-1.html#javascript",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "30 menit\nAnda tidak perlu belajar JavaScript. Anda perlu enam hal.\nvar kota  = 'Maumere';           // teks, pakai tanda kutip\nvar tahun = 2024;                // angka, tanpa kutip\n\nvar bands = ['B4', 'B3', 'B2'];  // daftar — hitungan mulai NOL\nprint(bands[0]);                 // 'B4', bukan bands[1]\n\nvar visual = {                   // kamus: pasangan nama: nilai\n  bands: ['B4', 'B3', 'B2'],\n  min: 0,\n  max: 3000\n};\nPerhatikan kamus di atas. Bentuk {nama: nilai} akan muncul terus, karena hampir semua fungsi Earth Engine menerima pengaturannya dalam bentuk itu.\nHitungan mulai nol adalah sumber kesalahan nomor satu bagi orang yang terbiasa dengan spreadsheet.\n\n\nfunction tambahNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI');\n  return image.addBands(ndvi);\n}\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nTitik di awal baris berarti “lalu lakukan ini pada hasil sebelumnya”. Dibaca dari atas ke bawah seperti kalimat."
-  },
-  {
-    "objectID": "hari-1.html#client-server",
-    "href": "hari-1.html#client-server",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "40 menit · bagian terpenting seluruh webinar\n\n\n\n\n\n\nPentingKalau hanya satu hal yang diingat, jadikan yang ini\n\n\n\nHampir semua kebingungan pemula di GEE berakar di sini — dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.\n\n\nAda dua dunia yang hidup berdampingan di dalam satu skrip:\n\n\n\n\nKlien (peramban Anda)\nServer (Google)\n\n\n\n\nContoh\nvar a = 5;\nvar b = ee.Number(5);\n\n\nCiri\nJavaScript biasa\nSelalu diawali ee.\n\n\nDihitung di\nLaptop Anda\nData center Google\n\n\nBoleh pakai if/for?\nBoleh\nTidak\n\n\n\n\n\nContoh ini yang paling jelas menunjukkannya. Jalankan sendiri:\nvar b = ee.Number(1);\n\nif (b.gt(3)) {\n  print('lebih besar dari 3');   // ini TETAP tercetak!\n}\nPadahal 1 jelas tidak lebih besar dari 3. Kenapa tetap tercetak?\nKarena b.gt(3) tidak mengembalikan true atau false. Ia mengembalikan sebuah objek ee.Number — perintah yang belum dijalankan, yang baru akan dievaluasi di server nanti. Dan di JavaScript, objek apa pun dianggap “benar”. Jadi blok if itu selalu jalan, apa pun isinya.\nIni bukan bug. Ini konsekuensi dari kenyataan bahwa peramban Anda belum tahu nilainya — dan tidak akan tahu sampai server menghitungnya.\n\n\n\nJangan pernah menulis for untuk memproses isi sebuah koleksi citra:\n// SALAH — for-loop tidak bisa menyentuh isi ImageCollection\nfor (var i = 0; i &lt; koleksi.size(); i++) { ... }\n\n// BENAR — .map() menyuruh server melakukannya untuk setiap citra\nvar hasil = koleksi.map(function (citra) {\n  return citra.normalizedDifference(['B8', 'B4']);\n});\n.map() adalah cara Earth Engine berkata “kerjakan fungsi ini pada setiap elemen, di sisimu, secara paralel”. Untuk ribuan citra, bedanya bukan soal gaya penulisan — for memang tidak akan berhasil sama sekali.\n\n\n\n\n\n\nPeringatangetInfo() — pakai sehemat mungkin\n\n\n\ngetInfo() memaksa hasil dari server pindah ke peramban sekarang juga, dan peramban membeku sampai selesai.\nprint(koleksi.size());              // benar — print menanganinya secara asinkron\nvar n = koleksi.size().getInfo();   // jalan, tapi memblokir; hindari kecuali perlu\nJangan pernah memakainya di dalam .map().\n\n\n\n\n\n\nKalau namanya diawali ee., jangan pakai if, for, atau operator + - * / biasa padanya. Pakai metodenya sendiri: .add(), .subtract(), .gt(), .map().\n\nDari sinilah hampir semua kalimat “kok hasilnya kosong” berasal. Dan begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan langsung masuk akal: seluruh API-nya disusun mengikuti pembagian ini."
-  },
-  {
-    "objectID": "hari-1.html#tugas",
-    "href": "hari-1.html#tugas",
-    "title": "Day 1 — Concepts",
-    "section": "",
-    "text": "Dikerjakan sekarang, tidak dikumpulkan. Tujuannya supaya besok tangan Anda sudah hafal Code Editor.\n1. Ubah ee.Number(1) pada contoh if di atas menjadi ee.Number(5). Apakah hasilnya berubah? Kenapa tidak?\n2. Buat skrip baru bernama latihan-hari-1, lalu tampilkan satu citra Sentinel-2 di wilayah kerja Anda:\nvar titik = ee.Geometry.Point([121.35, -8.65]);   // ganti ke wilayah Anda\nMap.centerObject(titik, 11);\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(titik)\n              .filterDate('2024-06-01', '2024-09-30')\n              .first();\n\nMap.addLayer(citra, {bands: ['B4','B3','B2'], min: 0, max: 3000}, 'Sentinel-2');\nprint(citra);\n3. Klik Inspector, lalu klik satu titik di peta. Lihat daftar nilai band.\n4. Di Console, buka segitiga di sebelah hasil print(citra) dan telusuri isinya. Ada berapa band? Kapan citra itu direkam?\nKalau nomor 4 terasa membingungkan, itu wajar — dan itu justru inti hari pertama: yang dicetak bukan gambar, melainkan deskripsi tentang gambar.\n\nBesok: dari komposit bebas awan sampai peta tutupan lahan dan berkas GeoTIFF yang siap masuk laporan. → Day 2 — Hands-on"
-  },
-  {
     "objectID": "hari-2.html",
     "href": "hari-2.html",
     "title": "Day 2 — Hands-on",
@@ -217,18 +161,235 @@
     "text": "Jalankan ulang untuk wilayah Anda minggu ini juga, selagi masih ingat. Menunda sebulan berarti mengulang dari nol.\nGanti satu hal, lihat akibatnya. Memahami datang dari mengubah, bukan dari menjalankan.\nSimpan skrip Anda lewat Scripts → NEW → File, dan pakai Get Link untuk membagikannya.\n\nKalau ada yang tidak berjalan, bawa pesan error persisnya — pesan itu hampir selalu menunjukkan baris yang bermasalah, dan sebagian besar sudah pernah ditanyakan orang lain di EE Developers Group.\n\n← Day 1 — Concepts · Semua skrip · Rujukan"
   },
   {
+    "objectID": "deck2.html#today-you-type",
+    "href": "deck2.html#today-you-type",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Today you type",
+    "text": "Today you type\nFive scripts, one district — yours, not mine.\n\n\n\ncloud-free composite\nNDVI\nland cover classification\n\n\n\nchange detection\nexport for your report\n\n\n\nYou leave with a map of your own area and files you can put in a document."
+  },
+  {
+    "objectID": "deck2.html#yesterday-in-four-lines",
+    "href": "deck2.html#yesterday-in-four-lines",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Yesterday, in four lines",
+    "text": "Yesterday, in four lines\n\n\n\na band\none wavelength range, one matrix\n\n\nfalse colour\nputting an invisible band on screen\n\n\nclassification\ngrouping pixels by their list of numbers\n\n\nclient vs server\nyour browser holds instructions, not data\n\n\n\n\nThe fourth one is where today’s errors will come from. When something fails, ask first: am I treating a server object as if it were here?"
+  },
+  {
+    "objectID": "deck2.html#set-up-your-screen-now",
+    "href": "deck2.html#set-up-your-screen-now",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Set up your screen now",
+    "text": "Set up your screen now\n\n\n\nCode Editor on the left, two-thirds\nthis call on the right, one-third\nkeep the Console visible, not buried\n\n\n\n\n\n\n\n\nDo it now, not later\n\n\nRearranging windows mid-exercise is how people fall behind and stay behind."
+  },
+  {
+    "objectID": "deck2.html#the-problem-and-it-is-ours-specifically",
+    "href": "deck2.html#the-problem-and-it-is-ours-specifically",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The problem, and it is ours specifically",
+    "text": "The problem, and it is ours specifically\nHalf the year, Indonesia is under cloud.\n\nOne image is a lottery. So we do not use one image — we take every image over a period and keep, per pixel, the ones that were clear.\n\n\n\n\n\n\n\n\nA composite is not a photograph\n\n\nNo single moment exists in it. Every pixel may come from a different day, and that is the point."
+  },
+  {
+    "objectID": "deck2.html#what-to-watch-for",
+    "href": "deck2.html#what-to-watch-for",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "What to watch for",
+    "text": "What to watch for\n.filterDate('2024-01-01', '2024-12-31')\n.filterBounds(aoi)\n.map(maskS2clouds)\n.median()\n\n\ntoo short a period → holes where it was never clear\ntoo long → you average across real change\n.median() rather than .mean() — one bright cloud edge does not drag the answer"
+  },
+  {
+    "objectID": "deck2.html#why-max-3000-not-255",
+    "href": "deck2.html#why-max-3000-not-255",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Why max: 3000, not 255",
+    "text": "Why max: 3000, not 255\nSentinel-2 reflectance is stored scaled — values run to several thousand, not 0–255.\n\nSet max: 255 and almost everything saturates white. Set it to 3000 and the land looks right.\n\n\nThis is a display choice, not a correction. The numbers underneath never changed — you are choosing how to stretch them onto a screen."
+  },
+  {
+    "objectID": "deck2.html#one-subtraction-and-why-it-works",
+    "href": "deck2.html#one-subtraction-and-why-it-works",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "One subtraction, and why it works",
+    "text": "One subtraction, and why it works\n\nNDVI  =  ( NIR − Red )  ÷  ( NIR + Red )\n\n\n\nYesterday: vegetation reflects ~5% of red and ~50% of near infrared. NDVI is just that gap, normalised so brightness cancels.\n\n\nA shaded hillside and a sunlit one give the same NDVI for the same plant. That is why we divide."
+  },
+  {
+    "objectID": "deck2.html#reading-the-number",
+    "href": "deck2.html#reading-the-number",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Reading the number",
+    "text": "Reading the number\n\n\n\nNDVI\nusually\n\n\n\n\n&lt; 0\nwater\n\n\n0 – 0.2\nbare soil, built-up\n\n\n0.2 – 0.5\ngrass, crops, shrub\n\n\n&gt; 0.5\ndense vegetation\n\n\n\n\nRanges overlap and shift by season and sensor. Treat them as a starting point to check, never as a classification."
+  },
+  {
+    "objectID": "deck2.html#the-step-nobody-can-copy-from-me",
+    "href": "deck2.html#the-step-nobody-can-copy-from-me",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The step nobody can copy from me",
+    "text": "The step nobody can copy from me\nEverything else today you can paste. Training points you must draw yourself, because they describe your district.\n\n\n20–40 points per class is enough to start\nspread them out — not all from one corner\npick pixels you are certain about; a doubtful point teaches the classifier something false"
+  },
+  {
+    "objectID": "deck2.html#then-70-30",
+    "href": "deck2.html#then-70-30",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Then 70 / 30",
+    "text": "Then 70 / 30\n\n\nTrain on 70% of your points. Hold back 30% and let the classifier answer those blind.\n\n\nIf you test on the points you trained with, you measure memory, not skill — and it will look excellent.\n\n\n\n\n\n\n\n\n\nRead the accuracy before you look at the map\n\n\nIn that order. The map is persuasive whether or not it is right."
+  },
+  {
+    "objectID": "deck2.html#because-this-always-looks-convincing",
+    "href": "deck2.html#because-this-always-looks-convincing",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Because this always looks convincing",
+    "text": "Because this always looks convincing\n\n\nCrisp boundaries. Sensible colours. None of that is evidence."
+  },
+  {
+    "objectID": "deck2.html#where-your-error-will-be",
+    "href": "deck2.html#where-your-error-will-be",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Where your error will be",
+    "text": "Where your error will be\nLook again at the middle panel: vegetation and water sit far apart, bare soil and settlement overlap.\n\nBoth are dry, bright, moderate in the infrared. Their numbers genuinely resemble each other.\n\n\n\n\n\n\n\n\nWhen accuracy stalls around 80%\n\n\nIt is almost never the algorithm. Find the two classes sitting on top of each other, then either add a band that separates them — shortwave infrared often does — or merge them and say so in your report."
+  },
+  {
+    "objectID": "deck2.html#two-dates-one-subtraction",
+    "href": "deck2.html#two-dates-one-subtraction",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Two dates, one subtraction",
+    "text": "Two dates, one subtraction\nBuild the same composite for two years. Subtract the NDVIs.\n\nNegative means vegetation lost between the two dates.\n\n\n\n\n\n\n\n\n−0.15 is a choice, not a truth\n\n\nMove the threshold and the area of “change” moves with it. Report the number you used, and show what happens at one step either side."
+  },
+  {
+    "objectID": "deck2.html#change-that-is-not-change",
+    "href": "deck2.html#change-that-is-not-change",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Change that is not change",
+    "text": "Change that is not change\nBefore believing any loss patch, rule out:\n\ndifferent season — a harvested paddy is not deforestation\ncloud shadow in one of the two composites\none bad year — drought looks like clearing at this resolution\n\n\nThe honest check is a third date. If the loss persists, it is real; if it returns, it was a season."
+  },
+  {
+    "objectID": "deck2.html#export-does-not-export",
+    "href": "deck2.html#export-does-not-export",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Export does not export",
+    "text": "Export does not export\nRunning the line creates a task. Nothing leaves Earth Engine until you open the Tasks tab and press Run.\n\n\n\n\n\n\n\nThe most common lost half-hour of the day\n\n\nPeople run the script, see no error, and wait for a file that was never requested."
+  },
+  {
+    "objectID": "deck2.html#and-this-is-where-the-quota-bites",
+    "href": "deck2.html#and-this-is-where-the-quota-bites",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "And this is where the quota bites",
+    "text": "And this is where the quota bites\nYou are asking for real pixels now, not a picture of them.\n\n\nset scale deliberately — 10 m over a whole province is enormous\nset region to your district, not the map view\nmaxPixels exists to stop an accident, not to be raised reflexively\n\n\n\nExports land in your Google Drive, and can take minutes to hours."
+  },
+  {
+    "objectID": "deck2.html#make-it-your-own",
+    "href": "deck2.html#make-it-your-own",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Make it your own",
+    "text": "Make it your own\n\nchange the area to your district\nchange the two years to ones you care about\nrun classification and change detection\nstart one export\n\n\n\n\n\n\n\n\nWhen it breaks — and it will\n\n\nRead the error’s first line only. Nine times in ten it is a client/server mistake, and yesterday’s rule solves it."
+  },
+  {
+    "objectID": "deck2.html#after-today",
+    "href": "deck2.html#after-today",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "After today",
+    "text": "After today\n\nthe scripts stay online — copy, adapt, break them\nthe reference page lists every dataset we touched\naccuracy below 70%? more training points first, more classes second\n\n\n\n\n\n\n\n\nThe one habit worth keeping\n\n\nState your accuracy and your thresholds next to every map you publish. It costs a sentence and it is the difference between a figure and a finding."
+  },
+  {
+    "objectID": "deck2.html#section",
+    "href": "deck2.html#section",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "",
+    "text": "Terima kasih\nQuestions — and if a script fails after today, send the error’s first line and the line number."
+  },
+  {
+    "objectID": "hari-1.html",
+    "href": "hari-1.html",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "◺ Change Detection\n  Hands-on tutorialTutorial praktis\n  \n    EN\n    ID\n  \n  \n  1 · What you'll buildYang akan dibuat\n  2 · How it worksCara kerja\n  3 · SetupPersiapan\n  4 · Your first runRun pertama\n  5 · Reading the outputsMembaca keluaran\n  \n  6 · Every scenarioSetiap skenario\n  7 · Make a mapMembuat peta\n  8 · Your own areaArea Anda\n  9 · ReproducibilityReproduksibilitas\n  10 · TroubleshootingPemecahan masalah\n  11 · Further readingBacaan lanjut\n  \n  ◆ GEE JavaScript workshop◆ Workshop GEE JavaScript\n    Two-day webinar (ID)Webinar dua hari\n  API reference ↗Referensi API ↗\n  Source on GitHub ↗Sumber di GitHub ↗\n\n\nBeranda\nHari 1 · Konsep\nHari 2 · Praktik\nSlides\nSkrip\nRujukan\n\n\n\n\n\n\n\n\n\n\n\n\nCatatanTujuan hari ini adalah paham, bukan lomba mengetik\n\n\n\nHari ini tidak menghasilkan peta. Yang dihasilkan adalah pengertian kenapa kode Earth Engine ditulis seperti itu — sehingga besok, ketika kita mengetik cepat, Anda tahu apa yang sedang terjadi dan bisa memperbaiki sendiri ketika ada yang salah.\nPeserta yang melewati hari pertama tetap bisa menjalankan skrip besok. Sampai wilayahnya diganti, muncul error, dan tidak ada cara menebak dari mana datangnya.\n\n\n\n\nSatu alur analisis yang tumbuh sedikit demi sedikit sepanjang dua hari:\n\nMembandingkan tutupan vegetasi di kawasan tambang nikel Konawe Utara, Sulawesi Tenggara antara 2023 dan 2026 — menghitung berapa hektar vegetasi yang hilang, membuat peta tutupan lahannya, dan mengekspor hasilnya sebagai GeoTIFF yang bisa masuk laporan.\n\nTidak ada langkah yang dibuang. Skrip hari kedua adalah skrip hari pertama yang diteruskan. Kalau wilayah kerja Anda berbeda — dan hampir pasti berbeda — semua contoh bisa dipindah ke sana dengan mengganti satu variabel.\n\n\n\n10 menit\nLima menit pertama, semua orang bersamaan. Buka code.earthengine.google.com, ketik satu baris ini, klik Run:\nprint('siap');\nKalau kata siap muncul di panel Console (kanan atas), Anda siap.\n\n\n\n\n\n\nPentingKalau tidak muncul\n\n\n\nHampir selalu satu dari tiga hal: akun belum disetujui; tab lama masih terbuka dengan sesi kedaluwarsa (tutup semua, buka lagi); atau jaringan memblokir earthengine.google.com — sering terjadi di jaringan kantor pemerintah, dan solusinya hotspot ponsel.\n\n\n\n\n\n20 menit\nMulai dengan pertanyaan: kalau ingin melihat perubahan tutupan lahan satu kabupaten selama sepuluh tahun, apa yang harus dilakukan?\nJawaban cara lama: cari citra di katalog, unduh satu per satu, tiap scene ratusan MB, koreksi atmosfer, mozaik, potong, baru analisis. Untuk sepuluh tahun satu kabupaten itu bisa ratusan gigabyte dan berminggu-minggu kerja — sebelum satu pun kesimpulan lahir.\nEarth Engine membalik urutannya. Datanya tidak pindah ke Anda; kode Anda yang pindah ke datanya. Seluruh arsip Landsat sejak 1984, Sentinel sejak 2015, MODIS sejak 2000, ditambah ratusan dataset lain, sudah duduk di server Google. Anda menuliskan apa yang ingin dihitung, Google yang mengerjakan, dan yang dikirim balik ke layar Anda hanya gambar petanya.\n\n\n\n\nCara lama\nEarth Engine\n\n\n\n\nUnduhan\nRatusan GB\nNol\n\n\nPerangkat keras\nKomputer kuat + penyimpanan\nPeramban\n\n\nWaktu ke hasil pertama\nBerhari-hari\nMenit\n\n\nMenambah 10 tahun lagi\nUlangi semuanya\nUbah satu tanggal\n\n\nBiaya\nWaktu & penyimpanan\nGratis untuk riset & pendidikan\n\n\n\n\n\n\n\n\n\nPeringatanDua hal yang perlu ditegaskan sejak awal\n\n\n\nGratisnya untuk penggunaan non-komersial — riset, pendidikan, dan sebagian besar kerja lembaga publik. Penggunaan komersial berbayar.\n“Gratis” bukan berarti “tanpa batas”. Ada kuota memori dan waktu komputasi. Kita akan menabraknya sendiri besok, di bagian klasifikasi — dan cara mengatasinya ada di sana.\n\n\n\n\n\n\n\nData\nResolusi\nSejak\nUntuk apa\n\n\n\n\nSentinel-2\n10 m\n2015\ntutupan lahan, vegetasi, tanaman\n\n\nLandsat 8/9\n30 m\n2013\nrangkaian panjang, konsistensi historis\n\n\nLandsat 5/7\n30 m\n1984\nperubahan jangka sangat panjang\n\n\nSentinel-1 (radar)\n10 m\n2014\ntembus awan — banjir, sawah\n\n\nSRTM / Copernicus DEM\n30 m\n—\nketinggian, lereng\n\n\nCHIRPS\n5 km\n1981\ncurah hujan\n\n\n\nUntuk Indonesia, baris radar sering menentukan: separuh tahun langit kita tertutup awan, dan Sentinel-1 tidak peduli pada awan.\n\n\n\n\n20 menit\nSekilas layarnya padat, tetapi hanya ada empat bagian yang perlu dikenali hari ini.\nKiri — Scripts / Docs / Assets. Scripts menyimpan skrip Anda. Docs adalah dokumentasi lengkap semua fungsi — ini yang paling sering dilupakan pemula, padahal isinya jawaban dari 90% pertanyaan. Assets untuk data Anda sendiri, misalnya shapefile batas wilayah.\nTengah — Editor kode. Tempat mengetik. Tombol Run menjalankan seluruh skrip dari atas ke bawah. Save menyimpan. Get Link membuat URL yang berisi skrip Anda — cara terbaik membagikan pekerjaan ke rekan atau ke dosen pembimbing.\nKanan — Console / Inspector / Tasks. Console menampilkan hasil print(). Inspector membaca nilai piksel saat Anda mengklik peta — alat debug paling berguna di GEE. Tasks tempat ekspor dijalankan.\nBawah — Peta. Setiap Map.addLayer() menambah satu lapisan. Panel Layers di pojok kanan atas peta mengatur transparansi dan mematikan lapisan — sangat membantu saat membandingkan sebelum/sesudah.\n\n\n\n\n\n\nTipDua kebiasaan yang menghemat berjam-jam\n\n\n\nInspector adalah cara tercepat memeriksa “apakah nilainya masuk akal”. Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.\nTasks sering terlupakan. Export di dalam skrip tidak langsung mengekspor; ia hanya mengantre. Anda masih harus klik RUN di tab Tasks. Peserta yang bilang “ekspornya tidak jalan” hampir selalu lupa ini.\n\n\n\n\n\n30 menit\nAnda tidak perlu belajar JavaScript. Anda perlu enam hal.\nvar kota  = 'Maumere';           // teks, pakai tanda kutip\nvar tahun = 2024;                // angka, tanpa kutip\n\nvar bands = ['B4', 'B3', 'B2'];  // daftar — hitungan mulai NOL\nprint(bands[0]);                 // 'B4', bukan bands[1]\n\nvar visual = {                   // kamus: pasangan nama: nilai\n  bands: ['B4', 'B3', 'B2'],\n  min: 0,\n  max: 3000\n};\nPerhatikan kamus di atas. Bentuk {nama: nilai} akan muncul terus, karena hampir semua fungsi Earth Engine menerima pengaturannya dalam bentuk itu.\nHitungan mulai nol adalah sumber kesalahan nomor satu bagi orang yang terbiasa dengan spreadsheet.\n\n\nfunction tambahNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI');\n  return image.addBands(ndvi);\n}\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nTitik di awal baris berarti “lalu lakukan ini pada hasil sebelumnya”. Dibaca dari atas ke bawah seperti kalimat.\n\n\n\n\n40 menit · bagian terpenting seluruh webinar\n\n\n\n\n\n\nPentingKalau hanya satu hal yang diingat, jadikan yang ini\n\n\n\nHampir semua kebingungan pemula di GEE berakar di sini — dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.\n\n\nAda dua dunia yang hidup berdampingan di dalam satu skrip:\n\n\n\n\nKlien (peramban Anda)\nServer (Google)\n\n\n\n\nContoh\nvar a = 5;\nvar b = ee.Number(5);\n\n\nCiri\nJavaScript biasa\nSelalu diawali ee.\n\n\nDihitung di\nLaptop Anda\nData center Google\n\n\nBoleh pakai if/for?\nBoleh\nTidak\n\n\n\n\n\nContoh ini yang paling jelas menunjukkannya. Jalankan sendiri:\nvar b = ee.Number(1);\n\nif (b.gt(3)) {\n  print('lebih besar dari 3');   // ini TETAP tercetak!\n}\nPadahal 1 jelas tidak lebih besar dari 3. Kenapa tetap tercetak?\nKarena b.gt(3) tidak mengembalikan true atau false. Ia mengembalikan sebuah objek ee.Number — perintah yang belum dijalankan, yang baru akan dievaluasi di server nanti. Dan di JavaScript, objek apa pun dianggap “benar”. Jadi blok if itu selalu jalan, apa pun isinya.\nIni bukan bug. Ini konsekuensi dari kenyataan bahwa peramban Anda belum tahu nilainya — dan tidak akan tahu sampai server menghitungnya.\n\n\n\nJangan pernah menulis for untuk memproses isi sebuah koleksi citra:\n// SALAH — for-loop tidak bisa menyentuh isi ImageCollection\nfor (var i = 0; i &lt; koleksi.size(); i++) { ... }\n\n// BENAR — .map() menyuruh server melakukannya untuk setiap citra\nvar hasil = koleksi.map(function (citra) {\n  return citra.normalizedDifference(['B8', 'B4']);\n});\n.map() adalah cara Earth Engine berkata “kerjakan fungsi ini pada setiap elemen, di sisimu, secara paralel”. Untuk ribuan citra, bedanya bukan soal gaya penulisan — for memang tidak akan berhasil sama sekali.\n\n\n\n\n\n\nPeringatangetInfo() — pakai sehemat mungkin\n\n\n\ngetInfo() memaksa hasil dari server pindah ke peramban sekarang juga, dan peramban membeku sampai selesai.\nprint(koleksi.size());              // benar — print menanganinya secara asinkron\nvar n = koleksi.size().getInfo();   // jalan, tapi memblokir; hindari kecuali perlu\nJangan pernah memakainya di dalam .map().\n\n\n\n\n\n\nKalau namanya diawali ee., jangan pakai if, for, atau operator + - * / biasa padanya. Pakai metodenya sendiri: .add(), .subtract(), .gt(), .map().\n\nDari sinilah hampir semua kalimat “kok hasilnya kosong” berasal. Dan begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan langsung masuk akal: seluruh API-nya disusun mengikuti pembagian ini.\n\n\n\n\nDikerjakan sekarang, tidak dikumpulkan. Tujuannya supaya besok tangan Anda sudah hafal Code Editor.\n1. Ubah ee.Number(1) pada contoh if di atas menjadi ee.Number(5). Apakah hasilnya berubah? Kenapa tidak?\n2. Buat skrip baru bernama latihan-hari-1, lalu tampilkan satu citra Sentinel-2 di wilayah kerja Anda:\nvar titik = ee.Geometry.Point([121.35, -8.65]);   // ganti ke wilayah Anda\nMap.centerObject(titik, 11);\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(titik)\n              .filterDate('2024-06-01', '2024-09-30')\n              .first();\n\nMap.addLayer(citra, {bands: ['B4','B3','B2'], min: 0, max: 3000}, 'Sentinel-2');\nprint(citra);\n3. Klik Inspector, lalu klik satu titik di peta. Lihat daftar nilai band.\n4. Di Console, buka segitiga di sebelah hasil print(citra) dan telusuri isinya. Ada berapa band? Kapan citra itu direkam?\nKalau nomor 4 terasa membingungkan, itu wajar — dan itu justru inti hari pertama: yang dicetak bukan gambar, melainkan deskripsi tentang gambar.\n\nBesok: dari komposit bebas awan sampai peta tutupan lahan dan berkas GeoTIFF yang siap masuk laporan. → Day 2 — Hands-on"
+  },
+  {
+    "objectID": "hari-1.html#target",
+    "href": "hari-1.html#target",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "Satu alur analisis yang tumbuh sedikit demi sedikit sepanjang dua hari:\n\nMembandingkan tutupan vegetasi di kawasan tambang nikel Konawe Utara, Sulawesi Tenggara antara 2023 dan 2026 — menghitung berapa hektar vegetasi yang hilang, membuat peta tutupan lahannya, dan mengekspor hasilnya sebagai GeoTIFF yang bisa masuk laporan.\n\nTidak ada langkah yang dibuang. Skrip hari kedua adalah skrip hari pertama yang diteruskan. Kalau wilayah kerja Anda berbeda — dan hampir pasti berbeda — semua contoh bisa dipindah ke sana dengan mengganti satu variabel."
+  },
+  {
+    "objectID": "hari-1.html#setup",
+    "href": "hari-1.html#setup",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "10 menit\nLima menit pertama, semua orang bersamaan. Buka code.earthengine.google.com, ketik satu baris ini, klik Run:\nprint('siap');\nKalau kata siap muncul di panel Console (kanan atas), Anda siap.\n\n\n\n\n\n\nPentingKalau tidak muncul\n\n\n\nHampir selalu satu dari tiga hal: akun belum disetujui; tab lama masih terbuka dengan sesi kedaluwarsa (tutup semua, buka lagi); atau jaringan memblokir earthengine.google.com — sering terjadi di jaringan kantor pemerintah, dan solusinya hotspot ponsel."
+  },
+  {
+    "objectID": "hari-1.html#kenapa",
+    "href": "hari-1.html#kenapa",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "20 menit\nMulai dengan pertanyaan: kalau ingin melihat perubahan tutupan lahan satu kabupaten selama sepuluh tahun, apa yang harus dilakukan?\nJawaban cara lama: cari citra di katalog, unduh satu per satu, tiap scene ratusan MB, koreksi atmosfer, mozaik, potong, baru analisis. Untuk sepuluh tahun satu kabupaten itu bisa ratusan gigabyte dan berminggu-minggu kerja — sebelum satu pun kesimpulan lahir.\nEarth Engine membalik urutannya. Datanya tidak pindah ke Anda; kode Anda yang pindah ke datanya. Seluruh arsip Landsat sejak 1984, Sentinel sejak 2015, MODIS sejak 2000, ditambah ratusan dataset lain, sudah duduk di server Google. Anda menuliskan apa yang ingin dihitung, Google yang mengerjakan, dan yang dikirim balik ke layar Anda hanya gambar petanya.\n\n\n\n\nCara lama\nEarth Engine\n\n\n\n\nUnduhan\nRatusan GB\nNol\n\n\nPerangkat keras\nKomputer kuat + penyimpanan\nPeramban\n\n\nWaktu ke hasil pertama\nBerhari-hari\nMenit\n\n\nMenambah 10 tahun lagi\nUlangi semuanya\nUbah satu tanggal\n\n\nBiaya\nWaktu & penyimpanan\nGratis untuk riset & pendidikan\n\n\n\n\n\n\n\n\n\nPeringatanDua hal yang perlu ditegaskan sejak awal\n\n\n\nGratisnya untuk penggunaan non-komersial — riset, pendidikan, dan sebagian besar kerja lembaga publik. Penggunaan komersial berbayar.\n“Gratis” bukan berarti “tanpa batas”. Ada kuota memori dan waktu komputasi. Kita akan menabraknya sendiri besok, di bagian klasifikasi — dan cara mengatasinya ada di sana.\n\n\n\n\n\n\n\nData\nResolusi\nSejak\nUntuk apa\n\n\n\n\nSentinel-2\n10 m\n2015\ntutupan lahan, vegetasi, tanaman\n\n\nLandsat 8/9\n30 m\n2013\nrangkaian panjang, konsistensi historis\n\n\nLandsat 5/7\n30 m\n1984\nperubahan jangka sangat panjang\n\n\nSentinel-1 (radar)\n10 m\n2014\ntembus awan — banjir, sawah\n\n\nSRTM / Copernicus DEM\n30 m\n—\nketinggian, lereng\n\n\nCHIRPS\n5 km\n1981\ncurah hujan\n\n\n\nUntuk Indonesia, baris radar sering menentukan: separuh tahun langit kita tertutup awan, dan Sentinel-1 tidak peduli pada awan."
+  },
+  {
+    "objectID": "hari-1.html#code-editor",
+    "href": "hari-1.html#code-editor",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "20 menit\nSekilas layarnya padat, tetapi hanya ada empat bagian yang perlu dikenali hari ini.\nKiri — Scripts / Docs / Assets. Scripts menyimpan skrip Anda. Docs adalah dokumentasi lengkap semua fungsi — ini yang paling sering dilupakan pemula, padahal isinya jawaban dari 90% pertanyaan. Assets untuk data Anda sendiri, misalnya shapefile batas wilayah.\nTengah — Editor kode. Tempat mengetik. Tombol Run menjalankan seluruh skrip dari atas ke bawah. Save menyimpan. Get Link membuat URL yang berisi skrip Anda — cara terbaik membagikan pekerjaan ke rekan atau ke dosen pembimbing.\nKanan — Console / Inspector / Tasks. Console menampilkan hasil print(). Inspector membaca nilai piksel saat Anda mengklik peta — alat debug paling berguna di GEE. Tasks tempat ekspor dijalankan.\nBawah — Peta. Setiap Map.addLayer() menambah satu lapisan. Panel Layers di pojok kanan atas peta mengatur transparansi dan mematikan lapisan — sangat membantu saat membandingkan sebelum/sesudah.\n\n\n\n\n\n\nTipDua kebiasaan yang menghemat berjam-jam\n\n\n\nInspector adalah cara tercepat memeriksa “apakah nilainya masuk akal”. Klik di laut, lihat NDVI-nya negatif — berarti perhitungan Anda benar.\nTasks sering terlupakan. Export di dalam skrip tidak langsung mengekspor; ia hanya mengantre. Anda masih harus klik RUN di tab Tasks. Peserta yang bilang “ekspornya tidak jalan” hampir selalu lupa ini."
+  },
+  {
+    "objectID": "hari-1.html#javascript",
+    "href": "hari-1.html#javascript",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "30 menit\nAnda tidak perlu belajar JavaScript. Anda perlu enam hal.\nvar kota  = 'Maumere';           // teks, pakai tanda kutip\nvar tahun = 2024;                // angka, tanpa kutip\n\nvar bands = ['B4', 'B3', 'B2'];  // daftar — hitungan mulai NOL\nprint(bands[0]);                 // 'B4', bukan bands[1]\n\nvar visual = {                   // kamus: pasangan nama: nilai\n  bands: ['B4', 'B3', 'B2'],\n  min: 0,\n  max: 3000\n};\nPerhatikan kamus di atas. Bentuk {nama: nilai} akan muncul terus, karena hampir semua fungsi Earth Engine menerima pengaturannya dalam bentuk itu.\nHitungan mulai nol adalah sumber kesalahan nomor satu bagi orang yang terbiasa dengan spreadsheet.\n\n\nfunction tambahNDVI (image) {\n  var ndvi = image.normalizedDifference(['B8', 'B4']).rename('NDVI');\n  return image.addBands(ndvi);\n}\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(aoi)\n              .filterDate('2024-06-01', '2024-09-30')\n              .median();\nTitik di awal baris berarti “lalu lakukan ini pada hasil sebelumnya”. Dibaca dari atas ke bawah seperti kalimat."
+  },
+  {
+    "objectID": "hari-1.html#client-server",
+    "href": "hari-1.html#client-server",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "40 menit · bagian terpenting seluruh webinar\n\n\n\n\n\n\nPentingKalau hanya satu hal yang diingat, jadikan yang ini\n\n\n\nHampir semua kebingungan pemula di GEE berakar di sini — dan tidak satupun bisa dipecahkan dengan menyalin skrip orang lain.\n\n\nAda dua dunia yang hidup berdampingan di dalam satu skrip:\n\n\n\n\nKlien (peramban Anda)\nServer (Google)\n\n\n\n\nContoh\nvar a = 5;\nvar b = ee.Number(5);\n\n\nCiri\nJavaScript biasa\nSelalu diawali ee.\n\n\nDihitung di\nLaptop Anda\nData center Google\n\n\nBoleh pakai if/for?\nBoleh\nTidak\n\n\n\n\n\nContoh ini yang paling jelas menunjukkannya. Jalankan sendiri:\nvar b = ee.Number(1);\n\nif (b.gt(3)) {\n  print('lebih besar dari 3');   // ini TETAP tercetak!\n}\nPadahal 1 jelas tidak lebih besar dari 3. Kenapa tetap tercetak?\nKarena b.gt(3) tidak mengembalikan true atau false. Ia mengembalikan sebuah objek ee.Number — perintah yang belum dijalankan, yang baru akan dievaluasi di server nanti. Dan di JavaScript, objek apa pun dianggap “benar”. Jadi blok if itu selalu jalan, apa pun isinya.\nIni bukan bug. Ini konsekuensi dari kenyataan bahwa peramban Anda belum tahu nilainya — dan tidak akan tahu sampai server menghitungnya.\n\n\n\nJangan pernah menulis for untuk memproses isi sebuah koleksi citra:\n// SALAH — for-loop tidak bisa menyentuh isi ImageCollection\nfor (var i = 0; i &lt; koleksi.size(); i++) { ... }\n\n// BENAR — .map() menyuruh server melakukannya untuk setiap citra\nvar hasil = koleksi.map(function (citra) {\n  return citra.normalizedDifference(['B8', 'B4']);\n});\n.map() adalah cara Earth Engine berkata “kerjakan fungsi ini pada setiap elemen, di sisimu, secara paralel”. Untuk ribuan citra, bedanya bukan soal gaya penulisan — for memang tidak akan berhasil sama sekali.\n\n\n\n\n\n\nPeringatangetInfo() — pakai sehemat mungkin\n\n\n\ngetInfo() memaksa hasil dari server pindah ke peramban sekarang juga, dan peramban membeku sampai selesai.\nprint(koleksi.size());              // benar — print menanganinya secara asinkron\nvar n = koleksi.size().getInfo();   // jalan, tapi memblokir; hindari kecuali perlu\nJangan pernah memakainya di dalam .map().\n\n\n\n\n\n\nKalau namanya diawali ee., jangan pakai if, for, atau operator + - * / biasa padanya. Pakai metodenya sendiri: .add(), .subtract(), .gt(), .map().\n\nDari sinilah hampir semua kalimat “kok hasilnya kosong” berasal. Dan begitu Anda memahaminya, dokumentasi Earth Engine yang tadinya membingungkan langsung masuk akal: seluruh API-nya disusun mengikuti pembagian ini."
+  },
+  {
+    "objectID": "hari-1.html#tugas",
+    "href": "hari-1.html#tugas",
+    "title": "Day 1 — Concepts",
+    "section": "",
+    "text": "Dikerjakan sekarang, tidak dikumpulkan. Tujuannya supaya besok tangan Anda sudah hafal Code Editor.\n1. Ubah ee.Number(1) pada contoh if di atas menjadi ee.Number(5). Apakah hasilnya berubah? Kenapa tidak?\n2. Buat skrip baru bernama latihan-hari-1, lalu tampilkan satu citra Sentinel-2 di wilayah kerja Anda:\nvar titik = ee.Geometry.Point([121.35, -8.65]);   // ganti ke wilayah Anda\nMap.centerObject(titik, 11);\n\nvar citra = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')\n              .filterBounds(titik)\n              .filterDate('2024-06-01', '2024-09-30')\n              .first();\n\nMap.addLayer(citra, {bands: ['B4','B3','B2'], min: 0, max: 3000}, 'Sentinel-2');\nprint(citra);\n3. Klik Inspector, lalu klik satu titik di peta. Lihat daftar nilai band.\n4. Di Console, buka segitiga di sebelah hasil print(citra) dan telusuri isinya. Ada berapa band? Kapan citra itu direkam?\nKalau nomor 4 terasa membingungkan, itu wajar — dan itu justru inti hari pertama: yang dicetak bukan gambar, melainkan deskripsi tentang gambar.\n\nBesok: dari komposit bebas awan sampai peta tutupan lahan dan berkas GeoTIFF yang siap masuk laporan. → Day 2 — Hands-on"
+  },
+  {
+    "objectID": "slides2.html",
+    "href": "slides2.html",
+    "title": "Slides — Day 2",
+    "section": "",
+    "text": "◺ Change Detection\n  Hands-on tutorialTutorial praktis\n  \n    EN\n    ID\n  \n  \n  1 · What you'll buildYang akan dibuat\n  2 · How it worksCara kerja\n  3 · SetupPersiapan\n  4 · Your first runRun pertama\n  5 · Reading the outputsMembaca keluaran\n  \n  6 · Every scenarioSetiap skenario\n  7 · Make a mapMembuat peta\n  8 · Your own areaArea Anda\n  9 · ReproducibilityReproduksibilitas\n  10 · TroubleshootingPemecahan masalah\n  11 · Further readingBacaan lanjut\n  \n  ◆ GEE JavaScript workshop◆ Workshop GEE JavaScript\n    Two-day webinar (ID)Webinar dua hari\n  API reference ↗Referensi API ↗\n  Source on GitHub ↗Sumber di GitHub ↗\n\n\nBeranda\nHari 1 · Konsep\nHari 2 · Praktik\nSlides\nSkrip\nRujukan\n\n\n\n\n\n\nSlide hari kedua tertanam di bawah. Berbeda dengan hari pertama, slide ini tipis dengan sengaja: hari kedua peserta mengetik, jadi layar utama adalah Code Editor, bukan slide.\n\n\n\n\n\n\nTipMenjalankan slide\n\n\n\nKlik dulu di dalam bingkai, lalu:\n\n\n\nTombol\nFungsi\n\n\n\n\n→ ←\nmaju / mundur\n\n\nF\nlayar penuh\n\n\nO\ntampilan semua slide sekaligus\n\n\nEsc\nkeluar dari layar penuh\n\n\n\n\n\n\n\n\nBuka slide di tab terpisah ↗\n\n\nUrutannya mengikuti Hari 2 — Praktik dan skrip di Skrip, jadi slide, halaman, dan berkas .js bergerak seiring.\n\n\n\n\n\n\n\n\nBagian\nIsi\nSkrip\n\n\n\n\nToday you type\napa yang dibawa pulang peserta\n—\n\n\nYesterday, in four lines\nringkasan hari pertama; client vs server jadi sumber error hari ini\n—\n\n\n1 · Cloud-free composite\nkenapa satu citra tidak cukup di Indonesia, max: 3000\n03\n\n\n2 · NDVI\nsatu pengurangan, kenapa dibagi, membaca angkanya\n04\n\n\n3 · Classification\ntitik latih yang harus digambar sendiri, 70/30, akurasi dibaca sebelum peta\n05\n\n\n4 · Change detection\ndua tanggal, ambang −0,15 sebagai pilihan, perubahan palsu\n06\n\n\n5 · Export\nExport membuat tugas, bukan berkas; kuota\n07\n\n\nYour turn\nsepuluh menit mengganti wilayah dan tahun\n—\n\n\n\n\n\n\nSisanya boleh dipercepat kalau waktu menipis. Tiga ini tidak, karena ketiganya mencegah peserta menerbitkan angka yang salah:\n\n\n\n\n\n\nPentingRead the accuracy before you look at the map\n\n\n\nPeta klasifikasi selalu terlihat meyakinkan — batasnya rapi, warnanya masuk akal. Tidak satu pun dari itu bukti. Urutannya: akurasi dulu, peta kemudian.\n\n\n\n\n\n\n\n\nPenting−0,15 itu pilihan, bukan kebenaran\n\n\n\nGeser ambangnya, luas “perubahan” ikut bergeser. Yang jujur: sebutkan angka yang dipakai, dan tunjukkan hasilnya satu langkah di kiri dan kanan.\n\n\n\n\n\n\n\n\nPentingExport tidak mengekspor\n\n\n\nBarisnya membuat task. Tidak ada berkas yang keluar sampai tab Tasks dibuka dan Run ditekan. Ini penyebab setengah jam yang paling sering hilang di hari kedua.\n\n\n\n\n\nSlide klasifikasi memakai figur yang sama dengan hari pertama — sengaja, supaya peserta mengenalinya dan langsung ingat titik pentingnya: vegetasi dan air terpisah jauh, tanah terbuka dan permukiman bertumpuk. Di situlah error akurasi mereka akan muncul.\n\n\n\n\n\n\n\n\n\n\n\nCatatanKenapa slide berbahasa Inggris\n\n\n\nSama dengan hari pertama: narasi lisan Bahasa Indonesia, slide Bahasa Inggris. Teks Inggris lebih pendek, jadi tabel tidak terpotong di proyektor dan ukuran hurufnya tidak perlu dikecilkan."
+  },
+  {
+    "objectID": "slides2.html#isi",
+    "href": "slides2.html#isi",
+    "title": "Slides — Day 2",
+    "section": "",
+    "text": "Urutannya mengikuti Hari 2 — Praktik dan skrip di Skrip, jadi slide, halaman, dan berkas .js bergerak seiring.\n\n\n\n\n\n\n\n\nBagian\nIsi\nSkrip\n\n\n\n\nToday you type\napa yang dibawa pulang peserta\n—\n\n\nYesterday, in four lines\nringkasan hari pertama; client vs server jadi sumber error hari ini\n—\n\n\n1 · Cloud-free composite\nkenapa satu citra tidak cukup di Indonesia, max: 3000\n03\n\n\n2 · NDVI\nsatu pengurangan, kenapa dibagi, membaca angkanya\n04\n\n\n3 · Classification\ntitik latih yang harus digambar sendiri, 70/30, akurasi dibaca sebelum peta\n05\n\n\n4 · Change detection\ndua tanggal, ambang −0,15 sebagai pilihan, perubahan palsu\n06\n\n\n5 · Export\nExport membuat tugas, bukan berkas; kuota\n07\n\n\nYour turn\nsepuluh menit mengganti wilayah dan tahun\n—"
+  },
+  {
+    "objectID": "slides2.html#penting",
+    "href": "slides2.html#penting",
+    "title": "Slides — Day 2",
+    "section": "",
+    "text": "Sisanya boleh dipercepat kalau waktu menipis. Tiga ini tidak, karena ketiganya mencegah peserta menerbitkan angka yang salah:\n\n\n\n\n\n\nPentingRead the accuracy before you look at the map\n\n\n\nPeta klasifikasi selalu terlihat meyakinkan — batasnya rapi, warnanya masuk akal. Tidak satu pun dari itu bukti. Urutannya: akurasi dulu, peta kemudian.\n\n\n\n\n\n\n\n\nPenting−0,15 itu pilihan, bukan kebenaran\n\n\n\nGeser ambangnya, luas “perubahan” ikut bergeser. Yang jujur: sebutkan angka yang dipakai, dan tunjukkan hasilnya satu langkah di kiri dan kanan.\n\n\n\n\n\n\n\n\nPentingExport tidak mengekspor\n\n\n\nBarisnya membuat task. Tidak ada berkas yang keluar sampai tab Tasks dibuka dan Run ditekan. Ini penyebab setengah jam yang paling sering hilang di hari kedua."
+  },
+  {
+    "objectID": "slides2.html#gambar",
+    "href": "slides2.html#gambar",
+    "title": "Slides — Day 2",
+    "section": "",
+    "text": "Slide klasifikasi memakai figur yang sama dengan hari pertama — sengaja, supaya peserta mengenalinya dan langsung ingat titik pentingnya: vegetasi dan air terpisah jauh, tanah terbuka dan permukiman bertumpuk. Di situlah error akurasi mereka akan muncul.\n\n\n\n\n\n\n\n\n\n\n\nCatatanKenapa slide berbahasa Inggris\n\n\n\nSama dengan hari pertama: narasi lisan Bahasa Indonesia, slide Bahasa Inggris. Teks Inggris lebih pendek, jadi tabel tidak terpotong di proyektor dan ukuran hurufnya tidak perlu dikecilkan."
+  },
+  {
     "objectID": "slides.html",
     "href": "slides.html",
     "title": "Slides — Day 1",
     "section": "",
-    "text": "◺ Change Detection\n  Hands-on tutorialTutorial praktis\n  \n    EN\n    ID\n  \n  \n  1 · What you'll buildYang akan dibuat\n  2 · How it worksCara kerja\n  3 · SetupPersiapan\n  4 · Your first runRun pertama\n  5 · Reading the outputsMembaca keluaran\n  \n  6 · Every scenarioSetiap skenario\n  7 · Make a mapMembuat peta\n  8 · Your own areaArea Anda\n  9 · ReproducibilityReproduksibilitas\n  10 · TroubleshootingPemecahan masalah\n  11 · Further readingBacaan lanjut\n  \n  ◆ GEE JavaScript workshop◆ Workshop GEE JavaScript\n    Two-day webinar (ID)Webinar dua hari\n  API reference ↗Referensi API ↗\n  Source on GitHub ↗Sumber di GitHub ↗\n\n\nBeranda\nHari 1 · Konsep\nHari 2 · Praktik\nSlides\nSkrip\nRujukan\n\n\n\n\n\n\nSlide hari pertama tertanam di bawah. Sidebar tetap di tempatnya, jadi Anda bisa kembali ke halaman mana pun tanpa menekan tombol back.\n\n\n\n\n\n\nTipMenjalankan slide\n\n\n\nKlik dulu di dalam bingkai, lalu:\n\n\n\nTombol\nFungsi\n\n\n\n\n→ ←\nmaju / mundur\n\n\nF\nlayar penuh\n\n\nO\ntampilan semua slide sekaligus\n\n\nS\ncatatan pemateri\n\n\nEsc\nkeluar dari layar penuh\n\n\n\n\n\n\n\n\nBuka slide di tab terpisah ↗\n\n\nUrutannya mengikuti Hari 1 — Konsep, jadi slide dan halaman bisa dipakai berdampingan: slide untuk dipresentasikan, halaman untuk dibaca ulang peserta setelahnya.\n\n\n\n\n\n\n\nBagian\nIsi\n\n\n\n\nTwo days\napa yang dihasilkan tiap hari\n\n\n1 · Why Earth Engine\ncara lama vs Earth Engine, data yang tersedia\n\n\n2 · The Code Editor\nempat panel, Inspector, Tasks\n\n\n3 · Just enough JavaScript\nenam hal, functions, chaining\n\n\n4 · Client vs server\nbagian terpenting — if yang tetap tercetak\n\n\nBefore tomorrow\nlatihan sepuluh menit\n\n\n\n\n\n\n\n\n\nCatatanKenapa slide berbahasa Inggris\n\n\n\nNarasi halaman memakai Bahasa Indonesia, tetapi slide memakai Bahasa Inggris: di proyektor, teks Inggris yang lebih pendek menjaga tabel tidak terpotong sehingga ukuran hurufnya tidak perlu dikecilkan."
+    "text": "◺ Change Detection\n  Hands-on tutorialTutorial praktis\n  \n    EN\n    ID\n  \n  \n  1 · What you'll buildYang akan dibuat\n  2 · How it worksCara kerja\n  3 · SetupPersiapan\n  4 · Your first runRun pertama\n  5 · Reading the outputsMembaca keluaran\n  \n  6 · Every scenarioSetiap skenario\n  7 · Make a mapMembuat peta\n  8 · Your own areaArea Anda\n  9 · ReproducibilityReproduksibilitas\n  10 · TroubleshootingPemecahan masalah\n  11 · Further readingBacaan lanjut\n  \n  ◆ GEE JavaScript workshop◆ Workshop GEE JavaScript\n    Two-day webinar (ID)Webinar dua hari\n  API reference ↗Referensi API ↗\n  Source on GitHub ↗Sumber di GitHub ↗\n\n\nBeranda\nHari 1 · Konsep\nHari 2 · Praktik\nSlides\nSkrip\nRujukan\n\n\n\n\n\n\nSlide hari pertama tertanam di bawah. Sidebar tetap di tempatnya, jadi Anda bisa kembali ke halaman mana pun tanpa menekan tombol back.\n\n\n\n\n\n\nTipMenjalankan slide\n\n\n\nKlik dulu di dalam bingkai, lalu:\n\n\n\nTombol\nFungsi\n\n\n\n\n→ ←\nmaju / mundur\n\n\nF\nlayar penuh\n\n\nO\ntampilan semua slide sekaligus\n\n\nS\ncatatan pemateri\n\n\nEsc\nkeluar dari layar penuh\n\n\n\n\n\n\n\n\nBuka slide di tab terpisah ↗\n\n\nUrutannya mengikuti Hari 1 — Konsep, jadi slide dan halaman bisa dipakai berdampingan: slide untuk dipresentasikan, halaman untuk dibaca ulang peserta setelahnya.\n\n\n\n\n\n\n\nBagian\nIsi\n\n\n\n\nTwo days\napa yang dihasilkan tiap hari\n\n\n1 · How we see\ndasar penginderaan jauh: mata sebagai sensor, warna, spektrum, pantul–serap–terus, angka digital, RGB dan false colour, klasifikasi\n\n\n2 · Why Earth Engine\ncara lama vs Earth Engine, data yang tersedia\n\n\n3 · The Code Editor\nempat panel, Inspector, Tasks\n\n\n4 · Just enough JavaScript\nenam hal, functions, chaining\n\n\n5 · Client vs server\nbagian terpenting — if yang tetap tercetak\n\n\nBefore tomorrow\nlatihan sepuluh menit\n\n\n\n\n\n\n\n\n\nTipMenggambar di atas slide\n\n\n\nAda tombol kecil di kiri bawah slide: ikon pena untuk mencoret di slide yang sedang tampil, ikon papan untuk papan tulis kosong. Bekerja dengan Apple Pencil di iPad — buka deck.html langsung, bukan lewat bingkai ini.\nCoretan hilang bila halaman dimuat ulang, jadi unduh dari tombol yang sama kalau ingin disimpan.\n\n\n\n\n\n\n\n\nCatatanKenapa slide berbahasa Inggris\n\n\n\nNarasi halaman memakai Bahasa Indonesia, tetapi slide memakai Bahasa Inggris: di proyektor, teks Inggris yang lebih pendek menjaga tabel tidak terpotong sehingga ukuran hurufnya tidak perlu dikecilkan."
   },
   {
     "objectID": "slides.html#isi",
     "href": "slides.html#isi",
     "title": "Slides — Day 1",
     "section": "",
-    "text": "Urutannya mengikuti Hari 1 — Konsep, jadi slide dan halaman bisa dipakai berdampingan: slide untuk dipresentasikan, halaman untuk dibaca ulang peserta setelahnya.\n\n\n\n\n\n\n\nBagian\nIsi\n\n\n\n\nTwo days\napa yang dihasilkan tiap hari\n\n\n1 · Why Earth Engine\ncara lama vs Earth Engine, data yang tersedia\n\n\n2 · The Code Editor\nempat panel, Inspector, Tasks\n\n\n3 · Just enough JavaScript\nenam hal, functions, chaining\n\n\n4 · Client vs server\nbagian terpenting — if yang tetap tercetak\n\n\nBefore tomorrow\nlatihan sepuluh menit\n\n\n\n\n\n\n\n\n\nCatatanKenapa slide berbahasa Inggris\n\n\n\nNarasi halaman memakai Bahasa Indonesia, tetapi slide memakai Bahasa Inggris: di proyektor, teks Inggris yang lebih pendek menjaga tabel tidak terpotong sehingga ukuran hurufnya tidak perlu dikecilkan."
+    "text": "Urutannya mengikuti Hari 1 — Konsep, jadi slide dan halaman bisa dipakai berdampingan: slide untuk dipresentasikan, halaman untuk dibaca ulang peserta setelahnya.\n\n\n\n\n\n\n\nBagian\nIsi\n\n\n\n\nTwo days\napa yang dihasilkan tiap hari\n\n\n1 · How we see\ndasar penginderaan jauh: mata sebagai sensor, warna, spektrum, pantul–serap–terus, angka digital, RGB dan false colour, klasifikasi\n\n\n2 · Why Earth Engine\ncara lama vs Earth Engine, data yang tersedia\n\n\n3 · The Code Editor\nempat panel, Inspector, Tasks\n\n\n4 · Just enough JavaScript\nenam hal, functions, chaining\n\n\n5 · Client vs server\nbagian terpenting — if yang tetap tercetak\n\n\nBefore tomorrow\nlatihan sepuluh menit\n\n\n\n\n\n\n\n\n\nTipMenggambar di atas slide\n\n\n\nAda tombol kecil di kiri bawah slide: ikon pena untuk mencoret di slide yang sedang tampil, ikon papan untuk papan tulis kosong. Bekerja dengan Apple Pencil di iPad — buka deck.html langsung, bukan lewat bingkai ini.\nCoretan hilang bila halaman dimuat ulang, jadi unduh dari tombol yang sama kalau ingin disimpan.\n\n\n\n\n\n\n\n\nCatatanKenapa slide berbahasa Inggris\n\n\n\nNarasi halaman memakai Bahasa Indonesia, tetapi slide memakai Bahasa Inggris: di proyektor, teks Inggris yang lebih pendek menjaga tabel tidak terpotong sehingga ukuran hurufnya tidak perlu dikecilkan."
   },
   {
     "objectID": "deck.html#two-days",
@@ -236,6 +397,132 @@
     "title": "Google Earth Engine with JavaScript",
     "section": "Two days",
     "text": "Two days\n\n\nDay 1 — Concepts\n2 hours · no maps produced\nOutput: understanding why Earth Engine code looks the way it does.\n\nDay 2 — Hands-on\n2 hours · everyone types\nOutput: a land cover map of your own district, and files for your report.\n\n\nSkip Day 1 and tomorrow’s scripts still run — until you change the area, hit an error, and have no way to guess where it came from."
+  },
+  {
+    "objectID": "deck.html#start-with-your-own-eye",
+    "href": "deck.html#start-with-your-own-eye",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Start with your own eye",
+    "text": "Start with your own eye\nYou are already using a remote sensing instrument.\n\nLight leaves the sun, hits a leaf, and some of it comes back. Your eye measures what came back. You never touch the leaf.\n\n\nThat is the whole idea. A satellite does the same thing from 786 km up. Everything else is detail — which wavelengths, how finely, how often."
+  },
+  {
+    "objectID": "deck.html#colour-is-not-in-the-light",
+    "href": "deck.html#colour-is-not-in-the-light",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Colour is not in the light",
+    "text": "Colour is not in the light\nSunlight is a continuous range of wavelengths. There are no colours in it.\n\nYour retina has three kinds of cone, sensitive around blue, green and red. Every colour you have ever seen is your brain interpreting three numbers.\n\n\n\n\n\n\n\n\nThe useful consequence\n\n\nColour is a property of the sensor, not of the world. Build a different sensor and you get different colours — and possibly a better answer."
+  },
+  {
+    "objectID": "deck.html#our-sliver-of-it",
+    "href": "deck.html#our-sliver-of-it",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Our sliver of it",
+    "text": "Our sliver of it\n\n\nVisible light is about 400–700 nm. The satellite measures out to 2190 nm — three times further than your eye reaches."
+  },
+  {
+    "objectID": "deck.html#a-satellite-has-more-cones",
+    "href": "deck.html#a-satellite-has-more-cones",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "A satellite has more cones",
+    "text": "A satellite has more cones\n\n\n\n\nour eye\nSentinel-2\n\n\n\n\ndetectors\n3\n13\n\n\nblue\n~440 nm\n490 nm\n\n\ngreen\n~540 nm\n560 nm\n\n\nred\n~570 nm\n665 nm\n\n\nnear infrared\n—\n842 nm\n\n\nshortwave infrared\n—\n1610, 2190 nm\n\n\n\n\nThe rows without a left-hand entry are the point of the whole exercise."
+  },
+  {
+    "objectID": "deck.html#what-happens-when-light-meets-a-surface",
+    "href": "deck.html#what-happens-when-light-meets-a-surface",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "What happens when light meets a surface",
+    "text": "What happens when light meets a surface\nThree things, always, and they must add to 100%:\nreflected · absorbed · transmitted\n\n\n\n\n\n\n\n\nThe physics is identical for all three. Only the split differs — and that split is what the satellite measures."
+  },
+  {
+    "objectID": "deck.html#only-the-reflected-part-reaches-the-satellite",
+    "href": "deck.html#only-the-reflected-part-reaches-the-satellite",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Only the reflected part reaches the satellite",
+    "text": "Only the reflected part reaches the satellite\n\n\n\n\n\n\nWhich is why water is black in the near infrared\n\n\nIt absorbs 97% of it. Nothing comes back, so the sensor records almost nothing — and that makes water the easiest thing on Earth to map.\n\n\n\n\nA leaf passes 45% of the near infrared straight through. Light we cannot see goes through a leaf almost as if it were glass."
+  },
+  {
+    "objectID": "deck.html#the-image-is-numbers-not-a-picture",
+    "href": "deck.html#the-image-is-numbers-not-a-picture",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The image is numbers, not a picture",
+    "text": "The image is numbers, not a picture\nA satellite image is not a photograph. It is a grid of measurements.\n\nEach cell holds how much energy came back, in one wavelength range, as an integer — a digital number.\n\n\nB4 (red), a 4×4 corner of a Sentinel-2 scene\n\n  412  455  398  377\n  401  1122 1180 402      ← the bright cells are a rooftop\n  388  1195 1240 395\n  377  402  410  388\nNothing here is red. Nothing here is a picture. It is a matrix."
+  },
+  {
+    "objectID": "deck.html#why-numbers-are-better-than-a-picture",
+    "href": "deck.html#why-numbers-are-better-than-a-picture",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Why numbers are better than a picture",
+    "text": "Why numbers are better than a picture\n\n\nA picture you can look at.\n\nA number you can subtract, threshold, average over ten years, and compare between two dates.\n\n\nFilm could not do arithmetic. This is the reason remote sensing became digital, and the reason a computer can find change that your eye would miss.\n\n\n\n\n\n\n\n\nEverything later in these two days is arithmetic on those matrices"
+  },
+  {
+    "objectID": "deck.html#choosing-what-to-show",
+    "href": "deck.html#choosing-what-to-show",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Choosing what to show",
+    "text": "Choosing what to show\nYour screen has three channels: R, G, B. Sentinel-2 has thirteen bands.\n\nSo displaying an image is an act of choosing. You pick three bands and assign them to the three channels.\n// natural colour — what your eye would see\n{bands: ['B4', 'B3', 'B2'], min: 0, max: 3000}\n\n// false colour — near infrared into the red channel\n{bands: ['B8', 'B4', 'B3'], min: 0, max: 3000}\n\n\nThe second one is not a trick or a prettier version. It is the only way to put an invisible measurement in front of a human eye."
+  },
+  {
+    "objectID": "deck.html#the-band-you-cannot-see",
+    "href": "deck.html#the-band-you-cannot-see",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The band you cannot see",
+    "text": "The band you cannot see\nHealthy vegetation, roughly:\n\n\n\nwavelength\nreflected\n\n\n\n\nred, 665 nm\n~5%\n\n\nnear infrared, 842 nm\n~50%\n\n\n\n\nA leaf is dark in red — chlorophyll absorbs it, that is what photosynthesis is. Its internal cell structure scatters near infrared straight back.\n\n\n\n\n\n\n\n\nYour eye stops at about 700 nm\n\n\nThe strongest signal a plant gives off is just past where your vision ends. Vegetation studies live in a band no human has ever seen."
+  },
+  {
+    "objectID": "deck.html#four-surfaces-measured",
+    "href": "deck.html#four-surfaces-measured",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Four surfaces, measured",
+    "text": "Four surfaces, measured\n\n\nIn the visible band the four curves crowd together. Past 700 nm they separate. That is the whole argument for multispectral imaging."
+  },
+  {
+    "objectID": "deck.html#why-false-colour-looks-like-that",
+    "href": "deck.html#why-false-colour-looks-like-that",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Why false colour looks like that",
+    "text": "Why false colour looks like that\nIn ['B8','B4','B3'], near infrared drives the red channel.\n\n\nhealthy vegetation → bright red\nwater → near black (water absorbs NIR almost completely)\nbare soil, roofs, roads → cyan, grey, brown\n\n\n\nOnce you know that, a false-colour image is faster to read than a natural one. Deforestation stops being subtle."
+  },
+  {
+    "objectID": "deck.html#every-pixel-is-a-list-of-numbers",
+    "href": "deck.html#every-pixel-is-a-list-of-numbers",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Every pixel is a list of numbers",
+    "text": "Every pixel is a list of numbers\nStack the bands and look down through them at one cell:\npixel (1204, 887)\n\n  B2   B3   B4   B8   B11  B12\n  412  620  455  3180 1420 690\n\nSix numbers. A vector. That pixel’s signature.\n\n\nForest, water, rice paddy and rooftop each have a characteristic shape to that list — and the shape survives even when the brightness changes."
+  },
+  {
+    "objectID": "deck.html#classification-is-sorting-those-lists",
+    "href": "deck.html#classification-is-sorting-those-lists",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Classification is sorting those lists",
+    "text": "Classification is sorting those lists\n\n\n\nyou label a few pixels you are sure about\nthe computer learns what each class’s numbers look like\nit assigns every remaining pixel to the nearest class\n\n\n\nNo image recognition. No shapes, no edges, no objects.\nJust: which group of numbers is this list closest to?\n\n\n\nTomorrow you will do exactly this, in about fifteen lines of code."
+  },
+  {
+    "objectID": "deck.html#the-whole-algorithm-in-one-figure",
+    "href": "deck.html#the-whole-algorithm-in-one-figure",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The whole algorithm, in one figure",
+    "text": "The whole algorithm, in one figure\n\n\n48 labelled pixels out of 8100 — under 1% — and 95.8% of the rest land in the right class."
+  },
+  {
+    "objectID": "deck.html#look-at-the-middle-panel-again",
+    "href": "deck.html#look-at-the-middle-panel-again",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Look at the middle panel again",
+    "text": "Look at the middle panel again\nVegetation and water sit far apart. Nothing can confuse them.\n\nBare soil and settlement overlap. Their numbers are genuinely similar — both are dry, bright surfaces with moderate infrared.\n\n\n\n\n\n\n\n\nThat overlap is your error, and no algorithm removes it\n\n\nIt shows up as speckle in the right-hand panel. When your accuracy stalls at 80%, look for the two classes sitting on top of each other in band space — then add a band that separates them, or merge them and say so."
+  },
+  {
+    "objectID": "deck.html#which-is-why-more-bands-help",
+    "href": "deck.html#which-is-why-more-bands-help",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Which is why more bands help",
+    "text": "Which is why more bands help\nTwo bands give a flat scatter plot. Sentinel-2 gives you thirteen.\n\nSoil and settlement that overlap in red and near infrared may separate in shortwave infrared, where moisture and material differ.\n\n\nYou are not choosing prettier colours. You are choosing axes that pull your classes apart."
+  },
+  {
+    "objectID": "deck.html#so-the-vocabulary-is-set",
+    "href": "deck.html#so-the-vocabulary-is-set",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "So the vocabulary is set",
+    "text": "So the vocabulary is set\n\n\n\nword\nwhat it actually means\n\n\n\n\nband\none wavelength range, one matrix\n\n\ndigital number\none measurement in one cell\n\n\nRGB visualisation\nchoosing three matrices to show\n\n\nfalse colour\nputting an invisible band on screen\n\n\nclassification\ngrouping pixels by their list of numbers\n\n\n\n\nEverything from here is how to do that arithmetic without downloading anything."
   },
   {
     "objectID": "deck.html#the-old-way",
@@ -341,131 +628,5 @@
     "title": "Google Earth Engine with JavaScript",
     "section": "",
     "text": "See you tomorrow\nfirmanhadi21.github.io/rs-change-detection/gee-js\nMaterials, scripts and references are all there."
-  },
-  {
-    "objectID": "deck.html#start-with-your-own-eye",
-    "href": "deck.html#start-with-your-own-eye",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Start with your own eye",
-    "text": "Start with your own eye\nYou are already using a remote sensing instrument.\n\nLight leaves the sun, hits a leaf, and some of it comes back. Your eye measures what came back. You never touch the leaf.\n\n\nThat is the whole idea. A satellite does the same thing from 786 km up. Everything else is detail — which wavelengths, how finely, how often."
-  },
-  {
-    "objectID": "deck.html#colour-is-not-in-the-light",
-    "href": "deck.html#colour-is-not-in-the-light",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Colour is not in the light",
-    "text": "Colour is not in the light\nSunlight is a continuous range of wavelengths. There are no colours in it.\n\nYour retina has three kinds of cone, sensitive around blue, green and red. Every colour you have ever seen is your brain interpreting three numbers.\n\n\n\n\n\n\n\n\nThe useful consequence\n\n\nColour is a property of the sensor, not of the world. Build a different sensor and you get different colours — and possibly a better answer."
-  },
-  {
-    "objectID": "deck.html#a-satellite-has-more-cones",
-    "href": "deck.html#a-satellite-has-more-cones",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "A satellite has more cones",
-    "text": "A satellite has more cones\n\n\n\n\nour eye\nSentinel-2\n\n\n\n\ndetectors\n3\n13\n\n\nblue\n~440 nm\n490 nm\n\n\ngreen\n~540 nm\n560 nm\n\n\nred\n~570 nm\n665 nm\n\n\nnear infrared\n—\n842 nm\n\n\nshortwave infrared\n—\n1610, 2190 nm\n\n\n\n\nThe rows without a left-hand entry are the point of the whole exercise."
-  },
-  {
-    "objectID": "deck.html#the-image-is-numbers-not-a-picture",
-    "href": "deck.html#the-image-is-numbers-not-a-picture",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "The image is numbers, not a picture",
-    "text": "The image is numbers, not a picture\nA satellite image is not a photograph. It is a grid of measurements.\n\nEach cell holds how much energy came back, in one wavelength range, as an integer — a digital number.\n\n\nB4 (red), a 4×4 corner of a Sentinel-2 scene\n\n  412  455  398  377\n  401  1122 1180 402      ← the bright cells are a rooftop\n  388  1195 1240 395\n  377  402  410  388\nNothing here is red. Nothing here is a picture. It is a matrix."
-  },
-  {
-    "objectID": "deck.html#why-numbers-are-better-than-a-picture",
-    "href": "deck.html#why-numbers-are-better-than-a-picture",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Why numbers are better than a picture",
-    "text": "Why numbers are better than a picture\n\n\nA picture you can look at.\n\nA number you can subtract, threshold, average over ten years, and compare between two dates.\n\n\nFilm could not do arithmetic. This is the reason remote sensing became digital, and the reason a computer can find change that your eye would miss.\n\n\n\n\n\n\n\n\nEverything later in these two days is arithmetic on those matrices"
-  },
-  {
-    "objectID": "deck.html#choosing-what-to-show",
-    "href": "deck.html#choosing-what-to-show",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Choosing what to show",
-    "text": "Choosing what to show\nYour screen has three channels: R, G, B. Sentinel-2 has thirteen bands.\n\nSo displaying an image is an act of choosing. You pick three bands and assign them to the three channels.\n// natural colour — what your eye would see\n{bands: ['B4', 'B3', 'B2'], min: 0, max: 3000}\n\n// false colour — near infrared into the red channel\n{bands: ['B8', 'B4', 'B3'], min: 0, max: 3000}\n\n\nThe second one is not a trick or a prettier version. It is the only way to put an invisible measurement in front of a human eye."
-  },
-  {
-    "objectID": "deck.html#the-band-you-cannot-see",
-    "href": "deck.html#the-band-you-cannot-see",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "The band you cannot see",
-    "text": "The band you cannot see\nHealthy vegetation, roughly:\n\n\n\nwavelength\nreflected\n\n\n\n\nred, 665 nm\n~5%\n\n\nnear infrared, 842 nm\n~50%\n\n\n\n\nA leaf is dark in red — chlorophyll absorbs it, that is what photosynthesis is. Its internal cell structure scatters near infrared straight back.\n\n\n\n\n\n\n\n\nYour eye stops at about 700 nm\n\n\nThe strongest signal a plant gives off is just past where your vision ends. Vegetation studies live in a band no human has ever seen."
-  },
-  {
-    "objectID": "deck.html#why-false-colour-looks-like-that",
-    "href": "deck.html#why-false-colour-looks-like-that",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Why false colour looks like that",
-    "text": "Why false colour looks like that\nIn ['B8','B4','B3'], near infrared drives the red channel.\n\n\nhealthy vegetation → bright red\nwater → near black (water absorbs NIR almost completely)\nbare soil, roofs, roads → cyan, grey, brown\n\n\n\nOnce you know that, a false-colour image is faster to read than a natural one. Deforestation stops being subtle."
-  },
-  {
-    "objectID": "deck.html#every-pixel-is-a-list-of-numbers",
-    "href": "deck.html#every-pixel-is-a-list-of-numbers",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Every pixel is a list of numbers",
-    "text": "Every pixel is a list of numbers\nStack the bands and look down through them at one cell:\npixel (1204, 887)\n\n  B2   B3   B4   B8   B11  B12\n  412  620  455  3180 1420 690\n\nSix numbers. A vector. That pixel’s signature.\n\n\nForest, water, rice paddy and rooftop each have a characteristic shape to that list — and the shape survives even when the brightness changes."
-  },
-  {
-    "objectID": "deck.html#classification-is-sorting-those-lists",
-    "href": "deck.html#classification-is-sorting-those-lists",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Classification is sorting those lists",
-    "text": "Classification is sorting those lists\n\n\n\nyou label a few pixels you are sure about\nthe computer learns what each class’s numbers look like\nit assigns every remaining pixel to the nearest class\n\n\n\nNo image recognition. No shapes, no edges, no objects.\nJust: which group of numbers is this list closest to?\n\n\n\nTomorrow you will do exactly this, in about fifteen lines of code."
-  },
-  {
-    "objectID": "deck.html#so-the-vocabulary-is-set",
-    "href": "deck.html#so-the-vocabulary-is-set",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "So the vocabulary is set",
-    "text": "So the vocabulary is set\n\n\n\nword\nwhat it actually means\n\n\n\n\nband\none wavelength range, one matrix\n\n\ndigital number\none measurement in one cell\n\n\nRGB visualisation\nchoosing three matrices to show\n\n\nfalse colour\nputting an invisible band on screen\n\n\nclassification\ngrouping pixels by their list of numbers\n\n\n\n\nEverything from here is how to do that arithmetic without downloading anything."
-  },
-  {
-    "objectID": "deck.html#our-sliver-of-it",
-    "href": "deck.html#our-sliver-of-it",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Our sliver of it",
-    "text": "Our sliver of it\n\n\nVisible light is about 400–700 nm. The satellite measures out to 2190 nm — three times further than your eye reaches."
-  },
-  {
-    "objectID": "deck.html#what-happens-when-light-meets-a-surface",
-    "href": "deck.html#what-happens-when-light-meets-a-surface",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "What happens when light meets a surface",
-    "text": "What happens when light meets a surface\nThree things, always, and they must add to 100%:\nreflected · absorbed · transmitted\n\n\n\n\n\n\n\n\nThe physics is identical for all three. Only the split differs — and that split is what the satellite measures."
-  },
-  {
-    "objectID": "deck.html#only-the-reflected-part-reaches-the-satellite",
-    "href": "deck.html#only-the-reflected-part-reaches-the-satellite",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Only the reflected part reaches the satellite",
-    "text": "Only the reflected part reaches the satellite\n\n\n\n\n\n\nWhich is why water is black in the near infrared\n\n\nIt absorbs 97% of it. Nothing comes back, so the sensor records almost nothing — and that makes water the easiest thing on Earth to map.\n\n\n\n\nA leaf passes 45% of the near infrared straight through. Light we cannot see goes through a leaf almost as if it were glass."
-  },
-  {
-    "objectID": "deck.html#four-surfaces-measured",
-    "href": "deck.html#four-surfaces-measured",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Four surfaces, measured",
-    "text": "Four surfaces, measured\n\n\nIn the visible band the four curves crowd together. Past 700 nm they separate. That is the whole argument for multispectral imaging."
-  },
-  {
-    "objectID": "deck.html#the-whole-algorithm-in-one-figure",
-    "href": "deck.html#the-whole-algorithm-in-one-figure",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "The whole algorithm, in one figure",
-    "text": "The whole algorithm, in one figure\n\n\n48 labelled pixels out of 8100 — under 1% — and 95.8% of the rest land in the right class."
-  },
-  {
-    "objectID": "deck.html#look-at-the-middle-panel-again",
-    "href": "deck.html#look-at-the-middle-panel-again",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Look at the middle panel again",
-    "text": "Look at the middle panel again\nVegetation and water sit far apart. Nothing can confuse them.\n\nBare soil and settlement overlap. Their numbers are genuinely similar — both are dry, bright surfaces with moderate infrared.\n\n\n\n\n\n\n\n\nThat overlap is your error, and no algorithm removes it\n\n\nIt shows up as speckle in the right-hand panel. When your accuracy stalls at 80%, look for the two classes sitting on top of each other in band space — then add a band that separates them, or merge them and say so."
-  },
-  {
-    "objectID": "deck.html#which-is-why-more-bands-help",
-    "href": "deck.html#which-is-why-more-bands-help",
-    "title": "Google Earth Engine with JavaScript",
-    "section": "Which is why more bands help",
-    "text": "Which is why more bands help\nTwo bands give a flat scatter plot. Sentinel-2 gives you thirteen.\n\nSoil and settlement that overlap in red and near infrared may separate in shortwave infrared, where moisture and material differ.\n\n\nYou are not choosing prettier colours. You are choosing axes that pull your classes apart."
   }
 ]

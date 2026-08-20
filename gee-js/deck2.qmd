@@ -1,0 +1,327 @@
+---
+title: "Google Earth Engine with JavaScript"
+subtitle: "Day 2 — Hands-on"
+pagetitle: "GEE with JavaScript — Day 2 (deck)"
+title-prefix: ""
+author: "Firman Hadi"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  revealjs:
+    theme: [default, slides.scss]
+    slide-number: c/t
+    width: 1280
+    height: 760
+    transition: none
+    incremental: false
+    code-line-numbers: false
+    highlight-style: github
+    # No LaTeX in this deck, so do not pull MathJax from a CDN just to have it
+    # sitting there: one fewer live network dependency during a webinar.
+    html-math-method: plain
+    footer: "GEE Webinar · Day 2 · Hands-on"
+    title-slide-attributes:
+      data-background-color: "#0f3d2e"
+    chalkboard:
+      buttons: true
+      boardmarker-width: 4
+      chalk-width: 5
+lang: en
+---
+
+## Today you type {background-color="#f7f9fb"}
+
+Five scripts, one district — **yours**, not mine.
+
+::: {.columns}
+::: {.column width="50%"}
+1. cloud-free composite
+2. NDVI
+3. land cover classification
+:::
+::: {.column width="50%"}
+4. change detection
+5. export for your report
+:::
+:::
+
+. . .
+
+You leave with **a map of your own area and files you can put in a document.**
+
+## Yesterday, in four lines
+
+| | |
+|---|---|
+| a band | one wavelength range, one matrix |
+| false colour | putting an invisible band on screen |
+| classification | grouping pixels by their list of numbers |
+| client vs server | your browser holds *instructions*, not data |
+
+::: {.fragment}
+The fourth one is where today's errors will come from. When something fails,
+ask first: **am I treating a server object as if it were here?**
+:::
+
+## Set up your screen now
+
+::: {.columns}
+::: {.column width="55%"}
+- Code Editor on the left, **two-thirds**
+- this call on the right, **one-third**
+- keep the Console visible, not buried
+:::
+::: {.column width="45%"}
+::: {.callout-tip}
+## Do it now, not later
+Rearranging windows mid-exercise is how people fall behind and stay behind.
+:::
+:::
+:::
+
+# 1 · Cloud-free composite {background-color="#0f3d2e"}
+
+## The problem, and it is ours specifically
+
+Half the year, Indonesia is under cloud.
+
+. . .
+
+One image is a lottery. So we do not use one image — we take **every** image
+over a period and keep, per pixel, the ones that were clear.
+
+. . .
+
+::: {.callout-important}
+## A composite is not a photograph
+No single moment exists in it. Every pixel may come from a different day, and
+that is the point.
+:::
+
+## What to watch for
+
+```js
+.filterDate('2024-01-01', '2024-12-31')
+.filterBounds(aoi)
+.map(maskS2clouds)
+.median()
+```
+
+. . .
+
+- **too short a period** → holes where it was never clear
+- **too long** → you average across real change
+- `.median()` rather than `.mean()` — one bright cloud edge does not drag the
+  answer
+
+## Why `max: 3000`, not 255
+
+Sentinel-2 reflectance is stored scaled — values run to several thousand, not
+0–255.
+
+. . .
+
+Set `max: 255` and almost everything saturates white. Set it to 3000 and the
+land looks right.
+
+. . .
+
+**This is a display choice, not a correction.** The numbers underneath never
+changed — you are choosing how to stretch them onto a screen.
+
+# 2 · NDVI {background-color="#0f3d2e"}
+
+## One subtraction, and why it works
+
+::: {style="text-align:center; font-size:1.5em; margin:.6em 0 .4em;"}
+NDVI &nbsp;=&nbsp; ( NIR − Red ) &nbsp;÷&nbsp; ( NIR + Red )
+:::
+
+<!-- Written as text, not LaTeX, on purpose: Quarto pulls MathJax from a CDN,
+     and one formula is not worth a live network dependency mid-webinar. If the
+     connection drops, this still reads. -->
+
+. . .
+
+Yesterday: vegetation reflects ~5% of red and ~50% of near infrared. NDVI is
+just that gap, **normalised so brightness cancels**.
+
+. . .
+
+A shaded hillside and a sunlit one give the same NDVI for the same plant.
+That is why we divide.
+
+## Reading the number
+
+| NDVI | usually |
+|---|---:|
+| < 0 | water |
+| 0 – 0.2 | bare soil, built-up |
+| 0.2 – 0.5 | grass, crops, shrub |
+| > 0.5 | dense vegetation |
+
+::: {.fragment}
+Ranges overlap and shift by season and sensor. Treat them as a starting point
+to check, never as a classification.
+:::
+
+# 3 · Classification {background-color="#0f3d2e"}
+
+## The step nobody can copy from me
+
+Everything else today you can paste. **Training points you must draw
+yourself**, because they describe *your* district.
+
+. . .
+
+- 20–40 points per class is enough to start
+- spread them out — not all from one corner
+- pick pixels you are **certain** about; a doubtful point teaches the
+  classifier something false
+
+## Then 70 / 30
+
+::: {.columns}
+::: {.column width="55%"}
+Train on 70% of your points. **Hold back 30%** and let the classifier answer
+those blind.
+:::
+::: {.column width="45%"}
+::: {.fragment}
+If you test on the points you trained with, you measure memory, not skill —
+and it will look excellent.
+:::
+:::
+:::
+
+. . .
+
+::: {.callout-important}
+## Read the accuracy before you look at the map
+In that order. The map is persuasive whether or not it is right.
+:::
+
+## Because this always looks convincing
+
+![](img/classification.svg){fig-align="center" width="90%"}
+
+::: {.fragment}
+Crisp boundaries. Sensible colours. **None of that is evidence.**
+:::
+
+## Where your error will be
+
+Look again at the middle panel: vegetation and water sit far apart, **bare
+soil and settlement overlap**.
+
+. . .
+
+Both are dry, bright, moderate in the infrared. Their numbers genuinely
+resemble each other.
+
+. . .
+
+::: {.callout-note}
+## When accuracy stalls around 80%
+It is almost never the algorithm. Find the two classes sitting on top of each
+other, then either add a band that separates them — shortwave infrared often
+does — or merge them and say so in your report.
+:::
+
+# 4 · Change detection {background-color="#0f3d2e"}
+
+## Two dates, one subtraction
+
+Build the same composite for two years. Subtract the NDVIs.
+
+. . .
+
+Negative means vegetation lost between the two dates.
+
+. . .
+
+::: {.callout-important}
+## −0.15 is a choice, not a truth
+Move the threshold and the area of "change" moves with it. Report the number
+you used, and show what happens at one step either side.
+:::
+
+## Change that is not change
+
+Before believing any loss patch, rule out:
+
+- **different season** — a harvested paddy is not deforestation
+- **cloud shadow** in one of the two composites
+- **one bad year** — drought looks like clearing at this resolution
+
+. . .
+
+The honest check is a third date. If the loss persists, it is real; if it
+returns, it was a season.
+
+# 5 · Export {background-color="#0f3d2e"}
+
+## `Export` does not export
+
+Running the line creates a **task**. Nothing leaves Earth Engine until you
+open the Tasks tab and press **Run**.
+
+. . .
+
+::: {.callout-tip}
+## The most common lost half-hour of the day
+People run the script, see no error, and wait for a file that was never
+requested.
+:::
+
+## And this is where the quota bites
+
+You are asking for real pixels now, not a picture of them.
+
+. . .
+
+- set `scale` deliberately — 10 m over a whole province is enormous
+- set `region` to your district, not the map view
+- `maxPixels` exists to stop an accident, not to be raised reflexively
+
+. . .
+
+Exports land in **your Google Drive**, and can take minutes to hours.
+
+# Your turn · 10 minutes {background-color="#0f3d2e"}
+
+## Make it your own
+
+1. change the area to **your** district
+2. change the two years to ones you care about
+3. run classification and change detection
+4. start one export
+
+. . .
+
+::: {.callout-note}
+## When it breaks — and it will
+Read the error's **first line** only. Nine times in ten it is a client/server
+mistake, and yesterday's rule solves it.
+:::
+
+## After today {background-color="#f7f9fb"}
+
+- the scripts stay online — copy, adapt, break them
+- the reference page lists every dataset we touched
+- accuracy below 70%? more training points first, more classes second
+
+. . .
+
+::: {.callout-important}
+## The one habit worth keeping
+State your accuracy and your thresholds next to every map you publish. It
+costs a sentence and it is the difference between a figure and a finding.
+:::
+
+## {background-color="#0f3d2e"}
+
+### Terima kasih
+
+Questions — and if a script fails after today, send the **error's first line**
+and the line number.

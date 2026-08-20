@@ -30,6 +30,8 @@ format:
     incremental: false
     code-line-numbers: false
     highlight-style: github
+    # No LaTeX here either -- keep the deck free of a CDN dependency.
+    html-math-method: plain
     footer: "GEE Webinar · Day 1 · Concepts"
     title-slide-attributes:
       data-background-color: "#0f3d2e"

@@ -1,0 +1,91 @@
+---
+title: "Slides — Day 2"
+subtitle: "Praktik · dipakai pemateri di hari kedua"
+---
+
+Slide hari kedua tertanam di bawah. Berbeda dengan hari pertama, slide ini
+tipis dengan sengaja: hari kedua peserta mengetik, jadi layar utama adalah
+Code Editor, bukan slide.
+
+::: {.callout-tip}
+## Menjalankan slide
+
+Klik dulu di dalam bingkai, lalu:
+
+| Tombol | Fungsi |
+|---|---|
+| `→` `←` | maju / mundur |
+| `F` | layar penuh |
+| `O` | tampilan semua slide sekaligus |
+| `Esc` | keluar dari layar penuh |
+:::
+
+<div style="position:relative;padding-top:62%;border:1px solid var(--line);
+            border-radius:10px;overflow:hidden;margin:1.2rem 0;background:#000">
+  <iframe src="deck2.html"
+          title="Slide Hari 2 — Praktik"
+          style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"
+          allowfullscreen></iframe>
+</div>
+
+[Buka slide di tab terpisah ↗](deck2.html){.btn .btn-primary}
+
+## Isi slide {#isi}
+
+Urutannya mengikuti [Hari 2 — Praktik](hari-2.qmd) dan skrip di
+[Skrip](skrip.qmd), jadi slide, halaman, dan berkas `.js` bergerak seiring.
+
+| Bagian | Isi | Skrip |
+|---|---|---|
+| Today you type | apa yang dibawa pulang peserta | — |
+| Yesterday, in four lines | ringkasan hari pertama; client vs server jadi sumber error hari ini | — |
+| 1 · Cloud-free composite | kenapa satu citra tidak cukup di Indonesia, `max: 3000` | `03` |
+| 2 · NDVI | satu pengurangan, kenapa dibagi, membaca angkanya | `04` |
+| **3 · Classification** | titik latih yang harus digambar sendiri, 70/30, **akurasi dibaca sebelum peta** | `05` |
+| 4 · Change detection | dua tanggal, ambang −0,15 sebagai pilihan, perubahan palsu | `06` |
+| 5 · Export | `Export` membuat tugas, bukan berkas; kuota | `07` |
+| Your turn | sepuluh menit mengganti wilayah dan tahun | — |
+
+## Tiga slide yang jangan dilewati {#penting}
+
+Sisanya boleh dipercepat kalau waktu menipis. Tiga ini tidak, karena ketiganya
+mencegah peserta menerbitkan angka yang salah:
+
+::: {.callout-important}
+## Read the accuracy before you look at the map
+
+Peta klasifikasi selalu terlihat meyakinkan — batasnya rapi, warnanya masuk
+akal. Tidak satu pun dari itu bukti. Urutannya: akurasi dulu, peta kemudian.
+:::
+
+::: {.callout-important}
+## −0,15 itu pilihan, bukan kebenaran
+
+Geser ambangnya, luas "perubahan" ikut bergeser. Yang jujur: sebutkan angka
+yang dipakai, dan tunjukkan hasilnya satu langkah di kiri dan kanan.
+:::
+
+::: {.callout-important}
+## `Export` tidak mengekspor
+
+Barisnya membuat *task*. Tidak ada berkas yang keluar sampai tab **Tasks**
+dibuka dan **Run** ditekan. Ini penyebab setengah jam yang paling sering
+hilang di hari kedua.
+:::
+
+## Gambar yang dipakai ulang {#gambar}
+
+Slide klasifikasi memakai figur yang sama dengan hari pertama — sengaja, supaya
+peserta mengenalinya dan langsung ingat titik pentingnya: vegetasi dan air
+terpisah jauh, **tanah terbuka dan permukiman bertumpuk**. Di situlah error
+akurasi mereka akan muncul.
+
+![](img/classification.svg){fig-align="center" width="88%"}
+
+::: {.callout-note}
+## Kenapa slide berbahasa Inggris
+
+Sama dengan hari pertama: narasi lisan Bahasa Indonesia, slide Bahasa Inggris.
+Teks Inggris lebih pendek, jadi tabel tidak terpotong di proyektor dan ukuran
+hurufnya tidak perlu dikecilkan.
+:::
