@@ -19,6 +19,7 @@ FORMAT, as measured on ALOS2214327020-180512-FBDR1.1:
     rec 2  data set summary, 4096 B
              @495  radar_wavelength  m      (as-is)
              @704  rng_samp_rate     MHz    (x1e6)
+             @736  pulse_dur         us     (x1e-6)
              @923  PRF               mHz    (x1e-3)
     rec 3  platform position, 4680 B
              @149  start seconds of day
@@ -53,6 +54,12 @@ LEADER_FIELDS = {
     "radar_wavelength": (2, 495, 1.0),
     "rng_samp_rate":    (2, 704, 1e6),
     "PRF":              (2, 923, 1e-3),
+    # Located only at rtol 1e-4: the leader holds 30.6894840 us while GMTSAR
+    # prints 3.068900e-05, a relative difference of 1.6e-5. As with the
+    # wavelength, the ground truth is the LESS precise of the two, and a
+    # tolerance set by the source rather than by the reference rejects a
+    # correct field.
+    "pulse_dur":        (2, 736, 1e-6),
 }
 ORBIT_REC = 3
 ORBIT_T0_OFF, ORBIT_DT_OFF, ORBIT_SV_OFF = 149, 171, 374
@@ -217,14 +224,15 @@ def validate(datadir, pol="HH"):
 
     print(f"{'parameter':<20}{'this reader':>20}{'GMTSAR':>20}   agree")
     ok = True
-    for key in ("radar_wavelength", "PRF", "rng_samp_rate", "near_range",
+    for key in ("radar_wavelength", "PRF", "rng_samp_rate", "pulse_dur",
+                "near_range",
                 "chirp_slope", "num_rng_bins", "num_lines"):
         mine, theirs = prm.get(key), gm.get(key)
         if theirs is None or not isinstance(theirs, float):
             continue
         # num_lines legitimately differs: GMTSAR trims a few lines when it
         # rewrites the SLC, so agreement to a handful of lines is correct.
-        tol = 8.0 if key == "num_lines" else abs(theirs) * 1e-5
+        tol = 8.0 if key == "num_lines" else abs(theirs) * 1e-4
         good = abs(mine - theirs) <= tol
         ok &= good
         print(f"{key:<20}{mine:>20.6f}{theirs:>20.6f}   "
