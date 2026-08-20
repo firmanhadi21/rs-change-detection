@@ -37,7 +37,11 @@ import zipfile
 PROJECT = "flores-coseismic-2026"
 OUT = os.path.expanduser("~/GitHub/rs-change-detection/output/coseismic")
 
-KEEP = ("_los_displacement.tif", "_corr.tif", "_unw_phase.tif",
+# HyP3 names these _los_disp.tif and _vert_disp.tif, NOT _los_displacement.tif.
+# The longer name is the API PARAMETER; the band file uses the short form. The
+# products were delivered correctly and then discarded here at extraction --
+# a second silent naming failure on the same band, after the deprecated flag.
+KEEP = ("_los_disp.tif", "_vert_disp.tif", "_corr.tif", "_unw_phase.tif",
         "_wrapped_phase.tif", "_dem.tif", "_inc_map.tif",
         "_lv_theta.tif", "_lv_phi.tif", "_water_mask.tif", ".txt")
 

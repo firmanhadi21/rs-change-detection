@@ -40,7 +40,7 @@ def main():
 
     pairs = []
     for unw in sorted(glob.glob(f"{ROOT}/**/*_unw_phase.tif", recursive=True)):
-        los = unw.replace("_unw_phase.tif", "_los_displacement.tif")
+        los = unw.replace("_unw_phase.tif", "_los_disp.tif")
         corr = unw.replace("_unw_phase.tif", "_corr.tif")
         if os.path.exists(los) and os.path.exists(corr):
             pairs.append((unw, los, corr))
