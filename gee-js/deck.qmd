@@ -46,7 +46,215 @@ Output: a land cover map of your own district, and files for your report.
 Skip Day 1 and tomorrow's scripts still run — until you change the area, hit an
 error, and have no way to guess where it came from.
 
-# 1 · Why Earth Engine {background-color="#0f3d2e"}
+# 1 · How we see {background-color="#0f3d2e"}
+
+## Start with your own eye
+
+You are already using a remote sensing instrument.
+
+. . .
+
+Light leaves the sun, hits a leaf, and some of it comes back. Your eye
+measures what came back. You never touch the leaf.
+
+. . .
+
+**That is the whole idea.** A satellite does the same thing from 786 km up.
+Everything else is detail — which wavelengths, how finely, how often.
+
+## Colour is not in the light
+
+Sunlight is a continuous range of wavelengths. There are no colours in it.
+
+. . .
+
+Your retina has **three** kinds of cone, sensitive around blue, green and red.
+Every colour you have ever seen is your brain interpreting **three numbers**.
+
+. . .
+
+::: {.callout-note}
+## The useful consequence
+Colour is a property of the **sensor**, not of the world. Build a different
+sensor and you get different colours — and possibly a better answer.
+:::
+
+## A satellite has more cones
+
+| | our eye | Sentinel-2 |
+|---|---|---|
+| detectors | 3 | 13 |
+| blue | ~440 nm | 490 nm |
+| green | ~540 nm | 560 nm |
+| red | ~570 nm | 665 nm |
+| near infrared | — | **842 nm** |
+| shortwave infrared | — | **1610, 2190 nm** |
+
+::: {.fragment}
+The rows without a left-hand entry are the point of the whole exercise.
+:::
+
+## The image is numbers, not a picture
+
+A satellite image is not a photograph. It is a **grid of measurements**.
+
+. . .
+
+Each cell holds how much energy came back, in one wavelength range, as an
+integer — a **digital number**.
+
+. . .
+
+```
+B4 (red), a 4×4 corner of a Sentinel-2 scene
+
+  412  455  398  377
+  401  1122 1180 402      ← the bright cells are a rooftop
+  388  1195 1240 395
+  377  402  410  388
+```
+
+Nothing here is red. Nothing here is a picture. It is a matrix.
+
+## Why numbers are better than a picture
+
+::: {.columns}
+::: {.column width="50%"}
+**A picture** you can look at.
+:::
+::: {.column width="50%"}
+**A number** you can subtract, threshold, average over ten years, and compare
+between two dates.
+:::
+:::
+
+. . .
+
+Film could not do arithmetic. This is the reason remote sensing became
+digital, and the reason a computer can find change that your eye would miss.
+
+. . .
+
+::: {.callout-important}
+## Everything later in these two days is arithmetic on those matrices
+:::
+
+## Choosing what to show
+
+Your screen has three channels: R, G, B. Sentinel-2 has thirteen bands.
+
+. . .
+
+So displaying an image is an **act of choosing**. You pick three bands and
+assign them to the three channels.
+
+```js
+// natural colour — what your eye would see
+{bands: ['B4', 'B3', 'B2'], min: 0, max: 3000}
+
+// false colour — near infrared into the red channel
+{bands: ['B8', 'B4', 'B3'], min: 0, max: 3000}
+```
+
+. . .
+
+The second one is not a trick or a prettier version. It is **the only way to
+put an invisible measurement in front of a human eye**.
+
+## The band you cannot see
+
+Healthy vegetation, roughly:
+
+| wavelength | reflected |
+|---|---:|
+| red, 665 nm | ~5% |
+| **near infrared, 842 nm** | **~50%** |
+
+. . .
+
+A leaf is dark in red — chlorophyll absorbs it, that is what photosynthesis
+*is*. Its internal cell structure scatters near infrared straight back.
+
+. . .
+
+::: {.callout-note}
+## Your eye stops at about 700 nm
+The strongest signal a plant gives off is just past where your vision ends.
+Vegetation studies live in a band no human has ever seen.
+:::
+
+## Why false colour looks like that
+
+In `['B8','B4','B3']`, near infrared drives the red channel.
+
+. . .
+
+- healthy vegetation → **bright red**
+- water → near black (water absorbs NIR almost completely)
+- bare soil, roofs, roads → cyan, grey, brown
+
+. . .
+
+Once you know that, a false-colour image is faster to read than a natural
+one. Deforestation stops being subtle.
+
+## Every pixel is a list of numbers
+
+Stack the bands and look down through them at one cell:
+
+```
+pixel (1204, 887)
+
+  B2   B3   B4   B8   B11  B12
+  412  620  455  3180 1420 690
+```
+
+. . .
+
+Six numbers. A **vector**. That pixel's signature.
+
+. . .
+
+Forest, water, rice paddy and rooftop each have a characteristic shape to that
+list — and the shape survives even when the brightness changes.
+
+## Classification is sorting those lists
+
+::: {.columns}
+::: {.column width="55%"}
+1. you label a few pixels you are sure about
+2. the computer learns what each class's numbers look like
+3. it assigns **every** remaining pixel to the nearest class
+:::
+::: {.column width="45%"}
+::: {.fragment}
+No image recognition. No shapes, no edges, no objects.
+
+Just: *which group of numbers is this list closest to?*
+:::
+:::
+:::
+
+. . .
+
+Tomorrow you will do exactly this, in about fifteen lines of code.
+
+## So the vocabulary is set {background-color="#f7f9fb"}
+
+| word | what it actually means |
+|---|---|
+| band | one wavelength range, one matrix |
+| digital number | one measurement in one cell |
+| RGB visualisation | choosing three matrices to show |
+| false colour | putting an invisible band on screen |
+| classification | grouping pixels by their list of numbers |
+
+::: {.fragment}
+Everything from here is how to do that arithmetic **without downloading
+anything**.
+:::
+
+# 2 · Why Earth Engine {background-color="#0f3d2e"}
 
 ## The old way
 
@@ -94,7 +302,7 @@ For Indonesia the radar row often decides things: half the year our sky is
 covered.
 :::
 
-# 2 · The Code Editor {background-color="#0f3d2e"}
+# 3 · The Code Editor {background-color="#0f3d2e"}
 
 ## Four panels
 
@@ -123,7 +331,7 @@ covered.
 This is the number one complaint at every GEE workshop. Without exception.
 :::
 
-# 3 · Just enough JavaScript {background-color="#0f3d2e"}
+# 4 · Just enough JavaScript {background-color="#0f3d2e"}
 
 ## Six things, that's all
 
@@ -163,7 +371,7 @@ var image = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
 A leading dot means "then do this to the result above". Read it top to bottom,
 like a sentence.
 
-# 4 · Client vs Server {background-color="#7d2b2b"}
+# 5 · Client vs Server {background-color="#7d2b2b"}
 
 ## If you remember one thing today
 

@@ -10,7 +10,7 @@
   <meta name="generator" content="quarto-1.9.38">
 
   <meta name="author" content="Firman Hadi">
-  <meta name="dcterms.date" content="2026-08-18">
+  <meta name="dcterms.date" content="2026-08-20">
   <title>GEE with JavaScript — Day 1 (deck)</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -208,7 +208,7 @@ Firman Hadi
 </div>
 </div>
 
-  <p class="date">18 August 2026</p>
+  <p class="date">20 August 2026</p>
 </section>
 <section id="two-days" class="slide level2" data-background-color="#f7f9fb">
 <h2>Two days</h2>
@@ -227,8 +227,273 @@ Firman Hadi
 </div>
 </section>
 <section>
+<section id="how-we-see" class="title-slide slide level1 center" data-background-color="#0f3d2e">
+<h1>1 · How we see</h1>
+
+</section>
+<section id="start-with-your-own-eye" class="slide level2">
+<h2>Start with your own eye</h2>
+<p>You are already using a remote sensing instrument.</p>
+<div class="fragment">
+<p>Light leaves the sun, hits a leaf, and some of it comes back. Your eye measures what came back. You never touch the leaf.</p>
+</div>
+<div class="fragment">
+<p><strong>That is the whole idea.</strong> A satellite does the same thing from 786 km up. Everything else is detail — which wavelengths, how finely, how often.</p>
+</div>
+</section>
+<section id="colour-is-not-in-the-light" class="slide level2">
+<h2>Colour is not in the light</h2>
+<p>Sunlight is a continuous range of wavelengths. There are no colours in it.</p>
+<div class="fragment">
+<p>Your retina has <strong>three</strong> kinds of cone, sensitive around blue, green and red. Every colour you have ever seen is your brain interpreting <strong>three numbers</strong>.</p>
+</div>
+<div class="fragment">
+<div class="callout callout-note callout-titled callout-style-default">
+<div class="callout-body">
+<div class="callout-title">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<p><strong>The useful consequence</strong></p>
+</div>
+<div class="callout-content">
+<p>Colour is a property of the <strong>sensor</strong>, not of the world. Build a different sensor and you get different colours — and possibly a better answer.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="a-satellite-has-more-cones" class="slide level2">
+<h2>A satellite has more cones</h2>
+<table class="caption-top">
+<thead>
+<tr class="header">
+<th></th>
+<th>our eye</th>
+<th>Sentinel-2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>detectors</td>
+<td>3</td>
+<td>13</td>
+</tr>
+<tr class="even">
+<td>blue</td>
+<td>~440 nm</td>
+<td>490 nm</td>
+</tr>
+<tr class="odd">
+<td>green</td>
+<td>~540 nm</td>
+<td>560 nm</td>
+</tr>
+<tr class="even">
+<td>red</td>
+<td>~570 nm</td>
+<td>665 nm</td>
+</tr>
+<tr class="odd">
+<td>near infrared</td>
+<td>—</td>
+<td><strong>842 nm</strong></td>
+</tr>
+<tr class="even">
+<td>shortwave infrared</td>
+<td>—</td>
+<td><strong>1610, 2190 nm</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="fragment">
+<p>The rows without a left-hand entry are the point of the whole exercise.</p>
+</div>
+</section>
+<section id="the-image-is-numbers-not-a-picture" class="slide level2">
+<h2>The image is numbers, not a picture</h2>
+<p>A satellite image is not a photograph. It is a <strong>grid of measurements</strong>.</p>
+<div class="fragment">
+<p>Each cell holds how much energy came back, in one wavelength range, as an integer — a <strong>digital number</strong>.</p>
+</div>
+<div class="fragment">
+<pre><code>B4 (red), a 4×4 corner of a Sentinel-2 scene
+
+  412  455  398  377
+  401  1122 1180 402      ← the bright cells are a rooftop
+  388  1195 1240 395
+  377  402  410  388</code></pre>
+<p>Nothing here is red. Nothing here is a picture. It is a matrix.</p>
+</div>
+</section>
+<section id="why-numbers-are-better-than-a-picture" class="slide level2">
+<h2>Why numbers are better than a picture</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><strong>A picture</strong> you can look at.</p>
+</div><div class="column" style="width:50%;">
+<p><strong>A number</strong> you can subtract, threshold, average over ten years, and compare between two dates.</p>
+</div></div>
+<div class="fragment">
+<p>Film could not do arithmetic. This is the reason remote sensing became digital, and the reason a computer can find change that your eye would miss.</p>
+</div>
+<div class="fragment">
+<div class="callout callout-important callout-titled callout-style-default">
+<div class="callout-body">
+<div class="callout-title">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<p><strong>Everything later in these two days is arithmetic on those matrices</strong></p>
+</div>
+<div class="callout-content">
+
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="choosing-what-to-show" class="slide level2">
+<h2>Choosing what to show</h2>
+<p>Your screen has three channels: R, G, B. Sentinel-2 has thirteen bands.</p>
+<div class="fragment">
+<p>So displaying an image is an <strong>act of choosing</strong>. You pick three bands and assign them to the three channels.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a aria-hidden="true" tabindex="-1"></a><span class="co">// natural colour — what your eye would see</span></span>
+<span id="cb2-2"><a aria-hidden="true" tabindex="-1"></a>{<span class="dt">bands</span><span class="op">:</span> [<span class="st">'B4'</span><span class="op">,</span> <span class="st">'B3'</span><span class="op">,</span> <span class="st">'B2'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span>}</span>
+<span id="cb2-3"><a aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a aria-hidden="true" tabindex="-1"></a><span class="co">// false colour — near infrared into the red channel</span></span>
+<span id="cb2-5"><a aria-hidden="true" tabindex="-1"></a>{<span class="dt">bands</span><span class="op">:</span> [<span class="st">'B8'</span><span class="op">,</span> <span class="st">'B4'</span><span class="op">,</span> <span class="st">'B3'</span>]<span class="op">,</span> <span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="fragment">
+<p>The second one is not a trick or a prettier version. It is <strong>the only way to put an invisible measurement in front of a human eye</strong>.</p>
+</div>
+</section>
+<section id="the-band-you-cannot-see" class="slide level2">
+<h2>The band you cannot see</h2>
+<p>Healthy vegetation, roughly:</p>
+<table class="caption-top">
+<thead>
+<tr class="header">
+<th>wavelength</th>
+<th style="text-align: right;">reflected</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>red, 665 nm</td>
+<td style="text-align: right;">~5%</td>
+</tr>
+<tr class="even">
+<td><strong>near infrared, 842 nm</strong></td>
+<td style="text-align: right;"><strong>~50%</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="fragment">
+<p>A leaf is dark in red — chlorophyll absorbs it, that is what photosynthesis <em>is</em>. Its internal cell structure scatters near infrared straight back.</p>
+</div>
+<div class="fragment">
+<div class="callout callout-note callout-titled callout-style-default">
+<div class="callout-body">
+<div class="callout-title">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<p><strong>Your eye stops at about 700 nm</strong></p>
+</div>
+<div class="callout-content">
+<p>The strongest signal a plant gives off is just past where your vision ends. Vegetation studies live in a band no human has ever seen.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="why-false-colour-looks-like-that" class="slide level2">
+<h2>Why false colour looks like that</h2>
+<p>In <code>['B8','B4','B3']</code>, near infrared drives the red channel.</p>
+<div class="fragment">
+<ul>
+<li>healthy vegetation → <strong>bright red</strong></li>
+<li>water → near black (water absorbs NIR almost completely)</li>
+<li>bare soil, roofs, roads → cyan, grey, brown</li>
+</ul>
+</div>
+<div class="fragment">
+<p>Once you know that, a false-colour image is faster to read than a natural one. Deforestation stops being subtle.</p>
+</div>
+</section>
+<section id="every-pixel-is-a-list-of-numbers" class="slide level2">
+<h2>Every pixel is a list of numbers</h2>
+<p>Stack the bands and look down through them at one cell:</p>
+<pre><code>pixel (1204, 887)
+
+  B2   B3   B4   B8   B11  B12
+  412  620  455  3180 1420 690</code></pre>
+<div class="fragment">
+<p>Six numbers. A <strong>vector</strong>. That pixel’s signature.</p>
+</div>
+<div class="fragment">
+<p>Forest, water, rice paddy and rooftop each have a characteristic shape to that list — and the shape survives even when the brightness changes.</p>
+</div>
+</section>
+<section id="classification-is-sorting-those-lists" class="slide level2">
+<h2>Classification is sorting those lists</h2>
+<div class="columns">
+<div class="column" style="width:55%;">
+<ol type="1">
+<li>you label a few pixels you are sure about</li>
+<li>the computer learns what each class’s numbers look like</li>
+<li>it assigns <strong>every</strong> remaining pixel to the nearest class</li>
+</ol>
+</div><div class="column" style="width:45%;">
+<div class="fragment">
+<p>No image recognition. No shapes, no edges, no objects.</p>
+<p>Just: <em>which group of numbers is this list closest to?</em></p>
+</div>
+</div></div>
+<div class="fragment">
+<p>Tomorrow you will do exactly this, in about fifteen lines of code.</p>
+</div>
+</section>
+<section id="so-the-vocabulary-is-set" class="slide level2" data-background-color="#f7f9fb">
+<h2>So the vocabulary is set</h2>
+<table class="caption-top">
+<thead>
+<tr class="header">
+<th>word</th>
+<th>what it actually means</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>band</td>
+<td>one wavelength range, one matrix</td>
+</tr>
+<tr class="even">
+<td>digital number</td>
+<td>one measurement in one cell</td>
+</tr>
+<tr class="odd">
+<td>RGB visualisation</td>
+<td>choosing three matrices to show</td>
+</tr>
+<tr class="even">
+<td>false colour</td>
+<td>putting an invisible band on screen</td>
+</tr>
+<tr class="odd">
+<td>classification</td>
+<td>grouping pixels by their list of numbers</td>
+</tr>
+</tbody>
+</table>
+<div class="fragment">
+<p>Everything from here is how to do that arithmetic <strong>without downloading anything</strong>.</p>
+</div>
+</section></section>
+<section>
 <section id="why-earth-engine" class="title-slide slide level1 center" data-background-color="#0f3d2e">
-<h1>1 · Why Earth Engine</h1>
+<h1>2 · Why Earth Engine</h1>
 
 </section>
 <section id="the-old-way" class="slide level2">
@@ -316,7 +581,7 @@ Firman Hadi
 </section></section>
 <section>
 <section id="the-code-editor" class="title-slide slide level1 center" data-background-color="#0f3d2e">
-<h1>2 · The Code Editor</h1>
+<h1>3 · The Code Editor</h1>
 
 </section>
 <section id="four-panels" class="slide level2">
@@ -381,39 +646,39 @@ Firman Hadi
 </section></section>
 <section>
 <section id="just-enough-javascript" class="title-slide slide level1 center" data-background-color="#0f3d2e">
-<h1>3 · Just enough JavaScript</h1>
+<h1>4 · Just enough JavaScript</h1>
 
 </section>
 <section id="six-things-thats-all" class="slide level2">
 <h2>Six things, that’s all</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> city <span class="op">=</span> <span class="st">'Maumere'</span><span class="op">;</span>        <span class="co">// text</span></span>
-<span id="cb1-2"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> year <span class="op">=</span> <span class="dv">2024</span><span class="op">;</span>             <span class="co">// number</span></span>
-<span id="cb1-3"><a aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> bands <span class="op">=</span> [<span class="st">'B4'</span><span class="op">,</span><span class="st">'B3'</span><span class="op">,</span><span class="st">'B2'</span>]<span class="op">;</span>   <span class="co">// list — starts at ZERO</span></span>
-<span id="cb1-5"><a aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(bands[<span class="dv">0</span>])<span class="op">;</span>                <span class="co">// 'B4'</span></span>
-<span id="cb1-6"><a aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> visual <span class="op">=</span> {<span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span>}<span class="op">;</span>   <span class="co">// dictionary</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> city <span class="op">=</span> <span class="st">'Maumere'</span><span class="op">;</span>        <span class="co">// text</span></span>
+<span id="cb4-2"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> year <span class="op">=</span> <span class="dv">2024</span><span class="op">;</span>             <span class="co">// number</span></span>
+<span id="cb4-3"><a aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> bands <span class="op">=</span> [<span class="st">'B4'</span><span class="op">,</span><span class="st">'B3'</span><span class="op">,</span><span class="st">'B2'</span>]<span class="op">;</span>   <span class="co">// list — starts at ZERO</span></span>
+<span id="cb4-5"><a aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(bands[<span class="dv">0</span>])<span class="op">;</span>                <span class="co">// 'B4'</span></span>
+<span id="cb4-6"><a aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> visual <span class="op">=</span> {<span class="dt">min</span><span class="op">:</span> <span class="dv">0</span><span class="op">,</span> <span class="dt">max</span><span class="op">:</span> <span class="dv">3000</span>}<span class="op">;</span>   <span class="co">// dictionary</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="fragment">
 <p>Counting starts at <strong>zero</strong> — mistake number one for anyone coming from spreadsheets.</p>
 </div>
 </section>
 <section id="functions-and-chaining" class="slide level2">
 <h2>Functions and chaining</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">addNDVI</span> (image) {</span>
-<span id="cb2-2"><a aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> ndvi <span class="op">=</span> image<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span><span class="st">'B4'</span>])<span class="op">;</span></span>
-<span id="cb2-3"><a aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> image<span class="op">.</span><span class="fu">addBands</span>(ndvi<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDVI'</span>))<span class="op">;</span></span>
-<span id="cb2-4"><a aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb5-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">addNDVI</span> (image) {</span>
+<span id="cb5-2"><a aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> ndvi <span class="op">=</span> image<span class="op">.</span><span class="fu">normalizedDifference</span>([<span class="st">'B8'</span><span class="op">,</span><span class="st">'B4'</span>])<span class="op">;</span></span>
+<span id="cb5-3"><a aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> image<span class="op">.</span><span class="fu">addBands</span>(ndvi<span class="op">.</span><span class="fu">rename</span>(<span class="st">'NDVI'</span>))<span class="op">;</span></span>
+<span id="cb5-4"><a aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="fragment">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> image <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
-<span id="cb3-2"><a aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterBounds</span>(aoi)</span>
-<span id="cb3-3"><a aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-06-01'</span><span class="op">,</span> <span class="st">'2024-09-30'</span>)</span>
-<span id="cb3-4"><a aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">median</span>()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb6-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> image <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)</span>
+<span id="cb6-2"><a aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterBounds</span>(aoi)</span>
+<span id="cb6-3"><a aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">filterDate</span>(<span class="st">'2024-06-01'</span><span class="op">,</span> <span class="st">'2024-09-30'</span>)</span>
+<span id="cb6-4"><a aria-hidden="true" tabindex="-1"></a>              <span class="op">.</span><span class="fu">median</span>()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A leading dot means “then do this to the result above”. Read it top to bottom, like a sentence.</p>
 </div>
 </section></section>
 <section>
 <section id="client-vs-server" class="title-slide slide level1 center" data-background-color="#7d2b2b">
-<h1>4 · Client vs Server</h1>
+<h1>5 · Client vs Server</h1>
 
 </section>
 <section id="if-you-remember-one-thing-today" class="slide level2">
@@ -451,22 +716,22 @@ Firman Hadi
 </section>
 <section id="see-the-difference" class="slide level2">
 <h2>See the difference</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> a <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>                <span class="co">// client: actually contains 5</span></span>
-<span id="cb4-2"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> b <span class="op">=</span> ee<span class="op">.</span><span class="fu">Number</span>(<span class="dv">5</span>)<span class="op">;</span>     <span class="co">// server: a recipe that will produce 5</span></span>
-<span id="cb4-3"><a aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(a <span class="op">+</span> <span class="dv">1</span>)<span class="op">;</span>             <span class="co">// 6</span></span>
-<span id="cb4-5"><a aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(b<span class="op">.</span><span class="fu">add</span>(<span class="dv">1</span>))<span class="op">;</span>          <span class="co">// 6 — by a completely different route</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb7-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> a <span class="op">=</span> <span class="dv">5</span><span class="op">;</span>                <span class="co">// client: actually contains 5</span></span>
+<span id="cb7-2"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> b <span class="op">=</span> ee<span class="op">.</span><span class="fu">Number</span>(<span class="dv">5</span>)<span class="op">;</span>     <span class="co">// server: a recipe that will produce 5</span></span>
+<span id="cb7-3"><a aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(a <span class="op">+</span> <span class="dv">1</span>)<span class="op">;</span>             <span class="co">// 6</span></span>
+<span id="cb7-5"><a aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(b<span class="op">.</span><span class="fu">add</span>(<span class="dv">1</span>))<span class="op">;</span>          <span class="co">// 6 — by a completely different route</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="fragment">
 <p>Note <code>b.add(1)</code>, <strong>not</strong> <code>b + 1</code>.</p>
 </div>
 </section>
 <section id="what-does-not-work" class="slide level2">
 <h2>What does not work</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb5-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> collection <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)<span class="op">;</span></span>
-<span id="cb5-2"><a aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (collection<span class="op">.</span><span class="fu">size</span>() <span class="op">&gt;</span> <span class="dv">100</span>) {      <span class="co">// ← WRONG</span></span>
-<span id="cb5-4"><a aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">'plenty of images'</span>)<span class="op">;</span></span>
-<span id="cb5-5"><a aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb8-1"><a aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> collection <span class="op">=</span> ee<span class="op">.</span><span class="fu">ImageCollection</span>(<span class="st">'COPERNICUS/S2_SR_HARMONIZED'</span>)<span class="op">;</span></span>
+<span id="cb8-2"><a aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (collection<span class="op">.</span><span class="fu">size</span>() <span class="op">&gt;</span> <span class="dv">100</span>) {      <span class="co">// ← WRONG</span></span>
+<span id="cb8-4"><a aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">'plenty of images'</span>)<span class="op">;</span></span>
+<span id="cb8-5"><a aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="fragment">
 <p><code>collection.size()</code> is not a number. It is a <strong>promise to count</strong>, later, on the server.</p>
 <p><code>if</code> runs <strong>now</strong>, in the browser — judging something that does not exist yet.</p>
