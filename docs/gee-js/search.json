@@ -341,5 +341,110 @@
     "title": "Google Earth Engine with JavaScript",
     "section": "",
     "text": "See you tomorrow\nfirmanhadi21.github.io/rs-change-detection/gee-js\nMaterials, scripts and references are all there."
+  },
+  {
+    "objectID": "deck.html#start-with-your-own-eye",
+    "href": "deck.html#start-with-your-own-eye",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Start with your own eye",
+    "text": "Start with your own eye\nYou are already using a remote sensing instrument.\n\nLight leaves the sun, hits a leaf, and some of it comes back. Your eye measures what came back. You never touch the leaf.\n\n\nThat is the whole idea. A satellite does the same thing from 786 km up. Everything else is detail — which wavelengths, how finely, how often."
+  },
+  {
+    "objectID": "deck.html#colour-is-not-in-the-light",
+    "href": "deck.html#colour-is-not-in-the-light",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Colour is not in the light",
+    "text": "Colour is not in the light\nSunlight is a continuous range of wavelengths. There are no colours in it.\n\nYour retina has three kinds of cone, sensitive around blue, green and red. Every colour you have ever seen is your brain interpreting three numbers.\n\n\n\n\n\n\n\n\nThe useful consequence\n\n\nColour is a property of the sensor, not of the world. Build a different sensor and you get different colours — and possibly a better answer."
+  },
+  {
+    "objectID": "deck.html#a-satellite-has-more-cones",
+    "href": "deck.html#a-satellite-has-more-cones",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "A satellite has more cones",
+    "text": "A satellite has more cones\n\n\n\n\nour eye\nSentinel-2\n\n\n\n\ndetectors\n3\n13\n\n\nblue\n~440 nm\n490 nm\n\n\ngreen\n~540 nm\n560 nm\n\n\nred\n~570 nm\n665 nm\n\n\nnear infrared\n—\n842 nm\n\n\nshortwave infrared\n—\n1610, 2190 nm\n\n\n\n\nThe rows without a left-hand entry are the point of the whole exercise."
+  },
+  {
+    "objectID": "deck.html#the-image-is-numbers-not-a-picture",
+    "href": "deck.html#the-image-is-numbers-not-a-picture",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The image is numbers, not a picture",
+    "text": "The image is numbers, not a picture\nA satellite image is not a photograph. It is a grid of measurements.\n\nEach cell holds how much energy came back, in one wavelength range, as an integer — a digital number.\n\n\nB4 (red), a 4×4 corner of a Sentinel-2 scene\n\n  412  455  398  377\n  401  1122 1180 402      ← the bright cells are a rooftop\n  388  1195 1240 395\n  377  402  410  388\nNothing here is red. Nothing here is a picture. It is a matrix."
+  },
+  {
+    "objectID": "deck.html#why-numbers-are-better-than-a-picture",
+    "href": "deck.html#why-numbers-are-better-than-a-picture",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Why numbers are better than a picture",
+    "text": "Why numbers are better than a picture\n\n\nA picture you can look at.\n\nA number you can subtract, threshold, average over ten years, and compare between two dates.\n\n\nFilm could not do arithmetic. This is the reason remote sensing became digital, and the reason a computer can find change that your eye would miss.\n\n\n\n\n\n\n\n\nEverything later in these two days is arithmetic on those matrices"
+  },
+  {
+    "objectID": "deck.html#choosing-what-to-show",
+    "href": "deck.html#choosing-what-to-show",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Choosing what to show",
+    "text": "Choosing what to show\nYour screen has three channels: R, G, B. Sentinel-2 has thirteen bands.\n\nSo displaying an image is an act of choosing. You pick three bands and assign them to the three channels.\n// natural colour — what your eye would see\n{bands: ['B4', 'B3', 'B2'], min: 0, max: 3000}\n\n// false colour — near infrared into the red channel\n{bands: ['B8', 'B4', 'B3'], min: 0, max: 3000}\n\n\nThe second one is not a trick or a prettier version. It is the only way to put an invisible measurement in front of a human eye."
+  },
+  {
+    "objectID": "deck.html#the-band-you-cannot-see",
+    "href": "deck.html#the-band-you-cannot-see",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "The band you cannot see",
+    "text": "The band you cannot see\nHealthy vegetation, roughly:\n\n\n\nwavelength\nreflected\n\n\n\n\nred, 665 nm\n~5%\n\n\nnear infrared, 842 nm\n~50%\n\n\n\n\nA leaf is dark in red — chlorophyll absorbs it, that is what photosynthesis is. Its internal cell structure scatters near infrared straight back.\n\n\n\n\n\n\n\n\nYour eye stops at about 700 nm\n\n\nThe strongest signal a plant gives off is just past where your vision ends. Vegetation studies live in a band no human has ever seen."
+  },
+  {
+    "objectID": "deck.html#why-false-colour-looks-like-that",
+    "href": "deck.html#why-false-colour-looks-like-that",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Why false colour looks like that",
+    "text": "Why false colour looks like that\nIn ['B8','B4','B3'], near infrared drives the red channel.\n\n\nhealthy vegetation → bright red\nwater → near black (water absorbs NIR almost completely)\nbare soil, roofs, roads → cyan, grey, brown\n\n\n\nOnce you know that, a false-colour image is faster to read than a natural one. Deforestation stops being subtle."
+  },
+  {
+    "objectID": "deck.html#every-pixel-is-a-list-of-numbers",
+    "href": "deck.html#every-pixel-is-a-list-of-numbers",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Every pixel is a list of numbers",
+    "text": "Every pixel is a list of numbers\nStack the bands and look down through them at one cell:\npixel (1204, 887)\n\n  B2   B3   B4   B8   B11  B12\n  412  620  455  3180 1420 690\n\nSix numbers. A vector. That pixel’s signature.\n\n\nForest, water, rice paddy and rooftop each have a characteristic shape to that list — and the shape survives even when the brightness changes."
+  },
+  {
+    "objectID": "deck.html#classification-is-sorting-those-lists",
+    "href": "deck.html#classification-is-sorting-those-lists",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Classification is sorting those lists",
+    "text": "Classification is sorting those lists\n\n\n\nyou label a few pixels you are sure about\nthe computer learns what each class’s numbers look like\nit assigns every remaining pixel to the nearest class\n\n\n\nNo image recognition. No shapes, no edges, no objects.\nJust: which group of numbers is this list closest to?\n\n\n\nTomorrow you will do exactly this, in about fifteen lines of code."
+  },
+  {
+    "objectID": "deck.html#so-the-vocabulary-is-set",
+    "href": "deck.html#so-the-vocabulary-is-set",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "So the vocabulary is set",
+    "text": "So the vocabulary is set\n\n\n\nword\nwhat it actually means\n\n\n\n\nband\none wavelength range, one matrix\n\n\ndigital number\none measurement in one cell\n\n\nRGB visualisation\nchoosing three matrices to show\n\n\nfalse colour\nputting an invisible band on screen\n\n\nclassification\ngrouping pixels by their list of numbers\n\n\n\n\nEverything from here is how to do that arithmetic without downloading anything."
+  },
+  {
+    "objectID": "deck.html#our-sliver-of-it",
+    "href": "deck.html#our-sliver-of-it",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Our sliver of it",
+    "text": "Our sliver of it\n\n\nVisible light is about 400–700 nm. The satellite measures out to 2190 nm — three times further than your eye reaches."
+  },
+  {
+    "objectID": "deck.html#what-happens-when-light-meets-a-surface",
+    "href": "deck.html#what-happens-when-light-meets-a-surface",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "What happens when light meets a surface",
+    "text": "What happens when light meets a surface\nThree things, always, and they must add to 100%:\nreflected · absorbed · transmitted\n\n\n\n\n\n\n\n\nThe physics is identical for all three. Only the split differs — and that split is what the satellite measures."
+  },
+  {
+    "objectID": "deck.html#only-the-reflected-part-reaches-the-satellite",
+    "href": "deck.html#only-the-reflected-part-reaches-the-satellite",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Only the reflected part reaches the satellite",
+    "text": "Only the reflected part reaches the satellite\n\n\n\n\n\n\nWhich is why water is black in the near infrared\n\n\nIt absorbs 97% of it. Nothing comes back, so the sensor records almost nothing — and that makes water the easiest thing on Earth to map.\n\n\n\n\nA leaf passes 45% of the near infrared straight through. Light we cannot see goes through a leaf almost as if it were glass."
+  },
+  {
+    "objectID": "deck.html#four-surfaces-measured",
+    "href": "deck.html#four-surfaces-measured",
+    "title": "Google Earth Engine with JavaScript",
+    "section": "Four surfaces, measured",
+    "text": "Four surfaces, measured\n\n\nIn the visible band the four curves crowd together. Past 700 nm they separate. That is the whole argument for multispectral imaging."
   }
 ]

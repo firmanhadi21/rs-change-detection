@@ -79,6 +79,15 @@ Colour is a property of the **sensor**, not of the world. Build a different
 sensor and you get different colours — and possibly a better answer.
 :::
 
+## Our sliver of it
+
+![](img/em-spectrum.svg){fig-align="center" width="92%"}
+
+::: {.fragment}
+Visible light is about 400–700 nm. The satellite measures out to 2190 nm —
+**three times further than your eye reaches.**
+:::
+
 ## A satellite has more cones
 
 | | our eye | Sentinel-2 |
@@ -93,6 +102,34 @@ sensor and you get different colours — and possibly a better answer.
 ::: {.fragment}
 The rows without a left-hand entry are the point of the whole exercise.
 :::
+
+## What happens when light meets a surface
+
+Three things, always, and they must add to 100%:
+
+**reflected** · **absorbed** · **transmitted**
+
+. . .
+
+![](img/interaction.svg){fig-align="center" width="94%"}
+
+. . .
+
+The physics is identical for all three. **Only the split differs** — and that
+split is what the satellite measures.
+
+## Only the reflected part reaches the satellite
+
+::: {.callout-note}
+## Which is why water is black in the near infrared
+It absorbs 97% of it. Nothing comes back, so the sensor records almost
+nothing — and that makes water the easiest thing on Earth to map.
+:::
+
+. . .
+
+A leaf passes 45% of the near infrared straight through. Light we cannot see
+goes through a leaf almost as if it were glass.
 
 ## The image is numbers, not a picture
 
@@ -181,6 +218,15 @@ A leaf is dark in red — chlorophyll absorbs it, that is what photosynthesis
 ## Your eye stops at about 700 nm
 The strongest signal a plant gives off is just past where your vision ends.
 Vegetation studies live in a band no human has ever seen.
+:::
+
+## Four surfaces, measured
+
+![](img/spectral-signatures.svg){fig-align="center" width="92%"}
+
+::: {.fragment}
+In the visible band the four curves crowd together. Past 700 nm they separate.
+**That is the whole argument for multispectral imaging.**
 :::
 
 ## Why false colour looks like that
