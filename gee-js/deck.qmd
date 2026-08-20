@@ -12,6 +12,18 @@ format:
   revealjs:
     theme: [default, slides.scss]
     slide-number: c/t
+    # Draw on the slides live -- works with a finger or an Apple Pencil in
+    # Safari on iPad, and with a mouse on a laptop. Adds a small toolbar at
+    # bottom-left; no keyboard needed, which matters on a tablet.
+    #   pen icon   draw on the current slide (also: C)
+    #   board icon a blank chalkboard over it  (also: B)
+    #   DEL        clear the current drawing
+    # Drawings survive slide navigation within a session but are NOT saved on
+    # reload, so anything worth keeping should be downloaded from the toolbar.
+    chalkboard:
+      buttons: true
+      boardmarker-width: 4
+      chalk-width: 5
     width: 1280
     height: 760
     transition: none
