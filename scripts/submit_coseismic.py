@@ -10,9 +10,11 @@ Choices that differ from the interseismic submissions, and why:
   looks 10x2 rather than 20x4    40 m instead of 80 m. Co-seismic mapping wants
                                  spatial detail; 15 credits instead of 10 is
                                  worth it for one pair per track.
-  include_los_displacement       HyP3 returns displacement in metres directly,
+  include_displacement_maps      HyP3 returns displacement in metres directly,
                                  removing a phase-to-range conversion and one
-                                 place to get a factor wrong.
+                                 place to get a sign or factor wrong. NOT
+                                 include_los_displacement, which is deprecated
+                                 and silently ignored -- see JOB_PARAMETERS.
   include_wrapped_phase          Fringes are the clearest evidence that a real
                                  deformation pattern exists rather than noise.
   shared project name            NOT the granule-hash scheme used for the 705
@@ -41,15 +43,37 @@ TRACKS = {
     "desc61": {"path": 61, "direction": "DESCENDING"},   # third geometry
 }
 
+# include_displacement_maps, NOT include_los_displacement. The latter is
+# deprecated in HyP3's API and superseded by the former, and the failure mode
+# is silent: HyP3 ACCEPTS include_los_displacement=True, records it on the job,
+# and then delivers no displacement band because include_displacement_maps
+# defaults to False and wins. The job succeeds, the parameter appears in the
+# job record, and the file simply is not there.
+#
+# That cost a round trip on the one band needed to settle whether positive
+# unwrapped phase means motion toward or away from the sensor -- the sign that
+# decides uplift versus subsidence. Checking the DELIVERED FILE LIST against
+# the requested parameters would have caught it immediately; checking the job
+# parameters alone would not, because they looked correct.
+#
+# This also yields the vertical displacement map, which HyP3 derives under the
+# assumption that horizontal motion is zero. Useful as a cross-check on our own
+# LOS conversion; not to be published as vertical for a thrust event.
 JOB_PARAMETERS = {
     "looks": "10x2",
     "apply_water_mask": True,
     "include_dem": True,
     "include_inc_map": True,
     "include_look_vectors": True,
-    "include_los_displacement": True,
+    "include_displacement_maps": True,
     "include_wrapped_phase": True,
 }
+
+# Job names are hand-written here rather than hashed from granules+parameters,
+# so a parameter change does NOT produce a new name on its own -- the existing
+# job would be found and skipped, and the new bands never arrive. Bump this
+# whenever JOB_PARAMETERS changes in a way that alters the delivered product.
+PARAM_TAG = "d2"
 
 
 def find_scenes(path, days=60, frame=None):
@@ -140,7 +164,7 @@ def main():
         # PRE-PRE: submittable now, does not wait for the post-event scene.
         if pre2 is not None:
             span = (pre1[0] - pre2[0]).days
-            plan.append((f"{PROJECT}-{tag}-prepre",
+            plan.append((f"{PROJECT}-{tag}-prepre-{PARAM_TAG}",
                          [pre2[1], pre1[1]], key, span, "pre-pre"))
             print(f"{label}  pre-pre : {pre2[0]:%Y-%m-%d} -> "
                   f"{pre1[0]:%Y-%m-%d} ({span} d)")
@@ -154,7 +178,7 @@ def main():
             continue
 
         span = (post[0] - pre1[0]).days
-        plan.append((f"{PROJECT}-{tag}-prepost",
+        plan.append((f"{PROJECT}-{tag}-prepost-{PARAM_TAG}",
                      [pre1[1], post[1]], key, span, "pre-post"))
         print(f"{label}  pre-post: {pre1[0]:%Y-%m-%d} -> "
               f"{post[0]:%Y-%m-%d} ({span} d)  ← spans the rupture")
