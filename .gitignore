@@ -65,3 +65,8 @@ dist/
 docs/api/
 grok_understand.md
 .gstack/
+
+# Stray R session history, swept in by a directory-wide git add
+.Rhistory
+.RData
+.Rproj.user/
