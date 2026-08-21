@@ -661,6 +661,16 @@ SCENARIOS = {
                            "mineral), peta berapa kali tiap piksel terbakar, dan "
                            "musim kebakaran (puncak kemarau)."),
     },
+    "fire-hotspot": {
+        "label": "Fire hotspot brief — last N days of active fire by admin unit "
+                 "and forest function, as printable JPEG pages (FIRMS)",
+        "method": "fire-hotspot",
+        "radius": 60.0, "needs": "none",
+        "interpretation": ("Titik panas terkini: jumlah per provinsi dan per "
+                           "fungsi kawasan hutan (APL/HP/HPT/HPK/HL/konservasi), "
+                           "peta sebaran, dan perbandingan dengan rekor "
+                           "tahunan. Keluaran berupa halaman JPEG siap kirim."),
+    },
     "population-change": {
         "label": "Population change — two GHSL epochs, gained/lost/present map + 3D spike forest (GHS_POP)",
         "method": "population-change",
@@ -759,6 +769,11 @@ SCENARIO_FLAGS = {
     # haze takes its window from --haze-start/--haze-end or --days, and nothing
     # else: the hotspot and firms-region flags belong to other scenarios.
     "haze": ("--haze-start", "--haze-end", "--days"),
+    # fire-hotspot is bounded by --days, split by --areas/--admin, and gains a
+    # forest-function page only when given a layer to read it from.
+    "fire-hotspot": ("--days", "--areas", "--min-confidence", "--forest-file",
+                     "--forest-layer", "--forest-field", "--start-year",
+                     "--no-baseline"),
     # drought is bounded by --drought-end and --spi-months, not --season.
     "drought": ("--drought-end", "--spi-months", "--start-year",
                 "--rain-source", "--cdi", "--cdi-scale", "--cdi-grid",

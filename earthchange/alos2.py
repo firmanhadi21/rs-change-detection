@@ -142,15 +142,39 @@ def leader_header(leader):
                         int(s[14:17]) * 1000)
     return dict(
         scene_id=sid.group(1) if sid else os.path.basename(leader),
-        start_time=t,
+        # CENTRE, not start. The 17-digit stamp in the summary record is the
+        # scene centre time, and calling it start_time put every derived time
+        # half a scene late: our clock_start came out 5.00 s after GMTSAR's on
+        # both Lombok scenes, which are 21348 lines at 2134.77 Hz = 10.0 s
+        # long. Exactly half, on both, is not a coincidence. At this PRF that
+        # is ~10,700 lines of azimuth error -- enough to put SAT_llt2rat in the
+        # wrong part of the swath while still returning perfectly plausible
+        # numbers. Use scene_times() to get the start.
+        centre_time=t,
         # Kilometres in the file; PRM wants metres.
         equatorial_radius=float(radii[0]) * 1e3 if len(radii) > 0 else 6378137.0,
         polar_radius=float(radii[1]) * 1e3 if len(radii) > 1 else 6356752.3141,
-        # Seconds of day, so the footprint can be placed at the acquisition
-        # instead of at the middle of whatever orbit arc the leader carries.
-        second_of_day=((t.hour * 3600 + t.minute * 60 + t.second
-                        + t.microsecond / 1e6) if t else None),
+        centre_second_of_day=((t.hour * 3600 + t.minute * 60 + t.second
+                               + t.microsecond / 1e6) if t else None),
     )
+
+
+def scene_times(leader, image):
+    """(start, centre, duration_seconds) for a scene.
+
+    The leader gives the centre and the image gives the length, so the start
+    has to be reconstructed. Everything that places the scene in time or in
+    space goes through here so the half-scene offset cannot come back in one
+    place while being fixed in another.
+    """
+    hdr = leader_header(leader)
+    par = leader_params(leader)
+    meta = image_meta(image)
+    centre = hdr["centre_time"]
+    duration = meta["num_lines"] / par["PRF"]
+    start = (centre - dt.timedelta(seconds=duration / 2.0)
+             if centre else None)
+    return start, centre, duration
 
 
 def leader_params(leader):
@@ -160,9 +184,26 @@ def leader_params(leader):
 
 
 def orbit(leader):
-    """State vectors: t (second of day), x, y, z, vx, vy, vz. Metres."""
+    """State vectors in the frame insardev's Doppler code expects.
+
+    Columns iy / id / isec / px / py / pz / vx / vy / vz / clock, plus an
+    attrs dict of nd / iy / id / isec / idsec, matching utils_nisar.nisar_orbit.
+    `t`, `x`, `y`, `z` are kept as aliases for callers here.
+
+    THE UNITS DO NOT MATCH EACH OTHER AND THAT IS DELIBERATE. insardev's
+    doppler_centroid reconciles them as
+
+        t1 = 86400.0 * clock_start + ...      against  orbit_df['clock']
+
+    so clock_start is in DAYS and clock is in SECONDS. What that means in
+    practice is that the day number here must use the same convention as the
+    one in prm()'s clock_start -- both use tm_yday -- because only the
+    difference between them is ever used, and a 1-based/0-based mix would
+    offset every state vector by exactly one day without raising anything.
+    """
     import pandas as pd
 
+    hdr = leader_header(leader)
     recs = {s: p for s, _, _, p in _records(leader)}
     p = recs[ORBIT_REC]
     t0, dt_s = _float_at(p, ORBIT_T0_OFF), _float_at(p, ORBIT_DT_OFF)
@@ -173,9 +214,44 @@ def orbit(leader):
     if n == 0:
         raise ValueError("no state vectors in the platform position record")
     sv = np.array(vals[:n * 6]).reshape(n, 6)
-    return pd.DataFrame({"t": t0 + dt_s * np.arange(n),
-                         "x": sv[:, 0], "y": sv[:, 1], "z": sv[:, 2],
-                         "vx": sv[:, 3], "vy": sv[:, 4], "vz": sv[:, 5]})
+    isec = t0 + dt_s * np.arange(n)
+
+    # Centre is fine here: this only decides which side of midnight the
+    # state vectors fall on, and centre and start differ by seconds.
+    t = hdr["centre_time"]
+    year = t.year if t else 1970
+    doy = t.timetuple().tm_yday if t else 0
+    sod = (t.hour * 3600 + t.minute * 60 + t.second
+           + t.microsecond / 1e6) if t else 0.0
+
+    # The state vectors span about half an hour around the acquisition, so the
+    # record can begin on the previous day or end on the next one. Anchor the
+    # day number on the SCENE and let the offset carry the wrap, rather than
+    # assuming the orbit record shares the scene's date.
+    day = np.full(n, float(doy))
+    day[isec > sod + 43200] -= 1        # record began before midnight
+    day[isec < sod - 43200] += 1        # record continues past midnight
+
+    df = pd.DataFrame({
+        "iy": np.full(n, year, dtype=int),
+        "id": day.astype(int),
+        "isec": isec,
+        "px": sv[:, 0], "py": sv[:, 1], "pz": sv[:, 2],
+        "vx": sv[:, 3], "vy": sv[:, 4], "vz": sv[:, 5],
+    })
+    df["clock"] = 86400.0 * df["id"] + df["isec"]
+    # Aliases for this module's own geometry code.
+    df["t"] = df["isec"]
+    df["x"], df["y"], df["z"] = df["px"], df["py"], df["pz"]
+
+    df.attrs = {
+        "nd": int(n),
+        "iy": int(year),
+        "id": int(df["id"].iloc[0]),
+        "isec": float(df["isec"].iloc[0]),
+        "idsec": float(dt_s),
+    }
+    return df
 
 
 def image_meta(image):
@@ -209,6 +285,146 @@ def slc(image, lines=None, first_line=0):
             raw = np.frombuffer(f.read(cols * BYTES_PER_SAMPLE), dtype=">f4")
             out[i] = raw[0::2] + 1j * raw[1::2]
     return out
+
+
+# --- the SLC accessor ---------------------------------------------------
+#
+# insardev reads NISAR's SLC in exactly two shapes, and both have to be met
+# for the align and transform layers to be inherited rather than rewritten:
+#
+#     with h5py.File(path) as f:  ds = f[dsname];  ds.shape;  ds[y0:y1, x0:x1]
+#     nisar_slc(path, pol=, frequency=, row_slice=, col_slice=)
+#
+# The constraint that shapes the design is that both take a PATH and open it
+# inside a worker process -- _xcorr_batch(h5_path1, h5_path2, ...) runs under
+# joblib. So the accessor must be constructible from a string and must not
+# hold anything unpicklable across the call; it cannot be a live handle passed
+# down from the parent.
+#
+# CEOS makes this easy in a way HDF5 does not: every line is the same length,
+# so line k starts at a computable offset and random access is a seek. A
+# memmap over a structured dtype expresses that directly and lets the OS page
+# in only the windows actually touched, which matters when the file is 1.5 GB
+# and a cross-correlation wants two hundred 512x512 patches.
+
+
+def _slc_dtype(n_bins):
+    """One CEOS image record: opaque prefix, then interleaved re/im."""
+    return np.dtype([("prefix", "V%d" % IMG_PREFIX_LEN),
+                     ("samp", ">f4", (n_bins, 2))])
+
+
+class CeosSLC:
+    """h5py.Dataset-alike over the samples of a CEOS L1.1 image.
+
+    Supports what insardev actually uses -- `.shape`, `.dtype`, `.ndim` and
+    NumPy-style 2D indexing returning complex64 -- and nothing else. Indexing
+    is deliberately eager, like h5py: `ds[a:b, c:d]` returns a real array, not
+    a lazy view, so callers cannot accidentally keep the mapping alive.
+    """
+
+    def __init__(self, path):
+        self.path = path
+        m = image_meta(path)
+        self.meta = m
+        self._n_bins = m["num_rng_bins"]
+        # Guard the layout before mapping: a record length that does not
+        # divide the file is the signature of a wrong prefix or sample width,
+        # and a memmap of the wrong shape reads plausible garbage instead of
+        # raising.
+        size = os.path.getsize(path)
+        span = size - IMG_DESC_LEN
+        if span % m["record_length"]:
+            raise ValueError(
+                f"{os.path.basename(path)}: {span} payload bytes is not a "
+                f"whole number of {m['record_length']}-byte records; the "
+                f"prefix length or sample width is wrong")
+        self._mm = np.memmap(path, dtype=_slc_dtype(self._n_bins), mode="r",
+                             offset=IMG_DESC_LEN, shape=(m["num_lines"],))
+        self._samp = self._mm["samp"]
+
+    shape = property(lambda self: (self.meta["num_lines"], self._n_bins))
+    dtype = property(lambda self: np.dtype(np.complex64))
+    ndim = 2
+    size = property(lambda self: self.shape[0] * self.shape[1])
+    nbytes = property(lambda self: self.size * 8)
+
+    def __len__(self):
+        return self.shape[0]
+
+    def __getitem__(self, key):
+        # Index the (lines, bins, 2) view with whatever the caller gave, then
+        # fold the trailing axis into a complex number. Assembling through
+        # .real/.imag avoids the temporary that `a + 1j*b` builds, which for a
+        # 512x512 patch is not much but for a full-swath row block is.
+        v = self._samp[key]
+        if v.shape[-1] != 2:
+            raise IndexError(
+                "the trailing axis indexes real/imaginary and cannot be "
+                "sliced; index lines and range bins only")
+        out = np.empty(v.shape[:-1], dtype=np.complex64)
+        out.real = v[..., 0]
+        out.imag = v[..., 1]
+        return out
+
+    def __array__(self, dtype=None):
+        a = self[...]
+        return a if dtype is None else a.astype(dtype)
+
+    def __repr__(self):
+        return (f"<CeosSLC {os.path.basename(self.path)} "
+                f"{self.shape[0]}x{self.shape[1]} complex64>")
+
+
+class CeosFile:
+    """h5py.File-alike wrapper, so `with open_slc(p) as f: f[name]` works.
+
+    A CEOS image file holds exactly one polarisation -- it is in the filename,
+    not in the file -- so the dataset name is accepted and ignored rather than
+    looked up. That is a real difference from NISAR, where one HDF5 holds every
+    polarisation and both frequencies, and it is why the ALOS-2 scanner keys
+    its DataFrame on (scene, pol) with a distinct path per row.
+    """
+
+    def __init__(self, path):
+        self._ds = CeosSLC(path)
+
+    def __getitem__(self, name):
+        return self._ds
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def close(self):
+        pass
+
+
+def open_slc(path):
+    """Open a CEOS L1.1 image the way h5py.File opens an RSLC."""
+    return CeosFile(path)
+
+
+def read_slc(path, pol=None, frequency=None,
+             row_slice=None, col_slice=None):
+    """Mirror of utils_nisar.nisar_slc for a CEOS image.
+
+    `pol` and `frequency` are accepted so the call site can stay identical to
+    the NISAR one; both are properties of the file itself here, so they are
+    checked against the filename rather than used to select a dataset.
+    """
+    if pol is not None:
+        want = f"IMG-{pol}-"
+        if want not in os.path.basename(path):
+            raise ValueError(
+                f"asked for {pol} but {os.path.basename(path)} is not a "
+                f"{pol} image; ALOS-2 stores one polarisation per file")
+    ds = CeosSLC(path)
+    rs = slice(None) if row_slice is None else row_slice
+    cs = slice(None) if col_slice is None else col_slice
+    return ds[rs, cs]
 
 
 # --- geometry -----------------------------------------------------------
@@ -251,10 +467,14 @@ def footprint(orbit_df, meta, params, header, look="R", n=9):
     # wherever the satellite happened to be mid-record -- 1.3 degrees from the
     # truth on the validation scenes, which is most of a swath width.
     dur = meta["num_lines"] / params["PRF"]
-    t0 = header.get("second_of_day")
-    if t0 is None:
-        t0 = 0.5 * (orbit_df["t"].iloc[0] + orbit_df["t"].iloc[-1])
-    ts = np.linspace(t0, t0 + dur, n)
+    tc = header.get("centre_second_of_day")
+    if tc is None:
+        tc = 0.5 * (orbit_df["t"].iloc[0] + orbit_df["t"].iloc[-1])
+    # The stamp is the scene CENTRE, so the arc runs half a scene either side
+    # of it. Treating it as the start walked the whole footprint forward by
+    # dur/2 -- only ~35 km here, but in the same direction every time, which
+    # is the kind of bias that looks like a geolocation constant.
+    ts = np.linspace(tc - dur / 2.0, tc + dur / 2.0, n)
 
     left, right = [], []
     for t in ts:
@@ -294,12 +514,11 @@ def prm(leader, image, extra=None):
     meta = image_meta(image)
     orb = orbit(leader)
 
-    t = hdr["start_time"]
+    t, _, duration = scene_times(leader, image)
     doy = t.timetuple().tm_yday if t else 0
     sod = (t.hour * 3600 + t.minute * 60 + t.second
            + t.microsecond / 1e6) if t else 0.0
     clock_start = doy + sod / 86400.0
-    duration = meta["num_lines"] / par["PRF"]
 
     i = len(orb) // 2
     pos = orb.iloc[i][["x", "y", "z"]].to_numpy(dtype=float)
@@ -388,8 +607,13 @@ def scan(datadir, pols=("HH", "HV"), dem=None):
             records.append({
                 "sceneId": hdr["scene_id"],
                 "polarization": pol,
-                "scene": os.path.splitext(os.path.basename(img))[0],
-                "startTime": hdr["start_time"],
+                # NOT splitext. A CEOS name ends "...FBDR1.1__A", so splitext
+                # takes ".1__A" as the extension and returns a name with the
+                # orbit-direction suffix removed -- which then reads as
+                # descending for an ascending scene, everywhere downstream
+                # that recovers direction from the name.
+                "scene": os.path.basename(img),
+                "startTime": scene_times(led, img)[0],
                 "path": img,
                 "leader": led,
                 "flightDirection": "A" if asc else "D",

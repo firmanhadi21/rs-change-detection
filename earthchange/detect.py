@@ -383,7 +383,7 @@ def _run_haze(args, lat, lon, radius, name, run_dir, run_id, ee_key):
     from . import haze
     hz_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
     haze.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-             config_key=ee_key, days=args.days, start=args.haze_start,
+             config_key=ee_key, days=args.days or 45, start=args.haze_start,
              end=args.haze_end, admin=args.admin, bbox=hz_bbox)
 
 
@@ -457,6 +457,23 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
 
     if method == "fire-history":
         _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key)
+        return True
+
+    if method == "fire-hotspot":
+        from . import fire_hotspot
+        fh_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        areas = ([a.strip() for a in args.areas.split(",") if a.strip()]
+                 if args.areas else None)
+        fire_hotspot.run(
+            backend=args.backend, lat=lat, lon=lon, radius=radius, name=name,
+            run_dir=run_dir, run_id=run_id, config_key=ee_key,
+            days=args.days or fire_hotspot.DEFAULT_DAYS,
+            admin=args.admin, areas=areas, bbox=fh_bbox,
+            min_confidence=args.min_confidence,
+            forest_file=args.forest_file, forest_layer=args.forest_layer,
+            forest_field=args.forest_field,
+            baseline_start=args.start_year or fire_hotspot.BASELINE_START,
+            no_baseline=args.no_baseline)
         return True
 
     if method == "haze":
@@ -948,9 +965,30 @@ def build_parser():
     ap.add_argument("--peat-file", help="fire-history: GeoJSON of peat polygons for a "
                     "citable peat/mineral split (e.g. an official KLHK/BBSDLP map); "
                     "without it peat is a soil-organic-carbon proxy")
-    ap.add_argument("--days", type=int, default=45,
-                    help="haze: length of the window in days, counting back from "
-                         "--haze-end (default 45)")
+    ap.add_argument("--days", type=int, default=None,
+                    help="haze, fire-hotspot: length of the window in days, counting "
+                         "back from the end of the record (haze 45, fire-hotspot 7)")
+    ap.add_argument("--min-confidence", type=int, default=30,
+                    help="fire-hotspot: FIRMS confidence cut, 0-100 "
+                         "(default 30). Lower than the usual 50 on purpose: "
+                         "smouldering peat fires are cooler than flaming "
+                         "fronts and score low, and they are the ones that "
+                         "matter most for haze")
+    ap.add_argument("--forest-file",
+                    help="fire-hotspot: polygon layer of forest-estate "
+                         "designation, e.g. the KLHK Penunjukan Kawasan Hutan "
+                         "geopackage. Adds the forest-function page; without "
+                         "it that page is skipped rather than guessed")
+    ap.add_argument("--forest-layer",
+                    help="fire-hotspot: layer name inside --forest-file, for "
+                         "multi-layer geopackages")
+    ap.add_argument("--forest-field", default="FUNGSI_HTN",
+                    help="fire-hotspot: attribute holding the class "
+                         "(default FUNGSI_HTN, the KLHK field)")
+    ap.add_argument("--no-baseline", action="store_true",
+                    help="fire-hotspot: skip the year-to-date comparison "
+                         "against the multi-year record — it is one Earth "
+                         "Engine reduction per year and dominates the runtime")
     ap.add_argument("--haze-start", help="haze: window start YYYY-MM-DD "
                     "(overrides --days)")
     ap.add_argument("--haze-end", help="haze: window end YYYY-MM-DD "
