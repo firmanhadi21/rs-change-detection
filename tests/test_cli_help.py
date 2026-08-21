@@ -101,7 +101,11 @@ def test_burn_hides_other_scenarios_flags(noise):
 
 WINDOW_OWNERS = {
     "--season": {"smoke-exposure", "fire-record"},
-    "--days": {"haze"},
+    # --days is shared on purpose: haze and fire-hotspot both mean "a window
+    # of N days counting back from the end of the record". The point of this
+    # test is that a window flag reaches only the scenarios that use it, not
+    # that each flag has exactly one owner.
+    "--days": {"haze", "fire-hotspot"},
     "--months": {"urban-heat"},
     "--pre": {s for s, c in SCENARIOS.items()
               if c.get("needs", "").startswith("pre_post")},
