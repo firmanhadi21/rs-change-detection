@@ -131,6 +131,12 @@ class ALOS2_slc(Satellite):
         self.DEM = DEM
         self.geoid = geoid
         self.pols = tuple(pols)
+        # NISAR's frequency band, which ALOS-2 has no equivalent of. It is set
+        # to a placeholder rather than left None because transform() reaches
+        # for nisar_get_frequencies(h5py) when it is None, and because it is
+        # then passed down to the SLC reader, which ignores it. Any value in
+        # ('A', 'B') works; none of them mean anything here.
+        self.frequency = "A"
 
         df = alos2.scan(self.datadir, pols=self.pols)
 
@@ -290,12 +296,11 @@ class ALOS2_align(ALOS2_slc, Nisar_align):
 
 
 class ALOS2(ALOS2_align):
-    """ALOS-2 PALSAR-2 L1.1 data manager.
+    """ALOS-2 PALSAR-2 L1.1 data manager, scanning through alignment.
 
-    transform() is not wired yet: Nisar_transform reads its chunks through
-    module-level workers that call nisar_slc(h5_path, pol, frequency), so it
-    needs the same treatment _xcorr_refine got. Everything up to and including
-    alignment works.
+    For geocoding use earthchange.alos2_transform.ALOS2 instead, which adds
+    transform(). The split keeps this module importable without pulling in
+    Nisar_transform, so the alignment path can be tested on its own.
     """
 
     def info(self):
