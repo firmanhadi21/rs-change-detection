@@ -107,13 +107,23 @@ def main():
             sys.exit(f"gmt {' '.join(args[:2])} failed:\n{r.stderr[:400]}")
         return r.stdout
 
+    # Two-step on purpose. The array from Earth Engine has whatever shape the
+    # requested scale produced, so it is read in with +n node counts -- which
+    # gives increments like 0.000831991 instead of an exact 3 arcsec. GMTSAR's
+    # dem2topo_ra then feeds that -R and -I to `gmt surface`, which complains
+    # "(x_max-x_min) must equal (NX + eps) * x_inc" and falls back to its
+    # slowest solver. It does not fail; it grinds. So resample onto an exact
+    # grid before anything downstream sees it.
+    raw_grd = os.path.join(d, "_srtm_raw.grd")
     gmt("xyz2grd", ortho_bin, "-ZTLf", f"-R{region}", f"-I{nx}+n/{ny}+n",
-        f"-G{ortho_grd}")
+        f"-G{raw_grd}")
+    gmt("grdsample", raw_grd, f"-R{region}", f"-I{inc}", f"-G{ortho_grd}")
     # Resample the geoid ONTO the DEM grid so grdmath has matching nodes;
     # adding grids of different registration silently interpolates or fails.
     gmt("grdsample", a.geoid, f"-R{ortho_grd}", f"-G{egm_grd}")
     gmt("grdmath", ortho_grd, egm_grd, "ADD", "=", out)
     os.remove(ortho_bin)
+    os.remove(raw_grd)
 
     info = gmt("grdinfo", out)
     print(f"\nwrote {out}  ({os.path.getsize(out)/1e6:.1f} MB)")
