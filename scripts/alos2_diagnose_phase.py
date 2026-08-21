@@ -43,6 +43,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--stack", default=STACK)
     ap.add_argument("--target-m", type=float, default=50.0)
+    ap.add_argument("--smooth", type=int, default=0,
+                    help="boxcar width in looks applied to OUR phase before "
+                         "comparing. GMTSAR's phasefilt is Goldstein-filtered "
+                         "and ours is not, so a raw comparison charges us for "
+                         "noise the reference has already had removed. "
+                         "Smoothing ours to match separates 'the pipelines "
+                         "disagree' from 'one of them is filtered'.")
     ap.add_argument("--out", default=OUT)
     a = ap.parse_args()
 
@@ -103,6 +110,23 @@ def main():
               & (lon > glon.min()) & (lon < glon.max()))
     gp = np.where(inside, g_ph.values[iy, ix], np.nan)
     gc = np.where(inside, g_co.values[iy, ix], np.nan)
+
+    if a.smooth > 1:
+        # Smooth on the COMPLEX phasor, never on the angle: the mean of +3.0
+        # and -3.0 rad is 0 when the two are 0.28 rad apart. Weighted by
+        # coherence so noisy looks do not drag good ones around.
+        w = np.where(np.isfinite(coh), coh, 0.0)
+        z = np.where(np.isfinite(ph), np.exp(1j * ph), 0.0) * w
+        k = np.ones((a.smooth, a.smooth), dtype=np.float64)
+        from scipy.signal import fftconvolve
+        num_s = (fftconvolve(z.real, k, mode="same")
+                 + 1j * fftconvolve(z.imag, k, mode="same"))
+        den_s = fftconvolve(w, k, mode="same")
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ph = np.where(den_s > 0, np.angle(num_s), np.nan)
+        print(f"  our phase smoothed with a {a.smooth}x{a.smooth} "
+              f"coherence-weighted complex boxcar "
+              f"({a.smooth*Lx*dx:.0f} m)\n")
 
     sel = np.isfinite(ph) & np.isfinite(gp) & (gc >= 0.3) & (coh >= 0.3)
     n = int(sel.sum())
