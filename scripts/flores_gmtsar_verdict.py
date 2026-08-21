@@ -31,9 +31,9 @@ import sys
 
 import numpy as np
 
-M = os.path.expanduser(
+MERGE_DEFAULT = os.path.expanduser(
     "~/GitHub/rs-change-detection/data/flores_gmtsar/merge")
-OUT = os.path.expanduser(
+OUT_DEFAULT = os.path.expanduser(
     "~/GitHub/rs-change-detection/output/coseismic/gmtsar_verdict.png")
 EPI = (121.3517, -8.3101)
 LAMBDA = 0.05546            # Sentinel-1 C-band, m
@@ -42,7 +42,7 @@ KM_LAT = 110.57
 USGS_FRINGES = 20.0
 
 
-def load(name):
+def load(name, M=MERGE_DEFAULT):
     """Read a GMT .grd through GMT itself.
 
     Not xarray: GMTSAR writes classic netCDF that this environment's xarray
@@ -86,14 +86,18 @@ def load(name):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--merge", default=MERGE_DEFAULT,
+                    help="GMTSAR merge directory to read")
+    ap.add_argument("--label", default="", help="frame label for titles")
     ap.add_argument("--min-coh", type=float, default=0.15)
-    ap.add_argument("--out", default=OUT)
+    ap.add_argument("--out", default=OUT_DEFAULT)
     a = ap.parse_args()
 
-    los, lat, lon = load("los_ll.grd")
-    unw, _, _ = load("unwrap_mask_ll.grd")
-    coh, clat, clon = load("corr_ll.grd")
-    ph, _, _ = load("phasefilt_mask_ll.grd")
+    M = os.path.expanduser(a.merge)
+    los, lat, lon = load("los_ll.grd", M)
+    unw, _, _ = load("unwrap_mask_ll.grd", M)
+    coh, clat, clon = load("corr_ll.grd", M)
+    ph, _, _ = load("phasefilt_mask_ll.grd", M)
     if los is None:
         sys.exit(f"no los_ll.grd in {M}")
 
@@ -125,7 +129,7 @@ def main():
     # on the LOS grid explicitly rather than assumed to align.
     C = match(coh, clat, clon) if coh is not None else np.ones_like(los)
     if ph is not None and ph.shape != los.shape:
-        ph = match(ph, *load("phasefilt_mask_ll.grd")[1:])
+        ph = match(ph, *load("phasefilt_mask_ll.grd", M)[1:])
     good = np.isfinite(los) & (C >= a.min_coh)
     print(f"\n{100*good.mean():.1f}% of the grid is coherent at >= {a.min_coh}"
           f"  ({int(good.sum()):,} pixels)")
