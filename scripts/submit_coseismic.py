@@ -31,11 +31,34 @@ Choices that differ from the interseismic submissions, and why:
 
 import argparse
 import datetime as dt
+import glob
+import os
 import sys
 
 EVENT = dt.datetime(2026, 8, 14, 21, 58, tzinfo=dt.timezone.utc)
 EPICENTRE = (-8.3101, 121.3517)
 PROJECT = "flores-coseismic-2026"
+# Where fetch_coseismic.py extracts each job, one directory per job name.
+PRODUCT_DIR = os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "output", "coseismic")
+
+
+def already_fetched(name):
+    """Is this job's product already on disk?
+
+    THE JOB LISTING IS NOT A RELIABLE GUARD. hyp3.find_jobs() has returned
+    other projects' jobs and ZERO of this project's for the whole of this
+    campaign, so the name check below it silently passes and the planner
+    re-proposes work that is already done. It offered to re-buy both frame-1148
+    pairs for ~30 credits when both were sitting extracted in output/coseismic.
+
+    A fetched product is direct evidence, needs no network, and cannot be
+    confused by another account's jobs. Require a _corr.tif rather than just
+    the directory: fetch_coseismic.py creates the directory before extracting,
+    so an interrupted fetch leaves an empty one that must NOT count as done.
+    """
+    d = os.path.join(PRODUCT_DIR, name)
+    return bool(glob.glob(os.path.join(d, "*_corr.tif")))
 
 TRACKS = {
     "asc": {"path": 112, "direction": "ASCENDING"},
@@ -192,6 +215,17 @@ def main():
             print(f"  {label}: waiting for a scene after {d:%Y-%m-%d}")
         return 0
 
+    # Drop anything already done BEFORE quoting a cost. Doing this only under
+    # --submit meant the plan advertised "2 jobs, ~30 credits" when the honest
+    # answer was zero, which is exactly the number a person decides on.
+    done = [p for p in plan if already_fetched(p[0])]
+    for name, *_ in done:
+        print(f"  {name}: product already in output/coseismic, skipping")
+    plan = [p for p in plan if not already_fetched(p[0])]
+    if not plan:
+        print("\nnothing to submit — every planned pair is already fetched")
+        return 0
+
     credits = hyp3.check_credits()
     # 10x2 costs more than the 20x4 used for the interseismic network.
     est = len(plan) * 15
@@ -206,15 +240,31 @@ def main():
     if credits is not None and credits < est:
         raise SystemExit(f"insufficient credits: need ~{est}, have {credits}")
 
-    # Never resubmit a name that already exists: these are hand-named, so the
-    # granule-hash protection used elsewhere does not apply here.
-    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)
-    existing = {j.name for j in hyp3.find_jobs(start=since) if j.name}
+    # Second line of defence, not the first. These jobs are hand-named, so the
+    # granule-hash protection used elsewhere does not apply, and the local
+    # product check above is the reliable guard. This catches the one case
+    # local files cannot: a job submitted and still RUNNING, whose product has
+    # therefore not been fetched yet. Wrapped because a listing that fails or
+    # returns someone else's jobs must not stop a legitimate submission.
+    existing = set()
+    try:
+        since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)
+        existing = {j.name for j in hyp3.find_jobs(start=since) if j.name}
+        mine = {n for n in existing if n.startswith(PROJECT)}
+        print(f"  job listing: {len(existing)} jobs visible, "
+              f"{len(mine)} for {PROJECT}")
+        if existing and not mine:
+            print("  WARNING: the listing shows no jobs for this project, so "
+                  "it cannot\n           catch an in-flight duplicate. "
+                  "Relying on local products alone.")
+    except Exception as exc:                              # noqa: BLE001
+        print(f"  (job listing unavailable: {exc.__class__.__name__} — "
+              f"relying on local products)")
 
     prepared = []
     for name, granules, key, span, kind in plan:
         if name in existing:
-            print(f"  {name}: already submitted, skipping")
+            print(f"  {name}: already submitted and in flight, skipping")
             continue
         prepared.append({
             "job_type": "INSAR_GAMMA",
