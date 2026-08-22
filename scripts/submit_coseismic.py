@@ -44,21 +44,66 @@ PRODUCT_DIR = os.path.join(os.path.dirname(os.path.dirname(
 
 
 def already_fetched(name):
-    """Is this job's product already on disk?
+    """Is a product with THIS job name already on disk?
 
     THE JOB LISTING IS NOT A RELIABLE GUARD. hyp3.find_jobs() has returned
-    other projects' jobs and ZERO of this project's for the whole of this
-    campaign, so the name check below it silently passes and the planner
-    re-proposes work that is already done. It offered to re-buy both frame-1148
-    pairs for ~30 credits when both were sitting extracted in output/coseismic.
+    other projects' jobs and ZERO of this project's for much of this campaign,
+    so the name check below it silently passes and the planner re-proposes
+    work that is already done. It offered to re-buy both frame-1148 pairs for
+    ~30 credits when both were sitting extracted in output/coseismic.
 
     A fetched product is direct evidence, needs no network, and cannot be
     confused by another account's jobs. Require a _corr.tif rather than just
     the directory: fetch_coseismic.py creates the directory before extracting,
     so an interrupted fetch leaves an empty one that must NOT count as done.
+
+    NOT SUFFICIENT ON ITS OWN -- see fetched_granule_pairs().
     """
     d = os.path.join(PRODUCT_DIR, name)
     return bool(glob.glob(os.path.join(d, "*_corr.tif")))
+
+
+def fetched_granule_pairs():
+    """Every (reference, secondary) pair already sitting in output/coseismic.
+
+    WHY NAMES ARE THE WRONG KEY. already_fetched() matches on the job name,
+    and the same granule pair reaches this script under different names
+    depending on the route in. The track path builds "...-desc-f620-prepost-d2"
+    from the TRACKS key; --pair builds "...-desc163-f620-prepost-d2" from
+    whatever tag was typed. Both describe the identical interferogram. When the
+    21 August scene mirrored, the cron planner offered to buy both path-163
+    pairs for 30 credits while those exact granule pairs were already
+    extracted on disk -- the name guard could not see them, and the job-listing
+    fallback compares names too, so neither line of defence fired.
+
+    The granules are the identity of an interferogram. The name is a label
+    somebody chose. Keying on the granules means a pair bought once cannot be
+    bought again under a new label.
+
+    HyP3 writes the pair into each product's README as "- Reference: <granule>"
+    and "- Secondary: <granule>", which is authoritative and needs no network.
+    """
+    import re
+    pairs = set()
+    pat = re.compile(r"^\s*-\s*(Reference|Secondary):\s*(\S+)", re.M)
+    for readme in glob.glob(os.path.join(PRODUCT_DIR, "*",
+                                         "*.README.md.txt")):
+        d = os.path.dirname(readme)
+        if not glob.glob(os.path.join(d, "*_corr.tif")):
+            continue                      # interrupted fetch, does not count
+        found = dict(pat.findall(open(readme, errors="replace").read()))
+        if "Reference" in found and "Secondary" in found:
+            pairs.add((found["Reference"], found["Secondary"]))
+    return pairs
+
+
+def normalise(g):
+    """Strip the .zip/.SAFE suffix ASF sometimes carries so that the same
+    granule written two ways still compares equal."""
+    for suf in (".zip", ".SAFE"):
+        if g.endswith(suf):
+            g = g[:-len(suf)]
+    return g
 
 TRACKS = {
     "asc": {"path": 112, "direction": "ASCENDING"},
@@ -242,10 +287,30 @@ def main():
     # Drop anything already done BEFORE quoting a cost. Doing this only under
     # --submit meant the plan advertised "2 jobs, ~30 credits" when the honest
     # answer was zero, which is exactly the number a person decides on.
-    done = [p for p in plan if already_fetched(p[0])]
-    for name, *_ in done:
-        print(f"  {name}: product already in output/coseismic, skipping")
-    plan = [p for p in plan if not already_fetched(p[0])]
+    # Two independent keys, because either alone has been shown to miss.
+    # The name catches a rerun of the identical command; the granule pair
+    # catches the same interferogram arriving under a different label.
+    have = {(normalise(r), normalise(s)) for r, s in fetched_granule_pairs()}
+    if have:
+        print(f"  {len(have)} granule pair(s) already fetched on disk")
+
+    def done_already(entry):
+        name, granules = entry[0], entry[1]
+        if already_fetched(name):
+            return "product with this name is already in output/coseismic"
+        if len(granules) == 2 and (normalise(granules[0]),
+                                   normalise(granules[1])) in have:
+            return "these granules are already fetched under another job name"
+        return None
+
+    kept = []
+    for p in plan:
+        why = done_already(p)
+        if why:
+            print(f"  {p[0]}: {why}, skipping")
+        else:
+            kept.append(p)
+    plan = kept
     if not plan:
         print("\nnothing to submit — every planned pair is already fetched")
         return 0
