@@ -66,8 +66,15 @@ def main():
     ap.add_argument("--radius-px", type=int, default=3,
                     help="reports are geolocated to a village or building, "
                          "not a 40 m pixel, so sample a small neighbourhood")
-    ap.add_argument("--out", default=OUT)
+    ap.add_argument("--co", default=CO, help="co-event product directory")
+    ap.add_argument("--ctrl", default=CTRL, help="quiet control directory")
+    ap.add_argument("--tag", default="desc61",
+                    help="label for the plot and output filename")
+    ap.add_argument("--out", default=None)
     a = ap.parse_args()
+    if a.out is None:
+        a.out = os.path.join(REPO, "output/coseismic",
+                             f"eq_reports_coherence_{a.tag}.png")
 
     from pyproj import Transformer
 
@@ -78,9 +85,9 @@ def main():
     # rather than reprojecting: both sit on the same 40 m UTM grid, so an
     # inner join is lossless, whereas resampling one onto the other would
     # smooth the very coherence contrast being measured.
-    co = load(CO, "corr")
-    ct = load(CTRL, "corr")
-    wat = load(CO, "water_mask")
+    co = load(a.co, "corr")
+    ct = load(a.ctrl, "corr")
+    wat = load(a.co, "water_mask")
     co, ct, wat = xr.align(co, ct, wat, join="inner")
     print(f"aligned to {co.shape} (inner join on the shared 40 m grid)")
     if co.size == 0:
@@ -116,7 +123,7 @@ def main():
         pts.append((iy, ix))
         lvls.append(f["properties"].get("damage_level"))
     print(f"\n{len(pts)} of {len(d['features'])} reports fall inside the "
-          f"path-61 raster")
+          f"{a.tag} raster")
     if len(pts) < 20:
         sys.exit("too few reports inside the footprint for a comparison")
 
@@ -175,16 +182,17 @@ def main():
 
     sev = np.concatenate([by_level[l] for l in (3, 4) if l in by_level]) \
         if any(l in by_level for l in (3, 4)) else np.array([])
+    light = np.concatenate([by_level[l] for l in (0, 1, 2) if l in by_level]) \
+        if any(l in by_level for l in (0, 1, 2)) else np.array([])
+    p_sev = p_light = None
     if len(sev) >= 8:
-        _, ps = stats.mannwhitneyu(sev, at_random, alternative="greater")
+        _, p_sev = stats.mannwhitneyu(sev, at_random, alternative="greater")
         print(f"\n  {len(sev)} severe (berat/kolaps) vs random: "
-              f"median {np.median(sev):+.4f}, p = {ps:.4g}")
-        light = np.concatenate([by_level[l] for l in (0, 1, 2)
-                                if l in by_level]) \
-            if any(l in by_level for l in (0, 1, 2)) else np.array([])
+              f"median {np.median(sev):+.4f}, p = {p_sev:.4g}")
         if len(light) >= 8:
-            _, pl = stats.mannwhitneyu(sev, light, alternative="greater")
-            print(f"  severe vs light/moderate ({len(light)}): p = {pl:.4g}"
+            _, p_light = stats.mannwhitneyu(sev, light, alternative="greater")
+            print(f"  severe vs light/moderate ({len(light)}): "
+                  f"p = {p_light:.4g}"
                   f"   <- terrain cannot explain this one")
     else:
         print(f"\n  only {len(sev)} severe reports on coherent ground -- "
@@ -195,21 +203,43 @@ def main():
     # which come from villages -- should show a SMALLER drop than random land
     # if land cover were the only effect. They show a larger one.
 
+    # The verdict weighs the SEVERITY contrast above the location contrast,
+    # and an earlier version of this script did not -- it read only "reports
+    # vs random" and declared a null on the ascending frame while the severity
+    # test there was the strongest in the whole analysis (p = 0.0035).
+    #
+    # The severity contrast is the better evidence for a specific reason.
+    # "Reports vs random" compares village locations against arbitrary land,
+    # so anything that makes villages differ from open country -- land cover,
+    # slope, and in a baseline-mismatched pair the extra decorrelation of a
+    # longer interval -- leaks into it. "Severe vs light" compares reports
+    # against other reports: same kind of place, same kind of terrain, often
+    # the same village. Almost nothing except the earthquake distinguishes
+    # them.
     print()
-    if p < 0.01 and diff > 0.01:
-        print("  Coherence fell further where damage and aid were reported")
-        print("  than at comparable ground elsewhere in the same scene. Two")
-        print("  independent observables -- radar and people on the ground --")
-        print("  agree about where this earthquake did something.")
-    elif p < 0.05:
-        print("  A weak tendency in the expected direction. Not enough to")
-        print("  lean on given how coarsely the reports are geolocated.")
+    loc = p < 0.01 and diff > 0.01
+    dose = p_light is not None and p_light < 0.05
+    if dose and loc:
+        print("  Coherence loss tracks BOTH where reports were filed and how")
+        print("  severe they were. The severity gradient is the stronger of")
+        print("  the two, since it compares reports against other reports.")
+    elif dose:
+        print("  Reported SEVERITY tracks coherence loss (severe vs light, "
+              f"p = {p_light:.3g}),")
+        print("  while report locations as a whole are indistinguishable from")
+        print("  random land. That combination is what a real but weak signal")
+        print("  looks like: the radar cannot pick out a village that filed a")
+        print("  report, but among villages that did, it separates the badly")
+        print("  damaged from the lightly damaged.")
+    elif loc:
+        print("  Report locations lost more coherence than random land, but")
+        print("  severity does not grade with it. Treat with caution: that is")
+        print("  also what terrain or a baseline mismatch would produce.")
     else:
-        print("  Coherence drop at report locations is indistinguishable from")
-        print("  the rest of the scene. The coherence proxy does not track")
-        print("  reported damage here -- most likely because 40 m coherence")
-        print("  responds to vegetation and slope far more than to a collapsed")
-        print("  building, which occupies a fraction of one pixel.")
+        print("  Neither report location nor reported severity tracks")
+        print("  coherence loss here. At 40 m, coherence responds to")
+        print("  vegetation and slope far more than to a collapsed building,")
+        print("  which occupies a fraction of one pixel.")
 
     import matplotlib
     matplotlib.use("Agg")
@@ -226,7 +256,7 @@ def main():
                   "(positive = lost coherence)")
     ax.set_ylabel("density")
     ax.set_title("Does coherence loss track where damage was reported?\n"
-                 f"descending path 61, medians differ by {diff:+.3f}, "
+                 f"{a.tag}, medians differ by {diff:+.3f}, "
                  f"p = {p:.3g}", fontsize=11, loc="left")
     ax.legend(fontsize=9)
     fig.tight_layout()
