@@ -198,3 +198,73 @@ it.
 The displacement result. Three processing chains on the ascending pair, plus
 two descending tracks that agree to 0.4 cm after plane removal and whose
 co-event residual is 4x their own quiet controls. Nothing above touches it.
+
+---
+
+# Addendum: presence-only re-analysis, and a partial un-retraction
+
+Two objections were raised, both correct, and together they change the
+conclusion above.
+
+**Absence of reports is not absence of damage.** Every earlier test used
+"random coherent land" as an undamaged control. Unreported ground is ground
+with no people, no signal, or no agency visit — damaged places sit inside that
+control, diluting the contrast. A null was therefore the expected outcome
+whether or not the radar works. The reports-vs-random nulls were
+**uninformative, not negative**, and I read them as negative.
+
+**The right tool is a presence-only method.** Confirmed presences, no
+confirmed absences. Unlabelled ground becomes *background*, and what is
+estimated is a relative occurrence rate, never a probability of damage.
+
+The key move is the **target-group background**: presences are the severe
+reports, background is every *other* report including the aid requests. Every
+background point is then a place where somebody was present, had signal, and
+did file something — so accessibility, population and connectivity are held
+fixed by construction and cannot manufacture discrimination.
+
+    AUC = P(severe report scores above a background point)
+
+| track | background | n pres | AUC | 95% CI |
+|---|---|---|---|---|
+| asc-f1148 | random landscape | 27 | 0.591 | [0.519, 0.666] * |
+| **asc-f1148** | **target-group** | **27** | **0.644** | **[0.539, 0.744] \*** |
+| desc61 | random landscape | 32 | 0.631 | [0.523, 0.732] * |
+| desc61 | target-group | 32 | 0.591 | [0.475, 0.716] |
+| desc163 | random landscape | 11 | 0.467 | [0.320, 0.627] |
+| desc163 | target-group | 11 | 0.440 | [0.272, 0.598] |
+
+## What this changes
+
+**The retraction was too strong.** I wrote that the answer "flips sign on the
+same villages", treating a difference between two point estimates as a
+contradiction. With intervals attached they are not contradictory: desc163's
+[0.272, 0.598] overlaps ascending's [0.539, 0.744]. Three noisy estimates,
+two above 0.5 and one below, are consistent with a single modest effect and
+small samples. Calling that a radar inconsistency was over-reading noise, in
+the same way the original claim over-read agreement.
+
+**Controlling reporting bias strengthens the ascending result rather than
+dissolving it**: AUC rises from 0.591 to 0.644 when the background becomes
+other reports. If the effect were an accessibility artefact it would have gone
+the other way. That is the single most reassuring number here.
+
+## The claim that survives
+
+On the best-powered track, with reporting bias controlled by construction, a
+severe damage report is about **64% more likely than even odds** to sit on
+ground that lost more coherence than another reported location. Modest, real,
+and established on one track only — desc61 trends the same way without
+reaching significance, and desc163 at 11 presences is uninformative either
+way.
+
+Not established: any replication claim, and any statement about absolute
+damage probability.
+
+## The limit that no amount of radar removes
+
+Presence-only yields relative rates. Turning this into "how likely is it that
+this place was damaged" needs **confirmed absences** — somebody visiting
+places that filed no report and recording that they were undamaged. That is a
+field problem, not a satellite problem, and it is the single most valuable
+thing anyone could add to this dataset.
