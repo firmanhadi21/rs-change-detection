@@ -162,6 +162,11 @@ def main():
                          "several frames on a track contain the epicentre. "
                          "Path 112: 1148 covers all of Flores, 1153 only "
                          "its north coast and the sea beyond.")
+    ap.add_argument("--pair", nargs=3, metavar=("TAG", "REF", "SEC"),
+                    action="append", default=None,
+                    help="submit an explicit granule pair, bypassing "
+                         "find_scenes. Needed when a pair cannot be expressed "
+                         "as (path, frame) -- see below.")
     a = ap.parse_args()
 
     import hyp3_sdk
@@ -169,6 +174,25 @@ def main():
 
     wanted = list(TRACKS) if a.track == "all" else [a.track]
     plan, waiting = [], []
+
+    # EXPLICIT PAIRS. find_scenes selects by (path, frame), and there are pairs
+    # that cannot be written that way. Descending path 61 is one: the S1D
+    # pre-event scene is frame 621 and the S1C post-event scene covering the
+    # same ground is frame 620, because frame numbering shifts between the two
+    # missions' passes. Passing --frame 621 finds no post-event scene, and
+    # passing no frame at all is worse -- path 61 spans +13N to -31S, so
+    # sorting it by time and taking first and last pairs scenes thousands of
+    # kilometres apart. It reported "pre-pre 2026-08-02 -> 2026-08-02 (0 d)",
+    # which is two adjacent frames of a single pass and not a baseline at all.
+    #
+    # So the granules get named. The pair submitted is then exactly the pair
+    # whose ground coverage was checked, which is the property that matters.
+    if a.pair:
+        for tag, ref, sec in a.pair:
+            name = f"{PROJECT}-{tag}-{PARAM_TAG}"
+            plan.append((name, [ref, sec], tag, None, "explicit"))
+            print(f"explicit pair {tag}:\n  {ref}\n  {sec}")
+        wanted = []
 
     for key in wanted:
         info = TRACKS[key]
