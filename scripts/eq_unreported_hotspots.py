@@ -72,14 +72,41 @@ def load(d, name):
     return da.isel(band=0) if "band" in da.dims else da
 
 
-def drop_field(track, min_coh):
+def drop_field(track, min_coh, coast_px):
+    """Coherence drop, with the shoreline excluded.
+
+    THE SHORELINE HAD TO BE ADDED AFTER THE FIRST RUN. Its four strongest
+    "candidates for unreported damage" formed a tidy contiguous patch 19-20 km
+    from the epicentre, closer to the source than any report -- and a terrain
+    check put every one of them at 0 m elevation, 0 degrees slope, 100 m from
+    the sea. Tide, surf and a water mask that is a pixel or two too generous
+    produce total decorrelation at the coast in both tracks at once, which
+    defeats the two-track agreement test completely: the artefact is in the
+    same place on every pass.
+
+    HyP3's water_mask marks open water but not the intertidal fringe, so the
+    mask is dilated inland by a few pixels. That discards real coastal ground,
+    which is a real cost, but coastal ground is where this method cannot tell
+    damage from tide.
+    """
     import xarray as xr
+    from scipy import ndimage
+
     co_d, ct_d = TRACKS[track]
     co, ct, wat = xr.align(load(co_d, "corr"), load(ct_d, "corr"),
                            load(co_d, "water_mask"), join="inner")
     c1 = ct.values.astype("float64")
     c2 = co.values.astype("float64")
-    ok = np.isfinite(c1) & np.isfinite(c2) & (wat.values > 0) & (c1 >= min_coh)
+    land = wat.values > 0
+    if coast_px > 0:
+        inland = ndimage.binary_erosion(
+            land, structure=np.ones((3, 3)), iterations=coast_px,
+            border_value=0)
+        lost = int(land.sum() - inland.sum())
+        print(f"  {track}: dropped {lost:,} pixels within {coast_px} px "
+              f"of water ({100*lost/max(1, land.sum()):.1f}% of land)")
+        land = inland
+    ok = np.isfinite(c1) & np.isfinite(c2) & land & (c1 >= min_coh)
     return np.where(ok, c1 - c2, np.nan), co
 
 
@@ -100,6 +127,10 @@ def main():
                          "unreported")
     ap.add_argument("--max-km", type=float, default=120.0)
     ap.add_argument("--top", type=int, default=15)
+    ap.add_argument("--coast-px", type=int, default=10,
+                    help="erode the land mask inland by this many 40 m "
+                         "pixels; the shoreline decorrelates in every pair "
+                         "and defeats the two-track agreement test")
     a = ap.parse_args()
 
     from pyproj import Transformer
@@ -111,7 +142,7 @@ def main():
     step = a.block_km / 111.32
     grids = {}
     for t in TRACKS:
-        drop, ref = drop_field(t, a.min_coh)
+        drop, ref = drop_field(t, a.min_coh, a.coast_px)
         inv = Transformer.from_crs(ref.rio.crs, "EPSG:4326", always_xy=True)
         xs = ref[ref.dims[-1]].values
         ys = ref[ref.dims[-2]].values
@@ -188,6 +219,40 @@ def main():
     print(f"  within {a.max_km:.0f} km of the epicentre: {len(rows)}")
     print(f"    {len(near)} already have a report within {a.away_km:.0f} km")
     print(f"    {len(unrep)} do NOT -- candidates for unreported damage")
+
+    # Is "9 of 11 already reported" impressive or trivial? It depends entirely
+    # on how many ORDINARY blocks sit within the same distance of a report. If
+    # most of the map is near a report, the hotspots being near reports means
+    # nothing. This is the same presence-background logic as the AUC test,
+    # applied to blocks instead of points.
+    base = []
+    for k in shared:
+        gi, gj = divmod(k, 1_000_000)
+        lat = (gi + 0.5) * step
+        lon = (gj + 0.5) * step
+        r = math.hypot((lon - EPI[0]) * 111.32 * math.cos(math.radians(lat)),
+                       (lat - EPI[1]) * 111.32)
+        if r > a.max_km:
+            continue
+        dl = (rep[:, 0] - lon) * 111.32 * math.cos(math.radians(lat))
+        dm = (rep[:, 1] - lat) * 111.32
+        base.append(float(np.min(np.hypot(dl, dm))))
+    base = np.array(base)
+    if len(base):
+        frac_bg = float((base < a.away_km).mean())
+        frac_hot = len(near) / max(1, len(rows))
+        print(f"\n  blocks within {a.away_km:.0f} km of a report:")
+        print(f"    among the {len(rows)} hotspots      {frac_hot*100:.0f}%")
+        print(f"    among all {len(base)} shared blocks {frac_bg*100:.0f}%")
+        if frac_bg > 0:
+            print(f"    enrichment {frac_hot/frac_bg:.1f}x")
+        if frac_hot > frac_bg + 0.15:
+            print("    Hotspots land near reports more often than ordinary")
+            print("    ground does, so the two-track coherence collapse is")
+            print("    picking out something people also noticed.")
+        else:
+            print("    No enrichment. The hotspots are no closer to reports")
+            print("    than ordinary ground, so this is not finding damage.")
 
     if unrep:
         print(f"\n  {'lat':>9}{'lon':>10}{'km to epi':>11}"
