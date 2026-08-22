@@ -63,6 +63,25 @@ def already_fetched(name):
     return bool(glob.glob(os.path.join(d, "*_corr.tif")))
 
 
+def required_bands():
+    """The band files the CURRENT JOB_PARAMETERS should produce.
+
+    Derived from the parameters rather than hardcoded, so changing
+    JOB_PARAMETERS automatically changes what counts as a complete product.
+    """
+    bands = ["corr", "unw_phase"]
+    m = {"include_dem": ["dem"],
+         "include_inc_map": ["inc_map"],
+         "include_look_vectors": ["lv_phi", "lv_theta"],
+         "include_displacement_maps": ["los_disp", "vert_disp"],
+         "include_wrapped_phase": ["wrapped_phase"],
+         "apply_water_mask": ["water_mask"]}
+    for k, v in m.items():
+        if JOB_PARAMETERS.get(k):
+            bands += v
+    return bands
+
+
 def fetched_granule_pairs():
     """Every (reference, secondary) pair already sitting in output/coseismic.
 
@@ -82,15 +101,36 @@ def fetched_granule_pairs():
 
     HyP3 writes the pair into each product's README as "- Reference: <granule>"
     and "- Secondary: <granule>", which is authoritative and needs no network.
+
+    A PAIR ONLY COUNTS IF IT WAS DELIVERED WITH THE BANDS CURRENTLY BEING
+    ASKED FOR. Granules identify the interferogram, but not the product. Frame
+    1153's pre-post pair was fetched months before the parameter fix, using
+    include_los_displacement -- deprecated, accepted, and silently ignored --
+    so it has no los_disp band. Keying on granules alone would call that pair
+    "already fetched" and make the missing band unobtainable: the guard would
+    permanently block the resubmission that would supply it.
+
+    So the check is against the DELIVERED FILE LIST, which is the same lesson
+    the JOB_PARAMETERS comment records. A product missing a band the current
+    parameters request is not the product being asked for, and the pair is
+    offered again.
     """
     import re
     pairs = set()
     pat = re.compile(r"^\s*-\s*(Reference|Secondary):\s*(\S+)", re.M)
+    want = required_bands()
     for readme in glob.glob(os.path.join(PRODUCT_DIR, "*",
                                          "*.README.md.txt")):
         d = os.path.dirname(readme)
         if not glob.glob(os.path.join(d, "*_corr.tif")):
             continue                      # interrupted fetch, does not count
+        missing = [b for b in want
+                   if not glob.glob(os.path.join(d, f"*_{b}.tif"))]
+        if missing:
+            print(f"  {os.path.basename(d)}: missing "
+                  f"{', '.join(missing)} — does not satisfy the current "
+                  f"parameters")
+            continue
         found = dict(pat.findall(open(readme, errors="replace").read()))
         if "Reference" in found and "Secondary" in found:
             pairs.add((found["Reference"], found["Secondary"]))
