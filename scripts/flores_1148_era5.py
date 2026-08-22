@@ -36,7 +36,13 @@ import sys
 
 import numpy as np
 
-REPO = os.path.expanduser("~/GitHub/rs-change-detection")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = _REPO_ROOT
 MERGE = os.path.join(REPO, "data/flores_gmtsar_1148/merge")
 DEM = os.path.join(REPO, "data/dem/flores/dem_1148.grd")
 HYP3 = os.path.join(REPO, "output/coseismic",

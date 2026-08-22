@@ -25,7 +25,13 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.borneo_hotspots import build_regions, init_gee   # noqa: E402
 
-OUT = os.path.expanduser("~/GitHub/rs-change-detection/output/fire")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.expanduser(_REPO_ROOT + "/output/fire")
 BORNEO_BBOX = [108.5, -4.5, 119.5, 7.5]
 
 

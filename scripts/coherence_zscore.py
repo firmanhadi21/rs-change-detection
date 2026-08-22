@@ -49,6 +49,12 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     import rasterio
     from rasterio.warp import Resampling, reproject
@@ -57,7 +63,7 @@ except ImportError:                                    # pragma: no cover
     sys.exit("needs rasterio: run under `conda run -n base`")
 
 BASE = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/coseismic/baseline/hyp3")
+    _REPO_ROOT + "/output/coseismic/baseline/hyp3")
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 KM_LAT = 110.57
 COEVENT = "20260806_20260818"

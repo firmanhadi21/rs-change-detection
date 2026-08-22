@@ -29,7 +29,13 @@ import sys
 
 import numpy as np
 
-OUT = os.path.expanduser("~/GitHub/rs-change-detection/output/fire")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.expanduser(_REPO_ROOT + "/output/fire")
 PAYLOAD = os.path.join(OUT, "infographic_payload.json")
 ADMIN_GEOJSON = os.path.join(OUT, "borneo_admin.geojson")
 # TWO ORDERINGS, AND THEY ARE NOT THE SAME. A GIS bbox is

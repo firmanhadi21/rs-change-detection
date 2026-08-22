@@ -20,7 +20,13 @@ import sys
 
 import numpy as np
 
-REPO = os.path.expanduser("~/GitHub/rs-change-detection")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = _REPO_ROOT
 OUTDIR = os.path.join(REPO, "output/coseismic/infographic")
 
 INK = "#1a1f24"
@@ -53,7 +59,94 @@ D163_RAW = [-1.65, +2.41, +5.00, +1.83]
 D163_DEP = [-4.06, +0.03, +2.32, +0.15]
 
 
-def page(figsize=(12, 15.2)):
+PRODUCTS = {
+    "asc": "flores-coseismic-2026-asc-f1148-prepost-d2",
+    "d61": "flores-coseismic-2026-desc61-f621-prepost-d2",
+    "d163": "flores-coseismic-2026-desc163-f620-prepost-d2",
+}
+
+
+def band_path(key, name):
+    import glob as _g
+    hits = _g.glob(os.path.join(REPO, "output/coseismic", PRODUCTS[key],
+                                f"*_{name}.tif"))
+    return hits[0] if hits else None
+
+
+def read_map(key, name, step=5, scale=1.0, drop_zero=True):
+    """Load a HyP3 band, water-masked and decimated, in its native UTM grid.
+
+    Plotted in UTM rather than reprojected to lon/lat. The frames are rotated
+    relative to north, so a corner-based lon/lat extent would shear the image
+    -- and these panels exist to show the SHAPE of a deformation lobe, which
+    is exactly what a shear would corrupt.
+
+    Zeros are dropped, not kept: HyP3 writes 0 outside the imaged area and in
+    the water mask, and a zero rendered on a diverging colour map reads as
+    "no displacement here" rather than "no data here".
+    """
+    import rioxarray  # noqa: F401
+    import xarray as xr
+    p = band_path(key, name)
+    if p is None:
+        return None
+    da = xr.open_dataarray(p, engine="rasterio")
+    if "band" in da.dims:
+        da = da.isel(band=0)
+    v = da.values[::step, ::step].astype("float64") * scale
+    wp = band_path(key, "water_mask")
+    if wp is not None:
+        w = xr.open_dataarray(wp, engine="rasterio")
+        if "band" in w.dims:
+            w = w.isel(band=0)
+        wv = w.values[::step, ::step]
+        if wv.shape == v.shape:
+            v = np.where(wv > 0, v, np.nan)
+    if drop_zero:
+        v = np.where(v == 0, np.nan, v)
+    xs = da[da.dims[-1]].values[::step]
+    ys = da[da.dims[-2]].values[::step]
+    return v, (xs.min(), xs.max(), ys.min(), ys.max()), da.rio.crs
+
+
+def epi_xy(crs):
+    from pyproj import Transformer
+    return Transformer.from_crs("EPSG:4326", crs,
+                                always_xy=True).transform(*EPI)
+
+
+def draw_map(ax, key, name, cmap, vmin, vmax, scale=1.0, step=5,
+             label=None, cyclic=False):
+    got = read_map(key, name, step=step, scale=scale)
+    if got is None:
+        ax.axis("off")
+        ax.text(0.5, 0.5, f"{name} unavailable", ha="center", va="center",
+                fontsize=10, color=MUTED, transform=ax.transAxes)
+        return None
+    v, ext, crs = got
+    im = ax.imshow(v, cmap=cmap, vmin=vmin, vmax=vmax, extent=ext,
+                   origin="upper", interpolation="nearest")
+    ex, ey = epi_xy(crs)
+    ax.plot(ex, ey, "*", color="#111", ms=17, mec="white", mew=1.2)
+    ax.set_xticks([]); ax.set_yticks([])
+    ax.set_facecolor("#eeeae3")
+    # 25 km scale bar, drawn from the axis limits so it stays correct however
+    # the frame is cropped.
+    x0, x1 = ax.get_xlim(); y0, y1 = ax.get_ylim()
+    bx = x0 + 0.06 * (x1 - x0)
+    by = y0 + 0.08 * (y1 - y0)
+    ax.plot([bx, bx + 25000], [by, by], color=INK, lw=3,
+            solid_capstyle="butt")
+    ax.text(bx + 12500, by + 0.025 * (y1 - y0), "25 km", fontsize=7.5,
+            ha="center", color=INK)
+    if label:
+        ax.text(0.985, 0.965, label, transform=ax.transAxes, fontsize=8,
+                ha="right", va="top", color=INK,
+                bbox=dict(fc="white", ec="none", alpha=.75, pad=2))
+    return im
+
+
+def page(figsize=(12, 16.6)):
     import matplotlib.pyplot as plt
     fig = plt.figure(figsize=figsize, facecolor=PAPER)
     return fig

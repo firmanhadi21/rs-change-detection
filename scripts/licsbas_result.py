@@ -14,9 +14,15 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TS = os.path.expanduser(
     sys.argv[1] if len(sys.argv) > 1
-    else "~/GitHub/rs-change-detection/output/licsbas/TS_GEOCml10")
+    else _REPO_ROOT + "/output/licsbas/TS_GEOCml10")
 
 
 def par(path):

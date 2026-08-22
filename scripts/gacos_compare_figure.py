@@ -24,7 +24,13 @@ import sys
 
 import numpy as np
 
-BASE = os.path.expanduser("~/GitHub/rs-change-detection/output/licsbas")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.expanduser(_REPO_ROOT + "/output/licsbas")
 RAW = f"{BASE}/GEOCml4"
 COR = f"{BASE}/GEOCml4GACOS"
 

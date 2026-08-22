@@ -29,8 +29,14 @@ import sys
 import urllib.request
 import zipfile
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STEP = "https://step.esa.int/auxdata/orbits/Sentinel-1"
-OUT = os.path.expanduser("~/GitHub/rs-change-detection/data/orbits")
+OUT = os.path.expanduser(_REPO_ROOT + "/data/orbits")
 NAME_RE = re.compile(
     r"(S1[A-D]_OPER_AUX_(?:POEORB|RESORB)_OPOD_\d{8}T\d{6}_"
     r"V(\d{8}T\d{6})_(\d{8}T\d{6})\.EOF)(?:\.zip)?")

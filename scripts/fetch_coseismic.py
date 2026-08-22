@@ -34,8 +34,14 @@ import sys
 import tempfile
 import zipfile
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT = "flores-coseismic-2026"
-OUT = os.path.expanduser("~/GitHub/rs-change-detection/output/coseismic")
+OUT = os.path.expanduser(_REPO_ROOT + "/output/coseismic")
 
 # HyP3 names these _los_disp.tif and _vert_disp.tif, NOT _los_displacement.tif.
 # The longer name is the API PARAMETER; the band file uses the short form. The

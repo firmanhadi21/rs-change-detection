@@ -44,6 +44,12 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     import xarray as xr
 except ImportError:                                   # pragma: no cover
@@ -56,7 +62,7 @@ DEM = os.path.join(D, "dem_ll.grd")   # topo/dem.grd resampled onto the
 # GMTSAR wrote the geocoded products at 116.x - 360, so the two do not overlap
 # until the longitude convention is reconciled.
 OUT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/lombok_topo_vs_deformation.png")
+    _REPO_ROOT + "/output/lombok_topo_vs_deformation.png")
 
 CM_PER_RAD = 0.242452 / (4 * np.pi) * 100
 KM_LAT = 110.57

@@ -24,6 +24,12 @@ import re
 import sys
 import urllib.request
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRAME = "112A_09831_050508"
 URL = ("https://gws-access.jasmin.ac.uk/public/nceo_geohazards/"
        f"LiCSAR_products/112/{FRAME}/interferograms/")
@@ -72,7 +78,7 @@ def main():
     print(f"   consecutive epochs share pairs, isolated ones do not)")
 
     out = os.path.expanduser(
-        "~/GitHub/rs-change-detection/output/licsbas/gacos_request_20.txt")
+        _REPO_ROOT + "/output/licsbas/gacos_request_20.txt")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:
         f.write("\n".join(best_set) + "\n")

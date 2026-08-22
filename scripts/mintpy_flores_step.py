@@ -24,11 +24,17 @@ import sys
 
 import numpy as np
 
-WORK = os.path.expanduser("~/GitHub/rs-change-detection/data/mintpy_flores")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORK = os.path.expanduser(_REPO_ROOT + "/data/mintpy_flores")
 EPI = (121.3517, -8.3101)
 EVENT = "20260814"
 OUT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/coseismic/mintpy_flores_step.png")
+    _REPO_ROOT + "/output/coseismic/mintpy_flores_step.png")
 
 
 def _iso(d):

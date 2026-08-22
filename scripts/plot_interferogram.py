@@ -25,8 +25,14 @@ for _v in ("PROJ_LIB", "PROJ_DATA", "GDAL_DATA"):
 
 import numpy as np  # noqa: E402
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SNAP = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/coseismic/snap")
+    _REPO_ROOT + "/output/coseismic/snap")
 WAVELENGTH_CM = 5.5465          # Sentinel-1 C-band
 FRINGE_CM = WAVELENGTH_CM / 2   # one 2-pi cycle in line of sight
 

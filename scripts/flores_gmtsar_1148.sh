@@ -65,10 +65,29 @@ copy_once "$ORB/$REF_EOF" "./$REF_EOF"
 copy_once "$ORB/$REP_EOF" "./$REP_EOF"
 
 cd "$WORK"
+# Use the project's tuned config rather than pop_config's defaults. Three
+# settings differ and one of them matters a great deal:
+#
+#   spec_div = 1   Enhanced spectral diversity for TOPS azimuth
+#                  co-registration. pop_config leaves it OFF. Without ESD the
+#                  azimuth alignment comes from the orbit alone, and burst
+#                  boundaries carry phase discontinuities. That is worse than
+#                  usual here because these are RESTITUTED orbits (~10 cm),
+#                  where orbit error dominates the alignment -- ESD
+#                  re-estimates it from the data instead.
+#
+#   threshold_snaphu / threshold_geocode = 0.15 rather than the 0.10 I had
+#                  guessed at. Flores is savanna, not closed canopy, so
+#                  coherence is good and 0.10 only admits noise to the unwrap.
+CONFIG="${CONFIG:-$REPO/data/config.s1a.flores.txt}"
 if [ ! -f config.s1a.txt ]; then
-    pop_config.csh S1_TOPS > config.s1a.txt
-    sed -i '' 's/^threshold_snaphu = .*/threshold_snaphu = 0.10/' config.s1a.txt || true
-    sed -i '' 's/^threshold_geocode = .*/threshold_geocode = 0.10/' config.s1a.txt || true
+    if [ -f "$CONFIG" ]; then
+        cp "$CONFIG" config.s1a.txt
+        echo "  config: $CONFIG"
+    else
+        pop_config.csh S1_TOPS > config.s1a.txt
+        echo "  config: pop_config defaults (ESD OFF -- check spec_div)"
+    fi
 fi
 
 echo

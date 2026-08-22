@@ -33,13 +33,19 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 BASE = os.path.expanduser("~/Teaching/UNDIP/InSAR/EQ/Pair1")
 INTF = os.path.join(BASE, "intf", "2018132_2018216")
 STACK = "/tmp/alos2_lombok_stack.zarr"
 OUT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/alos2_phase_difference.png")
+    _REPO_ROOT + "/output/alos2_phase_difference.png")
 
 
 def main():

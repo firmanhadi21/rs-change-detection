@@ -28,11 +28,17 @@ import json
 import os
 import sys
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BORNEO_BBOX = [108.5, -4.5, 119.5, 7.5]
 FOREST_GPKG = os.path.expanduser(
-    "~/GitHub/rs-change-detection/data/forest.gpkg")
+    _REPO_ROOT + "/data/forest.gpkg")
 FOREST_LAYER = "pnunjukkwshutan_ar_250k"
-OUT = os.path.expanduser("~/GitHub/rs-change-detection/output/fire")
+OUT = os.path.expanduser(_REPO_ROOT + "/output/fire")
 
 # KLHK classes collapsed to the six functions people actually talk about.
 # Conservation is split across many legal instruments (national park, nature

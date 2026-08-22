@@ -24,13 +24,19 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     import rasterio
 except ImportError:                                    # pragma: no cover
     sys.exit("needs rasterio: run under `conda run -n base`")
 
 WAVELENGTH_M = 0.055465
-ROOT = os.path.expanduser("~/GitHub/rs-change-detection/output/coseismic")
+ROOT = os.path.expanduser(_REPO_ROOT + "/output/coseismic")
 
 
 def main():

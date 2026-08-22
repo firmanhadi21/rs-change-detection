@@ -23,13 +23,19 @@ import sys
 import urllib.parse
 import urllib.request
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API = "https://api.daac.asf.alaska.edu/services/search/param"
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 REF_DATE = "2026-08-02"          # S1D, last pre-event path-61 acquisition
 SEC_DATE = "2026-08-20"          # S1C, first post-event path-61 acquisition
 PATH_NO = "61"
 DEM = os.path.expanduser(
-    "~/GitHub/rs-change-detection/data/insardev_flores/dem.nc")
+    _REPO_ROOT + "/data/insardev_flores/dem.nc")
 
 
 def fetch(**q):

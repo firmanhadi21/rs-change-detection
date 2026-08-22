@@ -31,6 +31,12 @@ import json
 import os
 import sys
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # GAUL 2015 level-1 units making up Borneo, by country. Labuan is a Malaysian
 # federal territory off Sabah -- small, but part of the island's fire regime.
 REGIONS = {
@@ -43,7 +49,7 @@ SHORT = {
     "Kalimantan Barat": "Kalbar", "Kalimantan Tengah": "Kalteng",
     "Kalimantan Selatan": "Kalsel", "Kalimantan Timur": "Kaltim (+Kaltara)",
 }
-OUT = os.path.expanduser("~/GitHub/rs-change-detection/output/fire")
+OUT = os.path.expanduser(_REPO_ROOT + "/output/fire")
 
 
 def init_gee():

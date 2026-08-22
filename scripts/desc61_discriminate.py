@@ -37,7 +37,13 @@ import sys
 
 import numpy as np
 
-REPO = os.path.expanduser("~/GitHub/rs-change-detection")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = _REPO_ROOT
 CO = os.path.join(REPO, "output/coseismic",
                   "flores-coseismic-2026-desc61-f621-prepost-d2")
 CTRL = os.path.join(REPO, "output/coseismic",

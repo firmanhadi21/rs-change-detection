@@ -23,7 +23,13 @@ import math
 import os
 import sys
 
-REPO = os.path.expanduser("~/GitHub/rs-change-detection")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = _REPO_ROOT
 SRC = os.path.join(REPO, "data/eq_reports.geojson")
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 

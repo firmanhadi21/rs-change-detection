@@ -44,6 +44,12 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     import xarray as xr
 except ImportError:                                   # pragma: no cover
@@ -52,7 +58,7 @@ except ImportError:                                   # pragma: no cover
 D = os.path.expanduser(
     "~/Teaching/UNDIP/InSAR/EQ/Pair1/intf/2018132_2018216")
 OUT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/lombok_unwrapped.png")
+    _REPO_ROOT + "/output/lombok_unwrapped.png")
 
 WAVELENGTH_M = 0.242452
 CM_PER_RAD = WAVELENGTH_M / (4 * np.pi) * 100     # 1.930 cm per radian

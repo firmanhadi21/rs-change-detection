@@ -46,8 +46,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from usgs_finite_fault_los import (displacement, patches,      # noqa: E402
                                    los_away, EPI_LON, EPI_LAT, KM_LAT)
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRINGE_CM = 5.5465 / 2
-ROOT = os.path.expanduser("~/GitHub/rs-change-detection/output/coseismic")
+ROOT = os.path.expanduser(_REPO_ROOT + "/output/coseismic")
 FFM = ("/private/tmp/claude-501/-Users-firmanhadi-GitHub-rs-change-detection/"
        "002f025e-d8ee-4126-aa65-97d981ababcf/scratchpad/FFM.geojson")
 

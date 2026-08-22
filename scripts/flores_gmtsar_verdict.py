@@ -31,10 +31,16 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MERGE_DEFAULT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/data/flores_gmtsar/merge")
+    _REPO_ROOT + "/data/flores_gmtsar/merge")
 OUT_DEFAULT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/coseismic/gmtsar_verdict.png")
+    _REPO_ROOT + "/output/coseismic/gmtsar_verdict.png")
 EPI = (121.3517, -8.3101)
 LAMBDA = 0.05546            # Sentinel-1 C-band, m
 FRINGE_CM = LAMBDA / 2 * 100    # 2.77 cm of LOS per fringe

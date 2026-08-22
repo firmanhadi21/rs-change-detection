@@ -36,12 +36,18 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MERGE = os.path.expanduser(
-    "~/GitHub/rs-change-detection/data/flores_gmtsar_1148/merge")
+    _REPO_ROOT + "/data/flores_gmtsar_1148/merge")
 DEM = os.path.expanduser(
-    "~/GitHub/rs-change-detection/data/dem/flores/dem_1148.grd")
+    _REPO_ROOT + "/data/dem/flores/dem_1148.grd")
 OUT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/coseismic/flores_1148_discriminate.png")
+    _REPO_ROOT + "/output/coseismic/flores_1148_discriminate.png")
 EPI = (121.3517, -8.3101)
 KM_LAT = 110.57
 

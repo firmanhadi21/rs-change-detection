@@ -20,7 +20,13 @@ import glob
 import os
 import sys
 
-REPO = os.path.expanduser("~/GitHub/rs-change-detection")
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = _REPO_ROOT
 DATADIR = os.path.join(REPO, "data/insardev_flores/data")
 MIN_MB = 50.0
 

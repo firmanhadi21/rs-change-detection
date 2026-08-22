@@ -45,6 +45,12 @@ except ImportError as e:                               # pragma: no cover
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gradient_zscore import COEVENT, products          # noqa: E402
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRINGE_CM = 5.5465 / 2
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 HYP3_REF = (122.7795, -8.5493)
@@ -144,7 +150,7 @@ def main():
     ap.add_argument("--incidence", type=float, default=39.0)
     ap.add_argument("--heading", type=float, default=-13.0)
     ap.add_argument("--out", default=os.path.expanduser(
-        "~/GitHub/rs-change-detection/output/coseismic/usgs_ffm_los.png"))
+        _REPO_ROOT + "/output/coseismic/usgs_ffm_los.png"))
     a = ap.parse_args()
 
     subs = patches(a.ffm)

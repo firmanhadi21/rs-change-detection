@@ -42,10 +42,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gradient_zscore import (COEVENT, FRAME_LATMAX, gradient,   # noqa: E402
                              products)
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 FRINGE_CM = 5.5465 / 2
 OUT = os.path.expanduser(
-    "~/GitHub/rs-change-detection/output/coseismic/gradient_evidence.png")
+    _REPO_ROOT + "/output/coseismic/gradient_evidence.png")
 
 
 def main():

@@ -28,11 +28,17 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 LOMBOK = os.path.expanduser("~/Teaching/UNDIP/InSAR/EQ/Pair1/raw")
 BRAZIL = os.path.expanduser(
-    "~/GitHub/rs-change-detection/data/ALOS2_Brazil/raw")
+    _REPO_ROOT + "/data/ALOS2_Brazil/raw")
 
 PASS = []
 

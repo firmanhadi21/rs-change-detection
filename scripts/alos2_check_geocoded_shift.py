@@ -20,10 +20,16 @@ import sys
 
 import numpy as np
 
+
+# Repo root from THIS file's location, never from the
+# home directory: two clones of this repository exist on
+# this machine and a hardcoded ~ path wrote to whichever
+# one was not being used.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 STACK = os.path.expanduser(
-    "~/GitHub/rs-change-detection/data/alos2_lombok_stack.zarr")
+    _REPO_ROOT + "/data/alos2_lombok_stack.zarr")
 
 
 def main():
