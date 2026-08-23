@@ -1,0 +1,393 @@
+<title>The Flores Shortfall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300&display=swap">
+
+<style>
+:root{
+  --ground:#eef1f4; --panel:#ffffff; --ink:#161a22; --muted:#5c6674;
+  --hair:#d3d9e0; --hair-soft:#e4e9ee;
+  --fringe:#a83f68; --deep:#413e96; --sea:#1c6a71;
+  --rust:#b64a2c; --moss:#527a3c;
+  --shadow:0 1px 2px rgba(22,26,34,.06), 0 8px 28px rgba(22,26,34,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#10141c; --panel:#161b25; --ink:#e6e9ef; --muted:#8d97a6;
+    --hair:#2a313d; --hair-soft:#1e242e;
+    --fringe:#e0759c; --deep:#8b87e8; --sea:#4fb3ba;
+    --rust:#e2795a; --moss:#93bd72;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 32px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#10141c; --panel:#161b25; --ink:#e6e9ef; --muted:#8d97a6;
+  --hair:#2a313d; --hair-soft:#1e242e;
+  --fringe:#e0759c; --deep:#8b87e8; --sea:#4fb3ba;
+  --rust:#e2795a; --moss:#93bd72;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 32px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:Newsreader,Georgia,serif; font-size:18px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 28px 96px}
+.col{max-width:64ch}
+h1,h2,h3,.eyebrow,.stat,.mono{font-family:Archivo,"Helvetica Neue",sans-serif}
+.mono,code,.num,figcaption .src{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- hero ---------- */
+.hero{padding:72px 0 40px; border-bottom:1px solid var(--hair)}
+.eyebrow{
+  font-size:11.5px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--fringe); margin:0 0 20px;
+}
+h1{
+  font-size:clamp(42px,7.2vw,84px); font-weight:700; line-height:.98;
+  letter-spacing:-.028em; margin:0 0 22px; text-wrap:balance;
+}
+.deck{
+  font-size:clamp(19px,2.1vw,23px); line-height:1.5; color:var(--muted);
+  font-weight:300; max-width:34ch; margin:0;
+}
+.hero-grid{display:grid; grid-template-columns:1fr; gap:36px}
+@media(min-width:900px){ .hero-grid{grid-template-columns:1.05fr .95fr; align-items:end} }
+
+.gauge{display:flex; flex-direction:column; gap:14px}
+.gauge-row{display:grid; grid-template-columns:96px 1fr; gap:16px; align-items:center}
+.gauge-lab{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--muted); text-align:right; line-height:1.3;
+}
+.bar{height:34px; position:relative; background:var(--hair-soft); border-radius:2px}
+/* The fill carries no text. At 12.6% of the track the measured bar is
+   narrower than the words "6.8 cm", so a label inside it was clipped by its
+   own fill and collided with the annotation beside it. Labels now sit in the
+   track, after the fill, and the fill is pure geometry. */
+.bar .fill{position:absolute; inset:0 auto 0 0; border-radius:2px}
+.bar .predicted{width:100%; background:var(--fringe)}
+.bar .measured{width:12.6%; background:var(--sea)}
+.bar .tag{
+  position:absolute; top:0; bottom:0; display:flex; align-items:center;
+  gap:9px; font-family:"IBM Plex Mono",monospace; font-weight:600;
+  font-size:15px; white-space:nowrap;
+}
+.bar .tag.inside{left:14px; color:#fff}
+.bar .tag.outside{left:calc(12.6% + 13px); color:var(--ink)}
+.bar .tag small{font-weight:400; font-size:12.5px; color:var(--muted);
+  letter-spacing:.02em}
+.gauge-note{font-size:14px; color:var(--muted); line-height:1.5; margin:4px 0 0}
+
+/* live fringe strip */
+.fringe-wrap{margin:34px 0 0; border:1px solid var(--hair); border-radius:3px; overflow:hidden; background:var(--panel)}
+#fringe{display:block; width:100%; height:76px}
+.fringe-cap{
+  display:flex; justify-content:space-between; gap:16px; padding:9px 13px;
+  border-top:1px solid var(--hair); font-family:"IBM Plex Mono",monospace;
+  font-size:11px; letter-spacing:.04em; color:var(--muted); text-transform:uppercase;
+}
+
+/* ---------- findings ---------- */
+.finding{
+  padding:56px 0; border-bottom:1px solid var(--hair-soft);
+  display:grid; grid-template-columns:1fr; gap:10px;
+}
+@media(min-width:900px){
+  .finding{grid-template-columns:180px 1fr; gap:44px}
+}
+.rail{position:relative}
+.rail .bracket{
+  font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:500;
+  color:var(--sea); letter-spacing:.02em; line-height:1.7;
+  border-left:2px solid var(--sea); padding-left:12px;
+}
+.rail .bracket em{display:block; font-style:normal; color:var(--muted); font-size:11px;
+  text-transform:uppercase; letter-spacing:.09em; margin-top:6px}
+.rail.warn .bracket{color:var(--rust); border-left-color:var(--rust)}
+h2{
+  font-size:clamp(25px,3.1vw,34px); font-weight:600; letter-spacing:-.018em;
+  line-height:1.16; margin:0 0 16px; text-wrap:balance;
+}
+.finding p{margin:0 0 16px; max-width:64ch}
+.finding p:last-child{margin-bottom:0}
+.lede{font-size:20px; line-height:1.55}
+
+/* ---------- figures ---------- */
+figure{margin:30px 0 6px; grid-column:1/-1}
+@media(min-width:900px){ figure{grid-column:2/-1} }
+figure img{
+  display:block; width:100%; height:auto; border:1px solid var(--hair);
+  border-radius:3px; background:var(--panel); box-shadow:var(--shadow);
+}
+figcaption{
+  margin-top:11px; font-size:14.5px; line-height:1.55; color:var(--muted);
+  font-family:Newsreader,Georgia,serif; max-width:78ch;
+}
+figcaption b{color:var(--ink); font-weight:500}
+
+/* ---------- data table ---------- */
+.tablewrap{overflow-x:auto; margin:22px 0 6px}
+table{border-collapse:collapse; width:100%; font-size:15px; min-width:460px}
+th,td{text-align:right; padding:9px 14px; border-bottom:1px solid var(--hair-soft)}
+th:first-child,td:first-child{text-align:left}
+thead th{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.09em; color:var(--muted);
+  border-bottom:1px solid var(--hair);
+}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+tbody td:first-child{font-family:Newsreader,Georgia,serif}
+tbody tr:last-child td{border-bottom:none}
+.dim{color:var(--muted)}
+
+/* ---------- ledger ---------- */
+.ledger{list-style:none; margin:22px 0 0; padding:0; display:grid; gap:1px;
+  background:var(--hair-soft); border:1px solid var(--hair-soft); border-radius:3px}
+.ledger li{background:var(--panel); padding:15px 18px; display:grid; gap:5px}
+@media(min-width:760px){ .ledger li{grid-template-columns:1fr 1fr auto; gap:22px; align-items:baseline} }
+.ledger .what{font-weight:500}
+.ledger .why{color:var(--muted); font-size:15.5px}
+.ledger .caught{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--sea);
+  letter-spacing:.04em; text-transform:uppercase; white-space:nowrap;
+}
+
+/* ---------- arc: made / retracted / restored ---------- */
+.arc{display:grid; gap:1px; margin:24px 0 0; background:var(--hair-soft);
+  border:1px solid var(--hair-soft); border-radius:3px}
+@media(min-width:760px){ .arc{grid-template-columns:repeat(3,1fr)} }
+.arc div{background:var(--panel); padding:17px 18px}
+.arc h3{
+  margin:0 0 8px; font-size:11px; font-weight:600; letter-spacing:.11em;
+  text-transform:uppercase;
+}
+.arc .s1 h3{color:var(--muted)} .arc .s2 h3{color:var(--rust)} .arc .s3 h3{color:var(--moss)}
+.arc p{margin:0; font-size:15.5px; line-height:1.5; color:var(--muted)}
+
+/* ---------- open ---------- */
+.open{padding:52px 0 0}
+.open ul{list-style:none; margin:20px 0 0; padding:0; display:grid; gap:16px}
+.open li{display:grid; grid-template-columns:auto 1fr; gap:16px; align-items:baseline}
+.open .when{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--fringe);
+  letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; min-width:88px;
+}
+.open .what b{font-weight:500}
+.open .what span{color:var(--muted)}
+
+.kicker{
+  margin:52px 0 0; padding:26px 30px; border-left:3px solid var(--fringe);
+  background:var(--panel); border-radius:0 3px 3px 0; box-shadow:var(--shadow);
+}
+.kicker p{margin:0; font-size:19px; line-height:1.55; max-width:70ch}
+.kicker strong{font-weight:500}
+
+footer{
+  margin-top:64px; padding-top:22px; border-top:1px solid var(--hair);
+  display:flex; flex-wrap:wrap; gap:8px 26px; justify-content:space-between;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted);
+  letter-spacing:.04em; text-transform:uppercase;
+}
+a{color:var(--sea)}
+:focus-visible{outline:2px solid var(--fringe); outline-offset:3px}
+@media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">Sentinel-1 InSAR &middot; Flores, Indonesia &middot; M7.7, 14 August 2026</p>
+    <div class="hero-grid">
+      <div>
+        <h1>The Flores Shortfall</h1>
+        <p class="deck">The ground moved about a tenth of what the finite-fault model said it would. Four interferogram pairs, three processing chains, and one number that refuses to grow.</p>
+      </div>
+      <div class="gauge">
+        <div class="gauge-row">
+          <div class="gauge-lab">USGS model<br>predicts</div>
+          <div class="bar"><i class="fill predicted"></i><span class="tag inside">54 cm</span></div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-lab">Sentinel-1<br>measures</div>
+          <div class="bar"><i class="fill measured"></i><span class="tag outside">6.8 cm <small>range 4.4&ndash;8.6</small></span></div>
+        </div>
+        <p class="gauge-note">Line-of-sight displacement, 20&ndash;30&nbsp;km from the epicentre, on the nearest coherent land. The epicentre itself lies 28&nbsp;km offshore.</p>
+      </div>
+    </div>
+
+    <div class="fringe-wrap">
+      <canvas id="fringe" aria-label="Simulated interferometric fringe ramp; each colour cycle represents 2.8 centimetres of range change"></canvas>
+      <div class="fringe-cap"><span>Wrapped phase &mdash; one colour cycle</span><span>= 2.8 cm of range change</span></div>
+    </div>
+  </header>
+
+  <section class="finding">
+    <div class="rail"><div class="bracket">[ 4.44 &ndash; 8.59 ]<em>cm, near field</em></div></div>
+    <div>
+      <h2>Three processing chains, one dataset, one answer</h2>
+      <p class="lede">GMTSAR, MintPy and insardev_pygmtsar were run independently over the same ascending pair. They agree ring by ring to within 1&nbsp;cm &mdash; well under the noise floor of this frame.</p>
+      <p>The spread that remains is not scatter. It tracks how much long-wavelength signal each chain removed: a linear deramp takes out exactly the component a large earthquake produces, so the more deramping, the smaller the answer. The true value is bracketed, not uncertain.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Ring</th><th>GMTSAR</th><th>MintPy</th><th>insardev</th><th>Noise sd</th></tr></thead>
+          <tbody>
+            <tr><td>20&ndash;30 km</td><td>&minus;7.53</td><td>&minus;6.50</td><td>&minus;8.59</td><td class="dim">1.65</td></tr>
+            <tr><td>30&ndash;40 km</td><td>&minus;4.81</td><td>&minus;4.13</td><td>&minus;4.21</td><td class="dim">1.30</td></tr>
+            <tr><td>40&ndash;50 km</td><td>&minus;0.99</td><td>&minus;0.94</td><td>&minus;0.60</td><td class="dim">1.05</td></tr>
+            <tr><td>50&ndash;65 km</td><td>+0.84</td><td>+1.05</td><td>+1.33</td><td class="dim">0.99</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure>
+        <img src="{{FIG1}}" alt="Two maps. Left: line-of-sight displacement over Flores, a deep blue lobe on the north coast directly inshore of the offshore epicentre, decaying eastward. Right: wrapped phase over a 50 km box on that coast, showing ordered interference fringes.">
+        <figcaption><b>The lobe sits where the source is.</b> Displacement decays east and away from the epicentre, which is what deformation does and what atmosphere does not. At full 40&nbsp;m resolution the wrapped phase over that same coast resolves into ordered fringes rather than speckle &mdash; coherence there is median 0.41.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="finding">
+    <div class="rail"><div class="bracket">[ 3.3 &ndash; 4.4 ]<em>sigma, 0 of 76</em></div></div>
+    <div>
+      <h2>Measured against 76 earthquake-free intervals</h2>
+      <p class="lede">A 78-epoch time series on this exact frame yields 76 quiet 12-day intervals &mdash; an empirical record of what this scene's atmosphere and orbit errors do when nothing happens.</p>
+      <p>The co-seismic step is &minus;7.43&nbsp;cm raw and &minus;4.44&nbsp;cm after deramping, at 4.4&nbsp;&sigma; and 3.3&nbsp;&sigma;. <strong>Not one of the 76 quiet intervals is as large as either.</strong> The step is not compared against zero, or against a model, but against the same frame's own behaviour.</p>
+      <figure>
+        <img src="{{FIG2}}" alt="Two charts. Left: radial profiles from three processing chains with error bars from the 76 quiet intervals. Right: bar chart of the co-seismic step raw and deramped, annotated 4.4 sigma and 3.3 sigma.">
+        <figcaption><b>Error bars are earned, not assumed.</b> Every bar is the spread of 76 real intervals on this frame, not a propagated formal uncertainty.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="finding">
+    <div class="rail"><div class="bracket">[ 0.4 ]<em>cm apart, two tracks</em></div></div>
+    <div>
+      <h2>Agreement between chains proves the software. Only a second geometry proves the Earth.</h2>
+      <p class="lede">All three chains eat the same two acquisitions, so the atmosphere of 18&nbsp;August is common to every one of them. Their agreement rules out a processing artefact and says nothing whatever about a weather one.</p>
+      <p>Two descending tracks break that circularity because neither shares an acquisition date with the ascending pair. Their <em>raw</em> profiles disagree completely. Remove each track's own best-fit plane &mdash; the long-wavelength component that orbit error and atmosphere produce &mdash; and they land 0.4&nbsp;cm apart in the near field. Different ramps; one residual underneath.</p>
+      <figure>
+        <img src="{{FIG3}}" alt="Four panels. Two maps of line-of-sight displacement on descending tracks 61 and 163, and two charts showing raw radial profiles that disagree and de-planed profiles that agree closely.">
+        <figcaption><b>What survives plane removal.</b> Source-centred structure of 4.83&nbsp;cm on p61 against 0.57&nbsp;cm in its quiet control, and 6.38 against 1.61 on p163. <span class="dim">Both tracks are descending, differing in incidence angle rather than heading &mdash; there is still no third look direction.</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="finding">
+    <div class="rail warn"><div class="bracket">[ null ]<em>coherence vs damage</em></div></div>
+    <div>
+      <h2>The radar sees the ground move. It barely sees the damage.</h2>
+      <p class="lede">Coherence change &mdash; the standard damage proxy &mdash; carries no spatial relationship to the rupture at all. Its maximum sits at 50&ndash;65&nbsp;km, and the 130&ndash;200&nbsp;km ring matches the near field.</p>
+      <p>The control that makes this readable: coherence cannot genuinely <em>improve</em> because of an earthquake, yet 6.8% of pixels gain more than 0.2 against 18.5% losing it. That gap is the noise floor beneath the loss. And two tracks observing the same ground agree on normalised coherence change at only r&nbsp;=&nbsp;0.44&ndash;0.58, which bounds what any single-track damage map can claim.</p>
+      <figure>
+        <img src="{{FIG4}}" alt="Left: map of coherence change across the rupture, showing red and blue speckle uniformly distributed with no concentration near the epicentre. Right: bar chart of normalised coherence drop by distance ring, essentially flat.">
+        <figcaption><b>Same ground, same frame, no lobe.</b> Compare the displacement map above, where the signal is unmistakable. Coherence change here is speckle at every distance out to 200&nbsp;km.</figcaption>
+      </figure>
+
+      <div class="arc">
+        <div class="s1"><h3>Claimed</h3><p>Coherence loss separates badly from lightly damaged villages &mdash; and replicates across two geometries.</p></div>
+        <div class="s2"><h3>Retracted</h3><p>The two descending tracks share <em>zero</em> reports; they cover opposite ends of the island. The replication compared different villages.</p></div>
+        <div class="s3"><h3>Partly restored</h3><p>That retraction over-read the noise. The intervals overlap. A modest, real effect stands on the best-powered track &mdash; AUC 0.644 [0.539&ndash;0.744].</p></div>
+      </div>
+      <p style="margin-top:22px">The fix was to stop treating unreported ground as undamaged ground. It is ground with no people, no signal, or no agency visit. A presence-only analysis with a <em>target-group background</em> &mdash; where every background point is somewhere a person did file something &mdash; holds accessibility fixed by construction. Controlling that bias <strong>strengthened</strong> the result rather than dissolving it.</p>
+    </div>
+  </section>
+
+  <section class="finding">
+    <div class="rail"><div class="bracket">[ 138 &ndash; 396 ]<em>of 452 reports</em></div></div>
+    <div>
+      <h2>No single frame covers the island</h2>
+      <p class="lede">Flores runs 340&nbsp;km east to west; a Sentinel-1 frame is 250&nbsp;km across. Because the along-track direction is nearly north&ndash;south, it is longitude that gets cut &mdash; and a frame's latitude range says nothing about it.</p>
+      <p>Frame 1148, the primary frame, holds 191 of 452 damage reports. The western third &mdash; Labuan Bajo and the Manggarai highlands, where the single largest cluster of 235 reports sits &mdash; falls outside it entirely. Complete coverage needs ascending <em>and</em> descending. Separately: Sentinel-1C has never once recorded the Flores frame on descending path 163, 0 of 8 passes since May, so the constellation's nominal six-day revisit does not apply to this ground.</p>
+      <figure>
+        <img src="{{FIG5}}" alt="Map of coherent ground in three Sentinel-1 frames across Flores with 452 damage reports overlaid. The descending 61 frame covers the west, ascending 1148 the centre and east, descending 163 the far east.">
+        <figcaption><b>Why the &ldquo;replication&rdquo; was an illusion.</b> The two descending tracks barely overlap, so they observe different villages and share no reports. That was geometry, not bad luck &mdash; and it should have been checked before treating three tracks as replicates.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="finding">
+    <div class="rail warn"><div class="bracket">[ 8 ]<em>errors caught</em></div></div>
+    <div>
+      <h2>What went wrong, and what caught it</h2>
+      <p class="lede">Every genuine advance here came from a control that could have failed. This is the ledger of the ones that did.</p>
+      <ul class="ledger">
+        <li><span class="what">Frame chosen for containing the epicentre</span><span class="why">The epicentre is offshore. That frame held 4.9% of the deforming ground.</span><span class="caught">land-coverage test</span></li>
+        <li><span class="what">A tidy cluster of the largest coherence drops</span><span class="why">All at 0&nbsp;m elevation, 0&deg; slope, 100&nbsp;m from the sea. Shoreline, not damage.</span><span class="caught">terrain check</span></li>
+        <li><span class="what">&ldquo;Three chains agree&rdquo; read as confirmation</span><span class="why">All three share the same two acquisitions.</span><span class="caught">naming the confound first</span></li>
+        <li><span class="what">Coherence&ndash;damage replication across geometries</span><span class="why">The two descending tracks share zero reports.</span><span class="caught">common-report test</span></li>
+        <li><span class="what">That retraction, in turn too strong</span><span class="why">Confidence intervals overlap. Two noisy estimates are not a contradiction.</span><span class="caught">presence-only re-analysis</span></li>
+        <li><span class="what">Submit guard keyed on job names</span><span class="why">The same granules under a new label would have re-bought 30 credits.</span><span class="caught">granule-pair keying</span></li>
+        <li><span class="what"><code>include_los_displacement</code> recorded but ignored</span><span class="why">HyP3 accepts the deprecated parameter and delivers no band.</span><span class="caught">checking delivered files</span></li>
+        <li><span class="what">A damage map legend that read backwards</span><span class="why">RdBu maps low values to red; the caption said blue for loss.</span><span class="caught">reading the figure</span></li>
+      </ul>
+      <p style="margin-top:24px">Nine predictions were registered in writing while the final products were still queued. <strong>Five held.</strong> Two of the four failures moved the argument forward &mdash; the baseline-matched coherence drop came out at &minus;0.008 rather than the predicted +0.012 to +0.022, confirming more firmly than expected that an earlier result had been a baseline artefact. One forced the retraction above.</p>
+    </div>
+  </section>
+
+  <section class="open">
+    <h2>Still open</h2>
+    <ul>
+      <li><span class="when">~30 Aug</span><span class="what"><b>A second post-event epoch.</b> <span>Every track has only one. On a single track the co-seismic step and that day's atmosphere are not separable by any inversion &mdash; three tracks did not change that. Two post-event epochs difference against each other. This is worth more than any reprocessing of what exists.</span></span></li>
+      <li><span class="when">~7 Sept</span><span class="what"><b>Precise orbits.</b> <span>Would collapse the plane-versus-signal degeneracy that costs 2&ndash;3&nbsp;cm on every profile.</span></span></li>
+      <li><span class="when">Pending</span><span class="what"><b>ERA5 tropospheric correction.</b> <span>Unpublished for 18 August at the time of the run; the 6 August field is already cached.</span></span></li>
+      <li><span class="when">Fieldwork</span><span class="what"><b>Confirmed absences.</b> <span>Turning a relative rate into a damage probability needs someone visiting places that filed no report and recording them as undamaged. No amount of radar substitutes for this.</span></span></li>
+      <li><span class="when">Fieldwork</span><span class="what"><b>Two landslide candidates.</b> <span>&minus;8.7046 / 121.5505 at 49&nbsp;km and &minus;8.7226 / 122.2152 at 106&nbsp;km. Steep &mdash; 32&deg; and 36&deg; against a scene median of 17.5&deg; &mdash; unreported, and visible in both baseline-matched tracks. Has anyone been to them?</span></span></li>
+    </ul>
+
+    <div class="kicker">
+      <p><strong>Reproducibility is not validity.</strong> Three implementations of the same algorithms, run over the same two files, agreed to within a centimetre &mdash; and that agreement said nothing at all about the atmosphere they all shared. The result only became believable when a control was introduced that could have killed it: a quiet interval, a disjoint acquisition date, a background drawn from the same sampling process, or a terrain check on a finding that looked too good.</p>
+    </div>
+
+    <footer>
+      <span>Sentinel-1 A/C/D &middot; ESA Copernicus &middot; processed via ASF HyP3, GMTSAR, MintPy, insardev_pygmtsar</span>
+      <span>Damage reports: BPBD NTT &amp; Geoportal Informasi Kebencanaan</span>
+      <span>23 August 2026</span>
+    </footer>
+  </section>
+</div>
+
+<script>
+(function(){
+  var c = document.getElementById('fringe');
+  if(!c) return;
+  var ctx = c.getContext('2d');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // twilight-like cyclic ramp: indigo -> magenta -> cream -> teal -> indigo.
+  // Sampled from the same colour wheel the interferogram figures use, so the
+  // strip and the maps read as one instrument.
+  var stops = [[38,34,74],[122,52,120],[196,92,140],[236,205,205],
+               [92,150,160],[46,74,120],[38,34,74]];
+  function wheel(t){
+    t = t - Math.floor(t);
+    var f = t * (stops.length - 1), i = Math.floor(f), k = f - i;
+    var a = stops[i], b = stops[i+1];
+    return 'rgb(' + Math.round(a[0]+(b[0]-a[0])*k) + ',' +
+                    Math.round(a[1]+(b[1]-a[1])*k) + ',' +
+                    Math.round(a[2]+(b[2]-a[2])*k) + ')';
+  }
+  var phase = 0, W = 0, H = 0;
+  function size(){
+    var r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    W = Math.max(1, Math.round(r.width)); H = Math.max(1, Math.round(r.height));
+    c.width = W * d; c.height = H * d;
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  function draw(){
+    // Fringe rate increases to the left, as it does approaching a source.
+    for(var x = 0; x < W; x++){
+      var u = x / W;
+      var cycles = 1.1 + 7.5 * Math.pow(1 - u, 1.7);
+      ctx.fillStyle = wheel(cycles * u * 3.0 + phase);
+      ctx.fillRect(x, 0, 1, H);
+    }
+  }
+  function loop(){ phase += 0.0016; draw(); requestAnimationFrame(loop); }
+  window.addEventListener('resize', function(){ size(); draw(); });
+  size(); draw();
+  if(!reduce) loop();
+})();
+</script>
