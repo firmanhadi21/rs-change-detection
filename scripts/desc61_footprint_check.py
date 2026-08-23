@@ -29,13 +29,20 @@ import urllib.request
 # this machine and a hardcoded ~ path wrote to whichever
 # one was not being used.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# data/ and output/ are ~63 GB each and live on the external SSD; the internal
+# disk has run to 12 GiB free. Resolved at runtime so an unmounted volume
+# falls back to this checkout instead of failing.
+_SSD_ROOT = "/Volumes/ExtremeSSD/Dropbox/GitHub/rs-change-detection"
+_DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
+              or (_SSD_ROOT if os.path.isdir(_SSD_ROOT) else _REPO_ROOT))
 API = "https://api.daac.asf.alaska.edu/services/search/param"
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 REF_DATE = "2026-08-02"          # S1D, last pre-event path-61 acquisition
 SEC_DATE = "2026-08-20"          # S1C, first post-event path-61 acquisition
 PATH_NO = "61"
 DEM = os.path.expanduser(
-    _REPO_ROOT + "/data/insardev_flores/dem.nc")
+    _DATA_ROOT + "/data/insardev_flores/dem.nc")
 
 
 def fetch(**q):

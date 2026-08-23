@@ -42,9 +42,16 @@ from gradient_zscore import (COEVENT, FRAME_LATMAX, FRINGE_CM,   # noqa: E402
 # this machine and a hardcoded ~ path wrote to whichever
 # one was not being used.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# data/ and output/ are ~63 GB each and live on the external SSD; the internal
+# disk has run to 12 GiB free. Resolved at runtime so an unmounted volume
+# falls back to this checkout instead of failing.
+_SSD_ROOT = "/Volumes/ExtremeSSD/Dropbox/GitHub/rs-change-detection"
+_DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
+              or (_SSD_ROOT if os.path.isdir(_SSD_ROOT) else _REPO_ROOT))
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 OUT = os.path.expanduser(
-    _REPO_ROOT + "/output/coseismic/nw_patch_evidence.png")
+    _DATA_ROOT + "/output/coseismic/nw_patch_evidence.png")
 
 
 def load_patch(unw_path, corr_path, lat_max, min_coh=0.3):

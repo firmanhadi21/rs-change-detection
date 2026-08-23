@@ -32,9 +32,16 @@ import sys
 import numpy as np
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(_REPO_ROOT, "output/coseismic")
+
+# data/ and output/ are ~63 GB each and live on the external SSD; the internal
+# disk has run to 12 GiB free. Resolved at runtime so an unmounted volume
+# falls back to this checkout instead of failing.
+_SSD_ROOT = "/Volumes/ExtremeSSD/Dropbox/GitHub/rs-change-detection"
+_DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
+              or (_SSD_ROOT if os.path.isdir(_SSD_ROOT) else _REPO_ROOT))
+OUT = os.path.join(_DATA_ROOT, "output/coseismic")
 FIGDIR = os.path.join(_REPO_ROOT, "docs/figures")
-REPORTS = os.path.join(_REPO_ROOT, "data/eq_reports.geojson")
+REPORTS = os.path.join(_DATA_ROOT, "data/eq_reports.geojson")
 EPI = (121.3517, -8.3101)
 
 INK = "#1a1f24"

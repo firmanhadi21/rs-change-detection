@@ -55,6 +55,13 @@ import numpy as np
 # this machine and a hardcoded ~ path wrote to whichever
 # one was not being used.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# data/ and output/ are ~63 GB each and live on the external SSD; the internal
+# disk has run to 12 GiB free. Resolved at runtime so an unmounted volume
+# falls back to this checkout instead of failing.
+_SSD_ROOT = "/Volumes/ExtremeSSD/Dropbox/GitHub/rs-change-detection"
+_DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
+              or (_SSD_ROOT if os.path.isdir(_SSD_ROOT) else _REPO_ROOT))
 try:
     import rasterio
     from rasterio.warp import Resampling, reproject
@@ -63,7 +70,7 @@ except ImportError:                                    # pragma: no cover
     sys.exit("needs rasterio: run under `conda run -n base`")
 
 BASE = os.path.expanduser(
-    _REPO_ROOT + "/output/coseismic/baseline/hyp3")
+    _DATA_ROOT + "/output/coseismic/baseline/hyp3")
 EPI_LON, EPI_LAT = 121.3517, -8.3101
 KM_LAT = 110.57
 COEVENT = "20260806_20260818"

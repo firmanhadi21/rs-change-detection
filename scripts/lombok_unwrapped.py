@@ -50,6 +50,13 @@ import numpy as np
 # this machine and a hardcoded ~ path wrote to whichever
 # one was not being used.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# data/ and output/ are ~63 GB each and live on the external SSD; the internal
+# disk has run to 12 GiB free. Resolved at runtime so an unmounted volume
+# falls back to this checkout instead of failing.
+_SSD_ROOT = "/Volumes/ExtremeSSD/Dropbox/GitHub/rs-change-detection"
+_DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
+              or (_SSD_ROOT if os.path.isdir(_SSD_ROOT) else _REPO_ROOT))
 try:
     import xarray as xr
 except ImportError:                                   # pragma: no cover
@@ -58,7 +65,7 @@ except ImportError:                                   # pragma: no cover
 D = os.path.expanduser(
     "~/Teaching/UNDIP/InSAR/EQ/Pair1/intf/2018132_2018216")
 OUT = os.path.expanduser(
-    _REPO_ROOT + "/output/lombok_unwrapped.png")
+    _DATA_ROOT + "/output/lombok_unwrapped.png")
 
 WAVELENGTH_M = 0.242452
 CM_PER_RAD = WAVELENGTH_M / (4 * np.pi) * 100     # 1.930 cm per radian

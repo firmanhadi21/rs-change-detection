@@ -50,6 +50,13 @@ import numpy as np
 # this machine and a hardcoded ~ path wrote to whichever
 # one was not being used.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# data/ and output/ are ~63 GB each and live on the external SSD; the internal
+# disk has run to 12 GiB free. Resolved at runtime so an unmounted volume
+# falls back to this checkout instead of failing.
+_SSD_ROOT = "/Volumes/ExtremeSSD/Dropbox/GitHub/rs-change-detection"
+_DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
+              or (_SSD_ROOT if os.path.isdir(_SSD_ROOT) else _REPO_ROOT))
 try:
     import xarray as xr
 except ImportError:                                   # pragma: no cover
@@ -62,7 +69,7 @@ DEM = os.path.join(D, "dem_ll.grd")   # topo/dem.grd resampled onto the
 # GMTSAR wrote the geocoded products at 116.x - 360, so the two do not overlap
 # until the longitude convention is reconciled.
 OUT = os.path.expanduser(
-    _REPO_ROOT + "/output/lombok_topo_vs_deformation.png")
+    _DATA_ROOT + "/output/lombok_topo_vs_deformation.png")
 
 CM_PER_RAD = 0.242452 / (4 * np.pi) * 100
 KM_LAT = 110.57

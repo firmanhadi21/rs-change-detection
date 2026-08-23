@@ -41,9 +41,16 @@ from earthchange import alos2                              # noqa: E402
 # this machine and a hardcoded ~ path wrote to whichever
 # one was not being used.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# data/ and output/ are ~63 GB each and live on the external SSD; the internal
+# disk has run to 12 GiB free. Resolved at runtime so an unmounted volume
+# falls back to this checkout instead of failing.
+_SSD_ROOT = "/Volumes/ExtremeSSD/Dropbox/GitHub/rs-change-detection"
+_DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
+              or (_SSD_ROOT if os.path.isdir(_SSD_ROOT) else _REPO_ROOT))
 LOMBOK = os.path.expanduser("~/Teaching/UNDIP/InSAR/EQ/Pair1/raw")
 BRAZIL = os.path.expanduser(
-    _REPO_ROOT + "/data/ALOS2_Brazil/raw")
+    _DATA_ROOT + "/data/ALOS2_Brazil/raw")
 
 
 def check(label, ok, detail=""):
