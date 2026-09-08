@@ -183,6 +183,18 @@ def run(backend, lat, lon, radius_km, name, run_dir, run_id, *,
         spacing=(spacing, spacing), span=span,
         levels=(0, int(layer_top)), sample_hours=sample_hours)
 
+    # The grid is centred on the source by construction, so this is a free
+    # check that the header was read with the right cell convention. Half a
+    # cell of error is invisible on a 30-degree map and moves a plume 3 km,
+    # which is the sort of thing that survives review.
+    cx = meta["lon0"] + (meta["nlon"] - 1) / 2.0 * meta["dlon"]
+    cy = meta["lat0"] + (meta["nlat"] - 1) / 2.0 * meta["dlat"]
+    if max(abs(cx - lon), abs(cy - lat)) > 0.51 * max(meta["dlon"],
+                                                     meta["dlat"]):
+        print(f"  WARNING: grid centre ({cx:.4f}, {cy:.4f}) is not the source "
+              f"({lon:.4f}, {lat:.4f}). The cdump georeference is not what "
+              f"this code assumes; treat positions with suspicion.")
+
     field, nsamp = average_layer(grids, meta, int(layer_top))
     vmax = max((v for row in field for v in row), default=0.0)
     nz = [v for row in field for v in row if v > 0]
@@ -237,10 +249,19 @@ def _plot(field, meta, slat, slon, start, hours, layer_top, vmax, vmin,
         arr = arr[j0:j1 + 1, i0:i1 + 1]
     else:
         i0, j0 = 0, 0
-    lon0 = meta["lon0"] + i0 * meta["dlon"]
-    lat0 = meta["lat0"] + j0 * meta["dlat"]
-    extent = [lon0, lon0 + arr.shape[1] * meta["dlon"],
-              lat0, lat0 + arr.shape[0] * meta["dlat"]]
+    # meta lat0/lon0 are the CENTRE of the lower-left cell, not the grid edge.
+    # HYSPLIT proves it: it centres the grid on the source, and
+    #     lon0 + (nlon-1)/2 * dlon  ==  source longitude, exactly.
+    # imshow's extent wants the outer EDGES, so half a cell comes off each
+    # side. Treating the centre as an edge drew the whole field 0.025 deg
+    # (~2.8 km) northeast of the truth while the source star, plotted from its
+    # own coordinates, stayed put -- so the plume appeared detached from the
+    # vent that produced it.
+    half_x, half_y = meta["dlon"] / 2.0, meta["dlat"] / 2.0
+    left = meta["lon0"] - half_x + i0 * meta["dlon"]
+    bottom = meta["lat0"] - half_y + j0 * meta["dlat"]
+    extent = [left, left + arr.shape[1] * meta["dlon"],
+              bottom, bottom + arr.shape[0] * meta["dlat"]]
 
     bounds = _decades(vmax)
     cmap = ListedColormap(CLASS_COLOURS[:len(bounds) - 1])
@@ -254,12 +275,20 @@ def _plot(field, meta, slat, slon, start, hours, layer_top, vmax, vmin,
         fig = plt.figure(figsize=(11, 8.2))
         ax = fig.add_axes([0.06, 0.09, 0.64, 0.79], projection=proj)
         ax.set_extent(extent, crs=proj)
-        ax.add_feature(cfeature.LAND.with_scale("50m"), fc="#f4f2ee", zorder=0)
-        ax.add_feature(cfeature.OCEAN.with_scale("50m"), fc="#dce8f0",
+        # Coastline detail from the domain, not fixed. At 50 m the Krakatau
+        # island group is not drawn at all, so a source sitting on it appeared
+        # to float in open water beside Sumatra -- the map made a correct
+        # position look wrong. Small volcanic islands are exactly the sources
+        # this scenario is pointed at, so a regional domain gets 10 m.
+        span_deg = max(extent[1] - extent[0], extent[3] - extent[2])
+        scale = "10m" if span_deg <= 15 else "50m"
+        ax.add_feature(cfeature.LAND.with_scale(scale), fc="#f4f2ee",
                        zorder=0)
-        ax.add_feature(cfeature.COASTLINE.with_scale("50m"), lw=.7,
+        ax.add_feature(cfeature.OCEAN.with_scale(scale), fc="#dce8f0",
+                       zorder=0)
+        ax.add_feature(cfeature.COASTLINE.with_scale(scale), lw=.7,
                        ec="#4a5560", zorder=3)
-        ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=.5,
+        ax.add_feature(cfeature.BORDERS.with_scale(scale), lw=.5,
                        ec="#8a949e", ls=":", zorder=3)
         gl = ax.gridlines(draw_labels=True, lw=.5, color="#9fb3c8",
                           alpha=.6, ls=":")

@@ -628,10 +628,20 @@ def read_cdump(path):
     and meta carries the grid geometry:
         {"nlat", "nlon", "dlat", "dlon", "lat0", "lon0", "levels", "pollutants"}
 
-    lat0/lon0 are the LOWER-LEFT corner, so row 0 of data is the southernmost
-    row. Anything that renders this with origin="upper" without flipping will
-    put the plume on the wrong side of the source, which is the kind of error
-    that looks plausible and is not.
+    lat0/lon0 are the CENTRE of the lower-left CELL, not the outer corner of
+    the grid -- HYSPLIT's own documentation calls it the "lower left corner"
+    and means the corner cell. The distinction is half a cell and it is easy
+    to lose: verified here because HYSPLIT centres the grid on the source and
+
+        lon0 + (nlon - 1) / 2 * dlon  ==  source longitude, exactly.
+
+    So cell (j, i) has its CENTRE at (lat0 + j*dlat, lon0 + i*dlon). Anything
+    handing this to an image extent, which wants outer edges, must subtract
+    half a cell from each low side.
+
+    Row 0 is the southernmost, so rendering with origin="upper" and no flip
+    puts the plume on the wrong side of the source -- the kind of error that
+    looks plausible and is not.
     """
     with open(path, "rb") as f:
         raw = f.read()
