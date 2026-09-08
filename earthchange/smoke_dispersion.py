@@ -252,7 +252,7 @@ def _plot(field, meta, slat, slon, start, hours, layer_top, vmax, vmin,
         import cartopy.feature as cfeature
         proj = ccrs.PlateCarree()
         fig = plt.figure(figsize=(11, 8.2))
-        ax = fig.add_axes([0.06, 0.10, 0.64, 0.78], projection=proj)
+        ax = fig.add_axes([0.06, 0.09, 0.64, 0.79], projection=proj)
         ax.set_extent(extent, crs=proj)
         ax.add_feature(cfeature.LAND.with_scale("50m"), fc="#f4f2ee", zorder=0)
         ax.add_feature(cfeature.OCEAN.with_scale("50m"), fc="#dce8f0",
@@ -269,7 +269,7 @@ def _plot(field, meta, slat, slon, start, hours, layer_top, vmax, vmin,
         # cartopy is optional; a bare axes still carries the science, it just
         # loses the coastline. Better than refusing to draw.
         fig = plt.figure(figsize=(11, 8.2))
-        ax = fig.add_axes([0.06, 0.10, 0.64, 0.78])
+        ax = fig.add_axes([0.06, 0.09, 0.64, 0.79])
         ax.set_xlim(extent[0], extent[1]); ax.set_ylim(extent[2], extent[3])
         ax.grid(alpha=.3, ls=":")
         kw = {}
@@ -284,14 +284,21 @@ def _plot(field, meta, slat, slon, start, hours, layer_top, vmax, vmin,
     stop = start + dt.timedelta(hours=hours)
     unit = rate_units or "unit mass"
     conc_unit = f"{unit}/m3" if rate_units else "relative"
-    ax.set_title(
-        f"{name} — HYSPLIT dispersion\n"
-        f"Concentration averaged 0–{int(layer_top)} m, "
-        f"integrated {start:%d %b %H:%M} → {stop:%d %b %H:%M} UTC",
-        fontsize=12, loc="left")
+
+    # fig.text, not ax.set_title: on cartopy 0.25 with matplotlib 3.11 a
+    # GeoAxes title silently does not render -- the artist is created and
+    # carries the text, and nothing appears. Reproduced in six lines, so it is
+    # the pairing rather than anything here. Figure coordinates also place the
+    # header better against a fixed add_axes rect.
+    fig.text(0.06, 0.965, f"{name} — HYSPLIT dispersion", fontsize=14,
+             weight="bold", va="top")
+    fig.text(0.06, 0.925,
+             f"Concentration averaged 0–{int(layer_top)} m AGL, integrated "
+             f"{start:%d %b %Y %H:%M} → {stop:%d %b %H:%M} UTC",
+             fontsize=10.5, color="#42505e", va="top")
 
     # Legend panel, laid out like the published plots people compare against.
-    lax = fig.add_axes([0.72, 0.10, 0.26, 0.78])
+    lax = fig.add_axes([0.72, 0.09, 0.26, 0.79])
     lax.axis("off")
     y = 0.97
     lax.text(0, y, "Concentration", fontsize=10.5, weight="bold", va="top")
