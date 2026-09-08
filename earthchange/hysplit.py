@@ -33,6 +33,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -335,38 +336,105 @@ def fetch_met(keys, cache_dir, hours=None, direction="forward"):
     return sorted(out, key=os.path.basename)
 
 
-def _download(key, name, dest, hours, direction):
-    """One weekly file, streamed to a .part and renamed only when complete.
+def _remote_size(url, timeout=60):
+    req = urllib.request.Request(url, method="HEAD")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return int(r.headers.get("Content-Length") or 0)
 
-    A half-written file left at the real name would be treated as cached by the
-    next run and handed to HYSPLIT as meteorology.
+
+def _download(key, name, dest, hours, direction, attempts=6,
+              timeout=120, stall_s=180):
+    """One met file, resumable, streamed to a .part and renamed when complete.
+
+    A half-written file left at the real name would be treated as cached by
+    the next run and handed to HYSPLIT as meteorology.
+
+    THIS USED TO HANG FOREVER. urlopen without a timeout blocks indefinitely
+    when the connection stalls rather than closes, and S3 does that. On a
+    571 MiB weekly file it was survivable; on a 3.1 GiB gfs0p25 file it stopped
+    at 2.25 GiB and sat there for three hours with the process alive, the
+    socket open and the file not growing. There was no way for the caller to
+    tell that apart from a slow link.
+
+    So: a read timeout, a stall detector for the case where bytes trickle but
+    the transfer will never finish, and HTTP range resume, because restarting
+    a 3 GiB download from zero on every retry is its own kind of failure.
     """
-    print(f"  fetching {name} from ARL public S3 …")
+    url = f"{ARL_BUCKET}/{key}"
     tmp = dest + ".part"
     try:
-        with urllib.request.urlopen(f"{ARL_BUCKET}/{key}") as r, \
-                open(tmp, "wb") as f:
-            total = int(r.headers.get("Content-Length") or 0)
-            got = 0
-            while True:
-                chunk = r.read(1 << 22)
-                if not chunk:
-                    break
-                f.write(chunk)
-                got += len(chunk)
-                if total:
-                    print(f"\r    {got / 2**20:6.0f} / {total / 2**20:.0f} MiB",
-                          end="", flush=True)
-            print()
+        total = _remote_size(url, timeout=timeout)
     except Exception as exc:                                       # noqa: BLE001
-        if os.path.exists(tmp):
-            os.remove(tmp)
-        # A 404 is not a network problem: ARL writes each weekly file only once
-        # its week has run, so the current week is simply not there yet.
         if isinstance(exc, urllib.error.HTTPError) and exc.code == 404:
             raise SystemExit(availability_message(name, archive_end(), hours,
                                                   direction))
-        raise SystemExit(f"Could not fetch {key} from ARL S3: {exc}")
+        total = 0
+
+    for attempt in range(1, attempts + 1):
+        have = os.path.getsize(tmp) if os.path.exists(tmp) else 0
+        if total and have == total:
+            break
+        if have and total and have > total:      # stale or corrupt partial
+            os.remove(tmp)
+            have = 0
+
+        req = urllib.request.Request(url)
+        if have:
+            req.add_header("Range", f"bytes={have}-")
+            print(f"  resuming {name} at {have / 2**30:.2f} GiB "
+                  f"(attempt {attempt}/{attempts}) …")
+        else:
+            print(f"  fetching {name} from ARL public S3 "
+                  f"({total / 2**30:.2f} GiB) …" if total
+                  else f"  fetching {name} from ARL public S3 …")
+
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                # A server that ignores Range restarts at zero; appending then
+                # would corrupt the file silently.
+                mode = "ab" if (have and r.status == 206) else "wb"
+                if mode == "wb":
+                    have = 0
+                last = time.monotonic()
+                with open(tmp, mode) as f:
+                    while True:
+                        chunk = r.read(1 << 22)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        have += len(chunk)
+                        last = time.monotonic()
+                        if total:
+                            print(f"\r    {have / 2**30:5.2f} / "
+                                  f"{total / 2**30:.2f} GiB", end="",
+                                  flush=True)
+                        if time.monotonic() - last > stall_s:
+                            raise TimeoutError("transfer stalled")
+                print()
+        except Exception as exc:                               # noqa: BLE001
+            if isinstance(exc, urllib.error.HTTPError) and exc.code == 404:
+                raise SystemExit(availability_message(
+                    name, archive_end(), hours, direction))
+            print(f"\n  {type(exc).__name__}: {exc} — "
+                  f"{'retrying' if attempt < attempts else 'giving up'}")
+            if attempt == attempts:
+                raise SystemExit(
+                    f"Could not fetch {key} from ARL S3 after {attempts} "
+                    f"attempts: {exc}\n"
+                    f"  {os.path.getsize(tmp) / 2**30:.2f} GiB is kept at "
+                    f"{tmp} and the next run resumes from there."
+                    if os.path.exists(tmp) else
+                    f"Could not fetch {key} from ARL S3: {exc}")
+            time.sleep(min(30, 2 ** attempt))
+            continue
+
+        if not total or os.path.getsize(tmp) >= total:
+            break
+
+    if total and os.path.getsize(tmp) != total:
+        raise SystemExit(
+            f"{name}: got {os.path.getsize(tmp)} bytes, expected {total}. "
+            f"Partial file kept at {tmp} for resume.")
     os.replace(tmp, dest)
 
 
