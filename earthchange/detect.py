@@ -515,6 +515,23 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                         met_cache=args.met_cache, receptors=args.receptors)
         return True
 
+    if method == "smoke_dispersion":
+        from . import smoke_dispersion
+        sd_h = ([float(x) for x in args.track_heights.split(",")]
+                if args.track_heights else (10.0,))
+        smoke_dispersion.run(args.backend, lat, lon, radius, name, run_dir,
+                             run_id, day=args.date, hours=args.track_hours,
+                             heights=sd_h, duration=args.release_hours,
+                             rate=args.emission_rate,
+                             rate_units=args.emission_units,
+                             layer_top=args.layer_top,
+                             sample_hours=args.sample_hours,
+                             spacing=args.grid_spacing,
+                             hysplit_bin=args.hysplit_bin,
+                             met_cache=args.met_cache,
+                             met_product=args.met_product, lang=args.lang)
+        return True
+
     if method == "smoke_exposure":
         from . import exposure
         ex_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
@@ -737,6 +754,34 @@ def build_parser():
                          "these places instead of the automatic worst-PM2.5 "
                          "district ranking, e.g. "
                          "'Pontianak,109.33,-0.02; Kuching,110.34,1.55'")
+    ap.add_argument("--layer-top", type=int, default=10000,
+                    help="smoke-dispersion: top of the layer the "
+                         "concentration is averaged through, m AGL "
+                         "(default 10000; use ~500 for surface exposure)")
+    ap.add_argument("--emission-rate", type=float, default=1.0,
+                    help="smoke-dispersion: mass released per hour "
+                         "(default 1.0 = unit mass, giving a RELATIVE field)")
+    ap.add_argument("--emission-units", default=None,
+                    help="smoke-dispersion: name the mass unit, e.g. 'kg'. "
+                         "Only pass this with a real inventory: it relabels "
+                         "the map from relative to absolute concentration")
+    ap.add_argument("--release-hours", type=float, default=1.0,
+                    help="smoke-dispersion: how long the release lasts "
+                         "(default 1 h)")
+    ap.add_argument("--grid-spacing", type=float, default=0.05,
+                    help="smoke-dispersion: concentration grid cell in "
+                         "degrees (default 0.05)")
+    ap.add_argument("--sample-hours", type=int, default=1,
+                    help="smoke-dispersion: averaging interval in hours "
+                         "(default 1)")
+    ap.add_argument("--met-product", default="gdas1",
+                    choices=("gdas1", "gfs0p25", "gdas0p5"),
+                    help="which ARL meteorology to drive HYSPLIT with. "
+                         "gdas1 (default) is 1 deg, 571 MiB per WEEK, and "
+                         "lags about a week. gfs0p25 is 0.25 deg and written "
+                         "DAILY so it reaches yesterday, but is 3.1 GiB per "
+                         "day and ARL classes it as forecast, which the "
+                         "unregistered HYSPLIT build may refuse for dispersion")
     ap.add_argument("--hysplit-bin", metavar="PATH",
                     help="path to hyts_std, if it is not on PATH or under "
                          "$HYSPLIT_DIR")

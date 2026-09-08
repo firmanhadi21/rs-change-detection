@@ -30,6 +30,7 @@ import datetime as dt
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import urllib.error
@@ -86,32 +87,120 @@ def _install_root(binary):
     return parent if os.path.basename(exec_dir) == "exec" else exec_dir
 
 
-def find_binary(explicit=None):
-    """Locate hyts_std: explicit path, then HYSPLIT_DIR, then PATH, then hints."""
+EXE = {"trajectory": "hyts_std", "concentration": "hycs_std"}
+
+
+def find_binary(explicit=None, kind="trajectory"):
+    """Locate the HYSPLIT executable: explicit, HYSPLIT_DIR, PATH, then hints.
+
+    `kind` picks the model: trajectories are hyts_std, dispersion is hycs_std.
+    They are separate executables in the same exec/ directory -- running a
+    concentration CONTROL through hyts_std does not fail loudly, it reads the
+    first eleven records and silently ignores the emission, grid and deposition
+    blocks that make it a dispersion run.
+    """
+    exe = EXE.get(kind)
+    if exe is None:
+        raise ValueError(f"unknown HYSPLIT model kind: {kind!r}")
+
     if explicit:
         p = os.path.expanduser(explicit)
         if os.path.isfile(p) and os.access(p, os.X_OK):
+            # An explicit path for the wrong model is worth catching here: the
+            # failure it causes downstream is an empty cdump with exit 0.
+            if os.path.basename(p) != exe and kind == "concentration":
+                sibling = os.path.join(os.path.dirname(p), exe)
+                if os.access(sibling, os.X_OK):
+                    return sibling
+                raise SystemExit(
+                    f"--hysplit-bin points at {os.path.basename(p)}, but a "
+                    f"dispersion run needs {exe}, and it is not beside it.")
             return p
         raise SystemExit(f"--hysplit-bin: not an executable file: {p}")
 
     root = os.environ.get("HYSPLIT_DIR")
     if root:
-        p = os.path.join(os.path.expanduser(root), "exec", "hyts_std")
+        p = os.path.join(os.path.expanduser(root), "exec", exe)
         if os.access(p, os.X_OK):
             return p
 
-    found = shutil.which("hyts_std")
+    found = shutil.which(exe)
     if found:
         return found
 
     for hint in BIN_HINTS:
-        p = os.path.join(os.path.expanduser(hint), "hyts_std")
+        p = os.path.join(os.path.expanduser(hint), exe)
         if os.access(p, os.X_OK):
             return p
     return None
 
 
-def met_keys(start, hours, direction="forward"):
+# ARL publishes several meteorologies on the same public bucket, and which one
+# a run can use is usually decided by the calendar rather than by preference.
+# GDAS1 is weekly and lags about a week, so the last few days are simply not
+# there; GFS 0.25 is written daily and reaches yesterday. That gap is exactly
+# where an eruption or a fire that matters lands.
+#
+#   forecast=True marks a product ARL classes as forecast. The unregistered
+#   HYSPLIT build refuses DISPERSION on forecast meteorology -- trajectories
+#   are fine. Recorded here so the failure can be explained rather than
+#   discovered as an unexplained exit.
+MET_PRODUCTS = {
+    "gdas1": {
+        "cadence": "weekly", "res": "1 deg, 3-hourly", "size_mib": 571,
+        "start": dt.date(2004, 12, 1), "forecast": False,
+    },
+    "gfs0p25": {
+        "cadence": "daily", "res": "0.25 deg, 3-hourly", "size_mib": 3192,
+        "start": dt.date(2019, 6, 13), "forecast": True,
+    },
+    "gdas0p5": {
+        "cadence": "daily", "res": "0.5 deg, 3-hourly", "size_mib": 1100,
+        "start": dt.date(2007, 9, 1), "forecast": False,
+    },
+}
+
+
+def _daily_keys(start, hours, direction, product):
+    """Day files spanning the run, for the products written one file per day."""
+    span = dt.timedelta(hours=abs(hours))
+    day1 = dt.timedelta(days=1)
+    # No extra day of margin here, unlike the weekly path. A daily file covers
+    # its own calendar day, so the days containing the two endpoints are
+    # exactly what the run needs -- and at 3.1 GiB each an unnecessary margin
+    # file is a third of the download for nothing.
+    if direction == "backward":
+        lo, hi = start - span, start
+    else:
+        lo, hi = start, start + span
+    floor = MET_PRODUCTS[product]["start"]
+    if lo.date() < floor:
+        raise SystemExit(
+            f"{product} on the ARL archive starts {floor}; this run reaches "
+            f"back to {lo.date()}.")
+    keys, day = [], lo.date()
+    while day <= hi.date():
+        name = f"{day:%Y%m%d}_{product}"
+        keys.append((f"{product}/{day.year}/{day.month:02d}/{name}", name))
+        day += day1
+    return keys
+
+
+def met_keys(start, hours, direction="forward", product="gdas1"):
+    """Which met files a run spans, for the chosen product.
+
+    GDAS1 is weekly and needs the week arithmetic below; gfs0p25 and gdas0p5
+    are one file per day and need none of it, so they short-circuit.
+    """
+    if product not in MET_PRODUCTS:
+        raise SystemExit(f"unknown meteorology {product!r}; have "
+                         f"{', '.join(sorted(MET_PRODUCTS))}")
+    if MET_PRODUCTS[product]["cadence"] == "daily":
+        return _daily_keys(start, hours, direction, product)
+    return _gdas1_keys(start, hours, direction)
+
+
+def _gdas1_keys(start, hours, direction="forward"):
     """Which GDAS1 weekly files a run spans.
 
     ARL cuts GDAS1 into weeks w1=1-7, w2=8-14, w3=15-21, w4=22-28, w5=29-end,
@@ -207,8 +296,16 @@ def availability_message(missing, have_end, hours, direction):
                          f"{latest} or earlier.")
     lines.append("")
     lines.append("ARL writes each weekly file once its week has run, so the "
-                 "current week is always missing. For the last few days use "
-                 "smoke-video, which reads live feeds and needs no archive.")
+                 "current week is always missing.")
+    lines.append("")
+    lines.append("For the last few days, GFS 0.25 deg is written DAILY and "
+                 "reaches yesterday:")
+    lines.append("    --met-product gfs0p25")
+    lines.append("It is finer than GDAS1 (0.25 deg vs 1 deg) but 3.1 GiB per "
+                 "day rather than 571 MiB per week, and ARL classes it as a "
+                 "forecast product -- see --met-product in the help.")
+    lines.append("")
+    lines.append("smoke-video reads live feeds and needs no archive at all.")
     return "\n".join(lines)
 
 
@@ -229,7 +326,13 @@ def fetch_met(keys, cache_dir, hours=None, direction="forward"):
         else:
             _download(key, name, dest, hours, direction)
         out.append(dest)
-    return out
+
+    # HYSPLIT reads the met file list from CONTROL positionally and does not
+    # sort it. Out-of-order days are not rejected -- the run just stops at the
+    # first gap in time, silently producing a short plume that looks like a
+    # calm day. Sorting by name works because every product here is named so
+    # that lexical order is chronological.
+    return sorted(out, key=os.path.basename)
 
 
 def _download(key, name, dest, hours, direction):
@@ -391,3 +494,253 @@ def run_trajectories(binary, start, points, hours, met_paths, work_dir,
             f"HYSPLIT produced no endpoints file (exit {proc.returncode}).\n  "
             + "\n  ".join(tail or ["(no output)"]))
     return read_tdump(tdump)
+
+
+# ---------------------------------------------------------------- dispersion
+#
+# A trajectory says where the air went. A dispersion run says how much of
+# something is in it, which is the question anyone downwind is actually
+# asking -- and the one smoke-track's caveat has been deferring to HYSPLIT all
+# along. The model is the same; the CONTROL grows from 11 records to 31, and
+# the output stops being text.
+#
+# The extra records, in the order HYSPLIT reads them positionally:
+#
+#   emission     pollutant id, rate per hour, duration, release start
+#   grid         centre, spacing, span, output dir and file
+#   levels       how many, and their heights in m AGL
+#   sampling     start, stop, and the averaging interval
+#   deposition   five records PER POLLUTANT: particle, dry, wet, decay, resusp
+#
+# Every one is mandatory even when zero. Omitting the deposition block does
+# not disable deposition -- it shifts every later record into the wrong
+# variable, and HYSPLIT reports nothing.
+
+def write_concentration_control(
+        path, start, points, hours, met_paths, out_dir, out_name,
+        rate=1.0, duration=1.0, release_start=None, pollutant="AIR ",
+        centre=None, spacing=(0.05, 0.05), span=(30.0, 30.0),
+        levels=(0, 10000), sample_hours=1, sample_type=0,
+        vertical=0, model_top=10000.0, deposition=None):
+    """Write a HYSPLIT concentration CONTROL file.
+
+    Defaults describe a unit-mass tracer with no deposition, which is the
+    honest choice when the emission is unknown: the field is then relative and
+    can be read as "where the plume goes", not "how many micrograms".
+    Deposition is opt-in precisely so that nobody gets a settling velocity they
+    did not ask for and cannot cite.
+
+    levels are m AGL and MUST be ascending. A concentration level of 0 is a
+    deposition accumulation surface, not a height -- so (0, 10000) means "one
+    layer averaged 0-10000 m plus a deposition plane", which is what the plots
+    that say "averaged between 0 m and 10000 m" are showing.
+
+    sample_type: 0 average over the interval, 1 snapshot, 2 maximum.
+    """
+    if release_start is None:
+        release_start = start
+    if centre is None:
+        # 0.0 0.0 tells HYSPLIT to centre the grid on the source, which keeps
+        # the plume in frame without the caller computing a centroid.
+        centre = (0.0, 0.0)
+    levels = tuple(int(round(v)) for v in levels)
+    if list(levels) != sorted(levels):
+        raise SystemExit(f"concentration levels must ascend, got {levels}")
+
+    L = [f"{start.year % 100:02d} {start.month:02d} {start.day:02d} "
+         f"{start.hour:02d}",
+         f"{len(points)}"]
+    for lat, lon, hgt in points:
+        L.append(f"{lat:.4f} {lon:.4f} {hgt:.1f}")
+    L += [f"{int(hours)}", f"{vertical}", f"{model_top:.1f}",
+          f"{len(met_paths)}"]
+    for m in met_paths:
+        L.append(os.path.dirname(os.path.abspath(m)) + os.sep)
+        L.append(os.path.basename(m))
+
+    # Emission. The id is CHAR*4 in the binary output, so it is padded here
+    # rather than at read time; a 3-character name would otherwise come back
+    # with a stray byte attached.
+    L += ["1",
+          f"{pollutant[:4]:<4}",
+          f"{rate:g}",
+          f"{duration:g}",
+          f"{release_start.year % 100:02d} {release_start.month:02d} "
+          f"{release_start.day:02d} {release_start.hour:02d} "
+          f"{release_start.minute:02d}"]
+
+    # Concentration grid.
+    L += ["1",
+          f"{centre[0]:.4f} {centre[1]:.4f}",
+          f"{spacing[0]:g} {spacing[1]:g}",
+          f"{span[0]:g} {span[1]:g}",
+          os.path.abspath(out_dir) + os.sep,
+          out_name,
+          f"{len(levels)}",
+          " ".join(str(v) for v in levels)]
+
+    stop = start + dt.timedelta(hours=abs(int(hours)))
+    lo, hi = (stop, start) if hours < 0 else (start, stop)
+    L += [f"{lo.year % 100:02d} {lo.month:02d} {lo.day:02d} "
+          f"{lo.hour:02d} {lo.minute:02d}",
+          f"{hi.year % 100:02d} {hi.month:02d} {hi.day:02d} "
+          f"{hi.hour:02d} {hi.minute:02d}",
+          f"{sample_type:02d} {int(sample_hours):02d} 00"]
+
+    # Deposition: five records, always present, zeros meaning "none".
+    d = deposition or {}
+    L += ["1",
+          "{:g} {:g} {:g}".format(*d.get("particle", (0.0, 0.0, 0.0))),
+          "{:g} {:g} {:g} {:g} {:g}".format(*d.get("dry",
+                                                   (0.0,) * 5)),
+          "{:g} {:g} {:g}".format(*d.get("wet", (0.0, 0.0, 0.0))),
+          f"{d.get('half_life', 0.0):g}",
+          f"{d.get('resuspension', 0.0):g}"]
+
+    with open(path, "w") as f:
+        f.write("\n".join(L) + "\n")
+    return path
+
+
+def _fortran_records(raw):
+    """Yield the payload of each Fortran sequential unformatted record.
+
+    HYSPLIT writes big-endian with a 4-byte length marker before and after
+    every record. Reading the markers rather than assuming record sizes is
+    what makes this robust to the packing flag and to variable pollutant and
+    level counts.
+    """
+    i, n = 0, len(raw)
+    while i + 4 <= n:
+        (size,) = struct.unpack(">i", raw[i:i + 4])
+        if size < 0 or i + 8 + size > n:
+            break
+        yield raw[i + 4:i + 4 + size]
+        i += 8 + size
+
+
+def read_cdump(path):
+    """Parse a HYSPLIT binary concentration file.
+
+    Returns (grids, meta) where grids is a list of
+        {"start": datetime, "stop": datetime, "pollutant": str,
+         "level": int, "data": 2-D list of float, nlat x nlon}
+    and meta carries the grid geometry:
+        {"nlat", "nlon", "dlat", "dlon", "lat0", "lon0", "levels", "pollutants"}
+
+    lat0/lon0 are the LOWER-LEFT corner, so row 0 of data is the southernmost
+    row. Anything that renders this with origin="upper" without flipping will
+    put the plume on the wrong side of the source, which is the kind of error
+    that looks plausible and is not.
+    """
+    with open(path, "rb") as f:
+        raw = f.read()
+    if not raw:
+        raise SystemExit(f"HYSPLIT wrote an empty concentration file: {path}")
+
+    recs = list(_fortran_records(raw))
+    if len(recs) < 5:
+        raise SystemExit(
+            f"{path}: only {len(recs)} Fortran records; expected at least 5. "
+            "This does not look like a HYSPLIT cdump.")
+
+    # Record 1: model id, met start, #locations, packing flag.
+    r = recs[0]
+    nloc, packed = struct.unpack(">ii", r[24:32])
+
+    k = 1 + nloc                      # skip the per-release records
+
+    nlat, nlon, dlat, dlon, lat0, lon0 = struct.unpack(">iiffff", recs[k][:24])
+    k += 1
+
+    nlev = struct.unpack(">i", recs[k][:4])[0]
+    levels = list(struct.unpack(f">{nlev}i", recs[k][4:4 + 4 * nlev]))
+    k += 1
+
+    npol = struct.unpack(">i", recs[k][:4])[0]
+    pollutants = [recs[k][4 + 4 * j:8 + 4 * j].decode("ascii", "replace")
+                  .strip() for j in range(npol)]
+    k += 1
+
+    def _when(buf):
+        yy, mo, da, hh, mi = struct.unpack(">5i", buf[:20])
+        year = 2000 + yy if yy < 70 else 1900 + yy
+        return dt.datetime(year, mo, da, hh, mi, tzinfo=dt.UTC)
+
+    grids = []
+    while k + 1 < len(recs):
+        start, stop = _when(recs[k]), _when(recs[k + 1])
+        k += 2
+        for _ in range(npol * nlev):
+            if k >= len(recs):
+                break
+            rec = recs[k]
+            k += 1
+            pol = rec[0:4].decode("ascii", "replace").strip()
+            lev = struct.unpack(">i", rec[4:8])[0]
+            plane = [[0.0] * nlon for _ in range(nlat)]
+            if packed:
+                (np_,) = struct.unpack(">i", rec[8:12])
+                off = 12
+                for _p in range(np_):
+                    i_, j_ = struct.unpack(">hh", rec[off:off + 4])
+                    (val,) = struct.unpack(">f", rec[off + 4:off + 8])
+                    off += 8
+                    # HYSPLIT indexes 1-based, i across longitude.
+                    if 1 <= j_ <= nlat and 1 <= i_ <= nlon:
+                        plane[j_ - 1][i_ - 1] = val
+            else:
+                vals = struct.unpack(f">{nlat * nlon}f",
+                                     rec[8:8 + 4 * nlat * nlon])
+                for jj in range(nlat):
+                    plane[jj] = list(vals[jj * nlon:(jj + 1) * nlon])
+            grids.append({"start": start, "stop": stop, "pollutant": pol,
+                          "level": lev, "data": plane})
+
+    if not grids:
+        raise SystemExit(
+            f"{path}: parsed the header but found no concentration planes. "
+            "The run produced no sampled output -- check that the sampling "
+            "window overlaps the run.")
+    meta = {"nlat": nlat, "nlon": nlon, "dlat": dlat, "dlon": dlon,
+            "lat0": lat0, "lon0": lon0, "levels": levels,
+            "pollutants": pollutants, "packed": bool(packed)}
+    return grids, meta
+
+
+def run_concentration(binary, start, points, hours, met_paths, work_dir,
+                      **kw):
+    """Run hycs_std once and return (grids, meta) from the binary cdump."""
+    os.makedirs(work_dir, exist_ok=True)
+    out_name = kw.pop("out_name", "cdump")
+    write_concentration_control(os.path.join(work_dir, "CONTROL"), start,
+                                points, hours, met_paths, work_dir, out_name,
+                                **kw)
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(binary)))
+    for cfg in ("ASCDATA.CFG",):
+        src = os.path.join(root, "bdyfiles", cfg)
+        if os.path.exists(src) and not os.path.exists(
+                os.path.join(work_dir, cfg)):
+            shutil.copy(src, work_dir)
+
+    print(f"  running {os.path.basename(binary)} "
+          f"({len(points)} source(s), {hours:+d} h dispersion) …")
+    try:
+        proc = subprocess.run([binary], cwd=work_dir, capture_output=True,
+                              text=True, timeout=3600,
+                              stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        raise SystemExit("HYSPLIT dispersion did not finish within an hour.")
+
+    if proc.returncode == -9 and sys.platform == "darwin":
+        raise SystemExit(_QUARANTINE_HELP.format(exe=binary,
+                                                 root=_install_root(binary)))
+    cdump = os.path.join(work_dir, out_name)
+    if not os.path.exists(cdump) or os.path.getsize(cdump) == 0:
+        tail = ((proc.stdout or "") + (proc.stderr or "")
+                ).strip().splitlines()[-12:]
+        raise SystemExit(
+            f"HYSPLIT produced no concentration output (exit "
+            f"{proc.returncode}).\n  " + "\n  ".join(tail or ["(no output)"]))
+    return read_cdump(cdump)

@@ -547,6 +547,16 @@ SCENARIOS = {
                            "lintasan yang dapat dipertahankan, tetapi tetap "
                            "lintasan — melintas bukan berarti menurunkan asap."),
     },
+    "smoke-dispersion": {
+        "label": ("Smoke dispersion — HYSPLIT concentration field, not just "
+                  "trajectories"),
+        "method": "smoke_dispersion", "needs": "none",
+        "radius": 300.0,
+        "interpretation": ("Konsentrasi rata-rata dalam satu lapisan. "
+                           "Dengan laju emisi baku, medan ini RELATIF: "
+                           "menunjukkan ke mana asap pergi dan seberapa cepat "
+                           "menipis, bukan berapa µg/m³."),
+    },
     "smoke-exposure": {
         "label": "Smoke exposure — person-days by ISPU class, per district, with age split",
         "method": "smoke_exposure", "needs": "none",
@@ -793,6 +803,15 @@ SCENARIO_FLAGS = {
     "smoke-track": ("--date", "--engine", "--direction", "--track-hours",
                     "--track-parcels", "--track-heights", "--receptors",
                     "--hysplit-bin", "--met-cache"),
+    # No --engine or --direction: dispersion is HYSPLIT-only and forward-only.
+    # A backward concentration run is a different question (source
+    # attribution) and needs a different CONTROL, so offering the flag would
+    # promise something this scenario does not do.
+    "smoke-dispersion": ("--date", "--track-hours", "--track-heights",
+                         "--hysplit-bin", "--met-cache", "--layer-top",
+                         "--emission-rate", "--emission-units",
+                         "--release-hours", "--grid-spacing",
+                         "--sample-hours", "--met-product"),
 }
 
 
