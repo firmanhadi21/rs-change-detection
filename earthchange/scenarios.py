@@ -253,9 +253,12 @@ def run_imagery(aoi, p):
                         "window": inv},
     }
     if coverage < 60:
+        # Kept out of the f-string: an expression spanning lines inside {} is
+        # 3.12-only syntax, and requires-python is >=3.11.
+        hint = ("Widen --date into a range to composite more scenes." if single
+                else "Widen the window or raise cloud tolerance.")
         print(f"  NOTE: only {coverage:.0f}% of the AOI has data after cloud "
-              f"masking. {'Widen --date into a range to composite more scenes.'
-                          if single else 'Widen the window or raise cloud tolerance.'}")
+              f"masking. {hint}")
     return {"products": products, "stats": stats,
             "interpretation": ("Citra sumber apa adanya — tanpa deteksi "
                                "perubahan. / Source imagery as-is, no change "
