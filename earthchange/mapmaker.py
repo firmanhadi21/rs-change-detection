@@ -274,7 +274,7 @@ def render_map(meta, out_base, basemap="osm"):
     is_rgb = meta.get("is_rgb")
 
     # --- title / subtitle ---
-    fig.text(0.045, 0.955, meta["label"], fontsize=16, fontweight="bold")
+    fig.text(0.045, 0.955, _title(meta), fontsize=16, fontweight="bold")
     fig.text(0.045, 0.925, _subtitle(meta), fontsize=9, color="#333")
 
     # --- legend (colorbar or RGB key) ---
@@ -362,6 +362,34 @@ def _draw_product(ax, meta):
     return im, extent
 
 
+def _optical_sensor(leg):
+    """Sensor of an optical stats leg, short enough for a title."""
+    s = str(leg.get("sensor") or "")
+    if s.lower().startswith("landsat"):
+        return "Landsat"
+    return {"s2": "Sentinel-2", "": "optik"}.get(s.lower(), s)
+
+
+def _title(meta):
+    """A sheet's title names the method on that sheet.
+
+    A mining run's label covers both legs -- "Mining — radar temporal (SIRAD)
+    + NDVI loss (S1 + S2)" -- but each single sheet shows one of them, so it
+    is titled for that one, from what the run recorded. Other scenarios have
+    one product and their label already names its method.
+    """
+    s = meta.get("stats", {})
+    if not ("sirad" in s and "ndvi" in s):
+        return meta["label"]
+    head = meta["label"].split(" — ")[0]
+    if meta.get("is_rgb"):
+        return f"{head} — radar temporal (SIRAD, Sentinel-1 VH)"
+    leg = s["ndvi"]
+    metric = str(leg.get("metric") or "dNDVI").lstrip("d")      # dNDVI -> NDVI
+    return (f"{head} — {metric} {leg.get('direction', 'change')} "
+            f"({_optical_sensor(leg)})")
+
+
 def _subtitle(meta):
     sub = (f"{meta['name']}  |  {meta['lat']:.4f}, {meta['lon']:.4f}  |  "
            f"radius {meta['radius_km']} km")
@@ -430,9 +458,10 @@ def render_pair_map(rgb_meta, change_meta, out_base, basemap="osm"):
     im, _ = _draw_product(ax_r, change_meta)
     ax_r.tick_params(labelleft=False)
     change_label = change_meta["vis"].get("label", change_meta.get("metric", "Δ"))
-    ax_l.set_title("SIRAD — komposit radar tiga periode", fontsize=11,
+    ax_l.set_title("SIRAD — radar tiga periode (Sentinel-1 VH)", fontsize=11,
                    fontweight="bold", loc="left", pad=6)
-    ax_r.set_title(f"{change_label} — perubahan vegetasi (optik)", fontsize=11,
+    sensor = _optical_sensor(change_meta.get("stats", {}).get("ndvi", {}))
+    ax_r.set_title(f"{change_label} — perubahan vegetasi ({sensor})", fontsize=11,
                    fontweight="bold", loc="left", pad=6)
 
     # Legends directly under the panel they explain.

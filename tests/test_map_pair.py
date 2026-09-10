@@ -6,7 +6,7 @@ change layers, or products from different runs that happen to share a folder --
 must not be forced onto that sheet.
 """
 
-from earthchange.mapmaker import _stats_lines, find_pair
+from earthchange.mapmaker import _stats_lines, _title, find_pair
 
 
 def _meta(key, rgb, run="r1", name="konawe"):
@@ -67,3 +67,25 @@ def test_ndvi_sheet_does_not_show_the_radar_numbers():
 def test_side_by_side_sheet_shows_both_legs():
     t = _text({"is_rgb": True}, both=True)
     assert "SIRAD orbit: DESCENDING" in t and "Metrik: dNDVI" in t
+
+
+MINING_LABEL = "Mining — radar temporal (SIRAD) + NDVI loss (S1 + S2)"
+
+
+def _title_of(is_rgb, sensor="Sentinel-2"):
+    stats = {**MINING_STATS, "ndvi": {**MINING_STATS["ndvi"], "sensor": sensor}}
+    return _title({"label": MINING_LABEL, "stats": stats, "is_rgb": is_rgb})
+
+
+def test_each_mining_sheet_is_titled_for_its_own_method():
+    assert _title_of(True) == "Mining — radar temporal (SIRAD, Sentinel-1 VH)"
+    assert _title_of(False) == "Mining — NDVI loss (Sentinel-2)"
+
+
+def test_landsat_run_says_landsat_not_its_archive_note():
+    assert _title_of(False, "Landsat (archive to 1984)") == "Mining — NDVI loss (Landsat)"
+
+
+def test_single_product_scenarios_keep_their_label():
+    label = "Burn severity — dNBR (Sentinel-2)"
+    assert _title({"label": label, "stats": {"metric": "dNBR"}}) == label
