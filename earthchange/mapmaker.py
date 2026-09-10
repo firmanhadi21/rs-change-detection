@@ -35,6 +35,8 @@ import rasterio
 
 try:
     import contextily as cx
+    from . import identify_to_tile_servers
+    identify_to_tile_servers(cx)
     _HAS_CX = True
 except Exception:  # noqa: BLE001
     _HAS_CX = False

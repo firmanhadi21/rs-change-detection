@@ -1520,6 +1520,8 @@ def _render_mask_map(run_dir, name, got, lang, basemap, mask_label, grid_m):
     if basemap != "none":
         try:
             import contextily as cx
+            from . import identify_to_tile_servers
+            identify_to_tile_servers(cx)
             obj, src_name = _basemap_source(basemap)
             cx.add_basemap(ax, crs="EPSG:4326", source=obj,
                            attribution_size=5, zorder=1)
