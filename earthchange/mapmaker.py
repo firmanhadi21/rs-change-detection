@@ -18,7 +18,7 @@ Dependencies: matplotlib, rasterio, contextily (inset tiles need internet).
 
 import os
 import textwrap
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Remove a stale external PROJ override (e.g. an OTB install exporting PROJ_LIB)
 # so rasterio and pyproj each use their OWN bundled PROJ. Do NOT set a shared
@@ -282,7 +282,7 @@ def render_map(meta, out_base, basemap="osm"):
     lg.axis("off")
     lg.text(0, 1.0, "Legenda", fontsize=11, fontweight="bold", va="top")
     if is_rgb:
-        for i, (c, txt) in enumerate(SIRAD_KEYS):
+        for i, (c, txt) in enumerate(_period_keys(meta)):
             lg.add_patch(Rectangle((0.02, 0.6 - i * 0.22), 0.06, 0.12,
                                    facecolor=c, transform=lg.transAxes))
             lg.text(0.11, 0.66 - i * 0.22, txt, fontsize=8, va="center",
@@ -318,9 +318,51 @@ def render_map(meta, out_base, basemap="osm"):
     _save(fig, out_base)
 
 
-# The SIRAD composite is three periods mapped to R, G, B.
-SIRAD_KEYS = [("#ff0000", "Periode 1"), ("#00ff00", "Periode 2"),
-              ("#0000ff", "Periode 3 (biru = aktivitas baru)")]
+_BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+          "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+
+
+def _span(start, end):
+    """A period as a reader says it: '2022', 'Mar–Jun 2026', else exact dates.
+
+    Month names only when the period really is whole months (starts on the
+    1st, ends on a month's last day); anything else is shown to the day rather
+    than rounded into something it is not.
+    """
+    try:
+        a = datetime.strptime(str(start)[:10], "%Y-%m-%d")
+        b = datetime.strptime(str(end)[:10], "%Y-%m-%d")
+    except ValueError:
+        return f"{start} → {end}"
+    if a.day != 1 or (b + timedelta(days=1)).day != 1:
+        return f"{a:%Y-%m-%d} → {b:%Y-%m-%d}"
+    ma, mb = _BULAN[a.month - 1], _BULAN[b.month - 1]
+    if a.year != b.year:
+        return f"{ma} {a.year}–{mb} {b.year}"
+    if (a.month, b.month) == (1, 12):
+        return str(a.year)
+    return f"{ma} {a.year}" if a.month == b.month else f"{ma}–{mb} {a.year}"
+
+
+def _period_keys(meta):
+    """Legend entries for a three-period RGB composite (SIRAD, NDBI trend).
+
+    Each carries its dates when the run recorded them -- SIRAD as `periods`
+    (under stats['sirad'] for mining), urban-trend as `epochs` -- so the
+    reader knows WHEN red, green and blue are, not just that they differ.
+    """
+    s = meta.get("stats", {})
+    leg = s.get("sirad", s)
+    periods = leg.get("periods") or leg.get("epochs") or []
+    keys = []
+    for i, colour in enumerate(("#ff0000", "#00ff00", "#0000ff")):
+        txt = f"Periode {i + 1}"
+        if len(periods) == 3:
+            txt += f" · {_span(*periods[i])}"
+        if i == 2:
+            txt += " (biru = aktivitas baru)"
+        keys.append((colour, txt))
+    return keys
 
 
 def _draw_product(ax, meta):
@@ -465,14 +507,16 @@ def render_pair_map(rgb_meta, change_meta, out_base, basemap="osm"):
                    fontweight="bold", loc="left", pad=6)
 
     # Legends directly under the panel they explain.
-    lg = fig.add_axes([0.065, 0.225, 0.42, 0.04])
+    # The SIRAD key is stacked, one period per row, as on the single sheet: a
+    # dated label can be as long as "Periode 3 · 2026-03-05 → 2026-06-20", and
+    # three of those side by side ran into the ΔNDVI colour bar even at 6 pt.
+    lg = fig.add_axes([0.065, 0.195, 0.42, 0.08])
     lg.axis("off")
-    for i, (c, txt) in enumerate(SIRAD_KEYS):
-        x = 0.0 + i * 0.30
-        lg.add_patch(Rectangle((x, 0.25), 0.035, 0.5, facecolor=c,
+    for i, (c, txt) in enumerate(_period_keys(rgb_meta)):
+        y = 0.80 - i * 0.32
+        lg.add_patch(Rectangle((0.0, y - 0.10), 0.03, 0.20, facecolor=c,
                                transform=lg.transAxes))
-        lg.text(x + 0.05, 0.5, txt, fontsize=7.5, va="center",
-                transform=lg.transAxes)
+        lg.text(0.045, y, txt, fontsize=7.5, va="center", transform=lg.transAxes)
     cax = fig.add_axes([0.53, 0.255, 0.30, 0.018])
     cb = fig.colorbar(im, cax=cax, orientation="horizontal")
     cb.set_label(change_label, fontsize=8)

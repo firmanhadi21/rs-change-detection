@@ -6,7 +6,7 @@ change layers, or products from different runs that happen to share a folder --
 must not be forced onto that sheet.
 """
 
-from earthchange.mapmaker import _stats_lines, _title, find_pair
+from earthchange.mapmaker import _period_keys, _span, _stats_lines, _title, find_pair
 
 
 def _meta(key, rgb, run="r1", name="konawe"):
@@ -89,3 +89,36 @@ def test_landsat_run_says_landsat_not_its_archive_note():
 def test_single_product_scenarios_keep_their_label():
     label = "Burn severity — dNBR (Sentinel-2)"
     assert _title({"label": label, "stats": {"metric": "dNBR"}}) == label
+
+
+def test_span_reads_like_a_person_says_it():
+    assert _span("2022-01-01", "2022-12-31") == "2022"
+    assert _span("2026-03-01", "2026-06-30") == "Mar–Jun 2026"     # Capkala P3
+    assert _span("2024-02-01", "2024-02-29") == "Feb 2024"         # leap-year end
+    assert _span("2025-11-01", "2026-02-28") == "Nov 2025–Feb 2026"
+
+
+def test_span_never_rounds_a_partial_month_into_a_whole_one():
+    assert _span("2026-03-05", "2026-06-20") == "2026-03-05 → 2026-06-20"
+    # an exclusive end date is not silently read as "all of 2022"
+    assert _span("2022-01-01", "2023-01-01") == "2022-01-01 → 2023-01-01"
+
+
+def test_sirad_legend_dates_each_colour():
+    stats = {**MINING_STATS, "sirad": {**MINING_STATS["sirad"], "periods": [
+        ["2024-01-01", "2024-12-31"], ["2025-01-01", "2025-12-31"],
+        ["2026-03-01", "2026-06-30"]]}}
+    keys = [t for _, t in _period_keys({"stats": stats})]
+    assert keys == ["Periode 1 · 2024", "Periode 2 · 2025",
+                    "Periode 3 · Mar–Jun 2026 (biru = aktivitas baru)"]
+
+
+def test_urban_trend_epochs_date_the_legend_too():
+    stats = {"epochs": [["2019-01-01", "2019-12-31"], ["2021-01-01", "2021-12-31"],
+                        ["2023-01-01", "2023-12-31"]]}
+    assert _period_keys({"stats": stats})[0][1] == "Periode 1 · 2019"
+
+
+def test_legend_without_recorded_periods_is_undated_not_wrong():
+    keys = [t for _, t in _period_keys({"stats": MINING_STATS})]   # no periods
+    assert keys == ["Periode 1", "Periode 2", "Periode 3 (biru = aktivitas baru)"]

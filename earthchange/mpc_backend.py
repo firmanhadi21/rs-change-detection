@@ -480,7 +480,10 @@ def run_mining(bbox, params):
     ndvi = run_optical(bbox, {"pre": periods[0], "post": periods[-1]},
                        "NDVI", "loss", -0.15, -0.30)
     stats = {"sirad": {"method": "SIRAD (MPC)", "orbit": orbit,
-                       "images_per_period": counts},
+                       "images_per_period": counts,
+                       # as the GEE backend records them; the map legend dates
+                       # red, green and blue from this
+                       "periods": [list(p) for p in periods]},
              "ndvi": ndvi["stats"]}
     return {"products": [sirad] + ndvi["products"], "stats": stats,
             "interpretation": "SIRAD biru = ekspansi baru; peta NDVI merah = hilangnya vegetasi."}
