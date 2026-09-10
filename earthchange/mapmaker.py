@@ -188,8 +188,14 @@ def _satellite_inset(fig, rect, extent, tiles=True):
     return drawn
 
 
-def _stats_lines(meta):
-    """Human-readable statistics lines from meta['stats']."""
+def _stats_lines(meta, both=False):
+    """Human-readable statistics lines from meta['stats'].
+
+    A mining run's stats hold both legs, SIRAD and NDVI. A single-product sheet
+    lists only its own leg -- the SIRAD sheet used to show the NDVI metric,
+    mean and affected area, as if they were the radar's. `both` is for the
+    side-by-side sheet, which shows the two products and so both legs.
+    """
     s = meta.get("stats", {})
     lines = []
 
@@ -235,9 +241,11 @@ def _stats_lines(meta):
         if s.get("date_pre"):
             lines.append(f"Citra pra/pasca: {s['date_pre']} → {s['date_post']}")
     elif "sirad" in s and "ndvi" in s:  # mining (2 products)
-        lines += [f"SIRAD orbit: {s['sirad'].get('orbit','-')}",
-                  f"Citra/periode: {s['sirad'].get('images_per_period','-')}"]
-        lines += opt(s["ndvi"])
+        if both or meta.get("is_rgb"):
+            lines += [f"SIRAD orbit: {s['sirad'].get('orbit','-')}",
+                      f"Citra/periode: {s['sirad'].get('images_per_period','-')}"]
+        if both or not meta.get("is_rgb"):
+            lines += opt(s["ndvi"])
     elif "metric" in s:  # single optical
         lines += opt(s)
     else:  # sirad-only
@@ -443,7 +451,7 @@ def render_pair_map(rgb_meta, change_meta, out_base, basemap="osm"):
 
     # Bottom band: statistics, how to read it, where it is.
     fig.text(0.065, 0.165, "Statistik", fontsize=10, fontweight="bold")
-    fig.text(0.065, 0.150, "\n".join(_stats_lines(rgb_meta)), fontsize=7,
+    fig.text(0.065, 0.150, "\n".join(_stats_lines(rgb_meta, both=True)), fontsize=7,
              va="top", family="monospace", linespacing=1.35)
     interp = rgb_meta.get("interpretation", "")
     if interp:

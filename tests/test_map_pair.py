@@ -6,7 +6,7 @@ change layers, or products from different runs that happen to share a folder --
 must not be forced onto that sheet.
 """
 
-from earthchange.mapmaker import find_pair
+from earthchange.mapmaker import _stats_lines, find_pair
 
 
 def _meta(key, rgb, run="r1", name="konawe"):
@@ -35,3 +35,35 @@ def test_extra_product_makes_the_pairing_ambiguous():
 def test_products_from_different_runs_are_not_paired():
     assert find_pair([_meta("sirad", True, run="r1"),
                       _meta("dndvi", False, run="r2")]) is None
+
+
+# Trimmed from a real Konawe mining run: both legs live in one stats dict.
+MINING_STATS = {
+    "sirad": {"method": "SIRAD", "orbit": "DESCENDING",
+              "images_per_period": [30, 29, 30]},
+    "ndvi": {"metric": "dNDVI", "direction": "loss", "mean": -0.0301,
+             "pct_affected": 4.07, "pct_severe": 1.98,
+             "scenes_pre": 26, "scenes_post": 22},
+}
+
+
+def _text(meta, **kw):
+    return "\n".join(_stats_lines({"stats": MINING_STATS, **meta}, **kw))
+
+
+def test_sirad_sheet_does_not_show_the_ndvi_numbers():
+    t = _text({"is_rgb": True})
+    assert "SIRAD orbit: DESCENDING" in t
+    for ndvi in ("dNDVI", "Rerata", "Area terdampak", "Scene pre/post"):
+        assert ndvi not in t
+
+
+def test_ndvi_sheet_does_not_show_the_radar_numbers():
+    t = _text({"is_rgb": False})
+    assert "Metrik: dNDVI" in t and "Area terdampak: 4.1%" in t
+    assert "SIRAD" not in t and "Citra/periode" not in t
+
+
+def test_side_by_side_sheet_shows_both_legs():
+    t = _text({"is_rgb": True}, both=True)
+    assert "SIRAD orbit: DESCENDING" in t and "Metrik: dNDVI" in t
