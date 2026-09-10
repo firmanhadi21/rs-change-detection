@@ -5,7 +5,7 @@ multi-epoch urban growth from free Sentinel-1/2 and Landsat data, via Google
 Earth Engine or Microsoft Planetary Computer (no account needed). Pure Python.
 """
 
-__version__ = "0.1.87"
+__version__ = "0.1.88"
 
 # OpenStreetMap's tile servers answer a client that does not name itself with an
 # "Access blocked" tile. It arrives as an ordinary HTTP 200 PNG, so nothing
