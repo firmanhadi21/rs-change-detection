@@ -6,7 +6,8 @@ Works fully offline (no Earth Engine) — reads each product's GeoTIFF and its
 
 Examples (installed CLI — after `pip install earthchange`)
 
-    # A whole run folder (renders every product in it)
+    # A whole run folder (renders every product in it; for mining, also the
+    # SIRAD | ΔNDVI side-by-side sheet)
     earthmap output/20260708-2210_deforestation_x_ab12cd
 
     # A single product (.tif or .meta.json)
@@ -24,7 +25,7 @@ import json
 import argparse
 from glob import glob
 
-from .mapmaker import render_map
+from .mapmaker import render_map, render_pair_if_any
 
 OUTPUT_ROOT = os.path.join(os.getcwd(), "output")
 
@@ -59,6 +60,7 @@ def main():
     if args.out and len(metas) > 1:
         sys.exit("--out only works with a single product; pass a specific .tif.")
 
+    loaded, meta_dir = [], os.path.dirname(metas[0])
     for meta_path in metas:
         with open(meta_path) as f:
             meta = json.load(f)
@@ -69,6 +71,10 @@ def main():
         base = os.path.basename(meta_path)[:-len(".meta.json")]
         out_base = args.out or os.path.join(os.path.dirname(meta_path), base + "_map")
         render_map(meta, out_base, basemap=args.basemap)
+        loaded.append(meta)
+    if not args.out:
+        # Next to the sidecars, like the single sheets above.
+        render_pair_if_any(loaded, meta_dir, basemap=args.basemap)
 
 
 if __name__ == "__main__":

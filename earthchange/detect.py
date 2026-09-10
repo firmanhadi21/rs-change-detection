@@ -269,7 +269,11 @@ def apply_overrides(cfg, args):
 
 def _write_gee_product(prod, aoi, run_dir, common, do_map, basemap,
                        do_drive=False, drive_folder="earthchange"):
-    """Download one GEE product (png + tif), write its meta, optionally its map."""
+    """Download one GEE product (png + tif), write its meta, optionally its map.
+
+    Returns the meta when the GeoTIFF arrived, else None, so the caller can
+    compose sheets that need more than one product.
+    """
     base = f"{common['scenario']}_{prod['key']}_{common['name']}"
     png = os.path.join(run_dir, base + ".png")
     tif = os.path.join(run_dir, base + ".tif")
@@ -301,6 +305,7 @@ def _write_gee_product(prod, aoi, run_dir, common, do_map, basemap,
         render_map(meta, os.path.join(run_dir, base + "_map"), basemap=basemap)
     elif do_map:
         print("  (map skipped — GeoTIFF unavailable for this product)")
+    return meta if tif_ok else None
 
 
 def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider, window):
@@ -333,10 +338,18 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
               "interpretation": result.get("interpretation",
                                            cfg.get("interpretation", "")),
               "stats": result["stats"]}
+    metas = []
     for prod in result["products"]:
-        _write_gee_product(prod, aoi, run_dir, common, args.map, args.basemap,
-                           do_drive=getattr(args, "drive", False),
-                           drive_folder=getattr(args, "drive_folder", "earthchange"))
+        meta = _write_gee_product(prod, aoi, run_dir, common, args.map, args.basemap,
+                                  do_drive=getattr(args, "drive", False),
+                                  drive_folder=getattr(args, "drive_folder",
+                                                       "earthchange"))
+        if meta:
+            metas.append(meta)
+    if args.map:
+        # mining: SIRAD and ΔNDVI side by side on one sheet, as well as one each
+        from .mapmaker import render_pair_if_any
+        render_pair_if_any(metas, run_dir, basemap=args.basemap)
 
     stats = {"run_id": run_id, "scenario": args.scenario,
              "location": {"lat": lat, "lon": lon},

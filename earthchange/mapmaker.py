@@ -17,6 +17,7 @@ Dependencies: matplotlib, rasterio, contextily (inset tiles need internet).
 """
 
 import os
+import textwrap
 from datetime import datetime
 
 # Remove a stale external PROJ override (e.g. an OTB install exporting PROJ_LIB)
@@ -254,8 +255,6 @@ def render_map(meta, out_base, basemap="osm"):
     noise through a semi-transparent layer. "none" still means no tiles at all,
     so the insets stay blank and nothing is fetched (e.g. offline).
     """
-    arr, extent = _read_raster(meta["tif"])
-    minlon, maxlon, minlat, maxlat = extent
     lat, lon = meta["lat"], meta["lon"]
 
     fig = plt.figure(figsize=A4_LANDSCAPE, dpi=150)
@@ -263,54 +262,19 @@ def render_map(meta, out_base, basemap="osm"):
 
     # --- main map ---
     ax = fig.add_axes([0.045, 0.09, 0.60, 0.80])
-    ax.set_xlim(minlon, maxlon)
-    ax.set_ylim(minlat, maxlat)
-
-    # Opaque. The raster covers the AOI (99.7%+ valid on a typical run), so
-    # there is nothing under it worth seeing through; no-data cells stay
-    # transparent and show the white axes ground.
+    im, extent = _draw_product(ax, meta)
     is_rgb = meta.get("is_rgb")
-    if is_rgb:
-        rgb = np.dstack([arr[0], arr[1], arr[2]]).astype(float)
-        if rgb.max() > 1:
-            rgb /= 255.0
-        alpha = (~np.ma.getmaskarray(arr[0])).astype(float)
-        ax.imshow(rgb, extent=extent, origin="upper", zorder=3, alpha=alpha)
-    else:
-        vis = meta["vis"]
-        cmap = _cmap(vis["palette"])
-        cmap.set_bad(alpha=0.0)
-        band = np.ma.filled(arr[0].astype(float), np.nan)
-        im = ax.imshow(band, extent=extent, origin="upper", cmap=cmap,
-                       norm=Normalize(vis["min"], vis["max"]), zorder=3)
-
-    # coordinate grid
-    ax.xaxis.set_major_formatter(plt.FuncFormatter(_fmt_lon))
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(_fmt_lat))
-    ax.tick_params(labelsize=7)
-    ax.grid(True, linestyle=":", color="#555", alpha=0.5, zorder=4)
-    for s in ax.spines.values():
-        s.set_linewidth(1.2)
-
-    _draw_scalebar(ax, extent, lat)
-    _draw_north(ax)
 
     # --- title / subtitle ---
     fig.text(0.045, 0.955, meta["label"], fontsize=16, fontweight="bold")
-    sub = f"{meta['name']}  |  {lat:.4f}, {lon:.4f}  |  radius {meta['radius_km']} km"
-    win = meta.get("window")
-    if win:
-        sub += f"  |  {win}"
-    fig.text(0.045, 0.925, sub, fontsize=9, color="#333")
+    fig.text(0.045, 0.925, _subtitle(meta), fontsize=9, color="#333")
 
     # --- legend (colorbar or RGB key) ---
     lg = fig.add_axes([0.68, 0.72, 0.29, 0.16])
     lg.axis("off")
     lg.text(0, 1.0, "Legenda", fontsize=11, fontweight="bold", va="top")
     if is_rgb:
-        keys = [("#ff0000", "Periode 1"), ("#00ff00", "Periode 2"),
-                ("#0000ff", "Periode 3 (biru = aktivitas baru)")]
-        for i, (c, txt) in enumerate(keys):
+        for i, (c, txt) in enumerate(SIRAD_KEYS):
             lg.add_patch(Rectangle((0.02, 0.6 - i * 0.22), 0.06, 0.12,
                                    facecolor=c, transform=lg.transAxes))
             lg.text(0.11, 0.66 - i * 0.22, txt, fontsize=8, va="center",
@@ -342,19 +306,77 @@ def render_map(meta, out_base, basemap="osm"):
     drawn.append(_satellite_inset(fig, [0.835, 0.18, 0.135, 0.16], extent,
                                   tiles=tiles))
 
-    # --- footer ---
+    _footer(fig, meta, drawn, y=0.03)
+    _save(fig, out_base)
+
+
+# The SIRAD composite is three periods mapped to R, G, B.
+SIRAD_KEYS = [("#ff0000", "Periode 1"), ("#00ff00", "Periode 2"),
+              ("#0000ff", "Periode 3 (biru = aktivitas baru)")]
+
+
+def _draw_product(ax, meta):
+    """Draw one product on `ax`: raster, grid, scale bar, north arrow.
+
+    Opaque. The raster covers the AOI (99.7%+ valid on a typical run), so there
+    is nothing under it worth seeing through; no-data cells stay transparent
+    and show the white axes ground. Returns (image, extent).
+    """
+    arr, extent = _read_raster(meta["tif"])
+    minlon, maxlon, minlat, maxlat = extent
+    ax.set_xlim(minlon, maxlon)
+    ax.set_ylim(minlat, maxlat)
+
+    if meta.get("is_rgb"):
+        rgb = np.dstack([arr[0], arr[1], arr[2]]).astype(float)
+        if rgb.max() > 1:
+            rgb /= 255.0
+        alpha = (~np.ma.getmaskarray(arr[0])).astype(float)
+        im = ax.imshow(rgb, extent=extent, origin="upper", zorder=3, alpha=alpha)
+    else:
+        vis = meta["vis"]
+        cmap = _cmap(vis["palette"])
+        cmap.set_bad(alpha=0.0)
+        band = np.ma.filled(arr[0].astype(float), np.nan)
+        im = ax.imshow(band, extent=extent, origin="upper", cmap=cmap,
+                       norm=Normalize(vis["min"], vis["max"]), zorder=3)
+
+    # coordinate grid
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(_fmt_lon))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(_fmt_lat))
+    ax.tick_params(labelsize=7)
+    ax.grid(True, linestyle=":", color="#555", alpha=0.5, zorder=4)
+    for s in ax.spines.values():
+        s.set_linewidth(1.2)
+
+    _draw_scalebar(ax, extent, meta["lat"])
+    _draw_north(ax)
+    return im, extent
+
+
+def _subtitle(meta):
+    sub = (f"{meta['name']}  |  {meta['lat']:.4f}, {meta['lon']:.4f}  |  "
+           f"radius {meta['radius_km']} km")
+    if meta.get("window"):
+        sub += f"  |  {meta['window']}"
+    return sub
+
+
+def _footer(fig, meta, drawn, y):
     # Credit what the insets actually drew: each falls back to OSM if Esri is
     # down, and the main map has no tiles at all.
     credit = sorted({"Esri" if d == "provider" else d for d in drawn if d})
     date = datetime.now().strftime("%Y-%m-%d")
     source = meta.get("source", "Google Earth Engine")
     provider = meta.get("provider", "Copernicus Sentinel (ESA)")
-    fig.text(0.045, 0.03,
+    fig.text(0.045, y,
              f"Data: {provider} via {source}  ·  "
              + (f"Peta inset © {', '.join(credit)}  ·  " if credit else "")
              + f"CRS EPSG:4326  ·  Dibuat {date}",
              fontsize=7, color="#555")
 
+
+def _save(fig, out_base):
     os.makedirs(os.path.dirname(out_base) or ".", exist_ok=True)
     pdf, png = out_base + ".pdf", out_base + ".png"
     fig.savefig(pdf)
@@ -362,4 +384,96 @@ def render_map(meta, out_base, basemap="osm"):
     plt.close(fig)
     print(f"Map: {os.path.normpath(pdf)}")
     print(f"Map: {os.path.normpath(png)}")
+
+
+def find_pair(metas):
+    """(radar RGB meta, change meta) when a run has exactly one of each, else None.
+
+    That is the mining scenario: a SIRAD composite and an NDVI change over the
+    same AOI. Checked on content, not on the scenario name, so another radar +
+    optical run gets the same sheet.
+    """
+    rgb = [m for m in metas if m.get("is_rgb")]
+    change = [m for m in metas if not m.get("is_rgb")]
+    if len(rgb) != 1 or len(change) != 1:
+        return None
+    a, b = rgb[0], change[0]
+    if (a.get("run_id"), a.get("name")) != (b.get("run_id"), b.get("name")):
+        return None
+    return a, b
+
+
+def render_pair_map(rgb_meta, change_meta, out_base, basemap="osm"):
+    """Radar and optical change side by side, on one A4 sheet.
+
+    Same extent, same grid, so a patch that is blue in SIRAD (new activity) can
+    be checked against the same patch in ΔNDVI (vegetation lost) by eye, without
+    flipping between two sheets. Writes PDF + PNG.
+    """
+    fig = plt.figure(figsize=A4_LANDSCAPE, dpi=150)
+    fig.patch.set_facecolor("white")
+    fig.text(0.045, 0.955, rgb_meta["label"], fontsize=16, fontweight="bold")
+    fig.text(0.045, 0.925, _subtitle(rgb_meta), fontsize=9, color="#333")
+
+    # Two square panels; the right one shares the left's latitude labels.
+    ax_l = fig.add_axes([0.065, 0.30, 0.42, 0.58])
+    ax_r = fig.add_axes([0.515, 0.30, 0.42, 0.58])
+    _, extent = _draw_product(ax_l, rgb_meta)
+    im, _ = _draw_product(ax_r, change_meta)
+    ax_r.tick_params(labelleft=False)
+    change_label = change_meta["vis"].get("label", change_meta.get("metric", "Δ"))
+    ax_l.set_title("SIRAD — komposit radar tiga periode", fontsize=11,
+                   fontweight="bold", loc="left", pad=6)
+    ax_r.set_title(f"{change_label} — perubahan vegetasi (optik)", fontsize=11,
+                   fontweight="bold", loc="left", pad=6)
+
+    # Legends directly under the panel they explain.
+    lg = fig.add_axes([0.065, 0.225, 0.42, 0.04])
+    lg.axis("off")
+    for i, (c, txt) in enumerate(SIRAD_KEYS):
+        x = 0.0 + i * 0.30
+        lg.add_patch(Rectangle((x, 0.25), 0.035, 0.5, facecolor=c,
+                               transform=lg.transAxes))
+        lg.text(x + 0.05, 0.5, txt, fontsize=7.5, va="center",
+                transform=lg.transAxes)
+    cax = fig.add_axes([0.53, 0.255, 0.30, 0.018])
+    cb = fig.colorbar(im, cax=cax, orientation="horizontal")
+    cb.set_label(change_label, fontsize=8)
+    cb.ax.tick_params(labelsize=7)
+
+    # Bottom band: statistics, how to read it, where it is.
+    fig.text(0.065, 0.165, "Statistik", fontsize=10, fontweight="bold")
+    fig.text(0.065, 0.150, "\n".join(_stats_lines(rgb_meta)), fontsize=7,
+             va="top", family="monospace", linespacing=1.35)
+    interp = rgb_meta.get("interpretation", "")
+    if interp:
+        # Wrapped by hand: matplotlib's wrap=True wraps at the FIGURE edge,
+        # which runs the line under the insets.
+        fig.text(0.30, 0.165, "Cara membaca", fontsize=10, fontweight="bold")
+        fig.text(0.30, 0.150, textwrap.fill(interp, 58), fontsize=7.5,
+                 va="top", style="italic", color="#444", linespacing=1.4)
+    tiles = basemap != "none"
+    drawn = [_location_inset(fig, [0.64, 0.045, 0.13, 0.125],
+                             rgb_meta["lon"], rgb_meta["lat"], tiles=tiles),
+             _satellite_inset(fig, [0.80, 0.045, 0.13, 0.125], extent,
+                              tiles=tiles)]
+    _footer(fig, rgb_meta, drawn, y=0.012)
+    _save(fig, out_base)
+
+
+def render_pair_if_any(metas, out_dir, basemap="osm"):
+    """Render the side-by-side sheet into out_dir, if the run has a pair.
+
+    out_dir is explicit rather than taken from meta["tif"]: a run folder that
+    was moved or copied still records its old GeoTIFF path.
+    """
+    pair = find_pair(metas)
+    if not pair:
+        return None
+    rgb, change = pair
+    out_base = os.path.join(out_dir,
+                            f"{rgb['scenario']}_{rgb['product_key']}_"
+                            f"{change['product_key']}_{rgb['name']}_map")
+    render_pair_map(rgb, change, out_base, basemap=basemap)
+    return out_base
     return pdf, png

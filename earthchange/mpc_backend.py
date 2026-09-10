@@ -609,6 +609,7 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
         raise SystemExit(f"Scenario '{scenario}' not supported by the MPC backend yet.")
 
     os.makedirs(run_dir, exist_ok=True)
+    metas = []
     for prod in result["products"]:
         base = f"{scenario}_{prod['key']}_{name}"
         png = os.path.join(run_dir, base + ".png")
@@ -629,9 +630,14 @@ def run_mpc(scenario, cfg, lat, lon, radius, name, params,
                 "stats": result["stats"], "window": window}
         with open(os.path.join(run_dir, base + ".meta.json"), "w") as mf:
             json.dump(meta, mf, indent=2)
+        metas.append(meta)
         if do_map:
             from .mapmaker import render_map
             render_map(meta, os.path.join(run_dir, base + "_map"), basemap=basemap)
+    if do_map:
+        # mining: SIRAD and ΔNDVI side by side on one sheet, as well as one each
+        from .mapmaker import render_pair_if_any
+        render_pair_if_any(metas, run_dir, basemap=basemap)
 
     stats = {"run_id": run_id, "scenario": scenario, "backend": "mpc",
              "location": {"lat": lat, "lon": lon}, "radius_km": radius,
