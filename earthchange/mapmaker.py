@@ -2,17 +2,18 @@
 """Compose a value-added cartographic map from a change-detection GeoTIFF.
 
 Produces an A4-landscape map sheet (PDF + PNG) with:
-  * OSM basemap + the change layer overlaid
+  * the change layer on its own, opaque -- no tiles under it: it already
+    covers the AOI, and anything underneath only muddies the data
   * title / subtitle
   * legend (colorbar or SIRAD RGB key)
   * statistics panel (from the stats dict)
-  * location overview inset (CartoDB Positron, wide)
+  * location overview inset (Esri Light Gray Canvas, wide)
   * ESRI Satellite inset (same AOI as the main map, no overlay)
   * coordinate grid, scale bar, north arrow
   * data-source / date footer
 
 Used by detect.py (--map) and by make_map.py (re-render an existing result).
-Dependencies: matplotlib, rasterio, contextily (OSM tiles need internet).
+Dependencies: matplotlib, rasterio, contextily (inset tiles need internet).
 """
 
 import os
@@ -32,6 +33,8 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.patches import Rectangle, FancyArrow
 import matplotlib.font_manager as fm  # noqa: F401  (ensures fonts load)
 import rasterio
+
+from . import LIGHT_BASEMAP
 
 try:
     import contextily as cx
@@ -145,34 +148,35 @@ def _draw_north(ax):
                 zorder=7)
 
 
-def _location_inset(fig, rect, lon, lat, span=7.0):
+def _location_inset(fig, rect, lon, lat, span=7.0, tiles=True):
+    """Returns what _tiles drew ("provider", a fallback name, or None)."""
     ax = fig.add_axes(rect)
     ax.set_xlim(lon - span, lon + span)
     ax.set_ylim(lat - span, lat + span)
     ax.set_xticks([]); ax.set_yticks([])
-    _tiles(ax, cx.providers.CartoDB.Positron if _HAS_CX else OSM,
-           "location inset")
+    drawn = _tiles(ax, LIGHT_BASEMAP, "location inset") if tiles else None
     ax.plot(lon, lat, marker="*", markersize=15, color="red",
             markeredgecolor="white", markeredgewidth=0.8, zorder=8)
     ax.set_title("Lokasi", fontsize=8)
     for s in ax.spines.values():
         s.set_edgecolor("#888")
-    return ax
+    return drawn
 
 
-def _satellite_inset(fig, rect, extent):
+def _satellite_inset(fig, rect, extent, tiles=True):
     """ESRI Satellite close-up of the same AOI as the main map.
 
     `extent` is [minlon, maxlon, minlat, maxlat] (matches the main map).
     No change layer, no AOI rectangle — just the satellite basemap underneath.
+    Returns what _tiles drew ("provider", a fallback name, or None).
     """
     ax = fig.add_axes(rect)
     minlon, maxlon, minlat, maxlat = extent
     ax.set_xlim(minlon, maxlon)
     ax.set_ylim(minlat, maxlat)
     ax.set_xticks([]); ax.set_yticks([])
-    drawn = _tiles(ax, cx.providers.Esri.WorldImagery if _HAS_CX else OSM,
-                   "satellite inset")
+    drawn = (_tiles(ax, cx.providers.Esri.WorldImagery if _HAS_CX else OSM,
+                    "satellite inset") if tiles else None)
     # Title what was actually drawn: an OSM fallback here is better than a
     # blank box, but labelling street tiles "Satelit (ESRI)" would be a lie.
     ax.set_title("Satelit (ESRI)" if drawn == "provider"
@@ -180,7 +184,7 @@ def _satellite_inset(fig, rect, extent):
                  fontsize=8)
     for s in ax.spines.values():
         s.set_edgecolor("#888")
-    return ax
+    return drawn
 
 
 def _stats_lines(meta):
@@ -243,7 +247,13 @@ def _stats_lines(meta):
 
 
 def render_map(meta, out_base, basemap="osm"):
-    """Render the map sheet. meta describes one product; writes PDF + PNG."""
+    """Render the map sheet. meta describes one product; writes PDF + PNG.
+
+    `basemap` no longer puts tiles under the main map -- the product is a GEE
+    raster covering the whole AOI, so tiles there were never seen except as
+    noise through a semi-transparent layer. "none" still means no tiles at all,
+    so the insets stay blank and nothing is fetched (e.g. offline).
+    """
     arr, extent = _read_raster(meta["tif"])
     minlon, maxlon, minlat, maxlat = extent
     lat, lon = meta["lat"], meta["lon"]
@@ -256,25 +266,23 @@ def render_map(meta, out_base, basemap="osm"):
     ax.set_xlim(minlon, maxlon)
     ax.set_ylim(minlat, maxlat)
 
-    if basemap != "none":
-        src = cx.providers.CartoDB.Positron if (basemap == "gray" and _HAS_CX) else OSM
-        _add_basemap(ax, source=src)
-
+    # Opaque. The raster covers the AOI (99.7%+ valid on a typical run), so
+    # there is nothing under it worth seeing through; no-data cells stay
+    # transparent and show the white axes ground.
     is_rgb = meta.get("is_rgb")
     if is_rgb:
         rgb = np.dstack([arr[0], arr[1], arr[2]]).astype(float)
         if rgb.max() > 1:
             rgb /= 255.0
-        alpha = (~arr[0].mask).astype(float) * 0.90 if np.ma.isMaskedArray(arr) else 0.90
-        ax.imshow(rgb, extent=extent, origin="upper", zorder=3,
-                  alpha=alpha if np.ndim(alpha) else 0.9)
+        alpha = (~np.ma.getmaskarray(arr[0])).astype(float)
+        ax.imshow(rgb, extent=extent, origin="upper", zorder=3, alpha=alpha)
     else:
         vis = meta["vis"]
         cmap = _cmap(vis["palette"])
         cmap.set_bad(alpha=0.0)
         band = np.ma.filled(arr[0].astype(float), np.nan)
         im = ax.imshow(band, extent=extent, origin="upper", cmap=cmap,
-                       norm=Normalize(vis["min"], vis["max"]), alpha=0.78, zorder=3)
+                       norm=Normalize(vis["min"], vis["max"]), zorder=3)
 
     # coordinate grid
     ax.xaxis.set_major_formatter(plt.FuncFormatter(_fmt_lon))
@@ -308,7 +316,9 @@ def render_map(meta, out_base, basemap="osm"):
             lg.text(0.11, 0.66 - i * 0.22, txt, fontsize=8, va="center",
                     transform=lg.transAxes)
     else:
-        cax = fig.add_axes([0.68, 0.70, 0.27, 0.025])
+        # At 0.70 the ticks and label ran into the "Statistik" heading (top
+        # 0.68); 0.79 sits in the legend box, clear of both.
+        cax = fig.add_axes([0.68, 0.79, 0.27, 0.025])
         cb = fig.colorbar(im, cax=cax, orientation="horizontal")
         cb.set_label(meta["vis"].get("label", meta.get("metric", "Δ")), fontsize=8)
         cb.ax.tick_params(labelsize=7)
@@ -324,20 +334,25 @@ def render_map(meta, out_base, basemap="osm"):
         st.text(0, 0.06, interp, fontsize=7.5, va="bottom", style="italic",
                 wrap=True, color="#444")
 
-    # --- location overview inset (wide, CartoDB) ---
-    _location_inset(fig, [0.68, 0.18, 0.135, 0.16], lon, lat)
+    # --- location overview inset (wide, Esri Light Gray Canvas) ---
+    tiles = basemap != "none"
+    drawn = [_location_inset(fig, [0.68, 0.18, 0.135, 0.16], lon, lat, tiles=tiles)]
 
     # --- ESRI Satellite inset (same AOI as the main map) ---
-    _satellite_inset(fig, [0.835, 0.18, 0.135, 0.16], extent)
+    drawn.append(_satellite_inset(fig, [0.835, 0.18, 0.135, 0.16], extent,
+                                  tiles=tiles))
 
     # --- footer ---
+    # Credit what the insets actually drew: each falls back to OSM if Esri is
+    # down, and the main map has no tiles at all.
+    credit = sorted({"Esri" if d == "provider" else d for d in drawn if d})
     date = datetime.now().strftime("%Y-%m-%d")
     source = meta.get("source", "Google Earth Engine")
     provider = meta.get("provider", "Copernicus Sentinel (ESA)")
     fig.text(0.045, 0.03,
              f"Data: {provider} via {source}  ·  "
-             f"Basemap: {'OpenStreetMap' if basemap!='none' else 'none'}  ·  "
-             f"CRS EPSG:4326  ·  Dibuat {date}",
+             + (f"Peta inset © {', '.join(credit)}  ·  " if credit else "")
+             + f"CRS EPSG:4326  ·  Dibuat {date}",
              fontsize=7, color="#555")
 
     os.makedirs(os.path.dirname(out_base) or ".", exist_ok=True)

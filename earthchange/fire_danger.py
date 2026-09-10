@@ -30,6 +30,7 @@ Backend: needs --backend gee.
 
 import json
 import os
+from . import LIGHT_BASEMAP
 
 os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
@@ -644,7 +645,7 @@ def _render(run_dir, name, tif, box, meta, kind, lang, spread=None, pocket=None)
     try:
         import contextily as cx
         cx.add_basemap(ax, crs="EPSG:4326",
-                       source=cx.providers.CartoDB.Positron,
+                       source=LIGHT_BASEMAP,
                        attribution_size=5, zorder=1)
     except Exception as exc:                                       # noqa: BLE001
         print(f"  (basemap skipped: {exc.__class__.__name__})")
@@ -676,7 +677,7 @@ def _render(run_dir, name, tif, box, meta, kind, lang, spread=None, pocket=None)
              "ERA5-Land. Faktor panjang hari: " + meta["daylength"] + ". "
              "Ambang kelas FWI mengikuti adaptasi Indonesia (BMKG/ASEAN), bukan "
              "ambang boreal. Perlu kalibrasi lokal sebelum dipakai operasional. "
-             "Peta dasar © CartoDB/OpenStreetMap.",
+             "Peta dasar © Esri.",
              fontsize=7.5, color="#777", wrap=True)
     fig.tight_layout(rect=[0, .09, 1, 1])
     out = os.path.join(run_dir, f"{name}_{kind.lower()}.png")

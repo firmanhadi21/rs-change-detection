@@ -27,6 +27,7 @@ charts, and stats.json.
 
 import os
 import json
+from . import LIGHT_BASEMAP
 
 # Clear a stale external PROJ override (e.g. an OTB install exporting PROJ_LIB)
 # so rasterio/contextily use their OWN bundled PROJ database (see mapmaker.py).
@@ -300,7 +301,7 @@ _NOTES = ("GHSL GHS-BUILT-S is the authoritative cross-decade built-up series "
 def _basemap(ax):
     try:
         import contextily as cx
-        cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.CartoDB.Positron,
+        cx.add_basemap(ax, crs="EPSG:4326", source=LIGHT_BASEMAP,
                        attribution=False)
     except Exception as e:  # noqa: BLE001
         print(f"  (basemap skipped: {e})")

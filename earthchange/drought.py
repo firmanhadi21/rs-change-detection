@@ -1335,10 +1335,14 @@ def _style_class_tif(path, lang, table=None, reverse=False):
 # the quietest and is what the rest of the package uses; OSM Mapnik is the
 # default here because a drought map is usually read alongside roads and
 # settlements, which Mapnik labels and Positron mostly does not.
+#
+# "positron" and "voyager" keep their names so existing commands still run, but
+# CARTO now requires an API key (see earthchange.LIGHT_BASEMAP). They draw the
+# nearest keyless Esri styles, and the map credits Esri, not CARTO.
 BASEMAPS = {
     "osm": ("OpenStreetMap.Mapnik", "OpenStreetMap"),
-    "positron": ("CartoDB.Positron", "CartoDB Positron"),
-    "voyager": ("CartoDB.Voyager", "CartoDB Voyager"),
+    "positron": ("Esri.WorldGrayCanvas", "Esri Light Gray Canvas"),
+    "voyager": ("Esri.WorldStreetMap", "Esri World Street Map"),
     "imagery": ("Esri.WorldImagery", "Esri World Imagery"),
 }
 MASK_PAINT_FRAC = 0.02      # a display cell is painted once 2% of it is masked

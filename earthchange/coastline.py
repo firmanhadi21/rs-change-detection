@@ -16,6 +16,7 @@ GEE-only. Registered as scenario `coastline`; detect.py dispatches here.
 import os
 import json
 import math
+from . import LIGHT_BASEMAP
 
 # Clear a stale external PROJ override so rasterio/contextily use their own PROJ.
 os.environ.pop("PROJ_LIB", None)
@@ -159,7 +160,7 @@ def _render_map(run_dir, name, bbox, coast_lines, extras, title):
     ax.set_xlim(w, e); ax.set_ylim(s, n)
     try:
         import contextily as cx
-        cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.CartoDB.Positron,
+        cx.add_basemap(ax, crs="EPSG:4326", source=LIGHT_BASEMAP,
                        attribution=False)
     except Exception as ex:  # noqa: BLE001
         print(f"  (basemap skipped: {ex})")
@@ -521,7 +522,7 @@ def _run_timeseries(aoi, bbox, run_dir, name, scale, smooth_m, epochs, sensor, l
 def _add_basemap(ax):
     try:
         import contextily as cx
-        cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.CartoDB.Positron, attribution=False)
+        cx.add_basemap(ax, crs="EPSG:4326", source=LIGHT_BASEMAP, attribution=False)
     except Exception as ex:  # noqa: BLE001
         print(f"  (basemap skipped: {ex})")
 

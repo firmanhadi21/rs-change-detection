@@ -687,8 +687,12 @@ def build_parser():
     ap.add_argument("-n", "--name", help="output label (default from coords)")
     ap.add_argument("--map", action="store_true",
                     help="also render an A4 map layout (PDF + PNG) per product")
+    # osm and gray are now the same: the main map has no tiles under the raster.
+    # Both kept so existing commands still run.
     ap.add_argument("--basemap", choices=["osm", "gray", "none"], default="osm",
-                    help="map basemap (default osm)")
+                    help="--map: tiles for the two insets (Esri); 'none' fetches "
+                         "no tiles at all, e.g. offline. The main map is always "
+                         "the raster alone")
     ap.add_argument("--track-hours", type=int, default=48, metavar="H",
                     help="smoke-track: how far forward to carry the parcels "
                          "(default 48). Past ~72 h a kinematic path is "

@@ -28,6 +28,7 @@ Backend: needs --backend gee.
 import datetime as dt
 import json
 import os
+from . import DARK_BASEMAP
 
 os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
@@ -52,7 +53,7 @@ DEFAULT_CAVEAT = (
     "bergerak lebih cepat dan ke arah berbeda. Tanpa gerak vertikal, tanpa "
     "dispersi, tanpa deposisi. Untuk klaim yang harus tahan uji, gunakan "
     "HYSPLIT (--engine hysplit) atau FLEXPART. Latar: PM2.5 CAMS. "
-    "Peta dasar © CartoDB/OpenStreetMap.")
+    "Peta dasar © Esri.")
 
 # The HYSPLIT footer is shorter because it has less to apologise for. It still
 # states the configuration, because a trajectory without its met resolution and
@@ -63,7 +64,7 @@ HYSPLIT_CAVEAT = (
     "permukaan — sebaran antar-ketinggian adalah geseran angin yang nyata, "
     "bukan ketidakpastian. Ini lintasan, bukan dispersi: garis tidak "
     "menyebar dan tidak mengendap, sehingga melintas ≠ menurunkan asap. "
-    "Latar: PM2.5 CAMS. Peta dasar © CartoDB/OpenStreetMap.")
+    "Latar: PM2.5 CAMS. Peta dasar © Esri.")
 
 
 def _as_date(day):
@@ -573,7 +574,7 @@ def _render(run_dir, name, tc, seeds, smoke_tif, box, day, hours, crossed,
     try:
         import contextily as cx
         cx.add_basemap(ax, crs="EPSG:4326",
-                       source=cx.providers.CartoDB.DarkMatter,
+                       source=DARK_BASEMAP,
                        attribution_size=5, zorder=1)
     except Exception as exc:                                       # noqa: BLE001
         print(f"  (basemap skipped: {exc.__class__.__name__})")

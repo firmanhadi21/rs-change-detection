@@ -14,6 +14,16 @@ __version__ = "0.1.87"
 USER_AGENT = ("earthchange/" + __version__ +
               " (+https://github.com/firmanhadi21/rs-change-detection)")
 
+# CARTO's basemaps (Positron, Voyager, DarkMatter) now answer every request
+# without an API key -- whatever the User-Agent or Referer -- with an "API KEY
+# REQUIRED" tile, and again as a normal HTTP 200. Esri's canvas basemaps are the
+# keyless equivalents: a quiet light grey and a dark grey, no watermark. Plain
+# URL templates, which contextily accepts as a source.
+_ESRI_CANVAS = ("https://server.arcgisonline.com/ArcGIS/rest/services/"
+                "Canvas/World_{}_Gray_Base/MapServer/tile/{{z}}/{{y}}/{{x}}")
+LIGHT_BASEMAP = _ESRI_CANVAS.format("Light")
+DARK_BASEMAP = _ESRI_CANVAS.format("Dark")
+
 
 def identify_to_tile_servers(cx):
     """Make contextily send USER_AGENT with every tile request.

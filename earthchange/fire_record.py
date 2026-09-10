@@ -32,6 +32,7 @@ os.environ.pop("PROJ_DATA", None)
 from .fire_danger import (BMKG_BREAKS, DC_START, ERA5_HOURLY, ERA5_SCALE,
                           SPINUP_DAYS, _accumulate, _classes, _day_factors,
                           _label, _noon_utc_hour, _noon_weather, _read_zones)
+from . import LIGHT_BASEMAP
 
 FIRMS_IC = "FIRMS"
 BURN_IC = "MODIS/061/MCD64A1"
@@ -611,7 +612,7 @@ def _render_map(run_dir, name, dc_tifs, burn_tif, hs_tifs, shapes, meta, lang):
         try:
             import contextily as cx
             cx.add_basemap(ax, crs="EPSG:4326",
-                           source=cx.providers.CartoDB.PositronNoLabels,
+                           source=LIGHT_BASEMAP,
                            attribution_size=5, zorder=1)
         except Exception:                                          # noqa: BLE001
             pass
@@ -644,7 +645,7 @@ def _render_map(run_dir, name, dc_tifs, burn_tif, hs_tifs, shapes, meta, lang):
              "Drought Code: Sistem FWI Kanada dari ERA5-Land 11 km, kelas BMKG. "
              "Titik panas: FIRMS (MODIS ~1 km), piksel-hari sepanjang musim. "
              "Luas terbakar: MODIS MCD64A1 500 m — batas bawah, meremehkan "
-             "kebakaran gambut. Peta dasar © CartoDB/OpenStreetMap.",
+             "kebakaran gambut. Peta dasar © Esri.",
              fontsize=7.5, color="#777", wrap=True)
     fig.tight_layout(rect=[0, .04, 1, .93])
     out = os.path.join(run_dir, f"{name}_fire_record_map.png")

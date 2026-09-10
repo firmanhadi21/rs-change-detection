@@ -24,6 +24,7 @@ Backend: needs --backend gee.
 import json
 import math
 import os
+from . import LIGHT_BASEMAP
 
 os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
@@ -295,7 +296,7 @@ def _plt():
 def _add_basemap(ax):
     try:
         import contextily as cx
-        cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.CartoDB.Positron,
+        cx.add_basemap(ax, crs="EPSG:4326", source=LIGHT_BASEMAP,
                        attribution_size=5)
     except Exception as e:  # noqa: BLE001 — basemap is optional
         print(f"  (basemap skipped: {e.__class__.__name__})")

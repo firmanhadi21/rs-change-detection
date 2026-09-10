@@ -27,6 +27,7 @@ Backend: needs --backend gee.
 import datetime as dt
 import json
 import os
+from . import LIGHT_BASEMAP
 
 os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
@@ -482,7 +483,7 @@ def _render_map(run_dir, name, recs, tot, meta, shapes, lang):
     try:
         import contextily as cx
         cx.add_basemap(ax, crs="EPSG:4326",
-                       source=cx.providers.CartoDB.PositronNoLabels,
+                       source=LIGHT_BASEMAP,
                        attribution_size=5, zorder=1)
     except Exception as exc:                                       # noqa: BLE001
         print(f"  (basemap skipped: {exc.__class__.__name__})")
@@ -512,7 +513,7 @@ def _render_map(run_dir, name, recs, tot, meta, shapes, lang):
              "PM2.5: CAMS (~44 km), rerata harian per kabupaten — pewarnaan "
              "pada resolusi kabupaten karena itulah resolusi jawabannya. "
              "Penduduk: WorldPop 100 m, struktur umur 2020. Kelas ISPU "
-             "PermenLHK P.14/2020. Peta dasar © CartoDB/OpenStreetMap.",
+             "PermenLHK P.14/2020. Peta dasar © Esri.",
              fontsize=7.5, color="#777")
     fig.tight_layout(rect=[0, .04, 1, 1])
     out = os.path.join(run_dir, f"{name}_exposure_map.png")
