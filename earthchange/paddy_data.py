@@ -83,6 +83,12 @@ def grid_metres(deg=LBS_GRID_DEG):
     return float(deg) * DEG_M
 
 
+def grid_from_profile(profile):
+    """(deg, anchor) of a rasterio profile's grid, for re-requesting on it."""
+    t = profile["transform"]
+    return float(t.a), (float(t.c), float(t.f))
+
+
 def grid_from_raster(path):
     """(deg, anchor) of an existing raster's grid, or None if it has no usable one.
 
@@ -300,6 +306,62 @@ def wapor_periods(aoi, grid):
     aeti = ee.Image.cat([aeti_one(p) for p in grid]).resample("bilinear")
     ret = ee.Image.cat([ret_one(p) for p in grid]).resample("bilinear")
     return aeti.clip(aoi), ret.clip(aoi)
+
+
+S2_SR = "COPERNICUS/S2_SR_HARMONIZED"
+S2_CLOUD_PROB = "GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED"
+S2_CLEAR_MIN = 0.60          # cs+ "cs" band: 1 is clear, 0 is opaque
+
+
+def ndwi_max_doy(aoi, start, end, clear_min=S2_CLEAR_MIN):
+    """When each pixel was wettest: (ndwi, doy, n_obs) from Sentinel-2.
+
+    The optical half of the hybrid calendar. Paper 3's `optical_calendar` takes
+    the planting date from the date of MAXIMUM NDWI -- the same physical event
+    the radar trough sees, standing water in a puddled field, measured by a
+    different sensor. It is twice as accurate on the date: at BulakBakal the
+    optical planting date was 6 days off the farmers' own records at the median
+    against 12 for the SAR trough, and inside 12 days for 90% of parcels
+    against 55%.
+
+    One image out, not a series: `qualityMosaic` picks, per pixel, the scene
+    with the highest NDWI and carries that scene's day-of-year with it. So the
+    whole optical leg costs one small download per season, not another stack.
+
+    `n_obs` counts the clear observations behind the answer, because a maximum
+    over two cloudy glimpses of a wet season is not a planting date. Cloud
+    Score+ is the mask: it is trained for exactly this, and over the tropics it
+    beats the QA60 bitmask it replaces.
+    """
+    import ee
+    s2 = (ee.ImageCollection(S2_SR)
+          .filterBounds(aoi)
+          .filterDate(start.isoformat(), (end + dt.timedelta(days=1)).isoformat())
+          .linkCollection(ee.ImageCollection(S2_CLOUD_PROB), ["cs"]))
+
+    def prep(img):
+        img = ee.Image(img)
+        clear = img.select("cs").gte(clear_min)
+        # Green and NIR: NDWI = (G - NIR) / (G + NIR), McFeeters 1996. Water is
+        # positive, vegetation and soil negative.
+        ndwi = img.normalizedDifference(["B3", "B8"]).rename("ndwi")
+        doy = ee.Image.constant(
+            ee.Date(img.get("system:time_start")).getRelative("day", "year")
+        ).add(1).rename("doy").toFloat()
+        return (ndwi.addBands(doy).updateMask(clear)
+                .copyProperties(img, ["system:time_start"]))
+
+    prepped = s2.map(prep)
+    n_obs = prepped.select("ndwi").count().rename("n_obs").toFloat()
+    # An empty collection would reduce to a band-less image; a masked blank
+    # keeps the bands present and the answer honestly empty.
+    blank = (ee.Image.constant([0, 0]).rename(["ndwi", "doy"])
+             .updateMask(ee.Image.constant(0)).toFloat())
+    best = prepped.map(lambda i: ee.Image(i).toFloat()).merge(
+        ee.ImageCollection([blank])).qualityMosaic("ndwi")
+    return (best.select(["ndwi", "doy"])
+            .addBands(n_obs.unmask(0))
+            .clip(aoi).toFloat())
 
 
 def chirps_periods(aoi, grid):

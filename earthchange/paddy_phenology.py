@@ -429,6 +429,58 @@ def stack_calendar(stack, mask, params=None, first=None, last=None,
     return plant, length, amp
 
 
+CALENDAR_ARMS = ("full_sar", "hybrid", "fixed110")
+# How far the optical wettest-day may sit from the radar trough before it is
+# rejected as a different event. Two S1 periods: the two sensors are looking at
+# the same puddled field, so they should agree to within the sampling.
+HYBRID_MAX_DISAGREE_DAYS = 24
+HYBRID_MIN_OBS = 3           # clear Sentinel-2 looks behind a wettest-day
+
+
+def hybrid_planting(sar_index, optical_doy, grid, n_obs=None,
+                    max_disagree_days=HYBRID_MAX_DISAGREE_DAYS,
+                    min_obs=HYBRID_MIN_OBS):
+    """Optical planting date where it is trustworthy, else the radar's.
+
+    Paper 3's three arms are fixed110 (optical date + an assumed 110 days),
+    full_sar (radar date + radar length) and hybrid (optical date + radar
+    length). Hybrid wins on both counts it can be scored on -- 6 days of median
+    planting error against 12, and 12 of 13 farmer harvest windows against 11.
+
+    But its optical half cannot be relied on unconditionally: transplanting
+    happens in the wet season, which is when Sentinel-2 sees least. So the
+    optical date stands only where there were enough clear looks AND it agrees
+    with the radar trough to within `max_disagree_days`; otherwise the radar
+    date stands and the pixel is marked as having fallen back. The product then
+    reports the mix rather than implying one method throughout.
+
+    Returns (planting_doy, arm) where arm is 1 for optical, 0 for radar,
+    and NaN where there is no planting at all.
+    """
+    sar_index = np.asarray(sar_index, dtype="float32")
+    optical_doy = np.asarray(optical_doy, dtype="float32")
+    sar_doy = np.full(sar_index.shape, np.nan, dtype="float32")
+    ok = np.isfinite(sar_index)
+    if ok.any():
+        idx = sar_index[ok].astype(int)
+        mids = np.array([a + (b - a) / 2 for _, a, b in grid])
+        idx = np.clip(idx, 0, len(mids) - 1)
+        sar_doy[ok] = [m.timetuple().tm_yday for m in mids[idx]]
+
+    usable = np.isfinite(optical_doy) & ok
+    if n_obs is not None:
+        usable &= np.asarray(n_obs) >= min_obs
+    if usable.any():
+        # Day-of-year wraps; the smaller of the two ways round is the gap.
+        gap = np.abs(optical_doy - sar_doy)
+        gap = np.minimum(gap, 365.0 - gap)
+        usable &= gap <= max_disagree_days
+
+    doy = np.where(usable, optical_doy, sar_doy)
+    arm = np.where(np.isfinite(doy), usable.astype("float32"), np.nan)
+    return doy.astype("float32"), arm
+
+
 def stack_planting(stack, mask, params=None, first=None, last=None,
                    progress=None):
     """Run `planting` over a (period, row, col) cube where `mask` is True.

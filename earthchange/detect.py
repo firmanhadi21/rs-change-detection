@@ -552,10 +552,11 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         import datetime as _dt
 
         from . import paddy_island
-        if not args.island:
+        if not (args.island or args.province):
             raise SystemExit(
                 "drought-paddy-island needs --island NAME (Jawa, Sumatera, "
-                "Kalimantan, Sulawesi, Bali-NusaTenggara, Maluku, Papua)")
+                "Kalimantan, Sulawesi, Bali-NusaTenggara, Maluku, Papua) or "
+                "--province NAME (an FAO GAUL admin-1 name, e.g. 'Jawa Barat')")
         if not args.paddy_file:
             raise SystemExit(
                 "drought-paddy-island needs --paddy-file: an island is tiled "
@@ -573,7 +574,12 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
             # island with holes in it and one without.
             orbit_pass=("auto" if args.orbit_pass == "auto"
                         else args.orbit_pass.upper()),
-            lang=args.lang, config_key=ee_key)
+            lang=args.lang, config_key=ee_key,
+            calendar=args.calendar, tiles_dir=args.tiles_dir)
+        if args.province:
+            paddy_island.run(args.province, args.paddy_file, run_dir,
+                             kind="province", **kw)
+            return True
         if args.island.lower() in ("all", "nasional", "national"):
             # Islands in descending order of paddy, so the country's figures
             # are meaningful long before the last island lands. Each island's
@@ -1213,6 +1219,25 @@ def build_parser():
                          "descending order of paddy area and writes a national "
                          "summary after each one, so an interrupted run still "
                          "leaves figures that state their own coverage")
+    ap.add_argument("--province", metavar="NAME",
+                    help="drought-paddy-island: run a province instead of an "
+                         "island (FAO GAUL 2025 admin-1 names, e.g. 'Jawa "
+                         "Barat'). The province is the unit an agency reports "
+                         "on; hectares are taken by masking the mosaic with the "
+                         "boundary, so a tile on a border is split rather than "
+                         "counted twice")
+    ap.add_argument("--calendar", default=None,
+                    choices=["full_sar", "hybrid", "fixed110"],
+                    help="drought-paddy: which crop calendar. hybrid (default) "
+                         "takes the planting date from Sentinel-2's wettest day "
+                         "where that is trustworthy and the season length from "
+                         "the radar's second window — 6 days of median planting "
+                         "error against 12 for full_sar, and 12 of 13 farmer "
+                         "harvest windows against 0 for an assumed 110 days")
+    ap.add_argument("--tiles-dir", metavar="DIR",
+                    help="drought-paddy-island: share a tile cache between runs "
+                         "of the SAME calendar arm, so provinces that share a "
+                         "border compute those tiles once")
     ap.add_argument("--tile-deg", type=float, default=0.125, metavar="DEG",
                     help="drought-paddy-island: tile size (default 0.125 = "
                          "13.9 km, the largest that fits one Earth Engine "

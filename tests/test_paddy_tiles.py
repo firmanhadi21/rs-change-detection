@@ -276,6 +276,59 @@ def test_a_finished_tile_is_not_run_again(tmp_path):
     assert not pisl.tile_done(run, "t0002_0002")
 
 
+def test_a_border_tile_belongs_to_both_provinces(tmp_path):
+    """Selection must include it for both, or one province loses that paddy."""
+    from shapely.geometry import box as sbox
+    west = sbox(110.0, -7.2, 110.1, -6.8)
+    east = sbox(110.1, -7.2, 110.2, -6.8)
+    rows = [{"tile_id": "t0000_0000", "island": "Jawa", "paddy_ha": 100.0,
+             "lon_min": 110.05, "lon_max": 110.175, "lat_min": -7.0,
+             "lat_max": -6.875, "lon_c": 110.11, "lat_c": -6.94}]
+    ptiles.assign_admin(rows, {"West": west, "East": east})
+    assert set(rows[0]["provinces"].split("|")) == {"West", "East"}
+    assert len(ptiles.select(rows, provinces=["West"])) == 1
+    assert len(ptiles.select(rows, provinces=["East"])) == 1
+    # the label is whichever holds more of it, and is only a label
+    assert rows[0]["province"] in ("West", "East")
+
+
+def test_a_tile_outside_every_province_is_not_silently_assigned(tmp_path):
+    from shapely.geometry import box as sbox
+    rows = [{"tile_id": "t0001_0001", "island": "Jawa", "paddy_ha": 10.0,
+             "lon_min": 120.0, "lon_max": 120.125, "lat_min": -7.0,
+             "lat_max": -6.875, "lon_c": 120.06, "lat_c": -6.94}]
+    ptiles.assign_admin(rows, {"West": sbox(110.0, -7.2, 110.1, -6.8)})
+    assert rows[0]["province"] == "lain"
+    assert rows[0]["provinces"] == ""
+    assert ptiles.select(rows, provinces=["West"]) == []
+
+
+def test_admin_fields_survive_the_csv(tmp_path):
+    rows = _rows(100, 50)
+    rows[0]["province"] = "Jawa Barat"
+    rows[0]["provinces"] = "Jawa Barat|Banten"
+    p = ptiles.write_csv(rows, str(tmp_path / "i.csv"))
+    back = ptiles.read_csv(p)
+    assert back[0]["province"] == "Jawa Barat"
+    assert back[0]["provinces"] == "Jawa Barat|Banten"
+
+
+def test_an_untagged_index_still_writes(tmp_path):
+    """The index is built before provinces are known; that must not crash."""
+    p = ptiles.write_csv(_rows(100), str(tmp_path / "i.csv"))
+    back = ptiles.read_csv(p)
+    assert back[0]["province"] == ""
+
+
+def test_safe_name_makes_a_file_stem():
+    assert pisl.safe_name("Jawa Barat") == "JawaBarat"
+    assert pisl.safe_name("Bali-NusaTenggara") == "BaliNusatenggara"
+
+
+def test_the_calendar_arm_is_mosaicked_for_comparison():
+    assert pisl.MOSAIC["calendar_arm"] == "float32"
+
+
 def test_island_bbox_is_the_union_of_its_tiles():
     rows = _rows(100, 50)
     bbox = pisl.island_bbox(rows)

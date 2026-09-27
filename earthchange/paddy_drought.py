@@ -49,6 +49,13 @@ DEFAULT_GRID = "lbs"
 # been transplanted before the window opens, which reads as "not planted".
 DEFAULT_SEASON_DAYS = 210
 DEFAULT_SEASONS_BACK = 2
+# Which crop calendar. "full_sar" takes both anchors from the radar; "hybrid"
+# takes the planting date from Sentinel-2's wettest day where that is
+# trustworthy, which is twice as accurate on the date (paper3: 6 days of median
+# error against 12, and 90% within 12 days against 55%). The season length
+# always comes from the radar's second window -- that is what wins the harvest
+# window, 12 of 13 against 0 of 13 for an assumed length.
+DEFAULT_CALENDAR = "hybrid"
 DEFAULT_OUTLOOK_DAYS = 14
 LEAD_ACTIONABLE_DAYS = 7          # beyond this the rainfall forecast is thin
 
@@ -131,6 +138,45 @@ def read_stack(path):
     with rasterio.open(path) as src:
         arr = src.read(masked=True).astype("float32").filled(np.nan)
         return arr, src.profile.copy(), src.bounds
+
+
+def optical_planting(aoi, window, sar_plant, grid, profile, grid_m, run_dir,
+                     name, tag, download):
+    """Planting day-of-year for one season, optical where it can be trusted.
+
+    Fetches Sentinel-2's wettest day over the season window -- one small image,
+    not a series -- and hands it to phen.hybrid_planting, which keeps the
+    optical date only where there were enough clear looks and it agrees with the
+    radar trough. Returns (doy, arm, note); arm is 1 on the optical date, 0 on
+    the radar's, NaN where nothing was planted.
+    """
+    path = os.path.join(run_dir, f"paddy_ndwi_{tag}_{name}.tif")
+    if not usable_raster(path, bands=3):
+        # The window is widened by one period at each end: a transplanting near
+        # the boundary is still the same event, and the wettest day may sit just
+        # outside the season's own dates.
+        pad = dt.timedelta(days=pdata.PERIOD_DAYS)
+        img = pdata.ndwi_max_doy(aoi, window[0] - pad, window[1] + pad)
+        if not download(img, aoi, path, scale=grid_m,
+                        crs_transform=pdata.grid_transform(
+                            *pdata.grid_from_profile(profile))):
+            return (planting_doy(sar_plant, grid),
+                    np.zeros(sar_plant.shape, dtype="float32"),
+                    "no Sentinel-2: radar dates only")
+    # Nearest, not bilinear: a day-of-year is a date, and the mean of two dates
+    # a fortnight apart is not a planting. On the same grid this is an exact
+    # crop, which is all that is wanted -- the request's region snaps outward,
+    # so the file can be a pixel or two wider than the analysis window.
+    arr = resample_stack(path, profile, resampling="nearest")
+    ndwi, odoy, n_obs = arr[0], arr[1], arr[2]
+    # A wettest day that is not actually wet is not a flooded field. NDWI over
+    # standing water is positive; a dry field's maximum is not a planting.
+    odoy = np.where(ndwi > 0, odoy, np.nan)
+    doy, arm = phen.hybrid_planting(sar_plant, odoy, grid, n_obs=n_obs)
+    have = np.isfinite(arm)
+    share = float(arm[have].mean()) if have.any() else 0.0
+    return doy, arm, (f"{share:.0%} of plantings on the optical date "
+                      f"(median {np.nanmedian(n_obs):.0f} clear looks)")
 
 
 def _rect(lon_min, lat_min, lon_max, lat_max):
@@ -537,7 +583,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         paddy_file=None, zones_file=None, zone_field=None,
         kc_mode="curve110", outlook_days=DEFAULT_OUTLOOK_DAYS,
         orbit_pass="DESCENDING", lang="id", do_map=True, publish=False,
-        bbox=None, gfs_file=None, gfs_run=None, on_empty="raise"):
+        bbox=None, gfs_file=None, gfs_run=None, on_empty="raise",
+        calendar=DEFAULT_CALENDAR):
     """Fetch, measure and write the paddy-drought products for one AOI.
 
     `bbox` (lon_min, lat_min, lon_max, lat_max) replaces the square AOI, which
@@ -661,10 +708,31 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     provisional = np.isfinite(prov_idx)
     cur["plant"] = np.where(confirmed, cur["plant"], prov_idx)
     planted = confirmed | provisional
-    doy_now = planting_doy(cur["plant"], grid)
-    base_doy = np.nanmedian(
-        np.stack([planting_doy(s["plant"], grid) for s in seasons[1:]]), axis=0
-    ) if len(seasons) > 1 else np.full(doy_now.shape, np.nan, dtype="float32")
+
+    # --- the optical half of the calendar, if asked for --------------------
+    # Every season or none. The delay is a difference BETWEEN seasons, so a
+    # different method on one side of it would measure the method rather than
+    # the lateness -- the optical date runs about 6 days from farmer truth and
+    # the radar 12, and that gap alone would read as half a period of slip.
+    optical_arm = np.full(cur["plant"].shape, np.nan, dtype="float32")
+    if calendar in ("hybrid", "fixed110"):
+        doys, notes = [], []
+        for n, season in enumerate(seasons):
+            tag = "now" if n == 0 else f"base{n}"
+            d, a, note = optical_planting(
+                aoi, windows[n], season["plant"], grid, profile, grid_m,
+                run_dir, name, tag, download_geotiff)
+            doys.append(d)
+            notes.append(f"{tag} {note}")
+            if n == 0:
+                optical_arm = a
+        doy_now, base_list = doys[0], doys[1:]
+        _say("    optical planting (" + "; ".join(notes) + ")")
+    else:
+        doy_now = planting_doy(cur["plant"], grid)
+        base_list = [planting_doy(s["plant"], grid) for s in seasons[1:]]
+    base_doy = (np.nanmedian(np.stack(base_list), axis=0) if base_list
+                else np.full(doy_now.shape, np.nan, dtype="float32"))
     delay = doy_delay(doy_now, base_doy)
     delay_cls = pw.delay_class(delay, planted & paddy)
     _say(f"    planted this season: {int((planted & paddy).sum()):,} of "
@@ -774,10 +842,11 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     if run_time is None:
         _say("  no outlook this run")
     else:
-        # A shared field covers more than this tile, so it is resampled onto
-        # the tile's own grid; a tile's own download already is that grid.
-        gfs = (resample_stack(gfs_path, profile) if gfs_file
-               else read_stack(gfs_path)[0])
+        # Always onto the analysis grid, even for this AOI's own download: the
+        # region of a request is snapped outward to whole pixels, so the same
+        # bounds asked for twice can come back a pixel or two apart, and every
+        # array downstream is indexed against the paddy mask's shape.
+        gfs = resample_stack(gfs_path, profile)
         rain = gfs[0::3]
         # Earth Engine serves GFS 2 m temperature in degrees Celsius, not
         # Kelvin (checked: 24.8 over Klambu). Converting anyway would put the
@@ -813,6 +882,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     products = {
         "paddy": (paddy.astype("uint8"), "uint8", None),
         "planting_doy": (np.where(paddy, doy_now, np.nan), "float32", None),
+        # Which sensor dated each planting, so a user can see where the better
+        # date was available and where the radar had to stand in.
+        "calendar_arm": (np.where(paddy, optical_arm, np.nan), "float32", None),
         "delay_days": (np.where(paddy & planted, delay, np.nan), "float32", None),
         "delay_class": (np.where(paddy, delay_cls, 255), "uint8", 255),
         "adequacy": (np.where(paddy & planted, si_now, np.nan), "float32", None),
@@ -853,6 +925,18 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "season": {"start": str(windows[0][0]), "end": str(windows[0][1]),
                    "baseline_seasons": seasons_back},
         "paddy_extent_source": extent_source, "kc_mode": kc_mode,
+        # Which crop calendar produced these dates, and on how much of the area
+        # the optical arm actually stood. Reporting kc_mode without this was the
+        # gap that let a full_sar run look like the hybrid the method calls for.
+        "calendar": {
+            "arm": calendar,
+            "length_from": "sar_second_window",
+            "planting_from": ("sentinel2_ndwi_max, radar trough where not "
+                              "trustworthy" if calendar in ("hybrid", "fixed110")
+                              else "radar_trough"),
+            "optical_share": _r(np.nanmean(optical_arm[np.isfinite(optical_arm)])
+                                if np.isfinite(optical_arm).any() else np.nan, 3),
+        },
         "grid_m": round(grid_m, 3), "orbit_pass": orbit_pass,
         "radar_coverage": {"periods": len(grid), "empty_periods": empty,
                            "longest_gap": orbit_gaps[1] if orbit_gaps else None,

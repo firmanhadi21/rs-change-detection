@@ -842,10 +842,12 @@ SCENARIO_FLAGS = {
     # No --paddy-grid or --zones: an island run takes its grid from the paddy
     # layer by construction (tiles must share one grid to mosaic), and zone
     # tables are a per-scheme product, not an island one.
-    "drought-paddy-island": ("--island", "--as-of", "--season-days",
-                             "--baseline-seasons", "--paddy-file", "--tile-deg",
-                             "--coverage", "--tiles-limit", "--workers",
-                             "--kc-mode", "--outlook-days", "--orbit-pass"),
+    "drought-paddy-island": ("--island", "--province", "--as-of",
+                             "--season-days", "--baseline-seasons",
+                             "--paddy-file", "--tile-deg", "--coverage",
+                             "--tiles-limit", "--workers", "--kc-mode",
+                             "--calendar", "--tiles-dir", "--outlook-days",
+                             "--orbit-pass"),
     "smoke-dispersion": ("--date", "--track-hours", "--track-heights",
                          "--hysplit-bin", "--met-cache", "--layer-top",
                          "--emission-rate", "--emission-units",

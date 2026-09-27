@@ -34,8 +34,14 @@ ISLANDS = [
     ("Maluku", (125.2, 135.0, -8.6, 3.1)),
     ("Papua", (130.8, 141.1, -9.3, 0.6)),
 ]
-FIELDS = ("tile_id", "island", "lon_min", "lat_min", "lon_max", "lat_max",
-          "lon_c", "lat_c", "paddy_ha")
+FIELDS = ("tile_id", "island", "province", "provinces", "lon_min", "lat_min",
+          "lon_max", "lat_max", "lon_c", "lat_c", "paddy_ha")
+
+# Admin-1 boundaries. The 2015 vintage is deprecated and has 33 provinces; the
+# 2025 one has all 38, including the Papua provinces created in 2022.
+GAUL1 = "FAO/GAUL/2025/level1"
+GAUL_COUNTRY = "GAUL0_NAME"
+GAUL_NAME = "GAUL1_NAME"
 
 
 def island_of(lon, lat):
@@ -116,7 +122,71 @@ def index(paddy_file, tile_deg=TILE_DEG, cell_deg=CELL_DEG, min_ha=0.0,
     return rows
 
 
-def select(rows, islands=None, coverage=None, limit=None):
+def admin_polygons(country="Indonesia", cache=None, asset=GAUL1):
+    """{province name: geometry} for a country's admin-1 areas.
+
+    Fetched from Earth Engine once and cached as GeoJSON, because a tile index
+    is built locally and a province run should not need a network round trip to
+    say which tiles it wants.
+    """
+    import json
+    if cache and os.path.exists(cache):
+        with open(cache) as f:
+            gj = json.load(f)
+    else:
+        import ee
+        fc = (ee.FeatureCollection(asset)
+              .filter(ee.Filter.eq(GAUL_COUNTRY, country))
+              .select([GAUL_NAME]))
+        gj = fc.getInfo()
+        if cache:
+            os.makedirs(os.path.dirname(cache) or ".", exist_ok=True)
+            with open(cache, "w") as f:
+                json.dump(gj, f)
+    from shapely.geometry import shape
+    out = {}
+    for feat in gj["features"]:
+        name = feat["properties"][GAUL_NAME]
+        geom = shape(feat["geometry"])
+        out[name] = geom.union(out[name]) if name in out else geom
+    return out
+
+
+SELECT_SIMPLIFY_DEG = 0.005      # ~550 m: coastline detail a 13.9 km tile cannot see
+
+
+def assign_admin(rows, polys, simplify_deg=SELECT_SIMPLIFY_DEG):
+    """Tag each tile with the admin areas its box overlaps.
+
+    `provinces` is every area the tile touches and `province` the one holding
+    most of it. Both matter: a tile on a border must be COMPUTED for both
+    provinces, while a label needs one name. Hectares are never taken from the
+    label -- those come from masking the mosaic with the boundary itself, which
+    is the only way a border tile is not misattributed wholesale.
+
+    The boundaries are simplified for this test only. GAUL's Indonesian
+    coastline is 105 MB of vertices, and deciding which 13.9 km tiles a province
+    touches does not need metres of it; the unsimplified geometry is what the
+    hectares are later masked with.
+    """
+    from shapely.geometry import box
+    if simplify_deg:
+        polys = {k: v.simplify(simplify_deg).buffer(0)
+                 for k, v in polys.items()}
+    for r in rows:
+        b = box(r["lon_min"], r["lat_min"], r["lon_max"], r["lat_max"])
+        hits = {}
+        for name, geom in polys.items():
+            if geom.intersects(b):
+                share = geom.intersection(b).area
+                if share > 0:
+                    hits[name] = share
+        r["provinces"] = "|".join(sorted(hits, key=lambda k: -hits[k]))
+        r["province"] = max(hits, key=hits.get) if hits else "lain"
+    return rows
+
+
+def select(rows, islands=None, provinces=None, coverage=None, limit=None):
     """Narrow an index: by island, by share of the paddy covered, by count.
 
     `coverage=0.9` keeps the richest tiles that together hold 90% of the paddy
@@ -127,6 +197,14 @@ def select(rows, islands=None, coverage=None, limit=None):
     if islands:
         want = {s.lower() for s in islands}
         out = [r for r in out if r["island"].lower() in want]
+    if provinces:
+        want = {s.lower() for s in provinces}
+        # Any overlap counts: a tile straddling a border belongs to both runs,
+        # and is computed once if they share a tile cache.
+        out = [r for r in out
+               if want & {p.lower() for p in
+                          (r.get("provinces") or r.get("province") or ""
+                           ).split("|") if p}]
     if coverage:
         total = sum(r["paddy_ha"] for r in out)
         keep, run = [], 0.0
@@ -154,10 +232,11 @@ def summarise(rows):
 
 
 def write_csv(rows, path):
+    """The index as CSV. Admin fields stay empty until assign_admin has run."""
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(FIELDS))
         w.writeheader()
-        w.writerows({k: r[k] for k in FIELDS} for r in rows)
+        w.writerows({k: r.get(k, "") for k in FIELDS} for r in rows)
     return path
 
 

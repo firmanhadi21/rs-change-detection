@@ -54,6 +54,10 @@ MOSAIC = {
     "delay_class": "uint8", "adequacy": "float32", "adequacy_class": "uint8",
     "anomaly": "float32", "anomaly_class": "uint8", "outlook_class": "uint8",
     "puso": "uint8",
+    # Which sensor dated each planting: 1 optical, 0 radar. Not a product to
+    # colour a map with, but the thing to look at when two calendar arms give
+    # different answers for a province.
+    "calendar_arm": "float32",
 }
 NODATA = {"uint8": {"delay_class": 255, "adequacy_class": pw.ADEQUACY_NODATA,
                     "anomaly_class": pw.ADEQUACY_NODATA,
@@ -109,6 +113,11 @@ ISLAND_NOTES = {
 
 def _say(msg):
     print(msg, flush=True)
+
+
+def safe_name(area):
+    """A file-name stem from an area name: 'Jawa Barat' -> 'JawaBarat'."""
+    return "".join(c for c in str(area).title() if c.isalnum())
 
 
 def island_bbox(rows, pad=0.0):
@@ -264,17 +273,21 @@ def mosaic_aligned(paths, out_path, dtype, nodata=None):
     return out_path
 
 
-def roll_up(rows, run_dir, island, as_of, tiles_run):
-    """Island totals from the per-tile stats: hectares add, medians do not.
+def roll_up(rows, tiles_root, area, as_of, tiles_run):
+    """Area totals from the per-tile stats: hectares add, medians do not.
 
     Class hectares are summed. A median season length is taken across tiles
     weighted by paddy area, which is not the same as the median over pixels and
     is labelled as what it is.
+
+    A caution for provinces: these totals are per TILE, and a tile on a border
+    belongs to two provinces, so summing them counts that tile in both. For a
+    provincial figure use admin_totals, which masks the mosaic with the boundary.
     """
     per_tile, tot = [], {}
     lengths, weights, delays = [], [], []
     for r in rows:
-        p = os.path.join(tile_dir(run_dir, r["tile_id"]), "stats.json")
+        p = os.path.join(tile_dir(tiles_root, r["tile_id"]), "stats.json")
         if not os.path.exists(p):
             continue
         with open(p) as f:
@@ -334,7 +347,8 @@ def roll_up(rows, run_dir, island, as_of, tiles_run):
         if p.get("orbit_pass"):
             orbits[p["orbit_pass"]] = orbits.get(p["orbit_pass"], 0) + 1
     tot.update({
-        "scenario": "drought-paddy", "island": island, "as_of": str(as_of),
+        "scenario": "drought-paddy", "island": area, "area": area,
+        "as_of": str(as_of),
         "tiles": {"in_index": len(rows), "run": tiles_run,
                   "with_products": len(scored), "empty": len(blank),
                   # Paddy the index knows about but no product covers: the
@@ -347,19 +361,96 @@ def roll_up(rows, run_dir, island, as_of, tiles_run):
     return tot
 
 
-def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
+def admin_totals(written, geom, lang="id"):
+    """Hectares per class INSIDE a boundary, from the mosaics themselves.
+
+    The per-tile roll-up cannot give a provincial figure: a tile on a border
+    belongs to two provinces, and counting it whole in each inflates both. Here
+    the boundary is burned onto the mosaic's own grid and the classes are summed
+    only where it says, so a border runs through a tile rather than around it.
+    """
+    import numpy as np
+    import rasterio
+    from rasterio.features import rasterize
+
+    ref = written.get("paddy") or next(iter(written.values()))
+    with rasterio.open(ref) as src:
+        profile = src.profile.copy()
+        lat = (src.bounds.top + src.bounds.bottom) / 2.0
+    inside = rasterize([(geom, 1)], out_shape=(profile["height"],
+                                               profile["width"]),
+                       transform=profile["transform"], fill=0,
+                       all_touched=False, dtype="uint8").astype(bool)
+    area_ha = pdr.pixel_area_ha(profile, lat)
+
+    def read(layer):
+        with rasterio.open(written[layer]) as src:
+            return src.read(1)
+
+    out = {}
+    if "paddy" in written:
+        paddy = (read("paddy") > 0) & inside
+        out["paddy_ha"] = round(float(paddy.sum()) * area_ha, 1)
+    for layer, table in (("delay_class", pw.DELAY_CLASSES),
+                         ("adequacy_class", pw.ADEQUACY_CLASSES),
+                         ("anomaly_class", pw.ANOMALY_CLASSES),
+                         ("outlook_class", pw.ADEQUACY_CLASSES)):
+        if layer not in written:
+            continue
+        arr = read(layer)
+        key = {"delay_class": "planting_delay_ha",
+               "adequacy_class": "adequacy_ha",
+               "anomaly_class": "anomaly_ha",
+               "outlook_class": "outlook_ha"}[layer]
+        out[key] = {}
+        for cid, _lo, _hi, labels, _colour in table:
+            label = labels[lang if lang in labels else "en"]
+            out[key][label] = round(
+                float(((arr == cid) & inside).sum()) * area_ha, 1)
+    if "delay_class" in written:
+        arr = read("delay_class")
+        planted = np.isin(arr, [0, 1, 2, 3]) & inside
+        not_planted = (arr == pw.NOT_PLANTED) & inside
+        out["planted_ha"] = round(float(planted.sum()) * area_ha, 1)
+        out["not_planted_ha"] = round(float(not_planted.sum()) * area_ha, 1)
+        total = out.get("paddy_ha") or 0.0
+        out["not_planted_pct"] = (round(100.0 * out["not_planted_ha"] / total, 1)
+                                  if total else None)
+    if "puso" in written:
+        out["puso_candidates_ha"] = round(
+            float(((read("puso") == 1) & inside).sum()) * area_ha, 1)
+    out["method"] = "mosaic masked by the boundary, not summed per tile"
+    return out
+
+
+def run(area, paddy_file, run_dir, kind="island", calendar=None,
+        tiles_dir=None, admin_cache=None, as_of=None, coverage=None, limit=None,
         tile_deg=ptiles.TILE_DEG, min_ha=1.0, workers=None,
         index_file=None, publish=True, lang="id", outlook_days=14,
         seasons_back=pdr.DEFAULT_SEASONS_BACK, season_days=pdr.DEFAULT_SEASON_DAYS,
         kc_mode="curve110", orbit_pass="auto", quiet_tiles=True,
         config_key=None, keep_inputs=False):
-    """Everything for one island: index, tiles, mosaics, roll-up, web bundle."""
+    """Everything for one area: index, tiles, mosaics, roll-up, web bundle.
+
+    `kind` is "island" or "province". A province is the unit an agency reports
+    on, so it is the one that matters operationally; an island is the one that
+    tiles cleanly. Both are only groupings of the same tiles, which is why
+    `tiles_dir` exists: point two province runs at one cache and the tiles on
+    their shared border are computed once, not twice.
+
+    `calendar` selects the crop-calendar arm ("full_sar" or "hybrid"). Tile
+    caches must not be shared BETWEEN arms -- the products differ -- so the
+    caller gives each arm its own directory.
+    """
     from concurrent.futures import ProcessPoolExecutor, as_completed
 
     from .gee_utils import initialize_ee
     as_of = as_of or dt.date.today()
     workers = workers or default_workers()
+    calendar = calendar or pdr.DEFAULT_CALENDAR
     os.makedirs(run_dir, exist_ok=True)
+    tiles_dir = tiles_dir or os.path.join(run_dir, "tiles")
+    os.makedirs(tiles_dir, exist_ok=True)
     # Once, here: the island's own forecast download comes before any tile.
     # Each tile process initialises its own client.
     initialize_ee(config_key)
@@ -375,34 +466,48 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
         rows_all = ptiles.index(paddy_file, tile_deg, min_ha=min_ha)
         ptiles.write_csv(rows_all, cache)
         _say(f"  {len(rows_all):,} tiles hold paddy")
-    rows = ptiles.select(rows_all, islands=[island], coverage=coverage,
-                         limit=limit)
+    if kind == "province":
+        if not rows_all or not rows_all[0].get("province"):
+            # Provinces are not in the index yet: tag it once, from GAUL.
+            _say("  tagging the index with provinces (FAO GAUL 2025)...")
+            polys = ptiles.admin_polygons("Indonesia", cache=admin_cache)
+            ptiles.assign_admin(rows_all, polys)
+            ptiles.write_csv(rows_all, cache)
+        rows = ptiles.select(rows_all, provinces=[area], coverage=coverage,
+                             limit=limit)
+        known = sorted({r.get("province") for r in rows_all if r.get("province")})
+    else:
+        rows = ptiles.select(rows_all, islands=[area], coverage=coverage,
+                             limit=limit)
+        known = [n for n, _ in ptiles.ISLANDS]
     if not rows:
-        raise SystemExit(f"no tiles for island {island!r}. Known: "
-                         f"{', '.join(n for n, _ in ptiles.ISLANDS)}")
+        raise SystemExit(f"no tiles for {kind} {area!r}. Known: "
+                         f"{', '.join(known)}")
     ptiles.write_csv(rows, os.path.join(run_dir, "tile_index.csv"))
     ptiles.write_geojson(rows, os.path.join(run_dir, "tile_index.geojson"))
     total_ha = sum(r["paddy_ha"] for r in rows)
     bbox = island_bbox(rows)
-    _say(f"\n=== {island} ===")
-    _say(f"  {len(rows):,} tiles, {total_ha:,.0f} ha of paddy, bbox "
+    _say(f"\n=== {area} ({kind}, calendar {calendar}) ===")
+    _say(f"  {len(rows):,} tiles, {total_ha:,.0f} ha of paddy in the index, bbox "
          f"{bbox[0]:.2f},{bbox[1]:.2f} -> {bbox[2]:.2f},{bbox[3]:.2f}")
-    _say(f"  as of {as_of}, {seasons_back} baseline season(s), {workers} workers")
+    cached = sum(1 for r in rows if tile_done(tiles_dir, r["tile_id"]))
+    _say(f"  as of {as_of}, {seasons_back} baseline season(s), {workers} workers"
+         f"{f', {cached} tiles already in the cache' if cached else ''}")
 
-    # --- one forecast for the island --------------------------------------
-    gfs = shared_forecast(bbox, os.path.join(run_dir, "gfs_island.tif"),
+    # --- one forecast for the whole area ----------------------------------
+    gfs = shared_forecast(bbox, os.path.join(run_dir, "gfs_area.tif"),
                           outlook_days)
     _say(f"  forecast: {'GFS run ' + gfs[1].strftime('%Y-%m-%d %H:%M UTC') if gfs[1] else 'none available'}")
 
     # --- the tiles ---------------------------------------------------------
     kw = dict(season_days=season_days, seasons_back=seasons_back,
               kc_mode=kc_mode, orbit_pass=orbit_pass, outlook_days=outlook_days,
-              lang=lang, config_key=config_key)
+              lang=lang, config_key=config_key, calendar=calendar)
     done = {"ok": 0, "cached": 0, "empty": 0, "failed": 0}
     started = time.time()
     cwd = os.getcwd()              # relative paths (the paddy layer) must survive
     with ProcessPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(run_tile, r, run_dir, as_of, paddy_file, gfs,
+        futures = [pool.submit(run_tile, r, tiles_dir, as_of, paddy_file, gfs,
                                keep_inputs, quiet_tiles, cwd, **kw)
                    for r in rows]
         # As they finish, not in the order they were queued. Waiting on the
@@ -424,25 +529,43 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
     _say(f"  tiles: {done}")
 
     # --- mosaics -----------------------------------------------------------
-    _say("  mosaicking the island (windowed copy: tiles share one grid)...")
+    _say(f"  mosaicking {area} (windowed copy: tiles share one grid)...")
     written = {}
+    prefix = safe_name(area)
     for layer, dtype in MOSAIC.items():
-        paths = [os.path.join(tile_dir(run_dir, r["tile_id"]),
+        paths = [os.path.join(tile_dir(tiles_dir, r["tile_id"]),
                               f"paddy_{layer}_{r['tile_id']}.tif")
                  for r in rows]
         paths = [p for p in paths if os.path.exists(p)]
         if not paths:
             continue
-        out = os.path.join(run_dir, f"{island}_{layer}.tif")
+        out = os.path.join(run_dir, f"{prefix}_{layer}.tif")
         got = mosaic_aligned(paths, out, dtype,
                              NODATA.get(dtype, {}).get(layer))
         if got:
             written[layer] = got
-    _say(f"  {len(written)} island rasters")
+    _say(f"  {len(written)} rasters for {area}")
 
     # --- the numbers -------------------------------------------------------
-    stats = roll_up(rows, run_dir, island, as_of, len(rows))
+    stats = roll_up(rows, tiles_dir, area, as_of, len(rows))
+    if kind == "province" and written:
+        # The figure to quote. The per-tile sums stay in the file beside it, and
+        # the difference between them is the border tiles counted twice.
+        polys = ptiles.admin_polygons("Indonesia", cache=admin_cache)
+        if area in polys:
+            exact = admin_totals(written, polys[area], lang)
+            _say(f"  within the province boundary: "
+                 f"{exact.get('paddy_ha', 0):,.0f} ha of paddy "
+                 f"(per-tile sum {stats.get('paddy_ha', 0):,.0f} ha — the "
+                 f"difference is tiles shared with a neighbour)")
+            stats["per_tile_totals"] = {k: stats.get(k) for k in (
+                "paddy_ha", "planted_ha", "not_planted_ha", "not_planted_pct",
+                "planting_delay_ha", "adequacy_ha", "anomaly_ha", "outlook_ha",
+                "puso_candidates_ha")}
+            stats.update(exact)
+            stats["boundary"] = {"source": ptiles.GAUL1, "name": area}
     stats.update({
+        "kind": kind, "calendar_arm": calendar,
         "tile_deg": tile_deg, "paddy_extent_source": os.path.basename(paddy_file),
         "grid": {"deg": pdata.LBS_GRID_DEG, "m": round(pdata.grid_metres(), 3),
                  "aligned_to": os.path.basename(paddy_file), "crs": "EPSG:4326"},
@@ -458,7 +581,7 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
     })
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=2)
-    _print(stats, island)
+    _print(stats, area)
 
     if publish and written:
         _say("\n  building the island web bundle...")
