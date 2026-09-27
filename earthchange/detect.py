@@ -543,7 +543,7 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                           orbit_pass=("DESCENDING" if args.orbit_pass == "auto"
                                       else args.orbit_pass.upper()),
                           lang=args.lang, publish=args.publish)
-        return
+        return True
 
     if method == "smoke_dispersion":
         from . import smoke_dispersion

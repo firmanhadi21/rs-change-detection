@@ -28,8 +28,21 @@ WEB_CRS = "EPSG:3857"
 
 # What a viewer can switch between, and how each is coloured.
 LAYERS = {
+    # The headline drought layer. It leads because it is the one that means
+    # the same thing everywhere: this season against these fields' own
+    # normal. The absolute adequacy below is kept for audit, but satellite
+    # ETa reads ~35% under Kc x ET0 over flooded rice, so its FAO-33 classes
+    # describe the product as much as the crop until they are calibrated.
+    "anomaly_class": {
+        "title": {"id": "Kekeringan dibanding musim biasanya",
+                  "en": "Drought against this field's normal"},
+        "classes": pw.ANOMALY_CLASSES, "nodata": pw.ADEQUACY_NODATA,
+    },
     "adequacy_class": {
-        "title": {"id": "Kecukupan air musim ini", "en": "Water adequacy, this season"},
+        "title": {"id": "Kecukupan air musim ini (skala mutlak, belum "
+                        "dikalibrasi)",
+                  "en": "Water adequacy this season (absolute scale, "
+                        "uncalibrated)"},
         "classes": pw.ADEQUACY_CLASSES, "nodata": pw.ADEQUACY_NODATA,
     },
     "outlook_class": {
@@ -70,6 +83,10 @@ CAVEATS = {
         "sehingga hanya sel yang didominasi sawah tertanam yang dinilai.",
         "Ambang kelas mengikuti FAO-33 dan belum dikalibrasi dengan data hasil "
         "panen setempat.",
+        "ETa satelit di atas sawah tergenang terbaca sekitar 35% di bawah "
+        "Kc x ET0 bahkan saat air melimpah (diuji: WaPOR, MOD16, ERA5-Land "
+        "sepakat). Karena itu lapisan utama adalah perbandingan dengan musim "
+        "biasanya pada petak yang sama, bukan skala mutlak.",
     ],
     "en": [
         "Puso flags are candidates for a field check, not a verdict.",
@@ -82,6 +99,10 @@ CAVEATS = {
         "the 50 m grid, so only cells dominated by planted paddy are scored.",
         "Class thresholds follow FAO-33 and are not calibrated against local "
         "yield data.",
+        "Satellite ETa over flooded rice reads about 35% below Kc x ET0 even "
+        "when water is abundant (checked: WaPOR, MOD16 and ERA5-Land agree). "
+        "The headline layer is therefore this season against the same "
+        "fields' own normal, not the absolute scale.",
     ],
 }
 

@@ -53,6 +53,7 @@ T = {
         "delay": "Kemunduran tanam (hari)", "si": "Kecukupan air (SI)",
         "outlook": "Risiko 7 hari (hujan saja)",
         "puso": "Kandidat gagal tanam (puso)",
+        "anomaly": "Dibanding musim biasanya",
         "paddy": "Sawah", "season": "Musim",
     },
     "en": {
@@ -60,6 +61,7 @@ T = {
         "delay": "Planting delay (days)", "si": "Water adequacy (SI)",
         "outlook": "7-day risk (rainfall only)",
         "puso": "Crop-failure candidates (puso)",
+        "anomaly": "Against this field's normal",
         "paddy": "Paddy", "season": "Season",
     },
 }
@@ -155,9 +157,19 @@ def rasterize_layer(path, profile, field=None):
     import rasterio
     from rasterio.enums import Resampling
     if str(path).lower().endswith((".tif", ".tiff")):
+        # Reproject the AOI's window onto the analysis grid. Reading with
+        # out_shape would resample the WHOLE file -- and a national layer like
+        # Lahan Baku Sawah covers 95E to 141E, so the AOI would be filled with
+        # a thumbnail of Indonesia.
+        from rasterio.warp import reproject
+        out = np.zeros((profile["height"], profile["width"]), dtype="float32")
         with rasterio.open(path) as src:
-            return src.read(1, out_shape=(profile["height"], profile["width"]),
-                            resampling=Resampling.nearest)
+            reproject(source=rasterio.band(src, 1), destination=out,
+                      src_transform=src.transform, src_crs=src.crs,
+                      dst_transform=profile["transform"],
+                      dst_crs=profile["crs"], resampling=Resampling.nearest,
+                      src_nodata=src.nodata, dst_nodata=0)
+        return out
     import geopandas as gpd
     from rasterio.features import rasterize
     gdf = gpd.read_file(path)
@@ -268,7 +280,14 @@ def planting_doy(plant_index, grid):
 # ---------------------------------------------------------------------------
 # water, now and ahead
 # ---------------------------------------------------------------------------
-WAPOR_FREE_WATER = 1.0    # WaPOR AETI already carries interception/open water
+# Paper 3's 1.2, kept after measuring rather than on the argument that WaPOR
+# already carries interception. Over the Klambu paddies three independent ET
+# products agree closely (wet season: WaPOR 3.32, MOD16 3.32, ERA5-Land 3.98
+# mm/day; dry: 2.49, 2.16, 2.55) and all cap out at ETa/ET0 ~ 0.90 in the
+# wettest months. With Kc ~1.1 that makes a fully watered paddy score 0.82 and
+# "adequate" unreachable. The 1.2 puts the wet season at 0.98 -- the mean SI
+# the Klambu study measured -- and the dry season at 0.63.
+WAPOR_FREE_WATER = pw.SI_FREE_WATER
 
 
 def adequacy_now(aeti, ret, plant_rel, length, kc_mode="curve110",
@@ -472,26 +491,53 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
          f"({int((confirmed & paddy).sum()):,} confirmed, "
          f"{int((provisional & paddy).sum()):,} provisional)")
 
-    # --- water now ---------------------------------------------------------
+    # --- water, this season and the ones before ----------------------------
+    def season_water(season, tag):
+        """Adequacy for one season window, on that season's own calendar."""
+        f, l = season["first"], season["last"]
+        sgrid = [(i - f, a, b) for i, a, b in grid[f:l]]
+        ap = os.path.join(run_dir, f"paddy_aeti_{tag}_{name}.tif")
+        rp = os.path.join(run_dir, f"paddy_ret_{tag}_{name}.tif")
+        if not (os.path.exists(ap) and os.path.exists(rp)):
+            _say(f"  fetching WaPOR actual and reference ET ({tag})...")
+            a_img, r_img = pdata.wapor_periods(aoi, sgrid)
+            download_geotiff(a_img, aoi, ap, scale=grid_m)
+            download_geotiff(r_img, aoi, rp, scale=grid_m)
+        a_arr, _, _ = read_stack(ap)
+        r_arr, _, _ = read_stack(rp)
+        return adequacy_now(a_arr, r_arr, season["plant"] - f,
+                            season["length"], kc_mode) + (a_arr, r_arr)
+
     first, last = cur["first"], cur["last"]
-    season_grid = [(i - first, a, b) for i, a, b in grid[first:last]]
-    aeti_path = os.path.join(run_dir, f"paddy_aeti_{name}.tif")
-    ret_path = os.path.join(run_dir, f"paddy_ret_{name}.tif")
-    if not (os.path.exists(aeti_path) and os.path.exists(ret_path)):
-        _say("  fetching WaPOR 3.0 actual ET and reference ET...")
-        aeti_img, ret_img = pdata.wapor_periods(aoi, season_grid)
-        download_geotiff(aeti_img, aoi, aeti_path, scale=grid_m)
-        download_geotiff(ret_img, aoi, ret_path, scale=grid_m)
-    aeti, _, _ = read_stack(aeti_path)
-    ret, _, _ = read_stack(ret_path)
+    si_now, si_period, supply, demand, aeti, ret = season_water(cur, "now")
     plant_rel = cur["plant"] - first
-    si_now, si_period, supply, demand = adequacy_now(
-        aeti, ret, plant_rel, cur["length"], kc_mode)
+
+    # Drought is a departure from normal, and a ratio against the same
+    # pixels' earlier seasons divides out the product bias that makes the
+    # absolute scale unusable here (see paddy_water.ANOMALY_CLASSES).
+    base_si = []
+    for n, season in enumerate(seasons[1:], start=1):
+        si_b, _, _, _, _, _ = season_water(season, f"base{n}")
+        base_si.append(si_b)
+    if base_si:
+        with np.errstate(invalid="ignore"):
+            si_baseline = np.nanmedian(np.stack(base_si), axis=0)
+    else:
+        si_baseline = np.full(si_now.shape, np.nan, dtype="float32")
     purity = wapor_cell_purity(paddy & planted, grid_m)
     pure = purity >= PURE_ENOUGH
     si_now = np.where(pure, si_now, np.nan)
     si_cls = pw.adequacy_class(si_now)
     si_cls[~(paddy & planted & pure)] = pw.ADEQUACY_NODATA
+
+    anomaly = pw.anomaly(si_now, si_baseline)
+    anomaly_cls = pw.anomaly_class(anomaly)
+    anomaly_cls[~(paddy & planted & pure)] = pw.ADEQUACY_NODATA
+    got = np.isfinite(anomaly)
+    if got.any():
+        _say(f"  against the same fields' own {len(base_si)} earlier season(s): "
+             f"median {float(np.nanmedian(anomaly[got])):.2f} of normal "
+             f"({int(got.sum()):,} pixels with a baseline)")
     _say(f"  water balance scored on {int((paddy & planted & pure).sum()):,} of "
          f"{int((paddy & planted).sum()):,} planted pixels — the rest share a "
          f"300 m WaPOR cell with fallow land, whose ET is not the crop's")
@@ -542,7 +588,16 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "delay_days": (np.where(paddy & planted, delay, np.nan), "float32", None),
         "delay_class": (np.where(paddy, delay_cls, 255), "uint8", 255),
         "adequacy": (np.where(paddy & planted, si_now, np.nan), "float32", None),
+        # Kept as products, not just intermediates: an adequacy figure that
+        # cannot be taken apart into the water supplied and the water the crop
+        # asked for is not auditable.
+        "plant_period": (np.where(paddy & planted, plant_rel, np.nan),
+                         "float32", None),
+        "supply_mm": (np.where(paddy & planted, supply, np.nan), "float32", None),
+        "demand_mm": (np.where(paddy & planted, demand, np.nan), "float32", None),
         "adequacy_class": (si_cls, "uint8", pw.ADEQUACY_NODATA),
+        "anomaly": (np.where(paddy & planted, anomaly, np.nan), "float32", None),
+        "anomaly_class": (anomaly_cls, "uint8", pw.ADEQUACY_NODATA),
         "outlook_class": (outlook_cls, "uint8", pw.ADEQUACY_NODATA),
         "puso": (np.where(paddy, puso.astype("uint8"), 0), "uint8", None),
     }
@@ -562,8 +617,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
              f"{cu:.1f}% (target {pw.CU_TARGET:.0f}%)")
 
     # --- the numbers -------------------------------------------------------
-    stats = summarise(paddy, planted, delay, delay_cls, si_cls, outlook_cls,
-                      puso, no_canopy, starved, cur, area_ha, lang)
+    stats = summarise(paddy, planted, delay, delay_cls, si_cls, anomaly_cls,
+                      outlook_cls, puso, no_canopy, starved, cur, area_ha, lang)
     stats.update({
         "run_id": run_id, "scenario": "drought-paddy", "as_of": str(as_of),
         "location": {"lat": lat, "lon": lon}, "radius_km": radius,
@@ -596,8 +651,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     return {"rasters": written, "stats": stats, "profile": profile}
 
 
-def summarise(paddy, planted, delay, delay_cls, si_cls, outlook_cls, puso,
-              no_canopy, starved, cur, area_ha, lang="id"):
+def summarise(paddy, planted, delay, delay_cls, si_cls, anomaly_cls,
+              outlook_cls, puso, no_canopy, starved, cur, area_ha, lang="id"):
     """Hectares per class: the form an irrigation office can act on."""
     def ha(mask):
         return round(float(np.count_nonzero(mask)) * area_ha, 1)
@@ -619,6 +674,7 @@ def summarise(paddy, planted, delay, delay_cls, si_cls, outlook_cls, puso,
         "median_delay_days": _r(np.nanmedian(delay[paddy & planted])
                                 if (paddy & planted).any() else np.nan, 1),
         "adequacy_ha": by_class(si_cls, pw.ADEQUACY_CLASSES),
+        "anomaly_ha": by_class(anomaly_cls, pw.ANOMALY_CLASSES),
         "outlook_ha": by_class(outlook_cls, pw.ADEQUACY_CLASSES),
         "puso_candidates_ha": ha(puso),
         "puso_no_canopy_ha": ha(no_canopy),
@@ -636,6 +692,8 @@ def _print_summary(stats, t):
     _say(f"  {t['season']}: median {stats['season_length_days_median']} days")
     for label, value in stats["adequacy_ha"].items():
         _say(f"    {t['si']:<24s} {label:<28s} {value:>10,.0f} ha")
+    for label, value in stats["anomaly_ha"].items():
+        _say(f"    {t['anomaly']:<24s} {label:<28s} {value:>10,.0f} ha")
     for label, value in stats["outlook_ha"].items():
         _say(f"    {t['outlook']:<24s} {label:<28s} {value:>10,.0f} ha")
     _say(f"  {t['puso']}: {stats['puso_candidates_ha']:,.0f} ha "

@@ -160,6 +160,7 @@ gratis), atau `--site NAMA`.
 | `haze` | Asap & kualitas udara karhutla: PM2.5 (ISPU), indeks aerosol, titik panas | CAMS + Sentinel-5P + FIRMS |
 | `fire-history` | Riwayat karhutla: luas terbakar/tahun (gambut vs mineral), peta frekuensi, musim | MODIS MCD64A1 + FIRMS |
 | `drought` | Kekeringan: anomali hujan (z-score), VCI/TCI/VHI, ENSO + IOD; `--cdi` menggabungkan meteorologis/pertanian/vegetasi jadi satu peta kelas, `--cdi-mask` membacanya hanya di atas sawah | CHIRPS/ERA5-Land/IMERG + MODIS + OISST |
+| `drought-paddy` | Kekeringan **di sawah**, per petak: kapan ditanam (dan mundur berapa hari dibanding musim sebelumnya), berapa yang belum tanam, kecukupan air terhadap kebutuhan tanaman, dan prakiraan 7 hari. Panjang musim **diukur** per petak dengan jendela ganda, bukan diasumsikan 110 hari | Sentinel-1 VH + WaPOR 3.0 (AETI/RET) + CHIRPS + GFS |
 
 ```bash
 # Sintaks umum
@@ -573,6 +574,47 @@ Backend: **GEE**.
 >   sebagai sinyal utama; AAI sebagai konteks.
 > - Sumber punya **latensi berbeda** (CAMS memimpin FIRMS beberapa hari), jadi hari
 >   terakhir bisa punya PM2.5 tanpa titik panas.
+
+### Kekeringan sawah — `drought-paddy`
+
+Menjawab tiga hal untuk **tiap petak**, bukan rata-rata kabupaten:
+
+1. **Sudah ditanam belum, dan kapan?** Sawah tergenang memantulkan pulsa radar
+   menjauh, sehingga VH anjlok ke sekitar −20 dB saat tanam lalu naik lagi
+   bersama tajuk. Kemunduran tanam tiga periode adalah sinyal kekeringan
+   berminggu-minggu sebelum indeks vegetasi bergerak; tidak tanam sama sekali
+   adalah sinyal terkuat.
+2. **Cukup airkah?** ETa (WaPOR 3.0) dibanding kebutuhan tanaman Kc × ET0,
+   dengan Kc mengikuti musim yang **benar-benar dijalani petak itu**.
+3. **Dua pekan ke depan?** Sisi kebutuhan sudah tertentu dari kalender petak;
+   sisi pasokan dari prakiraan hujan GFS.
+
+```bash
+# dengan Lahan Baku Sawah resmi, plus paket web untuk peta daring
+earthchange -s drought-paddy --lat=-6.95 --lon=110.85 -r 8 \
+    --paddy-file data/LBS_Ind_2023_0005.tif --zones data/di_klambu_petak.gpkg \
+    --publish -n klambu
+```
+
+**Jendela ganda — panjang musim diukur, bukan diasumsikan.** Varietas berbeda,
+umur berbeda. Jendela pertama menemukan cekungan tanam; jendela kedua mencari
+cekungan musim **berikutnya** (85–200 hari kemudian) untuk menentukan panen.
+Pada uji BulakBakal, asumsi 110 hari menempatkan panen di dalam jendela petani
+**0 dari 13** kali; panjang musim terukur (median 75 hari) berhasil **12 dari 13**.
+Musim berjalan memakai panjang musim dari riwayat petak itu sendiri — banjir
+berikutnya belum terjadi.
+
+**Batas yang dijaga.** Tanam dalam ~60 hari terakhir belum bisa dikonfirmasi
+(tajuk belum tumbuh), jadi dilaporkan sebagai *provisional*, bukan "belum
+tanam". Prakiraan hanya hujan — pasokan irigasi tidak bisa diprakirakan.
+Kandidat puso adalah daftar untuk dicek lapangan, bukan vonis. ETa satelit di
+atas sawah tergenang terbaca ~35% di bawah Kc × ET0 bahkan saat air melimpah
+(WaPOR, MOD16, dan ERA5-Land sepakat), sehingga lapisan utama adalah
+**perbandingan dengan musim biasanya pada petak yang sama**, bukan skala mutlak.
+
+`--publish` menulis `web/`: COG (EPSG:3857, bertingkat), poligon peringatan dan
+zona sebagai GeoJSON, `legend.json` dwibahasa, dan `summary.json` yang membawa
+catatan batas di atas — siap disajikan situs peta.
 
 ### Riwayat kebakaran hutan & lahan — `fire-history`
 

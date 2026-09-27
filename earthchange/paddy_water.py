@@ -54,6 +54,26 @@ ADEQUACY_CLASSES = [
 ADEQUACY_NODATA = 255
 EQUITY_FLOOR = 0.65           # 10th-percentile adequacy below this = tail-end stress
 
+# Drought is a departure from normal, and measuring it that way removes a
+# problem the absolute bands cannot survive. Over Klambu paddy, WaPOR AETI
+# runs about 35% below Kc x reference ET even in a wet season with 13 mm/day
+# of rain and the fields plainly supplied (measured by stage: 0.64 initial,
+# 0.66 vegetative, 0.77 reproductive). Three ET products agree with each
+# other, so this is what satellite ETa does over flooded rice, not a bug --
+# and it makes "adequate" unreachable on the FAO-33 scale, which that
+# methodology already flags as uncalibrated.
+#
+# A ratio against the SAME pixel's own earlier seasons cancels that bias:
+# whatever the product reads for a healthy crop here, this season is measured
+# against it.
+ANOMALY_CLASSES = [
+    (0, 0.95, 9.99, {"id": "Normal", "en": "Normal"}, "#2c7bb6"),
+    (1, 0.85, 0.95, {"id": "Agak kering", "en": "Slightly drier"}, "#abd9e9"),
+    (2, 0.70, 0.85, {"id": "Lebih kering", "en": "Drier than normal"}, "#fdae61"),
+    (3, -0.01, 0.70, {"id": "Jauh lebih kering",
+                      "en": "Much drier than normal"}, "#d7191c"),
+]
+
 # Planting lateness against the same fields' own baseline seasons. One S1
 # period (12 days) of slip is scheduling; three is a season in trouble.
 DELAY_CLASSES = [
@@ -227,6 +247,24 @@ def classify(value, table, nodata=ADEQUACY_NODATA):
 
 def adequacy_class(si):
     return classify(si, ADEQUACY_CLASSES)
+
+
+def anomaly(si_now, si_baseline):
+    """This season's adequacy against the same pixels' own earlier seasons.
+
+    1.0 means as well supplied as usual; 0.7 means the crop is getting about
+    seven tenths of what these fields normally get at this point. Product
+    bias divides out, which the absolute index cannot do.
+    """
+    now = np.asarray(si_now, dtype="float32")
+    base = np.asarray(si_baseline, dtype="float32")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out = now / base
+    return np.where((base > 0) & np.isfinite(now), out, np.nan).astype("float32")
+
+
+def anomaly_class(ratio):
+    return classify(ratio, ANOMALY_CLASSES)
 
 
 def christiansen_uniformity(values):

@@ -188,3 +188,27 @@ def test_a_pixel_with_no_paired_periods_reports_nothing():
     si, _, _ = season_adequacy(eta, et0, np.zeros((1, 1), dtype="float32"),
                                np.full((1, 1), 96.0, dtype="float32"))
     assert np.isnan(si[0, 0])
+
+
+# --- drought as a departure from the fields' own normal ---
+
+def test_anomaly_divides_out_a_product_bias():
+    """A product reading 35% low everywhere still gives the right anomaly.
+
+    Two fields: one supplied as usual, one at 70% of usual. Whatever constant
+    bias the ETa product carries, the ratio recovers 1.0 and 0.7.
+    """
+    from earthchange.paddy_water import anomaly, anomaly_class
+    for bias in (1.0, 0.65, 0.5):
+        normal_now, normal_base = 0.9 * bias, 0.9 * bias
+        dry_now, dry_base = 0.63 * bias, 0.9 * bias
+        got = anomaly([normal_now, dry_now], [normal_base, dry_base])
+        assert got[0] == pytest.approx(1.0, abs=0.01)
+        assert got[1] == pytest.approx(0.7, abs=0.01)
+    assert list(anomaly_class(np.array([1.0, 0.9, 0.8, 0.5]))) == [0, 1, 2, 3]
+
+
+def test_anomaly_is_undefined_without_a_baseline():
+    from earthchange.paddy_water import anomaly
+    assert np.isnan(anomaly([0.8], [np.nan])[0])
+    assert np.isnan(anomaly([0.8], [0.0])[0])
