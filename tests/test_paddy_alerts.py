@@ -155,6 +155,33 @@ def test_one_collection_still_carries_everything(tmp_path):
     assert len(one["features"]) == sum(len(c["features"]) for c in per.values())
 
 
+def test_a_republish_removes_the_previous_shape_of_the_layer(tmp_path):
+    """An area's alerts are per-kind files; a leftover combined one contradicts
+    them, and a bundle holding both is worse than a bundle holding either."""
+    import json as _json
+
+    from earthchange import paddy_island as pisl
+    run_dir = tmp_path / "run"
+    web = run_dir / "web"
+    web.mkdir(parents=True)
+    (web / "alerts.geojson").write_text('{"type":"FeatureCollection",'
+                                        '"features":[]}')
+    paths, prof = _rasters(tmp_path, severe=_blob(200, 10, 10, 40),
+                           not_planted=_blob(200, 100, 100, 40),
+                           puso=_blob(200, 150, 20, 30))
+    written = dict(paths)
+    written["paddy"] = paths["adequacy_class"]        # any raster for the profile
+    stats = {"island": "Jawa Barat", "area": "Jawa Barat",
+             "bbox": [110.0, -7.1, 110.1, -7.0],
+             "grid": {"m": 55.66}, "native_m": {}}
+    out = pisl.publish_island(str(run_dir), written, stats, "id")
+    assert not (web / "alerts.geojson").exists()
+    assert set(out["alerts"]) == {"severe_deficit", "not_planted",
+                                  "puso_candidate"}
+    for p in out["alerts"].values():
+        _json.loads(open(p).read())
+
+
 def test_a_collection_is_valid_geojson(tmp_path):
     paths, prof = _rasters(tmp_path, severe=_blob(200, 10, 10, 40))
     coll = ppub.alerts_geojson(paths, prof, 0.31, min_ha=0.0)

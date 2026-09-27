@@ -150,8 +150,15 @@ def shared_forecast(bbox, out_path, outlook_days, grid_deg=GFS_GRID_DEG):
     return out_path, run_time
 
 
-def tile_dir(run_dir, tile_id):
-    return os.path.join(run_dir, "tiles", tile_id)
+def tile_dir(tiles_root, tile_id):
+    """Where one tile's products live, directly under the tile root.
+
+    The root itself carries the "tiles" segment -- run() defaults it to
+    run_dir/tiles -- so adding another here doubled it for any caller that
+    passed a root explicitly, and a shared cache then failed to match the
+    tiles already in it.
+    """
+    return os.path.join(tiles_root, tile_id)
 
 
 def tile_done(run_dir, tile_id):
@@ -625,6 +632,13 @@ def publish_island(run_dir, written, stats, lang="id"):
     # somebody would actually act on.
     web["alerts"] = {}
     counts = {}
+    # A republish must not leave the previous shape of this layer beside the new
+    # one. An area's alerts are per-kind files; a combined alerts.geojson here is
+    # an older bundle's, and two contradictory versions of one layer is worse
+    # than either.
+    stale = os.path.join(out_dir, "alerts.geojson")
+    if os.path.exists(stale):
+        os.remove(stale)
     if all(k in written for k in ("adequacy_class", "delay_class", "puso")):
         with rasterio.open(written["paddy"]) as ds:
             prof = ds.profile.copy()
@@ -678,6 +692,78 @@ def publish_island(run_dir, written, stats, lang="id"):
         json.dump(summary, f, indent=2)
     web["summary"] = os.path.join(out_dir, "summary.json")
     return web
+
+
+def finalise(run_dir, tiles_dir, admin_cache=None, lang="id", publish=True):
+    """Re-derive an area's products from tiles that already exist.
+
+    Everything after the tiles -- mosaic, roll-up, boundary masking, bundle --
+    is a pure function of the tile directory, so it can be redone without
+    touching Earth Engine. Needed more often than it sounds: a run whose
+    mosaicking step was interrupted, a bundle written before a fix to the
+    publishing code, or a tile cache that moved.
+
+    Reads what the area is from the run's own stats.json and tile_index.csv.
+    """
+    stats_path = os.path.join(run_dir, "stats.json")
+    index_path = os.path.join(run_dir, "tile_index.csv")
+    if not (os.path.exists(stats_path) and os.path.exists(index_path)):
+        raise SystemExit(f"{run_dir}: needs stats.json and tile_index.csv to "
+                         f"know what it was")
+    with open(stats_path) as f:
+        old = json.load(f)
+    rows = ptiles.read_csv(index_path)
+    area = old.get("area") or old.get("island")
+    kind = old.get("kind", "island")
+    calendar = old.get("calendar_arm") or old.get("calendar")
+    as_of = old.get("as_of")
+    prefix = safe_name(area)
+    _say(f"re-deriving {area} ({kind}, {calendar}) from {len(rows):,} tiles "
+         f"in {os.path.basename(tiles_dir)}")
+
+    written = {}
+    for layer, dtype in MOSAIC.items():
+        paths = [os.path.join(tile_dir(tiles_dir, r["tile_id"]),
+                              f"paddy_{layer}_{r['tile_id']}.tif")
+                 for r in rows]
+        paths = [p for p in paths if os.path.exists(p)]
+        if not paths:
+            continue
+        got = mosaic_aligned(paths, os.path.join(run_dir, f"{prefix}_{layer}.tif"),
+                             dtype, NODATA.get(dtype, {}).get(layer))
+        if got:
+            written[layer] = got
+    covered = len([1 for r in rows
+                   if tile_done(tiles_dir, r["tile_id"])])
+    _say(f"  {len(written)} rasters from {covered:,} of {len(rows):,} tiles")
+
+    stats = roll_up(rows, tiles_dir, area, as_of, len(rows))
+    if kind == "province" and written:
+        polys = ptiles.admin_polygons("Indonesia", cache=admin_cache)
+        if area in polys:
+            exact = admin_totals(written, polys[area], lang)
+            stats["per_tile_totals"] = {k: stats.get(k) for k in (
+                "paddy_ha", "planted_ha", "not_planted_ha", "not_planted_pct",
+                "planting_delay_ha", "adequacy_ha", "anomaly_ha", "outlook_ha",
+                "puso_candidates_ha")}
+            stats.update(exact)
+            stats["boundary"] = {"source": ptiles.GAUL1, "name": area}
+    # Carry over what only the original run knew.
+    for key in ("kind", "calendar_arm", "tile_deg", "paddy_extent_source",
+                "grid", "native_m", "bbox", "index_paddy_ha", "sources",
+                "outlook"):
+        if key in old:
+            stats.setdefault(key, old[key])
+            stats[key] = old[key]
+    with open(stats_path, "w") as f:
+        json.dump(stats, f, indent=2)
+    _print(stats, area)
+    if publish and written:
+        web = publish_island(run_dir, written, stats, lang)
+        alerts = ", ".join(f"{v['file']} {v['features']:,} poly {v['mb']} MB"
+                           for v in (web.get("alert_counts") or {}).values())
+        _say(f"  web/: {len(web.get('cog', {}))} COGs; alerts: {alerts}")
+    return stats
 
 
 def national(base_dir, out_dir=None, lang="id"):

@@ -276,6 +276,21 @@ def test_a_finished_tile_is_not_run_again(tmp_path):
     assert not pisl.tile_done(run, "t0002_0002")
 
 
+def test_a_tile_lives_directly_under_the_root_it_is_given(tmp_path):
+    """A shared cache only works if the root is used as given.
+
+    tile_dir added a "tiles" segment of its own, so an explicit --tiles-dir
+    became <dir>/tiles/<id> and the tiles already sitting in <dir> were invisible
+    to it -- a shared cache that silently recomputed everything.
+    """
+    root = str(tmp_path / "tiles_full_sar")
+    assert pisl.tile_dir(root, "t0009_0009") == os.path.join(root, "t0009_0009")
+    os.makedirs(os.path.join(root, "t0009_0009"))
+    with open(os.path.join(root, "t0009_0009", "stats.json"), "w") as f:
+        json.dump({"paddy_ha": 1.0}, f)
+    assert pisl.tile_done(root, "t0009_0009")
+
+
 def test_a_border_tile_belongs_to_both_provinces(tmp_path):
     """Selection must include it for both, or one province loses that paddy."""
     from shapely.geometry import box as sbox
