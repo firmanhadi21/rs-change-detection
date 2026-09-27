@@ -123,6 +123,44 @@ def _tile_stats_for(run_dir, tid, **fields):
         json.dump(fields, f)
 
 
+def test_class_hectares_never_exceed_the_paddy_they_describe(tmp_path):
+    """The bug this guards: delay_class marks every unplanted pixel NOT_PLANTED,
+    including everything that is not a field, so summing it per tile reported
+    four times the island's paddy as "belum tanam" -- 13.8 M ha against 3.35 M.
+    Taken from the mosaic, masked to paddy, it cannot happen.
+    """
+    import numpy as np
+    import rasterio
+    from earthchange import paddy_water as pw
+
+    n = 40
+    prof = {"driver": "GTiff", "height": n, "width": n, "count": 1,
+            "dtype": "uint8", "crs": rasterio.crs.CRS.from_epsg(4326),
+            "transform": rasterio.Affine(0.0005, 0, 110.0, 0, -0.0005, -7.0)}
+    # a quarter of the scene is paddy; the rest is not a field at all
+    paddy = np.zeros((n, n), dtype="uint8")
+    paddy[:20, :20] = 1
+    delay = np.full((n, n), 255, dtype="uint8")
+    delay[:20, :20] = pw.NOT_PLANTED           # all of the paddy unplanted
+    written = {}
+    for name, arr in (("paddy", paddy), ("delay_class", delay),
+                      ("adequacy_class", np.full((n, n), 255, "uint8")),
+                      ("anomaly_class", np.full((n, n), 255, "uint8")),
+                      ("outlook_class", np.full((n, n), 255, "uint8")),
+                      ("puso", np.zeros((n, n), "uint8"))):
+        p = str(tmp_path / f"{name}.tif")
+        with rasterio.open(p, "w", **prof) as dst:
+            dst.write(arr, 1)
+        written[name] = p
+
+    got = pisl.admin_totals(written, None, "id")
+    assert got["paddy_ha"] > 0
+    belum = got["planting_delay_ha"]["Belum tanam"]
+    assert belum == pytest.approx(got["paddy_ha"], rel=1e-6)
+    assert belum <= got["paddy_ha"] * 1.000001, "more 'not planted' than paddy"
+    assert got["not_planted_ha"] == pytest.approx(got["paddy_ha"], rel=1e-6)
+
+
 def test_kalimantan_says_its_rice_is_tidal_or_rainfed():
     got = pisl.island_caveats("Kalimantan", "en", 55.66)
     assert "tidal or rainfed" in got[0]

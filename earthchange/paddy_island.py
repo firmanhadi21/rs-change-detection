@@ -374,13 +374,17 @@ def roll_up(rows, tiles_root, area, as_of, tiles_run):
     return tot
 
 
-def admin_totals(written, geom, lang="id"):
-    """Hectares per class INSIDE a boundary, from the mosaics themselves.
+def admin_totals(written, geom=None, lang="id"):
+    """Hectares per class from the MOSAICS, optionally inside a boundary.
 
-    The per-tile roll-up cannot give a provincial figure: a tile on a border
-    belongs to two provinces, and counting it whole in each inflates both. Here
-    the boundary is burned onto the mosaic's own grid and the classes are summed
-    only where it says, so a border runs through a tile rather than around it.
+    Two reasons this exists rather than summing the per-tile statistics. A tile
+    on a province border belongs to two provinces, and counting it whole in each
+    inflates both. And a per-tile statistic can be wrong in ways a raster cannot:
+    delay_class marks everything unplanted -- including everything that is not a
+    field -- so summing it counted four times the island's paddy as "not
+    planted", while the raster, masked to paddy, was right all along.
+
+    `geom=None` takes the whole mosaic, which is what an island wants.
     """
     import numpy as np
     import rasterio
@@ -390,10 +394,13 @@ def admin_totals(written, geom, lang="id"):
     with rasterio.open(ref) as src:
         profile = src.profile.copy()
         lat = (src.bounds.top + src.bounds.bottom) / 2.0
-    inside = rasterize([(geom, 1)], out_shape=(profile["height"],
-                                               profile["width"]),
-                       transform=profile["transform"], fill=0,
-                       all_touched=False, dtype="uint8").astype(bool)
+    if geom is None:
+        inside = np.ones((profile["height"], profile["width"]), dtype=bool)
+    else:
+        inside = rasterize([(geom, 1)], out_shape=(profile["height"],
+                                                   profile["width"]),
+                           transform=profile["transform"], fill=0,
+                           all_touched=False, dtype="uint8").astype(bool)
     area_ha = pdr.pixel_area_ha(profile, lat)
 
     def read(layer):
@@ -561,22 +568,26 @@ def run(area, paddy_file, run_dir, kind="island", calendar=None,
 
     # --- the numbers -------------------------------------------------------
     stats = roll_up(rows, tiles_dir, area, as_of, len(rows))
-    if kind == "province" and written:
-        # The figure to quote. The per-tile sums stay in the file beside it, and
-        # the difference between them is the border tiles counted twice.
-        polys = ptiles.admin_polygons("Indonesia", cache=admin_cache)
-        if area in polys:
-            exact = admin_totals(written, polys[area], lang)
-            _say(f"  within the province boundary: "
-                 f"{exact.get('paddy_ha', 0):,.0f} ha of paddy "
-                 f"(per-tile sum {stats.get('paddy_ha', 0):,.0f} ha — the "
-                 f"difference is tiles shared with a neighbour)")
+    if written:
+        # The figures to quote come from the products, for either kind. A
+        # province is masked by its boundary; an island takes the whole mosaic.
+        geom = None
+        if kind == "province":
+            polys = ptiles.admin_polygons("Indonesia", cache=admin_cache)
+            geom = polys.get(area)
+        if kind != "province" or geom is not None:
+            exact = admin_totals(written, geom, lang)
+            where = ("within the province boundary" if geom is not None
+                     else "across the mosaic")
+            _say(f"  {where}: {exact.get('paddy_ha', 0):,.0f} ha of paddy "
+                 f"(per-tile sum {stats.get('paddy_ha', 0):,.0f} ha)")
             stats["per_tile_totals"] = {k: stats.get(k) for k in (
                 "paddy_ha", "planted_ha", "not_planted_ha", "not_planted_pct",
                 "planting_delay_ha", "adequacy_ha", "anomaly_ha", "outlook_ha",
                 "puso_candidates_ha")}
             stats.update(exact)
-            stats["boundary"] = {"source": ptiles.GAUL1, "name": area}
+            if geom is not None:
+                stats["boundary"] = {"source": ptiles.GAUL1, "name": area}
     stats.update({
         "kind": kind, "calendar_arm": calendar,
         "tile_deg": tile_deg, "paddy_extent_source": os.path.basename(paddy_file),
@@ -744,16 +755,20 @@ def finalise(run_dir, tiles_dir, admin_cache=None, lang="id", publish=True):
     _say(f"  {len(written)} rasters from {covered:,} of {len(rows):,} tiles")
 
     stats = roll_up(rows, tiles_dir, area, as_of, len(rows))
-    if kind == "province" and written:
-        polys = ptiles.admin_polygons("Indonesia", cache=admin_cache)
-        if area in polys:
-            exact = admin_totals(written, polys[area], lang)
+    if written:
+        geom = None
+        if kind == "province":
+            geom = ptiles.admin_polygons("Indonesia",
+                                         cache=admin_cache).get(area)
+        if kind != "province" or geom is not None:
+            exact = admin_totals(written, geom, lang)
             stats["per_tile_totals"] = {k: stats.get(k) for k in (
                 "paddy_ha", "planted_ha", "not_planted_ha", "not_planted_pct",
                 "planting_delay_ha", "adequacy_ha", "anomaly_ha", "outlook_ha",
                 "puso_candidates_ha")}
             stats.update(exact)
-            stats["boundary"] = {"source": ptiles.GAUL1, "name": area}
+            if geom is not None:
+                stats["boundary"] = {"source": ptiles.GAUL1, "name": area}
     # Carry over what only the original run knew.
     for key in ("kind", "calendar_arm", "tile_deg", "paddy_extent_source",
                 "grid", "native_m", "bbox", "index_paddy_ha", "sources",

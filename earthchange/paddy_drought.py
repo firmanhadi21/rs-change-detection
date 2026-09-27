@@ -995,7 +995,12 @@ def summarise(paddy, planted, delay, delay_cls, si_cls, anomaly_cls,
         "not_planted_ha": ha(paddy & ~planted),
         "not_planted_pct": round(100.0 * ha(paddy & ~planted) / total, 1)
         if total else None,
-        "planting_delay_ha": by_class(delay_cls, pw.DELAY_CLASSES),
+        # Over paddy only. delay_class marks every unplanted pixel NOT_PLANTED,
+        # which includes everything that is not a field at all -- counted raw it
+        # made "belum tanam" four times the island's paddy. The raster write
+        # masks it; the statistic has to as well.
+        "planting_delay_ha": by_class(np.where(paddy, delay_cls, 255),
+                                      pw.DELAY_CLASSES),
         "median_delay_days": _r(np.nanmedian(delay[paddy & planted])
                                 if (paddy & planted).any() else np.nan, 1),
         "adequacy_ha": by_class(si_cls, pw.ADEQUACY_CLASSES),
