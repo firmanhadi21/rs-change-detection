@@ -62,6 +62,9 @@ NODATA = {"uint8": {"delay_class": 255, "adequacy_class": pw.ADEQUACY_NODATA,
 GFS_GRID_DEG = 0.05          # ~5.5 km: finer than GFS, coarse enough to be one file
 
 
+ISLAND_ALERT_MIN_HA = 5.0    # the smallest patch worth sending someone to see
+
+
 def default_workers():
     """Concurrent tiles: bounded by cores, because the phenology is CPU-bound.
 
@@ -124,7 +127,12 @@ def shared_forecast(bbox, out_path, outlook_days, grid_deg=GFS_GRID_DEG):
     if run_time is None:
         return None, None
     if not pdr.usable_raster(out_path):
-        rect = ee.Geometry.Rectangle(list(bbox))
+        # Padded for the same reason the WaPOR window is: tiles at the island's
+        # edge upsample this field locally, and without neighbours beyond the
+        # boundary their outer ring would interpolate from nothing.
+        pad = 3 * grid_deg
+        rect = ee.Geometry.Rectangle([bbox[0] - pad, bbox[1] - pad,
+                                      bbox[2] + pad, bbox[3] + pad])
         img = pdata.gfs_daily(rect, run_time, outlook_days)
         if not download_geotiff(img, rect, out_path, scale=grid_deg * pdata.DEG_M,
                                 crs_transform=pdata.grid_transform(
@@ -486,7 +494,12 @@ def publish_island(run_dir, written, stats, lang="id"):
             prof = ds.profile.copy()
         lat = (stats["bbox"][1] + stats["bbox"][3]) / 2.0
         area_ha = pdr.pixel_area_ha(prof, lat)
-        alerts = ppub.alerts_geojson(written, prof, area_ha, lang)
+        # An island's alert layer is not a single AOI's scaled up. At 0.5 ha a
+        # two-tile test already wrote 155 KB, so Java would run to tens of
+        # megabytes of GeoJSON -- unusable in a browser, and mostly specks. The
+        # floor rises to a patch somebody would actually be sent to visit.
+        alerts = ppub.alerts_geojson(written, prof, area_ha, lang,
+                                     min_ha=ISLAND_ALERT_MIN_HA)
     with open(os.path.join(out_dir, "alerts.geojson"), "w") as f:
         json.dump(alerts, f)
     web["alerts"] = os.path.join(out_dir, "alerts.geojson")
@@ -509,6 +522,14 @@ def publish_island(run_dir, written, stats, lang="id"):
                                 "en": "The water layers come from WaPOR at "
                                       "300 m, not field-level measurement."}},
         "sources": stats.get("sources"), "outlook": stats.get("outlook"),
+        "alerts": {
+            "features": len(alerts["features"]),
+            "min_ha": ISLAND_ALERT_MIN_HA,
+            "note": {"id": f"Poligon di bawah {ISLAND_ALERT_MIN_HA:.0f} ha "
+                           f"tidak dimuat pada skala pulau.",
+                     "en": f"Polygons under {ISLAND_ALERT_MIN_HA:.0f} ha are "
+                           f"not carried at island scale."},
+        },
         "caveats": island_caveats(stats.get("island"), lang, grid.get("m")),
         "layers": list(web["cog"]),
     }

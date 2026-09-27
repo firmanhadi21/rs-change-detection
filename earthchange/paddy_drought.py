@@ -133,6 +133,12 @@ def read_stack(path):
         return arr, src.profile.copy(), src.bounds
 
 
+def _rect(lon_min, lat_min, lon_max, lat_max):
+    """An ee.Geometry rectangle, imported late so the module loads without ee."""
+    import ee
+    return ee.Geometry.Rectangle([lon_min, lat_min, lon_max, lat_max])
+
+
 def usable_raster(path, bands=None):
     """Is this cached file actually readable, and the shape expected?
 
@@ -405,6 +411,10 @@ def outlook(rain_daily, tmin_daily, tmax_daily, plant_doy, length, lat_grid,
 # the grid, and what each layer actually resolves on it
 # ---------------------------------------------------------------------------
 WAPOR_PIXEL_M = 300
+# Margin, in WaPOR cells, on a window fetched for local upsampling. Without it
+# the outermost ring of the analysis grid interpolates from no neighbour, and a
+# mosaic of tiles shows that ring as a seam around every tile.
+WAPOR_PAD_CELLS = 3
 PURE_ENOUGH = 0.6         # planted share of a WaPOR cell before it is scored
 
 
@@ -558,6 +568,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
     grid_deg, grid_anchor, grid_m, grid_source = resolve_grid(grid_spec, paddy_file)
     xform = pdata.grid_transform(grid_deg, grid_anchor)
+    # WaPOR is fetched on its own grid and upsampled locally; see season_water.
+    wapor_xform = pdata.grid_transform(WAPOR_PIXEL_M / pdata.DEG_M, (0.0, 0.0))
     windows = season_windows(as_of, season_days, seasons_back)
     start, end = stack_span(windows)
     grid = pdata.period_grid(start, end)
@@ -661,6 +673,12 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
          f"{int((provisional & paddy).sum()):,} provisional)")
 
     # --- water, this season and the ones before ----------------------------
+    # Three WaPOR cells of margin, so upsampling to the analysis grid has real
+    # neighbours at the AOI edge instead of extrapolating from nothing.
+    _wpad = WAPOR_PAD_CELLS * WAPOR_PIXEL_M / pdata.DEG_M
+    wapor_aoi = _rect(bounds.left - _wpad, bounds.bottom - _wpad,
+                      bounds.right + _wpad, bounds.top + _wpad)
+
     def season_water(season, tag):
         """Adequacy for one season window, on that season's own calendar."""
         f, l = season["first"], season["last"]
@@ -670,11 +688,22 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         if not (usable_raster(ap, bands=len(sgrid))
                 and usable_raster(rp, bands=len(sgrid))):
             _say(f"  fetching WaPOR actual and reference ET ({tag})...")
-            a_img, r_img = pdata.wapor_periods(aoi, sgrid)
-            download_geotiff(a_img, aoi, ap, scale=grid_m, crs_transform=xform)
-            download_geotiff(r_img, aoi, rp, scale=grid_m, crs_transform=xform)
-        a_arr, _, _ = read_stack(ap)
-        r_arr, _, _ = read_stack(rp)
+            a_img, r_img = pdata.wapor_periods(wapor_aoi, sgrid)
+            # On WaPOR's own 300 m grid, not the analysis grid. Asking Earth
+            # Engine to upsample 300 m to 56 m before sending it means ~3.6 MB
+            # a file carrying at most 46x46 real values; over a national run
+            # that was the largest single cost, and it adds no information. The
+            # upsampling happens here instead, where it is free -- but only
+            # because the window is PADDED: interpolating without neighbours
+            # beyond the edge left the outermost ring of every tile wrong, which
+            # in a mosaic is a seam around each one. Measured: with the pad the
+            # inner cells match the old path to 0.000.
+            download_geotiff(a_img, wapor_aoi, ap, scale=WAPOR_PIXEL_M,
+                             crs_transform=wapor_xform)
+            download_geotiff(r_img, wapor_aoi, rp, scale=WAPOR_PIXEL_M,
+                             crs_transform=wapor_xform)
+        a_arr = resample_stack(ap, profile)
+        r_arr = resample_stack(rp, profile)
         return adequacy_now(a_arr, r_arr, season["plant"] - f,
                             season["length"], kc_mode) + (a_arr, r_arr)
 
