@@ -133,6 +133,34 @@ def read_stack(path):
         return arr, src.profile.copy(), src.bounds
 
 
+def usable_raster(path, bands=None):
+    """Is this cached file actually readable, and the shape expected?
+
+    A run reuses whatever it already downloaded, which is what makes a national
+    job resumable -- but "the file exists" is not the same as "the file is
+    complete". An interrupted download leaves a truncated GeoTIFF that opens and
+    then fails on read, and that poisons the tile on every later attempt.
+
+    The check reads the LAST band's last corner, because that is where a
+    truncated file ends: its header and first strips are intact, so reading the
+    top-left of band 1 succeeds on a file that is missing most of itself.
+    """
+    if not os.path.exists(path):
+        return False
+    try:
+        import rasterio
+        with rasterio.open(path) as src:
+            if bands is not None and src.count != bands:
+                return False
+            w = min(src.width, 8)
+            h = min(src.height, 8)
+            src.read(src.count, window=rasterio.windows.Window(
+                src.width - w, src.height - h, w, h))
+        return True
+    except Exception:                     # noqa: BLE001 — unreadable is the answer
+        return False
+
+
 def write_raster(path, data, profile, dtype="float32", nodata=None):
     """One band out, with a nodata value the dtype can actually hold.
 
@@ -553,7 +581,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
     # --- Sentinel-1: the flood-then-grow cycle -----------------------------
     vh_path = os.path.join(run_dir, f"paddy_vh_{name}.tif")
-    if not os.path.exists(vh_path):
+    if not usable_raster(vh_path, bands=len(grid)):
         _say("  fetching Sentinel-1 VH periods...")
         got = download_geotiff(pdata.s1_vh_stack(aoi, grid, orbit_pass),
                                aoi, vh_path, scale=grid_m, crs_transform=xform)
@@ -639,7 +667,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         sgrid = [(i - f, a, b) for i, a, b in grid[f:l]]
         ap = os.path.join(run_dir, f"paddy_aeti_{tag}_{name}.tif")
         rp = os.path.join(run_dir, f"paddy_ret_{tag}_{name}.tif")
-        if not (os.path.exists(ap) and os.path.exists(rp)):
+        if not (usable_raster(ap, bands=len(sgrid))
+                and usable_raster(rp, bands=len(sgrid))):
             _say(f"  fetching WaPOR actual and reference ET ({tag})...")
             a_img, r_img = pdata.wapor_periods(aoi, sgrid)
             download_geotiff(a_img, aoi, ap, scale=grid_m, crs_transform=xform)
@@ -699,7 +728,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     else:
         run_time = pdata.latest_gfs_run()
         gfs_path = os.path.join(run_dir, f"paddy_gfs_{name}.tif")
-    if run_time is not None and not os.path.exists(gfs_path):
+    if run_time is not None and not usable_raster(gfs_path):
         _say(f"  fetching GFS run {run_time:%Y-%m-%d %H:%M} UTC for the next "
              f"{outlook_days} days...")
         # On the analysis grid, like every other layer: GFS is a 0.25 deg field

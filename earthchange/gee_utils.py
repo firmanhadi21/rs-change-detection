@@ -143,7 +143,13 @@ def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16,
             else:
                 params["scale"] = s
             url = image.getDownloadURL(params)
-            _fetch(url, out_path)  # the pixel fetch can also fail for large AOIs
+            # Fetch beside the target and rename into place. A download that is
+            # interrupted -- the process killed, the network dropped -- would
+            # otherwise leave a truncated file that every later run treats as
+            # cached and fails to read.
+            part = out_path + ".part"
+            _fetch(url, part)  # the pixel fetch can also fail for large AOIs
+            os.replace(part, out_path)
             size_mb = os.path.getsize(out_path) / 1e6
             if mult == 1:
                 note = ""
@@ -158,6 +164,8 @@ def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16,
             last_err = e
             mult *= 2
             s = scale * mult
+            if os.path.exists(out_path + ".part"):
+                os.remove(out_path + ".part")
     print(f"NOTE: GeoTIFF download failed even at {scale * max_scale_mult:.0f} m "
           f"({last_err}).")
     print("      Reduce --radius, or add --drive to export the full-res GeoTIFF "

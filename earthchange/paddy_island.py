@@ -123,7 +123,7 @@ def shared_forecast(bbox, out_path, outlook_days, grid_deg=GFS_GRID_DEG):
     run_time = pdata.latest_gfs_run()
     if run_time is None:
         return None, None
-    if not os.path.exists(out_path):
+    if not pdr.usable_raster(out_path):
         rect = ee.Geometry.Rectangle(list(bbox))
         img = pdata.gfs_daily(rect, run_time, outlook_days)
         if not download_geotiff(img, rect, out_path, scale=grid_deg * pdata.DEG_M,
