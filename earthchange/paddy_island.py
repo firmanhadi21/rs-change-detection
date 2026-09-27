@@ -584,11 +584,15 @@ def run(area, paddy_file, run_dir, kind="island", calendar=None,
     _print(stats, area)
 
     if publish and written:
-        _say("\n  building the island web bundle...")
+        _say(f"\n  building the {kind} web bundle...")
         web = publish_island(run_dir, written, stats, lang)
-        _say(f"  web/: {len(web.get('cog', {}))} COGs, "
-             f"{os.path.basename(web.get('alerts', '—'))}, legend.json, "
+        alerts = ", ".join(
+            f"{v['file']} {v['features']:,} poly {v['mb']} MB"
+            for v in (web.get("alert_counts") or {}).values())
+        _say(f"  web/: {len(web.get('cog', {}))} COGs, legend.json, "
              f"summary.json")
+        if alerts:
+            _say(f"  alerts: {alerts}")
     return {"rasters": written, "stats": stats, "tiles": done}
 
 
@@ -614,21 +618,31 @@ def publish_island(run_dir, written, stats, lang="id"):
         if src and os.path.exists(src):
             web["cog"][key] = ppub.to_cog(src, os.path.join(out_dir, "cog",
                                                             f"{key}.tif"))
-    alerts = {"type": "FeatureCollection", "features": []}
+    # An area's alert layer is not a single AOI's scaled up, and its three kinds
+    # are not one kind of thing. Written one file per kind, with a floor per
+    # kind, so the map loads the layer it is showing and "not planted" across a
+    # dry-season province does not drag 22 MB of polygons behind the two layers
+    # somebody would actually act on.
+    web["alerts"] = {}
+    counts = {}
     if all(k in written for k in ("adequacy_class", "delay_class", "puso")):
         with rasterio.open(written["paddy"]) as ds:
             prof = ds.profile.copy()
         lat = (stats["bbox"][1] + stats["bbox"][3]) / 2.0
         area_ha = pdr.pixel_area_ha(prof, lat)
-        # An island's alert layer is not a single AOI's scaled up. At 0.5 ha a
-        # two-tile test already wrote 155 KB, so Java would run to tens of
-        # megabytes of GeoJSON -- unusable in a browser, and mostly specks. The
-        # floor rises to a patch somebody would actually be sent to visit.
-        alerts = ppub.alerts_geojson(written, prof, area_ha, lang,
-                                     min_ha=ISLAND_ALERT_MIN_HA)
-    with open(os.path.join(out_dir, "alerts.geojson"), "w") as f:
-        json.dump(alerts, f)
-    web["alerts"] = os.path.join(out_dir, "alerts.geojson")
+        per_kind = ppub.alerts_geojson(
+            written, prof, area_ha, lang, min_ha=ISLAND_ALERT_MIN_HA,
+            per_kind_min_ha=ppub.ALERT_MIN_HA, by_kind=True)
+        for kind, coll in per_kind.items():
+            path = os.path.join(out_dir, f"alerts_{kind}.geojson")
+            with open(path, "w") as f:
+                json.dump(coll, f)
+            web["alerts"][kind] = path
+            counts[kind] = {"features": len(coll["features"]),
+                            "min_ha": coll["min_ha"],
+                            "mb": round(os.path.getsize(path) / 1e6, 2),
+                            "file": os.path.basename(path)}
+    web["alert_counts"] = counts
     grid = stats.get("grid", {})
     with open(os.path.join(out_dir, "legend.json"), "w") as f:
         json.dump(ppub.legend(lang, grid.get("m"), stats.get("native_m")),
@@ -649,12 +663,13 @@ def publish_island(run_dir, written, stats, lang="id"):
                                       "300 m, not field-level measurement."}},
         "sources": stats.get("sources"), "outlook": stats.get("outlook"),
         "alerts": {
-            "features": len(alerts["features"]),
-            "min_ha": ISLAND_ALERT_MIN_HA,
-            "note": {"id": f"Poligon di bawah {ISLAND_ALERT_MIN_HA:.0f} ha "
-                           f"tidak dimuat pada skala pulau.",
-                     "en": f"Polygons under {ISLAND_ALERT_MIN_HA:.0f} ha are "
-                           f"not carried at island scale."},
+            "by_kind": counts,
+            "note": {"id": "Satu berkas per jenis, dengan ambang luas "
+                           "berbeda: 'belum tanam' hanya blok besar, sebab "
+                           "lapisan delay_class sudah memuat seluruhnya.",
+                     "en": "One file per kind, with a floor per kind: 'not "
+                           "planted' keeps only large blocks, since the "
+                           "delay_class raster already carries all of it."},
         },
         "caveats": island_caveats(stats.get("island"), lang, grid.get("m")),
         "layers": list(web["cog"]),

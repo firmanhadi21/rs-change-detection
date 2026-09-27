@@ -210,35 +210,63 @@ tampilkan peringatan atau hentikan penajaman.
 
 ---
 
-## 5. `alerts.geojson`
+## 5. Poligon peringatan
 
 `FeatureCollection`, geometri `Polygon`, EPSG:4326. Tempat yang layak
 dikunjungi — bukan seluruh piksel bermasalah.
 
+**Satu lokasi** menulis satu `alerts.geojson`. **Provinsi dan pulau** menulis
+**satu berkas per jenis**, karena ketiganya bukan hal yang sejenis:
+
+```
+web/alerts_severe_deficit.geojson    adequacy_class == 3   ambang  5 ha
+web/alerts_puso_candidate.geojson    puso == 1             ambang  5 ha
+web/alerts_not_planted.geojson       delay_class == 4      ambang 25 ha
+```
+
+Ukuran sebenarnya, Jawa Barat (912.727 ha sawah):
+
+| Berkas | Poligon | Ambang | Ukuran |
+|---|---|---|---|
+| `alerts_severe_deficit` | 1.420 | 5 ha | **0,98 MB** |
+| `alerts_puso_candidate` | 1.874 | 5 ha | **1,15 MB** |
+| `alerts_not_planted` | 2.337 | 25 ha | 5,58 MB |
+
+Muat dua yang pertama secara baku; `not_planted` sesuai permintaan pengguna —
+atau cukup pakai raster `delay_class`, yang memuat seluruhnya tanpa
+penyederhanaan.
+
 ```json
 {
-  "type": "Feature",
-  "geometry": {"type": "Polygon", "coordinates": [[[110.84, -6.94], "..."]]},
-  "properties": {
-    "kind": "severe_deficit",
-    "label": {"id": "Defisit berat", "en": "Severe deficit"},
-    "area_ha": 1.53
-  }
+  "type": "FeatureCollection",
+  "kind": "severe_deficit",
+  "label": {"id": "Defisit berat", "en": "Severe deficit"},
+  "min_ha": 5.0,
+  "simplify_m": 111.3,
+  "features": [{
+    "type": "Feature",
+    "geometry": {"type": "Polygon", "coordinates": [[[110.84, -6.94], "..."]]},
+    "properties": {"kind": "severe_deficit", "area_ha": 1.53}
+  }]
 }
 ```
 
-| `kind` | Asal | Label |
-|---|---|---|
-| `severe_deficit` | `adequacy_class == 3` | Defisit berat / Severe deficit |
-| `not_planted` | `delay_class == 4` | Belum tanam / Not planted |
-| `puso_candidate` | `puso == 1` | Kandidat puso / Puso candidate |
-
-* `area_ha` dihitung pada jaringan analisis (sebelum reproyeksi), di lintang
-  poligon itu sendiri.
-* Poligon disederhanakan ~25 m.
-* **Ambang luas minimum:** 0,5 ha untuk satu lokasi, **5 ha untuk skala pulau**
-  (`summary.alerts.min_ha`). Bercak di bawah ambang tidak dimuat — pada satu
-  pulau berkasnya akan puluhan MB dan isinya sebagian besar piksel campuran.
+* **Label ada sekali di puncak berkas**, bukan pada setiap fitur — pengulangan
+  itu saja memakan 1,4 MB pada satu provinsi. Untuk berkas gabungan satu lokasi,
+  labelnya ada di `kinds`.
+* `area_ha` diukur **sebelum penyederhanaan**, pada jaringan analisis, di
+  lintang poligon itu sendiri — sehingga toleransi tidak pernah menggeser
+  hektarenya.
+* **Penyederhanaan 2 piksel (≈111 m).** Di bawah satu piksel toleransi tidak
+  melakukan apa pun: poligonnya menelusuri tepi piksel. Terukur di Jawa Barat,
+  25 m pada jaringan 55,66 m menyisakan 903.390 simpul dan 26,7 MB; 2 piksel
+  menjadikannya 369.474 simpul dengan galat luas 1,2%. Pada 3 piksel poligon
+  kecil mulai hancur, jadi 2 adalah batasnya.
+* **Ambang per jenis** (`min_ha` di tiap berkas). `not_planted` mendapat ambang
+  lebih tinggi: sepanjang musim kemarau itu adalah keadaan sebagian besar
+  provinsi — 454.913 ha dan 13.491 poligon di Jawa Barat — dan raster
+  `delay_class` sudah memuatnya utuh. Yang disisakan hanya blok sebesar
+  keputusan.
 * Untuk skala nasional, sajikan sebagai vector tile (PMTiles) — GeoJSON mentah
   tidak layak di peramban.
 

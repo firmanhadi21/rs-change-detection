@@ -76,8 +76,23 @@ def test_island_names_in_the_spec_are_the_real_ones(spec):
 
 
 def test_alert_kinds_match_what_is_written(spec):
-    for kind in ("severe_deficit", "not_planted", "puso_candidate"):
-        assert f"`{kind}`" in spec
+    from earthchange import paddy_publish as pub
+    for kind in pub.ALERT_LABELS:
+        assert kind in spec, f"alert kind {kind} missing from the spec"
+
+
+def test_the_per_kind_alert_floors_are_the_documented_ones(spec):
+    from earthchange import paddy_publish as pub
+    for kind, floor in pub.ALERT_MIN_HA.items():
+        assert f"{floor:.0f} ha" in spec, f"floor for {kind} missing"
+    # and the spec must say the file is split per kind
+    assert "alerts_not_planted" in spec
+
+
+def test_the_simplification_tolerance_is_documented(spec):
+    from earthchange import paddy_publish as pub
+    assert "simplify_m" in spec
+    assert f"{pub.ALERT_SIMPLIFY_PX:.0f} piksel" in spec
 
 
 def test_the_island_alert_floor_is_the_documented_one(spec):
