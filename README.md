@@ -9,8 +9,9 @@
 Instalasi: `pip install 'earthchange[all]'` — perintah `earthchange` & `earthmap`.
 
 **Pemantauan lingkungan dan deteksi perubahan berbasis penginderaan jauh** —
-24 skenario: bahaya kebakaran (FDRS), paparan asap, lintasan asap, kekeringan,
-suhu permukaan, banjir, deforestasi, tambang, urbanisasi, dan perubahan air.
+29 skenario: bahaya kebakaran (FDRS), paparan asap, lintasan asap, kekeringan,
+kekeringan sawah per petak, suhu permukaan, banjir, deforestasi, tambang,
+urbanisasi, dan perubahan air.
 Berjalan di Google Earth Engine atau Microsoft Planetary Computer (Python).
 Pilih skenario + lokasi; hasilnya PNG, GeoTIFF tergeoreferensi, statistik JSON,
 dan — untuk rantai kebakaran-asap — catatan Markdown yang dapat disitasi serta
@@ -115,7 +116,7 @@ Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
 Backend: **8 skenario** berjalan di kedua backend — `deforestation`, `mining`,
 `urbanization`, `burn`, `water`, `flood`, `disturbance`, `urban-trend` — jadi
 dengan `--backend mpc` **tanpa perlu akun**. `smoke-video` tidak perlu akun sama
-sekali. **15 sisanya hanya Earth Engine**, sebab memerlukan arsip yang tidak ada
+sekali. **20 sisanya hanya Earth Engine**, sebab memerlukan arsip yang tidak ada
 di Planetary Computer (ERA5-Land, CAMS, FIRMS, MODIS, WorldPop, CHIRPS, GAUL).
 Tidak ada peralihan otomatis: tanpa kredensial, proses berhenti dengan petunjuk.
 Rinciannya di [tutorial](https://firmanhadi21.github.io/rs-change-detection/#backends).
@@ -614,7 +615,10 @@ atas sawah tergenang terbaca ~35% di bawah Kc × ET0 bahkan saat air melimpah
 
 `--publish` menulis `web/`: COG (EPSG:3857, bertingkat), poligon peringatan dan
 zona sebagai GeoJSON, `legend.json` dwibahasa, dan `summary.json` yang membawa
-catatan batas di atas — siap disajikan situs peta.
+catatan batas di atas — siap disajikan situs peta seperti **drought.ownmap.id**.
+
+Metodologi lengkap, asal tiap rumus, hasil uji musim kemarau lawan musim hujan,
+dan seluruh batasnya: **[`docs/paddy_drought.md`](docs/paddy_drought.md)**.
 
 ### Riwayat kebakaran hutan & lahan — `fire-history`
 

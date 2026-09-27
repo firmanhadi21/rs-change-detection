@@ -1,10 +1,11 @@
 # earthchange
 
 **Multipurpose satellite environmental monitoring and change detection, in pure
-Python.** 24 scenarios from free public archives: fire danger (Canadian FWI on
+Python.** 29 scenarios from free public archives: fire danger (Canadian FWI on
 BMKG thresholds), smoke exposure in person-days, air-parcel trajectories
-(HYSPLIT), drought, land-surface heat, floods, deforestation, mining,
-urbanisation and surface-water change — via **Google Earth Engine** or
+(HYSPLIT), drought, paddy-field drought per plot (planting delay from
+Sentinel-1, water adequacy, a 7-day outlook), land-surface heat, floods,
+deforestation, mining, urbanisation and surface-water change — via **Google Earth Engine** or
 **Microsoft Planetary Computer** (no account needed). Export georeferenced
 GeoTIFFs, quick-look PNGs, statistics, print-ready A4 maps, citable Markdown
 records, and a one-file brief that assembles a whole assessment. Every output
