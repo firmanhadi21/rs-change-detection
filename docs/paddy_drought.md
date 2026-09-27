@@ -60,6 +60,60 @@ belum terjadi. Maka panjang musim diambil dari median musim-musim sebelumnya
 pada petak yang sama (varietas dan kebiasaan air petak itu), dan hanya jika
 tidak ada riwayat sama sekali dipakai nilai cadangan 86 hari.
 
+### Dua sumbu yang berbeda: kalender dan Kc
+
+Mudah tertukar, jadi dipisah tegas. `--calendar` memilih **dari mana tanggalnya**,
+`--kc-mode` memilih **bentuk kurva kebutuhan air**.
+
+| `--calendar` | Tanggal tanam | Panjang musim |
+|---|---|---|
+| `fixed110` | optik (NDWI maksimum) | diasumsikan 110 hari |
+| `full_sar` | palung radar | jendela kedua radar |
+| **`hybrid`** (baku) | **optik** | **jendela kedua radar** |
+
+Skor terhadap catatan petani (BulakBakal, 29 petak, 13 dengan jendela panen):
+
+| Arm | Galat tanam (median) | ≤12 hari | Panen di dalam jendela |
+|---|---|---|---|
+| `fixed110` | 6 hari | 90% | **0 / 13** |
+| `full_sar` | 12 hari | 55% | 11 / 13 |
+| **`hybrid`** | **6 hari** | **90%** | **12 / 13** |
+
+Jadi tanggal optik dua kali lebih tepat, sementara panjang musim radar yang
+memenangkan jendela panen — `hybrid` mengambil keduanya.
+
+**`--kc-mode curve110` adalah metode terkini, bukan asumsi 110 hari.** Namanya
+menyesatkan: yang diambil adalah **bentuk** kurva 110 hari, lalu diregangkan ke
+panjang musim yang terukur (di rujukan disebut `si_rescaled`, berbeda dari
+`si_constant110` yang lama). Bedanya dengan `stage` hanya di desimal ketiga SI
+(unit 4: 0,9730 constant → 0,9851 rescaled → 0,9887 stage), jadi bukan di situ
+ketelitiannya berada.
+
+### Bagaimana arm optik dijaga
+
+Tanggal optik hanya dipakai bila dapat dipercaya — dan tanam terjadi di musim
+hujan, justru saat Sentinel-2 paling sedikit melihat:
+
+* **≥3 pengamatan cerah** (Cloud Score+), bukan satu-dua kilasan;
+* **NDWI benar-benar positif** — hari terbasah yang tidak basah bukan sawah
+  tergenang;
+* **selisih ≤24 hari dari palung radar** (dua periode S1) — kalau berbeda jauh,
+  itu kejadian lain.
+
+Kalau gagal, tanggal radar yang dipakai dan pikselnya ditandai. Lapisan
+`calendar_arm` (1 = optik, 0 = radar) dan `calendar.optical_share` di
+`stats.json` melaporkan campurannya.
+
+Diukur pada satu ubin padat Karawang: **18,5% tanam memakai tanggal optik**, 82%
+tanggal identik dengan radar, median selisih 0 hari, p90 7 hari — dan hektare
+kelas kemunduran bergeser di bawah 1%. Awan musim hujan adalah alasan angkanya
+tidak lebih tinggi, dan itulah gunanya jalur cadangan.
+
+**Arm berlaku untuk semua musim atau tidak sama sekali.** Kemunduran tanam adalah
+selisih **antar** musim; memakai metode berbeda di satu sisinya berarti mengukur
+metodenya, bukan kemundurannya — selisih ~6 hari itu sendiri akan terbaca sebagai
+setengah periode keterlambatan.
+
 ---
 
 ## 3. Data
@@ -305,16 +359,57 @@ sebagai **tidak dapat dinilai siklus ini** beserta alasannya, dan hektare sawahn
 dijumlahkan sebagai `tiles.unscored_paddy_ha` — penyebut yang jujur untuk total
 satu pulau.
 
-### Menjalankan satu pulau
+### Provinsi: satuan yang sebenarnya dipakai instansi
+
+Pulau memotong dengan rapi; **provinsi** yang dilaporkan Dinas Pertanian dan BPS.
+Keduanya hanya pengelompokan ubin yang sama, jadi `--province` memilih ubin dari
+indeks yang sudah ditandai (FAO GAUL 2025, 38 provinsi) dan dua provinsi
+**berbagi satu cache ubin per arm** — 68 ubin yang dibagi Jawa Barat dan Jawa
+Tengah dihitung sekali, bukan dua kali.
+
+Angka provinsi **bukan jumlah ubinnya**. Ubin di perbatasan milik dua provinsi,
+dan menjumlahkannya menggelembungkan keduanya. Karena itu batas GAUL dibakar ke
+jaringan mosaiknya sendiri dan kelas dijumlahkan hanya di dalamnya
+(`admin_totals`). Kedua angka tetap ditulis: yang di dalam batas sebagai angka
+utama, jumlah per-ubin di `per_tile_totals`, dan selisihnya **adalah** perhitungan
+ganda perbatasan itu.
+
+Indeks provinsinya sejalan dengan Lahan Baku Sawah resmi:
+
+| Provinsi | Indeks ini | LBS resmi |
+|---|---|---|
+| Jawa Barat | 0,932 juta ha | ~0,929 |
+| Jawa Tengah | 0,992 juta ha | ~1,043 |
+| Jawa Timur | 1,225 juta ha | ~1,214 |
+
+### Menjalankan
 
 ```bash
-earthchange -s drought-paddy-island --island Jawa \
-    --paddy-file data/LBS_Ind_2023_0005.tif --workers 4
+# satu provinsi, kalender hybrid (baku)
+earthchange -s drought-paddy-island --province "Jawa Barat" \
+    --paddy-file data/LBS_Ind_2023_0005.tif \
+    --tiles-dir output/tiles_hybrid
 
-# hanya ubin terpadat yang memuat 90% sawah pulau itu
-earthchange -s drought-paddy-island --island Sumatera \
+# provinsi tetangga, cache yang sama: ubin perbatasan tidak dihitung ulang
+earthchange -s drought-paddy-island --province "Jawa Tengah" \
+    --paddy-file data/LBS_Ind_2023_0005.tif \
+    --tiles-dir output/tiles_hybrid
+
+# arm pembanding — cache TERPISAH, karena produknya berbeda
+earthchange -s drought-paddy-island --province "Jawa Barat" \
+    --paddy-file data/LBS_Ind_2023_0005.tif \
+    --calendar full_sar --tiles-dir output/tiles_full_sar
+
+# satu pulau, atau seluruh negeri pulau demi pulau
+earthchange -s drought-paddy-island --island Jawa \
+    --paddy-file data/LBS_Ind_2023_0005.tif
+earthchange -s drought-paddy-island --island all \
     --paddy-file data/LBS_Ind_2023_0005.tif --coverage 0.9
 ```
+
+Cache ubin **tidak boleh dibagi antar arm** — produknya berbeda, dan ubin yang
+sudah selesai tidak dihitung ulang, sehingga arm yang tercampur tidak akan
+terlihat.
 
 Keluaran per pulau: `<Pulau>_<lapisan>.tif` (mosaik, tanpa resample — ubin memang
 satu jaringan), `stats.json` (rekap pulau + tabel per ubin + arah orbit tiap

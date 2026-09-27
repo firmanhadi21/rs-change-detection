@@ -103,6 +103,29 @@ def test_summary_headline_keys_are_all_documented(spec):
         assert key in spec, f"headline key {key} missing from the spec"
 
 
+def test_every_calendar_arm_is_documented(spec):
+    from earthchange import paddy_phenology as phen
+    for arm in phen.CALENDAR_ARMS:
+        assert f"`{arm}`" in spec, f"calendar arm {arm} missing from the spec"
+    assert "optical_share" in spec
+    assert "calendar_arm" in spec
+
+
+def test_the_default_calendar_is_named_as_the_default(spec):
+    from earthchange import paddy_drought as pdr
+    line = [ln for ln in spec.splitlines()
+            if f"`{pdr.DEFAULT_CALENDAR}`" in ln and "baku" in ln]
+    assert line, f"the spec does not mark {pdr.DEFAULT_CALENDAR} as the default"
+
+
+def test_province_totals_are_documented_as_boundary_masked(spec):
+    """The whole point: a border tile must not be counted in both provinces."""
+    assert "per_tile_totals" in spec
+    assert "batas" in spec
+    from earthchange import paddy_tiles as ptiles
+    assert ptiles.GAUL1 in spec
+
+
 def test_anomaly_leads_and_absolute_scale_is_marked_uncalibrated(spec):
     assert "belum dikalibrasi" in spec
     head = spec[:spec.index("## 2.")] if "## 2." in spec else spec

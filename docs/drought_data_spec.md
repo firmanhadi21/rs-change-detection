@@ -27,9 +27,41 @@ Tiga pertanyaan, per petak, bukan rata-rata kabupaten:
 
 ---
 
+## 1b. Kalender yang dipakai — wajib dibaca dari data
+
+Setiap paket menyebut **arm kalender** yang menghasilkannya, di
+`summary.json` → `calendar`:
+
+```json
+"calendar": {
+  "arm": "hybrid",
+  "planting_from": "sentinel2_ndwi_max, radar trough where not trustworthy",
+  "length_from": "sar_second_window",
+  "optical_share": 0.185
+}
+```
+
+| `arm` | Tanggal tanam | Panjang musim |
+|---|---|---|
+| `hybrid` (baku) | Sentinel-2 NDWI maksimum, radar bila tak terpercaya | jendela kedua radar |
+| `full_sar` | palung radar | jendela kedua radar |
+| `fixed110` | Sentinel-2 NDWI maksimum | diasumsikan 110 hari |
+
+`optical_share` adalah bagian luas yang benar-benar memakai tanggal optik —
+sisanya jatuh ke radar karena awan musim hujan. **Dua paket dengan `arm` berbeda
+tidak boleh dibandingkan angka per angka** tanpa menyebut armnya; tampilkan
+`arm` di panel info.
+
+Lapisan `calendar_arm` (1 = optik, 0 = radar; NaN = tidak tertanam) tersedia
+sebagai raster audit, bukan COG web.
+
+---
+
 ## 2. Struktur berkas
 
-Satu pulau = satu folder mandiri. Situs memuat pulau yang sedang dilihat.
+Satu **provinsi** atau satu **pulau** = satu folder mandiri. Provinsi adalah
+satuan yang dilaporkan instansi; pulau memotong ubin dengan rapi. Situs memuat
+wilayah yang sedang dilihat.
 
 ```
 drought.ownmap.id/data/
@@ -58,6 +90,24 @@ drought.ownmap.id/data/
 
 Nama pulau yang sah, persis seperti ini: `Jawa`, `Sumatera`, `Sulawesi`,
 `Kalimantan`, `Bali-NusaTenggara`, `Maluku`, `Papua`, `lain`.
+
+Folder provinsi memakai nama tanpa spasi (`JawaBarat`, `JawaTengah`), dengan
+nama resminya tetap ada di `summary.json` → `island`/`area`. Bila satu wilayah
+dijalankan pada dua arm, foldernya dibedakan dengan akhiran arm — mis.
+`JawaBarat_hybrid/` dan `JawaBarat_full_sar/`.
+
+### Angka provinsi: di dalam batas, bukan jumlah ubin
+
+Untuk paket **provinsi**, `summary.json` memuat dua himpunan angka:
+
+| | Cara hitung | Pakai yang mana |
+|---|---|---|
+| `headline` | mosaik **dimasker batas provinsi** | **ini** |
+| `per_tile_totals` | jumlah statistik per ubin | pembanding/audit |
+
+Ubin di perbatasan milik dua provinsi; menjumlahkan ubin menggelembungkan
+keduanya, dan selisih antara kedua himpunan itu **adalah** perhitungan ganda
+tersebut. `boundary` menyebut sumber batasnya (`FAO/GAUL/2025/level1`).
 
 **Yang cukup untuk situs:** `web/` tiap pulau + `national_summary.json`.
 Berkas `*.tif` di luar `web/` adalah produk audit dalam EPSG:4326 (termasuk
@@ -236,7 +286,11 @@ salinan warna di kode situs, supaya peta dan raster tidak bisa berselisih.
 | Kunci | Isi |
 |---|---|
 | `scenario` | selalu `"drought-paddy"` |
-| `island` | nama pulau (paket pulau) |
+| `island` / `area` | nama wilayah — pulau atau provinsi |
+| `kind` | `"island"` atau `"province"` |
+| `calendar` | arm kalender dan `optical_share` (lihat §1b) |
+| `boundary` | sumber batas, untuk paket provinsi |
+| `per_tile_totals` | jumlah per ubin, pembanding angka utama |
 | `run_id`, `location`, `radius_km` | paket satu lokasi |
 | `as_of` | **tanggal jawaban** — semua lapisan merujuk tanggal ini |
 | `bbox` | `[lon_min, lat_min, lon_max, lat_max]` |
@@ -301,6 +355,11 @@ ditanggung datanya.
 7. **`tiles.unscored_paddy_ha`** harus muncul di ringkasan pulau: itu sawah yang
    ada di indeks tetapi tidak tertutup produk (umumnya lubang liputan radar).
    Total pulau tanpa angka ini menyesatkan.
+8. **`calendar.arm`** tampil di panel info. Dua paket dengan arm berbeda bukan
+   dua pengukuran wilayah yang sama; `optical_share` menyatakan seberapa banyak
+   tanggal optik yang benar-benar terpakai.
+9. **Untuk provinsi, pakai `headline`, bukan `per_tile_totals`.** Yang kedua
+   menghitung ubin perbatasan dua kali.
 
 ---
 
