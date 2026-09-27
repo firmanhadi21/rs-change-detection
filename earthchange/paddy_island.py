@@ -354,7 +354,7 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
         kc_mode="curve110", orbit_pass="auto", quiet_tiles=True,
         config_key=None, keep_inputs=False):
     """Everything for one island: index, tiles, mosaics, roll-up, web bundle."""
-    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures import ProcessPoolExecutor, as_completed
 
     from .gee_utils import initialize_ee
     as_of = as_of or dt.date.today()
@@ -405,7 +405,10 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
         futures = [pool.submit(run_tile, r, run_dir, as_of, paddy_file, gfs,
                                keep_inputs, quiet_tiles, cwd, **kw)
                    for r in rows]
-        for n, fut in enumerate(futures, start=1):
+        # As they finish, not in the order they were queued. Waiting on the
+        # queue order means the first slow tile hides the progress of every
+        # tile behind it: 31 tiles done and not one line printed.
+        for n, fut in enumerate(as_completed(futures), start=1):
             tid, status, detail = fut.result()
             done[status] = done.get(status, 0) + 1
             if status == "failed":

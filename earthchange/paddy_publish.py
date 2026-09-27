@@ -309,6 +309,10 @@ def publish(run_dir, rasters, stats, profile, area_ha, out_dir=None,
             "not_planted_pct": stats.get("not_planted_pct"),
             "median_delay_days": stats.get("median_delay_days"),
             "season_length_days_median": stats.get("season_length_days_median"),
+            # The anomaly leads the map, so its hectares belong in the headline
+            # too -- they were missing while the absolute scale was reported.
+            "anomaly_ha": stats.get("anomaly_ha"),
+            "planting_delay_ha": stats.get("planting_delay_ha"),
             "adequacy_ha": stats.get("adequacy_ha"),
             "outlook_ha": stats.get("outlook_ha"),
             "puso_candidates_ha": stats.get("puso_candidates_ha"),
