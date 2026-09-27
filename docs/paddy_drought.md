@@ -240,7 +240,95 @@ menyatakan sendiri bahwa lapisan air adalah 300 m, bukan ukuran per petak.
 
 ---
 
-## 8. Menjalankan
+## 8. Skala nasional: satu pulau sebagai satu pekerjaan
+
+Pulau adalah satuan **pelaporan dan penerbitan**, bukan satuan hitung. Kotak
+pembatas Sumatera sekitar 1,85 juta km² sementara sawahnya 1,77 juta ha — permintaan
+seluas pulau berarti meminta ratusan ribu kali lebih banyak piksel daripada
+tanamannya. Earth Engine pun menolaknya: batas satu permintaan adalah
+**50.331.648 byte**.
+
+Karena itu pulau dipotong menjadi ubin. Ukurannya diukur, bukan dipilih — dengan
+tumpukan 85 periode yang sebenarnya:
+
+| Ubin | Hasil |
+|---|---|
+| 0,25° (27,8 km) | **ditolak** — 106.462.500 byte, dua kali lipat batas |
+| **0,125° (13,9 km)** | **15,5 MB dalam 11 detik** ✓ |
+
+`drought-paddy-island` mengerjakan satu pulau: menyusun indeks ubin dari lapisan
+sawah, mengerjakan ubin **yang paling padat sawah lebih dulu**, lalu memosaik,
+merekap, dan menerbitkan. Ubin yang sudah selesai tidak diunduh ulang, jadi
+pekerjaan yang terhenti bisa dilanjutkan.
+
+| Pulau | Ubin | Juta ha | % | Ubin untuk 90% | Jam (4 pekerja) |
+|---|---|---|---|---|---|
+| Jawa | 783 | 3,423 | 45,8 | 493 | 4,9 |
+| Sumatera | 1.703 | 1,768 | 23,7 | 674 | 10,6 |
+| Sulawesi | 730 | 0,970 | 13,0 | 276 | 4,6 |
+| Kalimantan | 1.050 | 0,739 | 9,9 | 319 | 6,6 |
+| Bali–Nusa Tenggara | 464 | 0,482 | 6,4 | 196 | 2,9 |
+| Papua | 75 | 0,049 | 0,7 | 21 | 0,5 |
+| Maluku | 78 | 0,028 | 0,4 | 28 | 0,5 |
+| **Nasional** | **4.932** | **7,47** | 100 | 2.022 | ~31 |
+
+Sebarannya sangat miring: **Jawa memuat 46% sawah nasional dalam 16% ubin**, jadi
+Jawa sekaligus yang terpenting dan yang termurah. `--coverage 0.9` memangkas
+sekitar dua pertiga ubin.
+
+### Arah orbit tidak bisa dipatok
+
+Temuan yang mengubah hasil, dan berlaku di luar skenario ini. Diukur pada sembilan
+ubin melintang Jawa, jumlah periode kosong dari 85:
+
+| Ubin | Bujur | Descending | Ascending | Dipilih |
+|---|---|---|---|---|
+| t0100_0086 | 105,8 | 54 kosong, rentetan 13 | **1, rentetan 1** | ASC |
+| t0103_0098 | 107,3 | 13, rentetan 4 | **1, rentetan 1** | ASC |
+| t0107_0113 | 109,2 | **9, rentetan 3** | 13, rentetan 4 | **DESC** |
+| t0102_0135 | 111,9 | 42, rentetan 23 | **1, rentetan 1** | ASC |
+
+**Descending adalah pilihan yang salah untuk sebagian besar Jawa** — dan untuk
+sebagian kecil justru benar. Satu ubin di Jawa Timur kehilangan 42 dari 85 periode
+dengan rentetan kosong 23 periode (276 hari): seluruh ubin terbuang, dan dalam uji
+pertama memang terbuang. Dengan orbit dipilih per ubin, lubang menyusut menjadi
+rentetan ≤3 periode — yaitu tepat yang sudah bisa ditambal `fill_time_gaps`.
+
+Karena itu `--orbit-pass auto` kini benar-benar otomatis: jumlah akuisisi tiap
+arah dihitung dalam **satu** permintaan (`paddy_data.s1_acquisitions`), arah dengan
+lubang terpendek dipakai, dan pilihan itu **dicatat bersama ubinnya**. Mencampur
+arah di dalam satu tumpukan tetap tidak boleh — geometri menggeser hamburan balik
+lebih besar daripada tanamannya.
+
+Ubin yang bahkan dengan orbit terbaiknya masih berlubang panjang dilaporkan
+sebagai **tidak dapat dinilai siklus ini** beserta alasannya, dan hektare sawahnya
+dijumlahkan sebagai `tiles.unscored_paddy_ha` — penyebut yang jujur untuk total
+satu pulau.
+
+### Menjalankan satu pulau
+
+```bash
+earthchange -s drought-paddy-island --island Jawa \
+    --paddy-file data/LBS_Ind_2023_0005.tif --workers 4
+
+# hanya ubin terpadat yang memuat 90% sawah pulau itu
+earthchange -s drought-paddy-island --island Sumatera \
+    --paddy-file data/LBS_Ind_2023_0005.tif --coverage 0.9
+```
+
+Keluaran per pulau: `<Pulau>_<lapisan>.tif` (mosaik, tanpa resample — ubin memang
+satu jaringan), `stats.json` (rekap pulau + tabel per ubin + arah orbit tiap
+ubin), `tile_index.csv`/`.geojson`, dan `web/` dengan kontrak yang sama seperti
+satu lokasi.
+
+Yang perlu dibangun selanjutnya: **riwayat yang disimpan**. 84 dari 85 periode
+adalah masa lalu dan tidak berubah, sehingga siklus berikutnya seharusnya hanya
+mengunduh 1–2 periode baru per ubin, bukan 85. Itu mengubah ~31 jam sekali-jalan
+menjadi pekerjaan rutin tiap 12 hari yang jauh lebih ringan.
+
+---
+
+## 9. Menjalankan
 
 ```bash
 # lapisan sawah resmi + paket web

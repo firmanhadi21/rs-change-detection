@@ -629,6 +629,48 @@ catatan batas di atas — siap disajikan situs peta seperti **drought.ownmap.id*
 Metodologi lengkap, asal tiap rumus, hasil uji musim kemarau lawan musim hujan,
 dan seluruh batasnya: **[`docs/paddy_drought.md`](docs/paddy_drought.md)**.
 
+### Kekeringan sawah satu pulau — `drought-paddy-island`
+
+Skenario yang sama, satu pulau sekaligus. Pulau adalah satuan pelaporan, bukan
+satuan hitung: kotak Sumatera 1,85 juta km² untuk 1,77 juta ha sawah, dan Earth
+Engine menolak satu permintaan di atas 50.331.648 byte. Jadi pulau dipotong
+menjadi ubin **0,125° (13,9 km)** — ukuran terbesar yang lolos satu permintaan
+dengan tumpukan 85 periode (terukur: 15,5 MB, 11 detik; 0,25° ditolak) — lalu
+dikerjakan dari ubin **paling padat sawah**, dimosaik tanpa resample, direkap,
+dan diterbitkan.
+
+```bash
+earthchange -s drought-paddy-island --island Jawa \
+    --paddy-file data/LBS_Ind_2023_0005.tif --workers 4
+
+# hanya ubin terpadat yang memuat 90% sawah pulau itu
+earthchange -s drought-paddy-island --island Sumatera \
+    --paddy-file data/LBS_Ind_2023_0005.tif --coverage 0.9
+```
+
+| Pulau | Ubin | Juta ha | % nasional | 90% dengan | Jam (4 pekerja) |
+|---|---|---|---|---|---|
+| Jawa | 783 | 3,423 | 45,8 | 493 ubin | 4,9 |
+| Sumatera | 1.703 | 1,768 | 23,7 | 674 | 10,6 |
+| Sulawesi | 730 | 0,970 | 13,0 | 276 | 4,6 |
+| Kalimantan | 1.050 | 0,739 | 9,9 | 319 | 6,6 |
+| Bali–Nusa Tenggara | 464 | 0,482 | 6,4 | 196 | 2,9 |
+| Papua · Maluku | 153 | 0,077 | 1,1 | 49 | 1,0 |
+| **Nasional** | **4.932** | **7,47** | 100 | 2.022 | **~31** |
+
+Jawa memuat 46% sawah nasional dalam 16% ubin — sekaligus paling penting dan
+paling murah. Ubin yang selesai tidak diunduh ulang, jadi pekerjaan yang terhenti
+bisa dilanjutkan.
+
+**Arah orbit dipilih per ubin, dan itu menentukan hasil.** Diukur melintang Jawa:
+descending meninggalkan sampai **42 dari 85 periode kosong dengan rentetan 23
+periode** (ubin terbuang seluruhnya), sementara ascending meninggalkan 1 — dan di
+satu ubin justru sebaliknya. `--orbit-pass auto` kini menghitung akuisisi kedua
+arah dalam satu permintaan, memakai yang lubangnya terpendek, dan mencatat
+pilihan itu bersama ubinnya. Ubin yang tetap berlubang panjang dilaporkan sebagai
+tidak dapat dinilai, dengan hektarenya dijumlahkan terpisah
+(`tiles.unscored_paddy_ha`) agar total pulau punya penyebut yang jujur.
+
 ### Riwayat kebakaran hutan & lahan — `fire-history`
 
 Berbeda dari `burn` (severity **satu** kejadian via dNBR), skenario ini membangun

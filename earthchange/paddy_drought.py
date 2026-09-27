@@ -190,6 +190,29 @@ def rasterize_layer(path, profile, field=None):
                      dtype="int32")
 
 
+def resample_stack(path, profile, resampling="bilinear"):
+    """A multi-band raster covering more than this AOI, onto the analysis grid.
+
+    For fields shared across a whole island -- the GFS forecast, at 27 km --
+    where one download serves hundreds of tiles. Bilinear, because these are
+    continuous fields; it adds no information, only the common shape.
+    """
+    import rasterio
+    from rasterio.enums import Resampling
+    from rasterio.warp import reproject
+    how = getattr(Resampling, resampling)
+    with rasterio.open(path) as src:
+        out = np.full((src.count, profile["height"], profile["width"]),
+                      np.nan, dtype="float32")
+        for b in range(src.count):
+            reproject(source=rasterio.band(src, b + 1), destination=out[b],
+                      src_transform=src.transform, src_crs=src.crs,
+                      dst_transform=profile["transform"],
+                      dst_crs=profile["crs"], resampling=how,
+                      src_nodata=src.nodata, dst_nodata=float("nan"))
+    return out
+
+
 def pixel_area_ha(profile, lat):
     """Cell area in hectares; degrees shrink with latitude, hectares do not."""
     t = profile["transform"]
@@ -455,8 +478,12 @@ def _is_raster(path):
 # ---------------------------------------------------------------------------
 # the run
 # ---------------------------------------------------------------------------
+_QUIET = False
+
+
 def _say(msg):
-    print(msg, flush=True)
+    if not _QUIET:
+        print(msg, flush=True)
 
 
 def _progress(label):
@@ -471,8 +498,17 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         seasons_back=DEFAULT_SEASONS_BACK, grid_spec=DEFAULT_GRID,
         paddy_file=None, zones_file=None, zone_field=None,
         kc_mode="curve110", outlook_days=DEFAULT_OUTLOOK_DAYS,
-        orbit_pass="DESCENDING", lang="id", do_map=True, publish=False):
-    """Fetch, measure and write the paddy-drought products for one AOI."""
+        orbit_pass="DESCENDING", lang="id", do_map=True, publish=False,
+        bbox=None, gfs_file=None, gfs_run=None, on_empty="raise"):
+    """Fetch, measure and write the paddy-drought products for one AOI.
+
+    `bbox` (lon_min, lat_min, lon_max, lat_max) replaces the square AOI, which
+    is what a national tile run needs: tiles must tessellate, and a square in
+    kilometres does not. `gfs_file` reuses a forecast already downloaded for a
+    wider area -- GFS is a 27 km field, so fetching it per tile is thousands of
+    requests for one field. `on_empty="skip"` returns None instead of exiting
+    when a tile turns out to hold no scorable paddy.
+    """
     if backend != "gee":
         raise SystemExit(
             "drought-paddy runs on the Earth Engine backend: the water balance "
@@ -483,7 +519,13 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     t = T.get(lang, T["id"])
     as_of = as_of or dt.date.today()
     initialize_ee(config_key)
-    aoi = square_aoi(lon, lat, radius)
+    if bbox:
+        import ee
+        aoi = ee.Geometry.Rectangle(list(bbox))
+        lat = (bbox[1] + bbox[3]) / 2.0
+        lon = (bbox[0] + bbox[2]) / 2.0
+    else:
+        aoi = square_aoi(lon, lat, radius)
     os.makedirs(run_dir, exist_ok=True)
 
     grid_deg, grid_anchor, grid_m, grid_source = resolve_grid(grid_spec, paddy_file)
@@ -496,6 +538,18 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     _say(f"  season {windows[0][0]} -> {windows[0][1]}, {seasons_back} baseline "
          f"season(s); VH stack {start} -> {end} ({len(grid)} periods of 12 days)")
     _say(f"  grid {grid_deg:.7f} deg (~{grid_m:.2f} m), aligned to {grid_source}")
+
+    # --- which pass actually covers this AOI -------------------------------
+    # Not a constant. Measured across Java, descending leaves up to 42 of 85
+    # periods empty with a run of 23 -- which discards the tile -- where
+    # ascending leaves one. The reverse happens too, so it is chosen per AOI
+    # and recorded. Mixing passes inside one stack is not an option: the
+    # geometry moves backscatter by more than the crop does.
+    orbit_gaps = None
+    if str(orbit_pass).lower() in ("auto", "none", "") or orbit_pass is None:
+        orbit_pass, _counts, orbit_gaps = pdata.pick_orbit(aoi, grid)
+        _say(f"  orbit {orbit_pass.lower()} chosen: {orbit_gaps[0]} of "
+             f"{len(grid)} periods empty, longest gap {orbit_gaps[1]}")
 
     # --- Sentinel-1: the flood-then-grow cycle -----------------------------
     vh_path = os.path.join(run_dir, f"paddy_vh_{name}.tif")
@@ -536,6 +590,17 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     _say(f"  paddy: {int(paddy.sum()):,} pixels "
          f"({paddy.sum() * area_ha:,.0f} ha) — {extent_source}")
     if not paddy.any():
+        # A tile can hold paddy on the layer and still have none the radar
+        # covers. In a national run that is a tile to note and move past, not
+        # a reason to stop the country.
+        if on_empty == "skip":
+            gap = f", longest gap {orbit_gaps[1]} periods" if orbit_gaps else ""
+            _say(f"  no paddy pixels the radar covers ({empty} empty periods"
+                 f"{gap}): nothing to score here")
+            return {"empty": True, "reason": "radar coverage",
+                    "empty_periods": empty,
+                    "orbit_pass": orbit_pass,
+                    "longest_gap": orbit_gaps[1] if orbit_gaps else None}
         raise SystemExit("no paddy pixels in this AOI: supply --paddy-file, or "
                          "check the location")
 
@@ -626,8 +691,14 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     outlook_cls = np.full(paddy.shape, pw.ADEQUACY_NODATA, dtype="uint8")
     out_si = np.full(paddy.shape, np.nan, dtype="float32")
     lead_used = 0
-    run_time = pdata.latest_gfs_run()
-    gfs_path = os.path.join(run_dir, f"paddy_gfs_{name}.tif")
+    if gfs_file:
+        # One 27 km forecast field, downloaded once for the whole island and
+        # resampled here. Fetching it per tile would be thousands of requests
+        # for the same numbers.
+        run_time, gfs_path = gfs_run, gfs_file
+    else:
+        run_time = pdata.latest_gfs_run()
+        gfs_path = os.path.join(run_dir, f"paddy_gfs_{name}.tif")
     if run_time is not None and not os.path.exists(gfs_path):
         _say(f"  fetching GFS run {run_time:%Y-%m-%d %H:%M} UTC for the next "
              f"{outlook_days} days...")
@@ -645,7 +716,10 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     if run_time is None:
         _say("  no outlook this run")
     else:
-        gfs, gprof, _ = read_stack(gfs_path)
+        # A shared field covers more than this tile, so it is resampled onto
+        # the tile's own grid; a tile's own download already is that grid.
+        gfs = (resample_stack(gfs_path, profile) if gfs_file
+               else read_stack(gfs_path)[0])
         rain = gfs[0::3]
         # Earth Engine serves GFS 2 m temperature in degrees Celsius, not
         # Kelvin (checked: 24.8 over Klambu). Converting anyway would put the
@@ -722,6 +796,9 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
                    "baseline_seasons": seasons_back},
         "paddy_extent_source": extent_source, "kc_mode": kc_mode,
         "grid_m": round(grid_m, 3), "orbit_pass": orbit_pass,
+        "radar_coverage": {"periods": len(grid), "empty_periods": empty,
+                           "longest_gap": orbit_gaps[1] if orbit_gaps else None,
+                           "chosen": "auto" if orbit_gaps else "fixed"},
         "grid": {"deg": grid_deg, "m": round(grid_m, 3),
                  "anchor": [round(v, 9) for v in xform[2::3]],
                  "aligned_to": grid_source, "crs": "EPSG:4326"},

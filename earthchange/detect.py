@@ -174,6 +174,9 @@ def resolve_location(args):
         return None, None, None, args.name or safe_name(args.country)
     elif getattr(args, "admin", None):
         return None, None, None, args.name or safe_name(args.admin)
+    elif getattr(args, "island", None):
+        # The island's own tiles define the extent; there is no centre to take.
+        return None, None, None, args.name or safe_name(args.island)
     elif getattr(args, "areas", None):
         return None, None, None, args.name or "areas"
     elif getattr(args, "bbox", None):
@@ -540,9 +543,37 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                           grid_spec=args.paddy_grid, paddy_file=args.paddy_file,
                           zones_file=args.zones, zone_field=args.zone_field,
                           kc_mode=args.kc_mode, outlook_days=args.outlook_days,
-                          orbit_pass=("DESCENDING" if args.orbit_pass == "auto"
+                          orbit_pass=("auto" if args.orbit_pass == "auto"
                                       else args.orbit_pass.upper()),
                           lang=args.lang, publish=args.publish)
+        return True
+
+    if method == "drought_paddy_island":
+        import datetime as _dt
+
+        from . import paddy_island
+        if not args.island:
+            raise SystemExit(
+                "drought-paddy-island needs --island NAME (Jawa, Sumatera, "
+                "Kalimantan, Sulawesi, Bali-NusaTenggara, Maluku, Papua)")
+        if not args.paddy_file:
+            raise SystemExit(
+                "drought-paddy-island needs --paddy-file: an island is tiled "
+                "from the paddy layer, and the tiles take their grid from it. "
+                "Use the official Lahan Baku Sawah raster")
+        paddy_island.run(
+            args.island, args.paddy_file, run_dir,
+            as_of=(_dt.date.fromisoformat(args.as_of) if args.as_of else None),
+            coverage=args.coverage, limit=args.tiles_limit,
+            tile_deg=args.tile_deg, workers=args.workers,
+            season_days=args.season_days, seasons_back=args.baseline_seasons,
+            kc_mode=args.kc_mode, outlook_days=args.outlook_days,
+            # "auto" means auto here: the pass is chosen per tile from the
+            # acquisitions that exist, which is the difference between an
+            # island with holes in it and one without.
+            orbit_pass=("auto" if args.orbit_pass == "auto"
+                        else args.orbit_pass.upper()),
+            lang=args.lang, config_key=ee_key)
         return True
 
     if method == "smoke_dispersion":
@@ -1152,6 +1183,27 @@ def build_parser():
                          "extent is never resampled. A number is a pixel size "
                          "in metres. WaPOR ETa is 300 m, so the water balance "
                          "is no finer than that whatever this is set to")
+    ap.add_argument("--island", metavar="NAME",
+                    help="drought-paddy-island: which island to run — Jawa, "
+                         "Sumatera, Kalimantan, Sulawesi, Bali-NusaTenggara, "
+                         "Maluku or Papua. The island is the unit of work: it "
+                         "is tiled, run richest-tile-first, mosaicked and "
+                         "published on its own")
+    ap.add_argument("--tile-deg", type=float, default=0.125, metavar="DEG",
+                    help="drought-paddy-island: tile size (default 0.125 = "
+                         "13.9 km, the largest that fits one Earth Engine "
+                         "request with an 85-period stack)")
+    ap.add_argument("--coverage", type=float, metavar="FRACTION",
+                    help="drought-paddy-island: run only the richest tiles "
+                         "holding this share of the island's paddy, e.g. 0.9. "
+                         "The distribution is skewed, so 0.9 costs about a "
+                         "third of the tiles")
+    ap.add_argument("--tiles-limit", type=int, metavar="N",
+                    help="drought-paddy-island: stop after N tiles (they are "
+                         "ordered richest first, so this is a useful sample)")
+    ap.add_argument("--workers", type=int, default=4, metavar="N",
+                    help="drought-paddy-island: concurrent tiles (default 4; "
+                         "Earth Engine throttles heavier downloads)")
     ap.add_argument("--kc-mode", default="curve110", choices=["curve110", "stage"],
                     help="drought-paddy: crop coefficient. curve110 = the "
                          "110-day curve stretched onto each field's measured "

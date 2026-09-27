@@ -175,6 +175,64 @@ def s1_period_counts(aoi, grid, orbit_pass="DESCENDING"):
                 .size().getInfo()) for _, a, b in grid]
 
 
+def s1_acquisitions(aoi, grid, orbit_pass="DESCENDING"):
+    """Scenes per period, in ONE request.
+
+    s1_period_counts asks once per period, which is 85 round trips for a single
+    stack -- fine for one AOI, hopeless for a thousand tiles. This asks for the
+    acquisition times once and buckets them here.
+    """
+    import ee
+    start, end = grid[0][1], grid[-1][2]
+    ic = (ee.ImageCollection(S1_GRD).filterBounds(aoi)
+          .filterDate(start.isoformat(),
+                      (end + dt.timedelta(days=1)).isoformat())
+          .filter(ee.Filter.eq("instrumentMode", "IW"))
+          .filter(ee.Filter.listContains(
+              "transmitterReceiverPolarisation", "VH"))
+          .filter(ee.Filter.eq("orbitProperties_pass", orbit_pass)))
+    millis = ic.aggregate_array("system:time_start").getInfo() or []
+    times = sorted(dt.datetime.fromtimestamp(m / 1000, dt.UTC).date()
+                   for m in millis)
+    counts = []
+    for _, a, b in grid:
+        counts.append(sum(1 for t in times if a <= t <= b))
+    return counts
+
+
+def gaps(counts):
+    """(periods with nothing, longest run of them) -- how holed a stack is."""
+    longest = cur = 0
+    for c in counts:
+        cur = cur + 1 if not c else 0
+        longest = max(longest, cur)
+    return sum(1 for c in counts if not c), longest
+
+
+def pick_orbit(aoi, grid, passes=("DESCENDING", "ASCENDING")):
+    """The pass with the least holed 12-day series over this AOI.
+
+    The orbit cannot be a constant for a national run. One direction covers a
+    given footprint on its own repeat cycle, so a tile that is well served
+    descending can be badly served ascending and the reverse -- measured over
+    East Java, descending left 42 of 85 periods empty with a run of 23, which
+    discards the tile, while the other pass covers it. Mixing passes WITHIN a
+    stack is not allowed (the geometry changes the backscatter by more than the
+    crop does), so the choice is per tile, and recorded with the tile.
+
+    Returns (orbit_pass, counts, (empty, longest)).
+    """
+    best = None
+    for p in passes:
+        counts = s1_acquisitions(aoi, grid, p)
+        empty, longest = gaps(counts)
+        # A long hole is what kills a season; total holes break the tie.
+        score = (longest, empty)
+        if best is None or score < best[0]:
+            best = (score, p, counts, (empty, longest))
+    return best[1], best[2], best[3]
+
+
 def _dekad_bounds(day):
     """WaPOR dekads: 1-10, 11-20, 21-end of month."""
     if day.day <= 10:

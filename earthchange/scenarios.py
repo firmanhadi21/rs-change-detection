@@ -563,6 +563,18 @@ SCENARIOS = {
                            "110 hari. Kandidat puso adalah daftar untuk dicek "
                            "di lapangan, bukan vonis."),
     },
+    "drought-paddy-island": {
+        "label": ("Paddy drought for a whole island — tiled, resumable, "
+                  "mosaicked, with an island web bundle"),
+        "method": "drought_paddy_island", "needs": "none",
+        "radius": None,
+        "interpretation": ("Skenario yang sama, satu pulau sekaligus: pulau "
+                           "dipotong menjadi ubin 0,125° yang mengandung sawah, "
+                           "dikerjakan dari yang paling padat sawah, lalu "
+                           "dimosaik. Ubin yang selesai tidak diunduh ulang, "
+                           "jadi pekerjaan bisa dilanjutkan. Batasnya sama "
+                           "dengan drought-paddy — termasuk neraca air 300 m."),
+    },
     "smoke-dispersion": {
         "label": ("Smoke dispersion — HYSPLIT concentration field, not just "
                   "trajectories"),
@@ -827,6 +839,13 @@ SCENARIO_FLAGS = {
                       "--paddy-file", "--paddy-grid", "--zones", "--zone-field",
                       "--kc-mode", "--outlook-days", "--orbit-pass",
                       "--publish"),
+    # No --paddy-grid or --zones: an island run takes its grid from the paddy
+    # layer by construction (tiles must share one grid to mosaic), and zone
+    # tables are a per-scheme product, not an island one.
+    "drought-paddy-island": ("--island", "--as-of", "--season-days",
+                             "--baseline-seasons", "--paddy-file", "--tile-deg",
+                             "--coverage", "--tiles-limit", "--workers",
+                             "--kc-mode", "--outlook-days", "--orbit-pass"),
     "smoke-dispersion": ("--date", "--track-hours", "--track-heights",
                          "--hysplit-bin", "--met-cache", "--layer-top",
                          "--emission-rate", "--emission-units",
