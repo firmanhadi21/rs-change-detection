@@ -459,19 +459,35 @@ terlihat.
 
 442 ubin, dua arm, 162 menit pada 8 pekerja. Nol ubin gagal, nol ubin kosong.
 
-| | Jawa Barat | Jawa Tengah |
-|---|---|---|
-| Sawah di dalam batas | 902.214 – 912.727 ha | 980.820 – 983.427 ha |
-| LBS resmi (pembanding) | ~929.000 ha | ~1.043.000 ha |
-| Tertanam | 213.000 – 216.000 ha | 318.000 – 319.000 ha |
-| **Belum tanam** | **66,5%** | **60,6%** |
-| Panjang musim (median) | 92,5 hari | 86,5 hari |
-| Kandidat puso | ~145.000 ha | ~153.000 ha |
-| Arah orbit terpilih | ASCENDING 230/230 | ASCENDING 162, **DESCENDING 63** |
-| Hitung ganda perbatasan | **66.370 ha** | **120.431 ha** |
+| | Jawa | Jawa Barat | Jawa Tengah |
+|---|---|---|---|
+| Sawah di dalam batas | **3.343.327 ha** | 906.736 ha | 985.701 ha |
+| LBS resmi (pembanding) | ~3,42 juta | ~929.000 ha | ~1.043.000 ha |
+| Tertanam | 979.274 ha | 213.788 ha | 319.593 ha |
+| **Belum tanam** | **63,9%** | **66,5%** | **60,6%** |
+| Panjang musim (median) | 87 hari | 92,5 hari | 86,5 hari |
+| Kandidat puso | 534.564 ha | 145.797 ha | 154.211 ha |
+| Arah orbit terpilih | ASC 608, **DESC 171** | ASC 230/230 | ASC 162, **DESC 63** |
+| Ubin gagal / kosong | 0 / 4 | 0 / 0 | 0 / 0 |
 
-Rentang pada dua baris pertama adalah selisih antar arm (~1%), yang sebabnya
-dijelaskan di §2 — bukan kalendernya.
+Angka arm `hybrid` berbeda ~1% (mis. Jawa Barat 917.311 ha), sebabnya di §2 —
+bukan kalendernya.
+
+**Dua koreksi yang dipaksa oleh integrasi ke drought.ownmap.id**, dan keduanya
+mengubah angka di atas:
+
+* **Mosaik provinsi dipotong pada batasnya.** Ubin dipilih dengan aturan
+  bersinggungan, jadi mosaiknya adalah gabungan *kotak* ubin dan melimpah
+  melewati batas — raster Jawa Barat memuat sawah Banten dan Jawa Tengah.
+  Penghitungan ulang piksel oleh situs itu 6,3% di atas angka provinsi.
+* **Hektare memakai luas piksel bola per baris**, bukan konstanta planar
+  (111320 × 110540 m/derajat). Dugaan pertama saya — sebaran lintang — salah:
+  luas piksel di lintang tengah akurat sampai 0,005% pada rentang dua derajat.
+  Yang salah adalah rumusnya; yang benar adalah R²·Δλ·Δ(sin φ), dan itulah rumus
+  yang dipakai situs drought.
+  
+  Setelah keduanya: penghitungan ulang situs dan angka paket **sama sampai
+  hektare** (906.736,4 lawan 906.736).
 
 Dua hal yang perlu dibaca dari tabel ini:
 

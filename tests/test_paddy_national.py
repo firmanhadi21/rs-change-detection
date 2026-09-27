@@ -7,6 +7,7 @@ holds -- not silently counted as zero paddy or zero drought.
 import json
 import os
 
+import numpy as np
 import pytest
 
 from earthchange import paddy_island as pisl
@@ -159,6 +160,98 @@ def test_class_hectares_never_exceed_the_paddy_they_describe(tmp_path):
     assert belum == pytest.approx(got["paddy_ha"], rel=1e-6)
     assert belum <= got["paddy_ha"] * 1.000001, "more 'not planted' than paddy"
     assert got["not_planted_ha"] == pytest.approx(got["paddy_ha"], rel=1e-6)
+
+
+def test_row_areas_match_the_drought_sites_own_formula():
+    """Two area formulas that drift are how a wrong headline reaches a page.
+
+    drought.ownmap.id recomputes every published hectare from the pixels with an
+    exact spherical per-row area. Its figure for West Java sat 0.5% above this
+    package's, because this one used a single pixel area for a whole province.
+    This pins the formula, constant included.
+    """
+    import math
+
+    import rasterio
+    t = rasterio.transform.from_origin(106.0, -5.0, 0.0005, 0.0005)
+    got = pisl.row_areas_ha(t, 4000)
+
+    R = 6371008.8
+    lat_top = -5.0 - np.arange(4000) * 0.0005
+    lat_bot = lat_top - 0.0005
+    want = (R ** 2 * math.radians(0.0005)
+            * (np.sin(np.radians(lat_top)) - np.sin(np.radians(lat_bot))) / 1e4)
+    assert np.allclose(got, want, rtol=1e-12)
+    # and it really does shrink away from the equator
+    assert got[0] > got[-1]
+    assert got[0] == pytest.approx(0.3095, abs=0.002)
+
+
+def test_the_spherical_formula_is_what_differed_from_the_drought_site():
+    """Locating the 0.5%: it was the formula, not the latitude spread.
+
+    A mid-latitude pixel area times the row count is accurate to 0.005% over two
+    degrees, because the error is symmetric about the midpoint -- so per-row
+    variation was never the explanation. pixel_area_ha multiplies planar
+    constants (111320 m per degree of longitude by 110540 per degree of
+    latitude); the spherical area is R^2 * dlon * d(sin lat). Those differ by
+    about half a per cent, which is exactly the gap the drought site's
+    independent recount reported.
+    """
+    from earthchange import paddy_drought as pdr
+    import rasterio
+    t = rasterio.transform.from_origin(107.0, -6.0, 0.0005, 0.0005)
+    n = 4000                                       # two degrees of latitude
+    rows = pisl.row_areas_ha(t, n)
+
+    # per-row variation is NOT the issue
+    mid = rows[n // 2] * n
+    assert abs(mid - rows.sum()) / rows.sum() < 0.001
+
+    # the formula is
+    profile = {"transform": t, "crs": "EPSG:4326"}
+    planar = pdr.pixel_area_ha(profile, -7.0) * n
+    gap = abs(planar - rows.sum()) / rows.sum()
+    assert 0.002 < gap < 0.01, f"expected ~0.5%, got {gap:.4%}"
+
+
+def test_clipping_makes_a_recount_agree_with_the_published_figure(tmp_path):
+    """A province mosaic is the union of tile BOXES and spills over the border.
+
+    Unclipped, West Java's raster carried Banten and Central Java paddy: the map
+    showed a neighbour's fields, and the drought site's independent pixel
+    recount came out 6.3% above the published figure. After clipping, counting
+    every pixel gives the same answer as masking by the boundary.
+    """
+    import numpy as np
+    import rasterio
+    from shapely.geometry import box
+
+    n = 40
+    prof = {"driver": "GTiff", "height": n, "width": n, "count": 1,
+            "dtype": "uint8", "crs": rasterio.crs.CRS.from_epsg(4326),
+            "transform": rasterio.Affine(0.001, 0, 110.0, 0, -0.001, -7.0)}
+    written = {}
+    for name in ("paddy", "delay_class", "adequacy_class", "anomaly_class",
+                 "outlook_class", "puso"):
+        arr = (np.ones((n, n), dtype="uint8") if name == "paddy"
+               else np.full((n, n), 255, dtype="uint8"))
+        p = str(tmp_path / f"{name}.tif")
+        with rasterio.open(p, "w", **prof) as dst:
+            dst.write(arr, 1)
+        written[name] = p
+
+    # the "province" is the western half of the raster
+    geom = box(110.0, -7.04, 110.02, -7.0)
+    whole = pisl.admin_totals(written, None, "id")["paddy_ha"]
+    masked = pisl.admin_totals(written, geom, "id")["paddy_ha"]
+    assert masked < whole * 0.75, "the fixture must actually straddle the edge"
+
+    pisl.clip_to(written, geom)
+    after_whole = pisl.admin_totals(written, None, "id")["paddy_ha"]
+    after_masked = pisl.admin_totals(written, geom, "id")["paddy_ha"]
+    assert after_whole == pytest.approx(masked, rel=1e-9)
+    assert after_masked == pytest.approx(masked, rel=1e-9)
 
 
 def test_kalimantan_says_its_rice_is_tidal_or_rainfed():

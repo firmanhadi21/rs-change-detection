@@ -374,6 +374,68 @@ def roll_up(rows, tiles_root, area, as_of, tiles_run):
     return tot
 
 
+def clip_to(written, geom):
+    """Mask every mosaic to a boundary, in place.
+
+    Tiles are selected by any overlap, so a province mosaic is the union of tile
+    BOXES and spills across the border -- West Java's raster carried Banten and
+    Central Java paddy with it. That is wrong twice over: the map shows a
+    neighbour's fields inside this province's layer, and any consumer that
+    recounts hectares from the pixels gets the tile-union figure rather than the
+    province's (6.3% apart on West Java).
+
+    Clipping makes the raster mean what its name says, and makes an independent
+    pixel recount agree with the published number instead of contradicting it.
+    """
+    import rasterio
+    from rasterio.features import rasterize
+
+    for layer, path in written.items():
+        with rasterio.open(path) as src:
+            prof = src.profile.copy()
+            data = src.read(1)
+            nodata = src.nodata
+        inside = rasterize([(geom, 1)], out_shape=data.shape,
+                           transform=prof["transform"], fill=0,
+                           all_touched=False, dtype="uint8").astype(bool)
+        if nodata is None:
+            # paddy and puso have no nodata: 0 already means absent, and that is
+            # the honest value outside the boundary too.
+            fill = 0
+        else:
+            fill = nodata
+        data = np.where(inside, data, fill)
+        with rasterio.open(path, "w", **prof) as dst:
+            dst.write(data.astype(prof["dtype"]), 1)
+    return written
+
+
+EARTH_R_M = 6371008.8            # mean radius, as drought.ownmap.id's accounting uses
+
+
+def row_areas_ha(transform, height):
+    """Exact spherical area in hectares of one pixel in each raster row.
+
+    A single pixel area for a whole mosaic overstates the rows away from the
+    latitude it was taken at, because a degree of longitude shrinks with
+    cos(latitude). Over a 4 km AOI that is nothing; over a province spanning two
+    degrees it is about 0.5%, and over Java or a national mosaic it is worse.
+
+    Found by integration: drought.ownmap.id recomputes every hectare from the
+    pixels with this formula, and its figure for West Java sat 0.5% above this
+    package's until this replaced a one-latitude approximation. Two area formulas
+    that disagree are how a wrong headline reaches a public page, so this is
+    deliberately the same formula, constant included.
+    """
+    import math
+    res_x = abs(transform.a)
+    res_y = abs(transform.e)
+    lat_top = transform.f - np.arange(height) * res_y
+    lat_bot = lat_top - res_y
+    return (EARTH_R_M ** 2 * math.radians(res_x)
+            * (np.sin(np.radians(lat_top)) - np.sin(np.radians(lat_bot))) / 1e4)
+
+
 def admin_totals(written, geom=None, lang="id"):
     """Hectares per class from the MOSAICS, optionally inside a boundary.
 
@@ -401,16 +463,21 @@ def admin_totals(written, geom=None, lang="id"):
                                                    profile["width"]),
                            transform=profile["transform"], fill=0,
                            all_touched=False, dtype="uint8").astype(bool)
-    area_ha = pdr.pixel_area_ha(profile, lat)
+    # Per row, not one pixel area for the whole mosaic: see row_areas_ha.
+    rows_ha = row_areas_ha(profile["transform"], profile["height"])
 
     def read(layer):
         with rasterio.open(written[layer]) as src:
             return src.read(1)
 
+    def ha(mask):
+        """Hectares of a boolean mask, weighting each row by its own area."""
+        return round(float((np.count_nonzero(mask, axis=1) * rows_ha).sum()), 1)
+
     out = {}
     if "paddy" in written:
         paddy = (read("paddy") > 0) & inside
-        out["paddy_ha"] = round(float(paddy.sum()) * area_ha, 1)
+        out["paddy_ha"] = ha(paddy)
     for layer, table in (("delay_class", pw.DELAY_CLASSES),
                          ("adequacy_class", pw.ADEQUACY_CLASSES),
                          ("anomaly_class", pw.ANOMALY_CLASSES),
@@ -425,21 +492,18 @@ def admin_totals(written, geom=None, lang="id"):
         out[key] = {}
         for cid, _lo, _hi, labels, _colour in table:
             label = labels[lang if lang in labels else "en"]
-            out[key][label] = round(
-                float(((arr == cid) & inside).sum()) * area_ha, 1)
+            out[key][label] = ha((arr == cid) & inside)
     if "delay_class" in written:
         arr = read("delay_class")
-        planted = np.isin(arr, [0, 1, 2, 3]) & inside
-        not_planted = (arr == pw.NOT_PLANTED) & inside
-        out["planted_ha"] = round(float(planted.sum()) * area_ha, 1)
-        out["not_planted_ha"] = round(float(not_planted.sum()) * area_ha, 1)
+        out["planted_ha"] = ha(np.isin(arr, [0, 1, 2, 3]) & inside)
+        out["not_planted_ha"] = ha((arr == pw.NOT_PLANTED) & inside)
         total = out.get("paddy_ha") or 0.0
         out["not_planted_pct"] = (round(100.0 * out["not_planted_ha"] / total, 1)
                                   if total else None)
     if "puso" in written:
-        out["puso_candidates_ha"] = round(
-            float(((read("puso") == 1) & inside).sum()) * area_ha, 1)
-    out["method"] = "mosaic masked by the boundary, not summed per tile"
+        out["puso_candidates_ha"] = ha((read("puso") == 1) & inside)
+    out["method"] = ("mosaic masked by the boundary, exact spherical per-row "
+                     "pixel areas, not summed per tile")
     return out
 
 
@@ -575,6 +639,10 @@ def run(area, paddy_file, run_dir, kind="island", calendar=None,
         if kind == "province":
             polys = ptiles.admin_polygons("Indonesia", cache=admin_cache)
             geom = polys.get(area)
+        if geom is not None:
+            # Clip first, so the published rasters ARE the province and anyone
+            # recounting hectares from the pixels gets the published figure.
+            clip_to(written, geom)
         if kind != "province" or geom is not None:
             exact = admin_totals(written, geom, lang)
             where = ("within the province boundary" if geom is not None
@@ -760,6 +828,8 @@ def finalise(run_dir, tiles_dir, admin_cache=None, lang="id", publish=True):
         if kind == "province":
             geom = ptiles.admin_polygons("Indonesia",
                                          cache=admin_cache).get(area)
+        if geom is not None:
+            clip_to(written, geom)
         if kind != "province" or geom is not None:
             exact = admin_totals(written, geom, lang)
             stats["per_tile_totals"] = {k: stats.get(k) for k in (
