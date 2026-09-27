@@ -918,7 +918,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
     # --- the numbers -------------------------------------------------------
     stats = summarise(paddy, planted, delay, delay_cls, si_cls, anomaly_cls,
-                      outlook_cls, puso, no_canopy, starved, cur, area_ha, lang)
+                      outlook_cls, puso, no_canopy, starved, cur, area_ha, lang,
+                      confirmed=confirmed, provisional=provisional)
     stats.update({
         "run_id": run_id, "scenario": "drought-paddy", "as_of": str(as_of),
         "location": {"lat": lat, "lon": lon}, "radius_km": radius,
@@ -975,7 +976,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
 
 
 def summarise(paddy, planted, delay, delay_cls, si_cls, anomaly_cls,
-              outlook_cls, puso, no_canopy, starved, cur, area_ha, lang="id"):
+              outlook_cls, puso, no_canopy, starved, cur, area_ha, lang="id",
+              confirmed=None, provisional=None):
     """Hectares per class: the form an irrigation office can act on."""
     def ha(mask):
         return round(float(np.count_nonzero(mask)) * area_ha, 1)
@@ -987,7 +989,7 @@ def summarise(paddy, planted, delay, delay_cls, si_cls, anomaly_cls,
         return out
 
     total = ha(paddy)
-    return {
+    out = {
         "paddy_ha": total,
         "planted_ha": ha(paddy & planted),
         "not_planted_ha": ha(paddy & ~planted),
@@ -1004,6 +1006,19 @@ def summarise(paddy, planted, delay, delay_cls, si_cls, anomaly_cls,
         "puso_starved_ha": ha(starved),
         "season_length_days_median": _r(np.nanmedian(cur["length"][paddy])),
     }
+    # How much of "planted" the SC rules actually confirmed, and how much is a
+    # flood seen in the last ~60 days that the crop has not yet grown back into
+    # the beam to validate. The caveat exists in the text; without these two
+    # numbers nobody can weigh it, and it is the weakest joint in the headline
+    # "not planted" figure.
+    if confirmed is not None and provisional is not None:
+        out["planted_confirmed_ha"] = ha(paddy & confirmed)
+        out["planted_provisional_ha"] = ha(paddy & provisional)
+        planted_ha = out["planted_ha"]
+        out["planted_provisional_pct"] = (
+            round(100.0 * out["planted_provisional_ha"] / planted_ha, 1)
+            if planted_ha else None)
+    return out
 
 
 def _print_summary(stats, t):

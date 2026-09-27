@@ -337,10 +337,18 @@ salinan warna di kode situs, supaya peta dan raster tidak bisa berselisih.
 
 ```
 paddy_ha, planted_ha, not_planted_ha, not_planted_pct,
+planted_confirmed_ha, planted_provisional_ha, planted_provisional_pct,
 median_delay_days, season_length_days_median,
 anomaly_ha{}, planting_delay_ha{}, adequacy_ha{}, outlook_ha{},
 puso_candidates_ha
 ```
+
+**`planted_provisional_pct` harus tampil di sebelah angka "belum tanam".** Itu
+bagian tanam yang terdeteksi dari banjir tetapi belum dapat dikonfirmasi aturan
+SC (tanam ~60 hari terakhir). Di Klambu bagian itu 18,7% pada musim kemarau
+lawan 2,3% pada musim hujan — jadi justru angka musim kemarau yang paling
+bergantung pada jalur paling lemah. Sebut musimnya (gadu/MT2); jangan sajikan
+sebagai "sawah tidak digarap".
 
 Kunci di dalam `anomaly_ha` dan kawan-kawan adalah **label bahasa**, bukan
 angka kelas (mis. `{"Normal": 12519.4, "Agak kering": 143.4}`). Jangan

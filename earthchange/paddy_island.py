@@ -320,7 +320,8 @@ def roll_up(rows, tiles_root, area, as_of, tiles_run):
         })
         for key in ("paddy_ha", "planted_ha", "not_planted_ha",
                     "puso_candidates_ha", "puso_no_canopy_ha",
-                    "puso_starved_ha"):
+                    "puso_starved_ha", "planted_confirmed_ha",
+                    "planted_provisional_ha"):
             if s.get(key) is not None:
                 tot[key] = round(tot.get(key, 0.0) + s[key], 1)
         for group in ("planting_delay_ha", "adequacy_ha", "anomaly_ha",
@@ -337,6 +338,11 @@ def roll_up(rows, tiles_root, area, as_of, tiles_run):
     if tot.get("paddy_ha"):
         tot["not_planted_pct"] = round(
             100.0 * tot.get("not_planted_ha", 0.0) / tot["paddy_ha"], 1)
+    # The share of "planted" that is a flood the rules could not yet validate.
+    # Without it the not-planted headline cannot be weighed.
+    if tot.get("planted_ha") and tot.get("planted_provisional_ha") is not None:
+        tot["planted_provisional_pct"] = round(
+            100.0 * tot["planted_provisional_ha"] / tot["planted_ha"], 1)
     if lengths:
         order = np.argsort(lengths)
         w = np.cumsum(np.asarray(weights, dtype="float64")[order])

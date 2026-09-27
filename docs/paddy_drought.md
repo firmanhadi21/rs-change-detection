@@ -114,6 +114,42 @@ selisih **antar** musim; memakai metode berbeda di satu sisinya berarti mengukur
 metodenya, bukan kemundurannya — selisih ~6 hari itu sendiri akan terbaca sebagai
 setengah periode keterlambatan.
 
+### Diuji pada 2 juta hektare: kedua arm hampir sama
+
+Skor BulakBakal diukur pada 29 petak dalam satu musim. Dijalankan penuh pada Jawa
+Barat dan Jawa Tengah (442 ubin, 1,9 juta ha sawah, 2,4 juta piksel bertanggal):
+
+| | Jawa Barat | Jawa Tengah |
+|---|---|---|
+| Tanggal tanam **identik** | **92,9%** | **96,8%** |
+| Selisih median | 0 hari | 0 hari |
+| Selisih rata-rata | 0,9 hari | 0,3 hari |
+| Selisih p90 | 0 hari | 0 hari |
+| **Bagian memakai tanggal optik** | **7,3%** | **3,3%** |
+
+`not_planted_pct`, `median_delay_days`, dan `season_length_days_median` **sama
+sampai desimalnya** pada kedua arm di kedua provinsi; kelas-kelas lain bergeser
+≤1%.
+
+Sebabnya ketersediaan, bukan metode: NDWI maksimum hanya bisa menanggali tanam
+bila langit cerah dekat waktu tanam, dan tanam terjadi di musim hujan. Keunggulan
+6-lawan-12-hari itu nyata di tingkat petak, tetapi hanya berlaku pada 3–7% luas
+sawah Jawa, sehingga tidak dapat menggerakkan angka provinsi.
+
+**Kesimpulan yang jujur:** jalur optik layak dipertahankan — biayanya hampir nol
+(laju tetap 9–10 detik per ubin) dan ia memperbaiki tanggal yang dijangkaunya —
+tetapi ia **bukan** alasan memilih satu konfigurasi atas yang lain pada skala
+provinsi, dan tidak boleh dijual sebagai alasan itu. `full_sar` adalah pilihan
+produksi yang sah di sini.
+
+Satu catatan pembacaan: sisa perbedaan luas (~1%) **bukan** dari arm-nya. Arah
+orbit terpilih identik pada seluruh 442 ubin bersama, dan hanya 2 ubin berbeda
+luas sawahnya (321 ha). Sisanya karena cache `full_sar` memuat ubin yang diambil
+berjam-jam berselang: `covered` bergantung pada citra Sentinel-1 yang **ada saat
+pengambilan**, sehingga masker yang diturunkan ulang kemudian berbeda ~1%. Itu
+batas reproduktibilitas produk ini, bukan cacat kode — dan berarti dua paket
+hanya dapat dibandingkan angka-per-angka bila radar dasarnya sama.
+
 ---
 
 ## 3. Data
@@ -247,6 +283,14 @@ sebagai produk: angka yang tidak bisa dibongkar bukan angka yang bisa diaudit.
   cekungan terhadap lima periode di kedua sisi; tajuk belum tumbuh kembali.
   Dilaporkan **provisional** (banjir terdeteksi, menunggu konfirmasi), bukan
   "belum tanam" — sebab justru itulah sinyal yang dicari.
+
+  Besarnya jalur itu sekarang ikut dilaporkan (`planted_provisional_ha`,
+  `planted_provisional_pct`), karena tanpa angkanya peringatan di atas tidak bisa
+  ditimbang. Di Klambu: **18,7% dari tanam terdeteksi bersifat provisional pada
+  musim kemarau** (849 dari 4.533 piksel) lawan **2,3% pada musim hujan** (237
+  dari 10.092). Artinya angka "belum tanam" musim kemarau justru paling
+  bergantung pada jalur yang paling lemah, dan **harus diperiksa dengan angka
+  tanam Dinas Pertanian sebelum diterbitkan** — lihat §11.
 * **Prakiraan hanya hujan.** Pasokan irigasi tidak bisa diprakirakan. Peta
   menunjukkan di mana hujan saja tidak akan menutup kebutuhan — yaitu di mana
   saluran harus bekerja — bukan apa yang akan dilakukan saluran.
@@ -411,6 +455,32 @@ Cache ubin **tidak boleh dibagi antar arm** — produknya berbeda, dan ubin yang
 sudah selesai tidak dihitung ulang, sehingga arm yang tercampur tidak akan
 terlihat.
 
+### Hasil pertama: Jawa Barat dan Jawa Tengah, 27 September 2026
+
+442 ubin, dua arm, 162 menit pada 8 pekerja. Nol ubin gagal, nol ubin kosong.
+
+| | Jawa Barat | Jawa Tengah |
+|---|---|---|
+| Sawah di dalam batas | 902.214 – 912.727 ha | 980.820 – 983.427 ha |
+| LBS resmi (pembanding) | ~929.000 ha | ~1.043.000 ha |
+| Tertanam | 213.000 – 216.000 ha | 318.000 – 319.000 ha |
+| **Belum tanam** | **66,5%** | **60,6%** |
+| Panjang musim (median) | 92,5 hari | 86,5 hari |
+| Kandidat puso | ~145.000 ha | ~153.000 ha |
+| Arah orbit terpilih | ASCENDING 230/230 | ASCENDING 162, **DESCENDING 63** |
+| Hitung ganda perbatasan | **66.370 ha** | **120.431 ha** |
+
+Rentang pada dua baris pertama adalah selisih antar arm (~1%), yang sebabnya
+dijelaskan di §2 — bukan kalendernya.
+
+Dua hal yang perlu dibaca dari tabel ini:
+
+* **Hitung ganda perbatasan besar.** Menjumlahkan ubin akan menambahkan 66.370 ha
+  pada Jawa Barat dan 120.431 ha pada Jawa Tengah — sebesar satu kabupaten.
+  Karena itu angka provinsi selalu dari masker batas.
+* **Jawa Tengah memilih DESCENDING pada 63 ubin.** Arah orbit yang dipatok akan
+  salah menangani 63 ubin di satu provinsi saja.
+
 Keluaran per pulau: `<Pulau>_<lapisan>.tif` (mosaik, tanpa resample — ubin memang
 satu jaringan), `stats.json` (rekap pulau + tabel per ubin + arah orbit tiap
 ubin), `tile_index.csv`/`.geojson`, dan `web/` dengan kontrak yang sama seperti
@@ -462,5 +532,36 @@ dalam meter, mis. `--paddy-grid 20` untuk satu daerah irigasi).
 
 Modul: `paddy_phenology.py` (aturan SC, jendela ganda), `paddy_water.py`
 (Kc, SI, CU, RI, anomali, Hargreaves), `paddy_data.py` (pengambilan GEE),
+`paddy_tiles.py` (indeks ubin, provinsi), `paddy_island.py` (satu wilayah, dari
+ubin sampai paket web, plus `finalise` untuk menurunkan ulang tanpa GEE),
 `paddy_drought.py` (orkestrasi), `paddy_publish.py` (paket web). Uji:
 `tests/test_paddy_*.py`.
+
+---
+
+## 11. Yang belum divalidasi — jangan diterbitkan tanpa ini
+
+Satu angka menonjol dan belum layak diedarkan sebagai fakta:
+
+> **Belum tanam 66,5% (Jawa Barat) dan 60,6% (Jawa Tengah) per 27 September 2026.**
+
+Masuk akal untuk puncak musim kemarau, dan kontras musim hujan di Klambu (96%
+tertanam) menunjukkan detektornya bekerja. Tetapi angka ini adalah angka paling
+berkonsekuensi dalam produk, dan bergantung pada bagian yang paling lemah:
+aturan SC tidak dapat mengonfirmasi tanam ~60 hari terakhir, dan di musim kemarau
+**18,7%** tanam terdeteksi hanya provisional (Klambu). Bila detektor banjir
+provisional terlalu berhati-hati, sebagian "belum tanam" sesungguhnya adalah tanam
+gadu yang baru berjalan.
+
+Yang diperlukan, dan tidak dapat dipenuhi dari satelit sendiri:
+
+1. **Angka tanam Dinas Pertanian per kabupaten** untuk musim gadu 2026, dibandingkan
+   dengan `planted_ha` per kabupaten.
+2. **Beberapa petak cek lapangan** pada piksel `delay_class == 4` (belum tanam) dan
+   pada piksel provisional — dua kesalahan yang berbeda arah.
+3. Bila keduanya sejalan, angka ini bisa diterbitkan; bila tidak, yang perlu
+   disetel adalah `flood_signature` (`drop_db`, `floor_db`), bukan pelaporannya.
+
+Sampai itu dilakukan, sajikan angka ini dengan `planted_provisional_pct` di
+sebelahnya, dan sebut musim yang dimaksud (gadu/MT2), bukan "sawah tidak
+digarap".

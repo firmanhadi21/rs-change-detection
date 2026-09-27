@@ -91,6 +91,38 @@ def test_an_empty_base_is_not_a_national_figure_of_zero(tmp_path):
 
 
 # --- island-specific caveats ----------------------------------------------
+def test_the_provisional_share_of_planting_is_rolled_up(tmp_path):
+    """The weakest joint in the not-planted headline, made weighable.
+
+    The SC rules cannot confirm a planting from the last ~60 days, so part of
+    "planted" is a flood awaiting validation. The caveat was in the text; the
+    number was nowhere.
+    """
+    run = str(tmp_path / "run")
+    rows = _rows("Jawa", 2, 100.0)
+    ids = [r["tile_id"] for r in rows]
+    _tile_stats_for(run, ids[0], paddy_ha=1000.0, planted_ha=400.0,
+                    not_planted_ha=600.0, planted_confirmed_ha=300.0,
+                    planted_provisional_ha=100.0)
+    _tile_stats_for(run, ids[1], paddy_ha=500.0, planted_ha=200.0,
+                    not_planted_ha=300.0, planted_confirmed_ha=120.0,
+                    planted_provisional_ha=80.0)
+    got = pisl.roll_up(rows, run, "Jawa", "2026-09-27", 2)
+    assert got["planted_confirmed_ha"] == 420.0
+    assert got["planted_provisional_ha"] == 180.0
+    assert got["planted_confirmed_ha"] + got["planted_provisional_ha"] == \
+        got["planted_ha"]
+    assert got["planted_provisional_pct"] == 30.0
+
+
+def _tile_stats_for(run_dir, tid, **fields):
+    import os as _os
+    d = pisl.tile_dir(run_dir, tid)
+    _os.makedirs(d, exist_ok=True)
+    with open(_os.path.join(d, "stats.json"), "w") as f:
+        json.dump(fields, f)
+
+
 def test_kalimantan_says_its_rice_is_tidal_or_rainfed():
     got = pisl.island_caveats("Kalimantan", "en", 55.66)
     assert "tidal or rainfed" in got[0]
