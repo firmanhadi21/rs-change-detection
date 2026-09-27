@@ -89,6 +89,66 @@ def heikin_ashi(a, axis=-1):
     return np.moveaxis(out, -1, axis)
 
 
+def fill_time_gaps(stack, max_gap=3, min_coverage=0.6, clamp_ends=False):
+    """Interpolate short gaps along time; leave long ones as NaN.
+
+    Sentinel-1 does not acquire every 12-day period over every place: at
+    Klambu 15 of 80 periods were empty, and requiring every period to be
+    present rejects every pixel. A gap of one to three periods sits well
+    inside a rice cycle and interpolates safely; a longer one is a hole, and
+    a pixel with less than `min_coverage` real observations is not scored at
+    all rather than invented.
+
+    Returns (filled stack, valid mask).
+    """
+    stack = np.asarray(stack, dtype="float32")
+    p, rows, cols = stack.shape
+    flat = stack.reshape(p, -1)
+    ok = np.isfinite(flat)
+    coverage = ok.mean(axis=0)
+    out = flat.copy()
+    idx = np.arange(p)
+    for j in np.nonzero(coverage >= min_coverage)[0]:
+        col = flat[:, j]
+        good = ok[:, j]
+        if good.all():
+            continue
+        # Only fill runs no longer than max_gap, and only between real
+        # observations -- the ends are left to the caller's padding.
+        filled = np.interp(idx, idx[good], col[good])
+        gaps = _gap_lengths(good)
+        take = (~good) & (gaps <= max_gap) & (idx > idx[good][0]) & (idx < idx[good][-1])
+        col = col.copy()
+        col[take] = filled[take]
+        if clamp_ends:
+            # Hold the first and last real values out to the ends. A flat tail
+            # cannot invent a planting: a validated minimum has to be strictly
+            # lower than its neighbours, and a constant never is.
+            col[:idx[good][0]] = col[idx[good][0]]
+            col[idx[good][-1] + 1:] = col[idx[good][-1]]
+        out[:, j] = col
+    filled_stack = out.reshape(p, rows, cols)
+    valid = (np.isfinite(filled_stack).mean(axis=0) >= min_coverage)
+    return filled_stack, valid
+
+
+def _gap_lengths(good):
+    """For each missing sample, the length of the run of misses it belongs to."""
+    n = len(good)
+    out = np.zeros(n, dtype=int)
+    i = 0
+    while i < n:
+        if good[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and not good[j]:
+            j += 1
+        out[i:j] = j - i
+        i = j
+    return out
+
+
 def _window_minima(s, w):
     """Indices strictly lower than every value within w periods either side."""
     n = len(s)
@@ -164,13 +224,16 @@ def cycles(series, params=None):
     return out
 
 
-def planting(series, params=None, first=None, last=None):
-    """The one planting in a window: (plant, peak), or None.
+def planting(series, params=None, first=None, last=None, pick="latest"):
+    """The planting in a window: (plant, peak), or None.
 
-    `first`/`last` bound the planting index, so a season's own transplanting is
-    picked out of a multi-year series rather than the previous season's. With
-    several inside the window the deepest dip wins: in a double-crop year the
-    main-season flood is the deeper one.
+    `first`/`last` bound the planting index, so a season's own transplanting
+    is picked out of a multi-year series rather than the previous season's.
+
+    `pick` decides between several inside the window:
+      latest   the most recent -- the crop standing NOW, which is what a
+               current-season question is about
+      deepest  the deepest flood, i.e. the main season of a double-crop year
     """
     found = cycles(series, params)
     s = np.asarray(series, dtype="float32")
@@ -179,7 +242,9 @@ def planting(series, params=None, first=None, last=None):
     inside = [(a, b) for a, b in found if lo <= a < hi]
     if not inside:
         return None
-    return min(inside, key=lambda ab: s[ab[0]])
+    if pick == "deepest":
+        return min(inside, key=lambda ab: s[ab[0]])
+    return max(inside, key=lambda ab: ab[0])
 
 
 def looks_like_paddy(series, params=None, min_amplitude_db=3.0):
@@ -262,7 +327,7 @@ def season_length(series, plant_index, period_days=PERIOD_DAYS,
 
 
 def calendar(series, params=None, first=None, last=None,
-             period_days=PERIOD_DAYS, refine=True):
+             period_days=PERIOD_DAYS, refine=True, pick="latest"):
     """The pixel's own crop calendar: (plant index, season length in days).
 
     Planting is the validated SC trough inside the window -- validated, so a
@@ -271,7 +336,7 @@ def calendar(series, params=None, first=None, last=None,
     the series, matching the Paper 3 calendar, and the length comes from the
     second window. Returns None when the field did not plant.
     """
-    got = planting(series, params, first, last)
+    got = planting(series, params, first, last, pick)
     if got is None:
         return None
     lo, _ = got
@@ -282,8 +347,47 @@ def calendar(series, params=None, first=None, last=None,
     return lo, season_length(series, lo, period_days)
 
 
+def flood_signature(series, first, last, drop_db=3.0, floor_db=-17.0):
+    """A recent flood that cannot be confirmed yet: provisional planting.
+
+    The SC rules validate a trough against the five periods either side, so a
+    transplanting in the last ~60 days is invisible to them -- the crop has
+    not grown back into the beam yet. For a product about NOW that would
+    report the newest plantings as "not planted", which is precisely the
+    drought signal being looked for, so the tail is searched for the flood
+    alone: a dip of `drop_db` below the pixel's own median and below an
+    absolute floor. Provisional, and labelled as such.
+    """
+    s = np.asarray(series, dtype="float32")
+    lo, hi = max(0, first), min(len(s), last)
+    if hi <= lo or not np.isfinite(s).any():
+        return None
+    med = float(np.nanmedian(s))
+    window = s[lo:hi]
+    cand = [i for i in range(lo, hi)
+            if np.isfinite(s[i]) and s[i] <= med - drop_db and s[i] <= floor_db]
+    if not cand:
+        return None
+    return min(cand, key=lambda i: s[i])
+
+
+def stack_flood(stack, mask, first, last, progress=None):
+    """`flood_signature` over a cube: the period of a recent, unconfirmed flood."""
+    stack = np.asarray(stack, dtype="float32")
+    _, rows, cols = stack.shape
+    out = np.full((rows, cols), np.nan, dtype="float32")
+    ys, xs = np.nonzero(mask)
+    for n, (y, x) in enumerate(zip(ys, xs)):
+        if progress and n % 20000 == 0:
+            progress(n, len(ys))
+        got = flood_signature(stack[:, y, x], first, last)
+        if got is not None:
+            out[y, x] = got
+    return out
+
+
 def stack_calendar(stack, mask, params=None, first=None, last=None,
-                   period_days=PERIOD_DAYS, progress=None):
+                   period_days=PERIOD_DAYS, progress=None, pick="latest"):
     """`calendar` over a (period, row, col) cube where `mask` is True.
 
     Returns (plant_idx, length_days, amplitude_db) as (row, col) float32 with
@@ -302,11 +406,11 @@ def stack_calendar(stack, mask, params=None, first=None, last=None,
         s = stack[:, y, x]
         if not np.isfinite(s).all():
             continue
-        got = planting(s, params, first, last)
+        got = planting(s, params, first, last, pick)
         if got is None:
             continue
         lo, hi = got
-        cal = calendar(s, params, first, last, period_days)
+        cal = calendar(s, params, first, last, period_days, pick=pick)
         plant[y, x] = cal[0]
         length[y, x] = cal[1]
         amp[y, x] = s[hi] - s[lo]

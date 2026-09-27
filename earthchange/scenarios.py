@@ -550,6 +550,19 @@ SCENARIOS = {
                            "lintasan yang dapat dipertahankan, tetapi tetap "
                            "lintasan — melintas bukan berarti menurunkan asap."),
     },
+    "drought-paddy": {
+        "label": ("Paddy drought — planting delay (Sentinel-1), water adequacy "
+                  "(WaPOR ETa vs Kc x ET0) and a 7-day rainfall outlook (GFS)"),
+        "method": "drought_paddy", "needs": "none",
+        "radius": 10.0,
+        "interpretation": ("Kekeringan sawah: kapan ditanam dibanding musim "
+                           "sebelumnya, seberapa besar kebutuhan air yang "
+                           "benar-benar terpenuhi, dan risiko dua pekan ke "
+                           "depan bila hanya mengandalkan hujan. Panjang musim "
+                           "diukur per petak (jendela ganda), bukan diasumsikan "
+                           "110 hari. Kandidat puso adalah daftar untuk dicek "
+                           "di lapangan, bukan vonis."),
+    },
     "smoke-dispersion": {
         "label": ("Smoke dispersion — HYSPLIT concentration field, not just "
                   "trajectories"),
@@ -810,6 +823,10 @@ SCENARIO_FLAGS = {
     # A backward concentration run is a different question (source
     # attribution) and needs a different CONTROL, so offering the flag would
     # promise something this scenario does not do.
+    "drought-paddy": ("--as-of", "--season-days", "--baseline-seasons",
+                      "--paddy-file", "--paddy-grid", "--zones", "--zone-field",
+                      "--kc-mode", "--outlook-days", "--orbit-pass",
+                      "--publish"),
     "smoke-dispersion": ("--date", "--track-hours", "--track-heights",
                          "--hysplit-bin", "--met-cache", "--layer-top",
                          "--emission-rate", "--emission-units",

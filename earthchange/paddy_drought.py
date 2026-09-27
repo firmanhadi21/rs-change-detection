@@ -1,0 +1,644 @@
+"""Drought in paddy fields: planted late, not planted, or not watered.
+
+Three questions, each answered by a different physics, on the fields
+themselves rather than on a district average:
+
+  1. Was it planted, and when?   The flood-then-grow cycle in Sentinel-1 VH.
+     A transplanting that slips by three periods is a drought signal weeks
+     before any vegetation index moves, and one that never arrives is the
+     strongest signal there is.
+  2. Is it getting the water it needs?   WaPOR actual ET against the crop's
+     own requirement, Kc x reference ET, where Kc follows the season THIS
+     field is having -- measured with the double window, not assumed.
+  3. What happens over the next fortnight?   The demand side is nearly
+     deterministic once the calendar is known; the supply side is a GFS
+     rainfall forecast, and is treated as risk, not as a promise.
+
+Method credit, and where each rule comes from, in the companion modules:
+paddy_phenology (SC deterministic rules, double-window calendar) and
+paddy_water (Paper 3 adequacy, Christiansen uniformity, reliability, FAO-33
+bands, Hargreaves for the forecast leg).
+
+Honest limits, stated here because they belong on the map too:
+  * Irrigation deliveries cannot be forecast. The outlook is a rainfall-only
+    water balance: it says where rain alone will not cover demand, which is
+    where the canals must, not what the canals will do.
+  * Tropical rainfall forecasts are useful to about 5-7 days and marginal at
+    14, so the 7-day outlook leads and the 14-day is marked indicative.
+  * WaPOR AETI is 300 m: one pixel covers 36 of the 50 m paddy cells. Block
+    means are meaningful; sub-block variation is not.
+  * A paddy layer the user supplies always beats detection from radar.
+"""
+import datetime as dt
+import json
+import os
+
+import numpy as np
+
+from . import paddy_data as pdata
+from . import paddy_phenology as phen
+from . import paddy_water as pw
+
+DEFAULT_GRID_M = 50
+# A rice cycle plus its lead time. Shorter and the crop standing now may have
+# been transplanted before the window opens, which reads as "not planted".
+DEFAULT_SEASON_DAYS = 210
+DEFAULT_SEASONS_BACK = 2
+DEFAULT_OUTLOOK_DAYS = 14
+LEAD_ACTIONABLE_DAYS = 7          # beyond this the rainfall forecast is thin
+
+T = {
+    "id": {
+        "planted": "Sudah tanam", "not_planted": "Belum tanam",
+        "delay": "Kemunduran tanam (hari)", "si": "Kecukupan air (SI)",
+        "outlook": "Risiko 7 hari (hujan saja)",
+        "puso": "Kandidat gagal tanam (puso)",
+        "paddy": "Sawah", "season": "Musim",
+    },
+    "en": {
+        "planted": "Planted", "not_planted": "Not planted",
+        "delay": "Planting delay (days)", "si": "Water adequacy (SI)",
+        "outlook": "7-day risk (rainfall only)",
+        "puso": "Crop-failure candidates (puso)",
+        "paddy": "Paddy", "season": "Season",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# dates and windows
+# ---------------------------------------------------------------------------
+def season_windows(as_of, season_days=DEFAULT_SEASON_DAYS,
+                   seasons_back=DEFAULT_SEASONS_BACK):
+    """The current season, then the same window in each previous year.
+
+    Previous years are the baseline a delay is measured against: the same
+    fields, the same part of the calendar, the same irrigation scheme.
+    """
+    cur = (as_of - dt.timedelta(days=season_days), as_of)
+    out = [cur]
+    for k in range(1, seasons_back + 1):
+        out.append((cur[0] - dt.timedelta(days=365 * k),
+                    cur[1] - dt.timedelta(days=365 * k)))
+    return out
+
+
+def stack_span(windows, pad_periods=pdata.PAD_PERIODS,
+               period_days=pdata.PERIOD_DAYS):
+    """Dates the VH stack must cover: padded, and long enough for anchor 2.
+
+    Padding matters at both ends: a dip within 5 periods of an edge cannot be
+    validated at all, so an unpadded stack reports the earliest transplantings
+    as "not planted" -- the very signal being looked for.
+    """
+    start = min(w[0] for w in windows) - dt.timedelta(
+        days=pad_periods * period_days)
+    end = max(w[1] for w in windows)
+    return start, end
+
+
+def window_periods(grid, window):
+    """Indices of the periods whose midpoint falls inside `window`."""
+    lo, hi = window
+    out = [i for i, a, b in grid if lo <= a + (b - a) / 2 <= hi]
+    return (out[0], out[-1] + 1) if out else (0, 0)
+
+
+def doy_delay(current_doy, baseline_doy):
+    """Days later than the baseline, the short way round the year.
+
+    A crop planted on 5 January against a baseline of 20 December is 16 days
+    late, not 349 days early.
+    """
+    d = np.asarray(current_doy, dtype="float32") - np.asarray(
+        baseline_doy, dtype="float32")
+    return np.where(np.isnan(d), np.nan, (d + 182.5) % 365.0 - 182.5)
+
+
+# ---------------------------------------------------------------------------
+# rasters in and out
+# ---------------------------------------------------------------------------
+def read_stack(path):
+    """(bands, rows, cols) float32 with nodata as NaN, plus the profile."""
+    import rasterio
+    with rasterio.open(path) as src:
+        arr = src.read(masked=True).astype("float32").filled(np.nan)
+        return arr, src.profile.copy(), src.bounds
+
+
+def write_raster(path, data, profile, dtype="float32", nodata=None):
+    """One band out, with a nodata value the dtype can actually hold.
+
+    The profile is inherited from the VH stack, whose nodata is -inf; carried
+    onto a uint8 class raster that is not a value, it is an error.
+    """
+    import rasterio
+    prof = profile.copy()
+    prof.update(count=1, dtype=dtype, compress="lzw", tiled=True)
+    if nodata is None:
+        nodata = float("nan") if dtype.startswith("float") else None
+    if nodata is None:
+        prof.pop("nodata", None)
+    else:
+        prof.update(nodata=nodata)
+    with rasterio.open(path, "w", **prof) as dst:
+        dst.write(np.asarray(data).astype(dtype), 1)
+    return path
+
+
+def rasterize_layer(path, profile, field=None):
+    """A vector or raster layer burned onto the analysis grid.
+
+    Vectors are rasterised with `all_touched`, so a narrow bund or a sliver of
+    a block still counts -- paddy blocks are small against a 50 m cell.
+    """
+    import rasterio
+    from rasterio.enums import Resampling
+    if str(path).lower().endswith((".tif", ".tiff")):
+        with rasterio.open(path) as src:
+            return src.read(1, out_shape=(profile["height"], profile["width"]),
+                            resampling=Resampling.nearest)
+    import geopandas as gpd
+    from rasterio.features import rasterize
+    gdf = gpd.read_file(path)
+    if gdf.crs and profile.get("crs") and gdf.crs != profile["crs"]:
+        gdf = gdf.to_crs(profile["crs"])
+    if field and field in gdf.columns:
+        shapes = [(g, int(v)) for g, v in zip(gdf.geometry, gdf[field])
+                  if g is not None]
+    else:
+        shapes = [(g, i + 1) for i, g in enumerate(gdf.geometry) if g is not None]
+    return rasterize(shapes, out_shape=(profile["height"], profile["width"]),
+                     transform=profile["transform"], fill=0, all_touched=True,
+                     dtype="int32")
+
+
+def pixel_area_ha(profile, lat):
+    """Cell area in hectares; degrees shrink with latitude, hectares do not."""
+    t = profile["transform"]
+    if str(profile.get("crs", "")).upper().endswith("4326"):
+        dx = abs(t.a) * 111320.0 * float(np.cos(np.radians(lat)))
+        dy = abs(t.e) * 110540.0
+    else:
+        dx, dy = abs(t.a), abs(t.e)
+    return dx * dy / 10000.0
+
+
+# ---------------------------------------------------------------------------
+# the paddy extent
+# ---------------------------------------------------------------------------
+def detect_paddy(stack, covered=None, min_amplitude_db=3.0, progress=None):
+    """Pixels whose VH series behaves like rice: flood, grow, harvest.
+
+    Screened first on dynamic range, because most of a scene is obviously not
+    paddy and the per-pixel rule is the expensive part. Only used when no
+    layer is supplied; an official extent is always better than this.
+    """
+    finite = np.isfinite(stack).all(axis=0)
+    if covered is not None:
+        finite &= covered
+    with np.errstate(invalid="ignore"):
+        spread = np.nanmax(stack, axis=0) - np.nanmin(stack, axis=0)
+        floor = np.nanmin(stack, axis=0)
+    candidate = finite & (spread >= min_amplitude_db + 2.0) & (floor <= -15.0)
+    out = np.zeros(candidate.shape, dtype=bool)
+    ys, xs = np.nonzero(candidate)
+    for n, (y, x) in enumerate(zip(ys, xs)):
+        if progress and n % 20000 == 0:
+            progress(n, len(ys))
+        out[y, x] = phen.looks_like_paddy(stack[:, y, x],
+                                          min_amplitude_db=min_amplitude_db)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# the season, per pixel
+# ---------------------------------------------------------------------------
+def confirmable_until(grid, window_min=None):
+    """Last period whose trough can still be validated, and the date it ends.
+
+    A validated planting needs `window_min` periods of growth after it. The
+    newest periods therefore cannot be confirmed at all -- not a defect, just
+    the crop not having grown yet -- so they are handled provisionally.
+    """
+    w = window_min or phen.SC["window_min"]
+    idx = max(0, len(grid) - w)
+    return idx, grid[idx][1] if idx < len(grid) else grid[-1][2]
+
+
+def season_calendars(stack, mask, grid, windows, confirm_last=None,
+                     progress=None):
+    """Planting index, season length and cycle amplitude, per season.
+
+    The current season cannot measure its own length: the second flood has
+    not happened yet. So its length is the median of the same pixel's
+    baseline seasons -- the field's own variety and water habit -- and the
+    package-level fallback only where there is no history either.
+    """
+    out = []
+    for n, w in enumerate(windows):
+        first, last = window_periods(grid, w)
+        search_last = min(last, confirm_last) if (n == 0 and confirm_last) else last
+        plant, length, amp = phen.stack_calendar(
+            stack, mask, first=first, last=search_last, progress=progress)
+        out.append({"window": w, "first": first, "last": last,
+                    "search_last": search_last,
+                    "plant": plant, "length": length, "amp": amp})
+    if len(out) > 1:
+        hist = np.stack([s["length"] for s in out[1:]])
+        with np.errstate(invalid="ignore"):
+            med = np.nanmedian(hist, axis=0)
+        out[0]["length"] = np.where(np.isfinite(med), med,
+                                    phen.SEASON_LENGTH_FALLBACK)
+        out[0]["length_source"] = np.where(np.isfinite(med), 1, 0)
+    return out
+
+
+def planting_doy(plant_index, grid):
+    """Transplanting as a day of the year, from the period it happened in."""
+    doy = np.full(plant_index.shape, np.nan, dtype="float32")
+    mid = {i: (a + (b - a) / 2) for i, a, b in grid}
+    for i, when in mid.items():
+        sel = plant_index == i
+        if sel.any():
+            doy[sel] = when.timetuple().tm_yday
+    return doy
+
+
+# ---------------------------------------------------------------------------
+# water, now and ahead
+# ---------------------------------------------------------------------------
+WAPOR_FREE_WATER = 1.0    # WaPOR AETI already carries interception/open water
+
+
+def adequacy_now(aeti, ret, plant_rel, length, kc_mode="curve110",
+                 period_days=pdata.PERIOD_DAYS, free_water=WAPOR_FREE_WATER):
+    """Season-to-date adequacy, and adequacy per period for reliability."""
+    si, supply, demand = pw.season_adequacy(
+        aeti, ret, plant_rel, length, period_days=period_days, mode=kc_mode,
+        free_water=free_water)
+    per_period = np.full(aeti.shape, np.nan, dtype="float32")
+    for i in range(aeti.shape[0]):
+        dos = (i - plant_rel) * period_days + period_days / 2.0
+        dos = np.where(np.isnan(dos), -1.0, dos)
+        k = pw._kc_per_pixel(dos, np.broadcast_to(
+            length, plant_rel.shape).astype("float32"), kc_mode)
+        per_period[i] = pw.adequacy(aeti[i], ret[i] * k, free_water)
+    return si, per_period, supply, demand
+
+
+def outlook(rain_daily, tmin_daily, tmax_daily, plant_doy, length, lat_grid,
+            start_date, kc_mode="curve110", lead_days=LEAD_ACTIONABLE_DAYS):
+    """Rainfall-only adequacy over the next `lead_days`.
+
+    Demand is what the crop will need, which its own calendar already fixes.
+    Supply is forecast rain alone: irrigation cannot be forecast, so this
+    says where rain will not cover the crop, i.e. where the canals have to.
+    """
+    n = min(lead_days, rain_daily.shape[0])
+    rain = np.nansum(rain_daily[:n], axis=0)
+    demand = np.zeros(plant_doy.shape, dtype="float32")
+    for d in range(n):
+        when = start_date + dt.timedelta(days=d)
+        doy = when.timetuple().tm_yday
+        et0 = pw.et0_hargreaves(tmin_daily[d], tmax_daily[d], lat_grid, doy)
+        dos = doy_delay(np.full(plant_doy.shape, float(doy)), plant_doy)
+        dos = np.where(dos < 0, dos + 365.0, dos)      # days since planting
+        k = pw._kc_per_pixel(np.where(np.isnan(dos), -1.0, dos),
+                             np.broadcast_to(length, plant_doy.shape
+                                             ).astype("float32"), kc_mode)
+        demand += np.where(k > 0, et0 * k, 0.0)
+    si = pw.adequacy(rain, demand)
+    return si, rain, demand
+
+
+# ---------------------------------------------------------------------------
+# zones
+# ---------------------------------------------------------------------------
+WAPOR_PIXEL_M = 300
+PURE_ENOUGH = 0.6         # planted share of a WaPOR cell before it is scored
+
+
+def wapor_cell_purity(planted, grid_m, cell_m=WAPOR_PIXEL_M):
+    """Share of each WaPOR cell that is planted paddy, spread back to the grid.
+
+    WaPOR AETI is 300 m: one value covers 36 cells of a 50 m grid. Where that
+    footprint is half fallow, the ET it reports is not the crop's, and
+    adequacy computed from it says more about the neighbours than the field.
+    The methodology makes the same point (section 7.1): the honest spatial
+    unit is the WaPOR pixel.
+    """
+    k = max(1, int(round(cell_m / max(grid_m, 1))))
+    rows, cols = planted.shape
+    pad_r = (-rows) % k
+    pad_c = (-cols) % k
+    padded = np.pad(planted.astype("float32"), ((0, pad_r), (0, pad_c)),
+                    constant_values=np.nan)
+    blocks = padded.reshape(padded.shape[0] // k, k, padded.shape[1] // k, k)
+    with np.errstate(invalid="ignore"):
+        share = np.nanmean(blocks, axis=(1, 3))
+    back = np.repeat(np.repeat(share, k, axis=0), k, axis=1)
+    return back[:rows, :cols]
+
+
+def zone_table(zones, paddy, si_now, si_period, area_ha):
+    """Per-zone adequacy, equity and reliability; Christiansen across zones."""
+    rows = []
+    for zid in sorted(int(z) for z in np.unique(zones) if z > 0):
+        sel = (zones == zid) & paddy
+        n = int(sel.sum())
+        if not n:
+            continue
+        vals = si_now[sel]
+        weekly = [float(np.nanmean(si_period[i][sel]))
+                  for i in range(si_period.shape[0])]
+        rows.append({
+            "zone": zid, "paddy_px": n, "paddy_ha": round(n * area_ha, 1),
+            "si_mean": _r(np.nanmean(vals)), "si_p10": _r(pw.equity_percentile(vals)),
+            "reliability": _r(pw.reliability(weekly)),
+            "equity_flag": bool(pw.equity_percentile(vals) < pw.EQUITY_FLOOR),
+        })
+    cu = pw.christiansen_uniformity([r["si_mean"] for r in rows]) if rows else float("nan")
+    return rows, cu
+
+
+def _r(v, nd=3):
+    v = float(v)
+    return None if not np.isfinite(v) else round(v, nd)
+
+
+# ---------------------------------------------------------------------------
+# the run
+# ---------------------------------------------------------------------------
+def _say(msg):
+    print(msg, flush=True)
+
+
+def _progress(label):
+    def cb(n, total):
+        if total:
+            _say(f"    {label}: {n:,}/{total:,} pixels")
+    return cb
+
+
+def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
+        as_of=None, season_days=DEFAULT_SEASON_DAYS,
+        seasons_back=DEFAULT_SEASONS_BACK, grid_m=DEFAULT_GRID_M,
+        paddy_file=None, zones_file=None, zone_field=None,
+        kc_mode="curve110", outlook_days=DEFAULT_OUTLOOK_DAYS,
+        orbit_pass="DESCENDING", lang="id", do_map=True, publish=False):
+    """Fetch, measure and write the paddy-drought products for one AOI."""
+    if backend != "gee":
+        raise SystemExit(
+            "drought-paddy runs on the Earth Engine backend: the water balance "
+            "needs WaPOR AETI/RET and CHIRPS, and the outlook needs GFS, none "
+            "of which the Planetary Computer serves. Use --backend gee.")
+    from .gee_utils import download_geotiff, initialize_ee, square_aoi
+
+    t = T.get(lang, T["id"])
+    as_of = as_of or dt.date.today()
+    initialize_ee(config_key)
+    aoi = square_aoi(lon, lat, radius)
+    os.makedirs(run_dir, exist_ok=True)
+
+    windows = season_windows(as_of, season_days, seasons_back)
+    start, end = stack_span(windows)
+    grid = pdata.period_grid(start, end)
+    _say(f"Paddy drought at {lat:.4f}, {lon:.4f} (radius {radius} km), as of "
+         f"{as_of}")
+    _say(f"  season {windows[0][0]} -> {windows[0][1]}, {seasons_back} baseline "
+         f"season(s); VH stack {start} -> {end} ({len(grid)} periods of 12 days)")
+
+    # --- Sentinel-1: the flood-then-grow cycle -----------------------------
+    vh_path = os.path.join(run_dir, f"paddy_vh_{name}.tif")
+    if not os.path.exists(vh_path):
+        _say("  fetching Sentinel-1 VH periods...")
+        got = download_geotiff(pdata.s1_vh_stack(aoi, grid, orbit_pass),
+                               aoi, vh_path, scale=grid_m)
+        if not got:
+            raise SystemExit("could not download the VH stack; reduce --radius "
+                             "or coarsen --paddy-grid")
+    raw, profile, bounds = read_stack(vh_path)
+    empty = int((np.isnan(raw).mean(axis=(1, 2)) == 1).sum())
+    stack, covered = phen.fill_time_gaps(raw, clamp_ends=True)
+    _say(f"  VH stack {raw.shape[0]} periods, {raw.shape[1]}x{raw.shape[2]} "
+         f"pixels at ~{grid_m} m")
+    _say(f"    {empty} periods had no {orbit_pass.lower()} acquisition; short "
+         f"gaps interpolated, {int(covered.sum()):,} pixels well enough covered "
+         f"to score")
+
+    # --- where the paddy is ------------------------------------------------
+    if paddy_file:
+        paddy = (rasterize_layer(paddy_file, profile) > 0) & covered
+        extent_source = os.path.basename(paddy_file)
+    else:
+        _say("  no --paddy-file: detecting rice from the VH cycle "
+             "(an official layer would be better)")
+        paddy = detect_paddy(stack, covered=covered,
+                             progress=_progress("detecting paddy"))
+        extent_source = "detected from Sentinel-1 phenology"
+    area_ha = pixel_area_ha(profile, lat)
+    _say(f"  paddy: {int(paddy.sum()):,} pixels "
+         f"({paddy.sum() * area_ha:,.0f} ha) — {extent_source}")
+    if not paddy.any():
+        raise SystemExit("no paddy pixels in this AOI: supply --paddy-file, or "
+                         "check the location")
+
+    # --- each field's own calendar ----------------------------------------
+    _say("  measuring crop calendars (double window: planting, then season "
+         "length from the next flood)...")
+    confirm_idx, confirm_date = confirmable_until(grid)
+    seasons = season_calendars(stack, paddy, grid, windows,
+                               confirm_last=confirm_idx,
+                               progress=_progress("calendars"))
+    cur = seasons[0]
+    confirmed = np.isfinite(cur["plant"])
+    _say(f"    plantings after {confirm_date} cannot be confirmed yet (the "
+         f"crop has not grown back into the beam); searching the tail for the "
+         f"flood alone")
+    prov_idx = phen.stack_flood(stack, paddy & ~confirmed, confirm_idx,
+                                cur["last"], progress=_progress("recent floods"))
+    provisional = np.isfinite(prov_idx)
+    cur["plant"] = np.where(confirmed, cur["plant"], prov_idx)
+    planted = confirmed | provisional
+    doy_now = planting_doy(cur["plant"], grid)
+    base_doy = np.nanmedian(
+        np.stack([planting_doy(s["plant"], grid) for s in seasons[1:]]), axis=0
+    ) if len(seasons) > 1 else np.full(doy_now.shape, np.nan, dtype="float32")
+    delay = doy_delay(doy_now, base_doy)
+    delay_cls = pw.delay_class(delay, planted & paddy)
+    _say(f"    planted this season: {int((planted & paddy).sum()):,} of "
+         f"{int(paddy.sum()):,} paddy pixels "
+         f"({int((confirmed & paddy).sum()):,} confirmed, "
+         f"{int((provisional & paddy).sum()):,} provisional)")
+
+    # --- water now ---------------------------------------------------------
+    first, last = cur["first"], cur["last"]
+    season_grid = [(i - first, a, b) for i, a, b in grid[first:last]]
+    aeti_path = os.path.join(run_dir, f"paddy_aeti_{name}.tif")
+    ret_path = os.path.join(run_dir, f"paddy_ret_{name}.tif")
+    if not (os.path.exists(aeti_path) and os.path.exists(ret_path)):
+        _say("  fetching WaPOR 3.0 actual ET and reference ET...")
+        aeti_img, ret_img = pdata.wapor_periods(aoi, season_grid)
+        download_geotiff(aeti_img, aoi, aeti_path, scale=grid_m)
+        download_geotiff(ret_img, aoi, ret_path, scale=grid_m)
+    aeti, _, _ = read_stack(aeti_path)
+    ret, _, _ = read_stack(ret_path)
+    plant_rel = cur["plant"] - first
+    si_now, si_period, supply, demand = adequacy_now(
+        aeti, ret, plant_rel, cur["length"], kc_mode)
+    purity = wapor_cell_purity(paddy & planted, grid_m)
+    pure = purity >= PURE_ENOUGH
+    si_now = np.where(pure, si_now, np.nan)
+    si_cls = pw.adequacy_class(si_now)
+    si_cls[~(paddy & planted & pure)] = pw.ADEQUACY_NODATA
+    _say(f"  water balance scored on {int((paddy & planted & pure).sum()):,} of "
+         f"{int((paddy & planted).sum()):,} planted pixels — the rest share a "
+         f"300 m WaPOR cell with fallow land, whose ET is not the crop's")
+
+    # --- puso candidates ---------------------------------------------------
+    puso, no_canopy, starved = pw.puso_candidates(
+        paddy & planted, cur["amp"], si_now)
+
+    # --- the fortnight ahead ----------------------------------------------
+    outlook_cls = np.full(paddy.shape, pw.ADEQUACY_NODATA, dtype="uint8")
+    out_si = np.full(paddy.shape, np.nan, dtype="float32")
+    run_time = pdata.latest_gfs_run()
+    if run_time is None:
+        _say("  no GFS run available: skipping the outlook")
+    else:
+        _say(f"  fetching GFS run {run_time:%Y-%m-%d %H:%M} UTC for the next "
+             f"{outlook_days} days...")
+        gfs_path = os.path.join(run_dir, f"paddy_gfs_{name}.tif")
+        if not os.path.exists(gfs_path):
+            # On the analysis grid, like every other layer: GFS is a 0.25 deg
+            # field bilinearly upsampled, which adds no information but keeps
+            # every array the same shape as the paddy mask.
+            download_geotiff(pdata.gfs_daily(aoi, run_time, outlook_days),
+                             aoi, gfs_path, scale=grid_m)
+        gfs, gprof, _ = read_stack(gfs_path)
+        rain = gfs[0::3]
+        # Earth Engine serves GFS 2 m temperature in degrees Celsius, not
+        # Kelvin (checked: 24.8 over Klambu). Converting anyway would put the
+        # crop at -248 C and hand back a negative water demand.
+        tmin, tmax = gfs[1::3], gfs[2::3]
+        if np.nanmedian(tmax) > 100:                  # a Kelvin feed, one day
+            tmin, tmax = tmin - 273.15, tmax - 273.15
+        rows = np.linspace(bounds.top, bounds.bottom, paddy.shape[0])
+        lat_grid = np.repeat(rows[:, None], paddy.shape[1], axis=1)
+        out_si, out_rain, out_demand = outlook(
+            rain, tmin, tmax, doy_now, cur["length"], lat_grid,
+            run_time.date(), kc_mode, LEAD_ACTIONABLE_DAYS)
+        outlook_cls = pw.adequacy_class(out_si)
+        outlook_cls[~(paddy & planted)] = pw.ADEQUACY_NODATA
+        _say(f"    next {LEAD_ACTIONABLE_DAYS} days: rain "
+             f"{np.nanmean(out_rain[paddy]):.0f} mm vs demand "
+             f"{np.nanmean(out_demand[paddy & planted]):.0f} mm (paddy mean)")
+
+    # --- write the rasters -------------------------------------------------
+    products = {
+        "paddy": (paddy.astype("uint8"), "uint8", None),
+        "planting_doy": (np.where(paddy, doy_now, np.nan), "float32", None),
+        "delay_days": (np.where(paddy & planted, delay, np.nan), "float32", None),
+        "delay_class": (np.where(paddy, delay_cls, 255), "uint8", 255),
+        "adequacy": (np.where(paddy & planted, si_now, np.nan), "float32", None),
+        "adequacy_class": (si_cls, "uint8", pw.ADEQUACY_NODATA),
+        "outlook_class": (outlook_cls, "uint8", pw.ADEQUACY_NODATA),
+        "puso": (np.where(paddy, puso.astype("uint8"), 0), "uint8", None),
+    }
+    written = {}
+    for key, (data, dtype, nodata) in products.items():
+        path = os.path.join(run_dir, f"paddy_{key}_{name}.tif")
+        write_raster(path, data, profile, dtype, nodata)
+        written[key] = path
+    _say(f"  wrote {len(written)} rasters")
+
+    # --- zones, if given ---------------------------------------------------
+    zones_rows, cu = [], float("nan")
+    if zones_file:
+        zones = rasterize_layer(zones_file, profile, zone_field)
+        zones_rows, cu = zone_table(zones, paddy, si_now, si_period, area_ha)
+        _say(f"  {len(zones_rows)} zones; Christiansen uniformity "
+             f"{cu:.1f}% (target {pw.CU_TARGET:.0f}%)")
+
+    # --- the numbers -------------------------------------------------------
+    stats = summarise(paddy, planted, delay, delay_cls, si_cls, outlook_cls,
+                      puso, no_canopy, starved, cur, area_ha, lang)
+    stats.update({
+        "run_id": run_id, "scenario": "drought-paddy", "as_of": str(as_of),
+        "location": {"lat": lat, "lon": lon}, "radius_km": radius,
+        "season": {"start": str(windows[0][0]), "end": str(windows[0][1]),
+                   "baseline_seasons": seasons_back},
+        "paddy_extent_source": extent_source, "kc_mode": kc_mode,
+        "grid_m": grid_m, "orbit_pass": orbit_pass,
+        "outlook": {"lead_days": LEAD_ACTIONABLE_DAYS,
+                    "gfs_run": run_time.isoformat() if run_time else None,
+                    "basis": "rainfall only; irrigation deliveries not forecast"},
+        "zones": {"n": len(zones_rows), "christiansen_uniformity_pct": _r(cu),
+                  "rows": zones_rows} if zones_file else None,
+        "sources": {"radar": "Sentinel-1 GRD VH " + orbit_pass,
+                    "eta": pdata.WAPOR_AETI[0], "et0": pdata.WAPOR_RET[0],
+                    "forecast": pdata.GFS},
+    })
+    with open(os.path.join(run_dir, "stats.json"), "w") as f:
+        json.dump(stats, f, indent=2)
+    _print_summary(stats, t)
+
+    if publish:
+        from . import paddy_publish
+        _say("\n  building the web bundle (COG, GeoJSON, legend, summary)...")
+        web = paddy_publish.publish(run_dir, written, stats, profile, area_ha,
+                                    zones_file=zones_file,
+                                    zone_field=zone_field, lang=lang)
+        _say(f"  web/: {len(web['cog'])} COG layers, "
+             f"{os.path.basename(web['alerts'])}, legend.json, summary.json")
+
+    return {"rasters": written, "stats": stats, "profile": profile}
+
+
+def summarise(paddy, planted, delay, delay_cls, si_cls, outlook_cls, puso,
+              no_canopy, starved, cur, area_ha, lang="id"):
+    """Hectares per class: the form an irrigation office can act on."""
+    def ha(mask):
+        return round(float(np.count_nonzero(mask)) * area_ha, 1)
+
+    def by_class(cls, table):
+        out = {}
+        for cid, _, _, labels, _ in table:
+            out[labels[lang if lang in labels else "en"]] = ha(cls == cid)
+        return out
+
+    total = ha(paddy)
+    return {
+        "paddy_ha": total,
+        "planted_ha": ha(paddy & planted),
+        "not_planted_ha": ha(paddy & ~planted),
+        "not_planted_pct": round(100.0 * ha(paddy & ~planted) / total, 1)
+        if total else None,
+        "planting_delay_ha": by_class(delay_cls, pw.DELAY_CLASSES),
+        "median_delay_days": _r(np.nanmedian(delay[paddy & planted])
+                                if (paddy & planted).any() else np.nan, 1),
+        "adequacy_ha": by_class(si_cls, pw.ADEQUACY_CLASSES),
+        "outlook_ha": by_class(outlook_cls, pw.ADEQUACY_CLASSES),
+        "puso_candidates_ha": ha(puso),
+        "puso_no_canopy_ha": ha(no_canopy),
+        "puso_starved_ha": ha(starved),
+        "season_length_days_median": _r(np.nanmedian(cur["length"][paddy])),
+    }
+
+
+def _print_summary(stats, t):
+    _say("\n=== " + t["paddy"] + " ===")
+    _say(f"  {t['paddy']}: {stats['paddy_ha']:,.0f} ha  |  "
+         f"{t['planted']}: {stats['planted_ha']:,.0f} ha  |  "
+         f"{t['not_planted']}: {stats['not_planted_ha']:,.0f} ha "
+         f"({stats['not_planted_pct']}%)")
+    _say(f"  {t['season']}: median {stats['season_length_days_median']} days")
+    for label, value in stats["adequacy_ha"].items():
+        _say(f"    {t['si']:<24s} {label:<28s} {value:>10,.0f} ha")
+    for label, value in stats["outlook_ha"].items():
+        _say(f"    {t['outlook']:<24s} {label:<28s} {value:>10,.0f} ha")
+    _say(f"  {t['puso']}: {stats['puso_candidates_ha']:,.0f} ha "
+         f"(no canopy {stats['puso_no_canopy_ha']:,.0f}, "
+         f"starved {stats['puso_starved_ha']:,.0f}) — candidates for a field "
+         f"check, not a verdict")

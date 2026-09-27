@@ -142,22 +142,30 @@ def et0_hargreaves(tmin_c, tmax_c, lat_deg, doy):
     return (0.0023 * (tmean + 17.8) * np.sqrt(spread) * ra).astype("float32")
 
 
-def adequacy(eta, cwr):
-    """SI = min(1.2 * ETa / CWR, 1); NaN where the crop required nothing.
+def adequacy(eta, cwr, free_water=SI_FREE_WATER):
+    """SI = min(free_water * ETa / CWR, 1); NaN where nothing was required.
+
+    `free_water` is 1.2 in the Paper 3 implementation, standing in for the
+    evaporation from the standing water of a paddy that its ETa product does
+    not carry. With WaPOR AETI it should be 1.0: that product already
+    includes interception and open-water evaporation -- which is why the WAI
+    methodology writes the index as plain ETa/ETc -- and applying 1.2 on top
+    would credit the same water twice.
 
     A field with no standing crop has no adequacy to report. Returning 1.0
-    there would paint fallow land as well watered, which is the failure this
-    index exists to avoid.
+    there would paint fallow land as well watered, the failure this index
+    exists to avoid.
     """
     eta = np.asarray(eta, dtype="float32")
     cwr = np.asarray(cwr, dtype="float32")
     with np.errstate(divide="ignore", invalid="ignore"):
-        si = SI_FREE_WATER * eta / cwr
+        si = free_water * eta / cwr
     return np.where(cwr > 0, np.minimum(si, SI_CAP), np.nan).astype("float32")
 
 
 def season_adequacy(eta_periods, et0_periods, plant_period, length_days,
-                    period_days=12, upto=None, mode="curve110"):
+                    period_days=12, upto=None, mode="curve110",
+                    free_water=SI_FREE_WATER):
     """Season-to-date adequacy per pixel, each on its own planting date.
 
     `eta_periods` / `et0_periods` are (period, row, col) cubes in mm per
@@ -174,14 +182,21 @@ def season_adequacy(eta_periods, et0_periods, plant_period, length_days,
     supply = np.zeros(plant.shape, dtype="float32")
     demand = np.zeros(plant.shape, dtype="float32")
     length = np.broadcast_to(length, plant.shape).astype("float32")
+    scored = np.zeros(plant.shape, dtype="int32")
     for i in range(n):
         dos = (i - plant) * period_days + period_days / 2.0   # mid-period day
         dos = np.where(np.isnan(dos), -1.0, dos)
         k = _kc_per_pixel(dos, length, mode)                  # each its own L
-        standing = k > 0
-        demand += np.where(standing, et0[i] * k, 0.0)
-        supply += np.where(standing, eta[i], 0.0)
-    si = adequacy(supply, demand)
+        # Count a period only where BOTH sides were observed. Actual ET lags
+        # its reference by about two weeks, so charging demand for a period
+        # whose supply has not been published yet reads as a deficit that
+        # nobody has measured.
+        both = (k > 0) & np.isfinite(eta[i]) & np.isfinite(et0[i])
+        demand += np.where(both, et0[i] * k, 0.0)
+        supply += np.where(both, eta[i], 0.0)
+        scored += both.astype("int32")
+    si = adequacy(supply, demand, free_water)
+    si = np.where(scored > 0, si, np.nan)          # nothing paired, nothing said
     return np.where(np.isnan(plant), np.nan, si), supply, demand
 
 

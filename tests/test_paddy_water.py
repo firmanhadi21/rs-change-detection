@@ -158,3 +158,33 @@ def test_hargreaves_rises_with_the_diurnal_spread():
     clear = float(et0_hargreaves(22.0, 34.0, -6.95, 196))
     cloudy = float(et0_hargreaves(24.0, 28.0, -6.95, 196))
     assert clear > cloudy
+
+
+def test_demand_is_not_charged_for_periods_whose_supply_is_unpublished():
+    """WaPOR actual ET lags its reference by ~2 weeks.
+
+    Counting those periods' demand against missing supply invents a deficit.
+    Two pixels, same crop: one scored over all periods, one with the last two
+    periods' ETa still unpublished. They must agree.
+    """
+    periods = 8
+    et0 = np.full((periods, 1, 2), 5.0, dtype="float32")
+    eta = np.full((periods, 1, 2), 4.0, dtype="float32")
+    eta[-2:, 0, 1] = np.nan                        # not published yet
+    plant = np.zeros((1, 2), dtype="float32")
+    length = np.full((1, 2), 96.0, dtype="float32")
+    si, supply, demand = season_adequacy(eta, et0, plant, length)
+    # Not identical -- dropping late periods changes the Kc mix a little --
+    # but nothing like the 25% collapse that charging 8 periods of demand
+    # against 6 of supply would produce.
+    assert abs(si[0, 1] - si[0, 0]) < 0.05
+    assert si[0, 1] > 0.9 * si[0, 0]
+    assert demand[0, 1] < demand[0, 0]             # fewer periods, not a deficit
+
+
+def test_a_pixel_with_no_paired_periods_reports_nothing():
+    eta = np.full((3, 1, 1), np.nan, dtype="float32")
+    et0 = np.full((3, 1, 1), 5.0, dtype="float32")
+    si, _, _ = season_adequacy(eta, et0, np.zeros((1, 1), dtype="float32"),
+                               np.full((1, 1), 96.0, dtype="float32"))
+    assert np.isnan(si[0, 0])

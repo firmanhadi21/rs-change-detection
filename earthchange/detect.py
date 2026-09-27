@@ -528,6 +528,23 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                         met_cache=args.met_cache, receptors=args.receptors)
         return True
 
+    if method == "drought_paddy":
+        import datetime as _dt
+
+        from . import paddy_drought
+        as_of = (_dt.date.fromisoformat(args.as_of) if args.as_of else None)
+        paddy_drought.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                          config_key=ee_key, as_of=as_of,
+                          season_days=args.season_days,
+                          seasons_back=args.baseline_seasons,
+                          grid_m=args.paddy_grid, paddy_file=args.paddy_file,
+                          zones_file=args.zones, zone_field=args.zone_field,
+                          kc_mode=args.kc_mode, outlook_days=args.outlook_days,
+                          orbit_pass=("DESCENDING" if args.orbit_pass == "auto"
+                                      else args.orbit_pass.upper()),
+                          lang=args.lang, publish=args.publish)
+        return
+
     if method == "smoke_dispersion":
         from . import smoke_dispersion
         sd_h = ([float(x) for x in args.track_heights.split(",")]
@@ -741,7 +758,11 @@ def build_parser():
                     default="auto",
                     help="insar: restrict to one Sentinel-1 pass. Ascending "
                          "and descending see different components of motion, "
-                         "and only scenes on the same track can be interfered")
+                         "and only scenes on the same track can be interfered. "
+                         "drought-paddy uses one pass too — mixing geometries "
+                         "changes backscatter by more than the crop does — "
+                         "and reads 'auto' as descending, as the Java rice "
+                         "work does")
     ap.add_argument("--wait", action="store_true",
                     help="insar: block until the HyP3 jobs finish (20-40 min) "
                          "instead of returning so you can collect them later")
@@ -1101,6 +1122,48 @@ def build_parser():
                          "lags ~8 days; imerg/gsmap = satellite, 1998-, lag "
                          "~1 day. Use era5/imerg to see a season still in "
                          "progress (default: chirps)")
+    # --- drought-paddy -----------------------------------------------------
+    ap.add_argument("--as-of", metavar="YYYY-MM-DD",
+                    help="drought-paddy: the day the answer is for (default: "
+                         "today). Radar runs to today; WaPOR actual ET lags "
+                         "about two weeks, so a very recent date leaves the "
+                         "water balance short of its last periods")
+    ap.add_argument("--season-days", type=int, default=210, metavar="DAYS",
+                    help="drought-paddy: how far back the current season's "
+                         "planting window reaches (default 210 — a rice cycle "
+                         "plus its lead time, so the crop standing now was "
+                         "transplanted inside the window). The most recent "
+                         "planting in the window is the one reported")
+    ap.add_argument("--baseline-seasons", type=int, default=2, metavar="N",
+                    help="drought-paddy: how many previous years to measure "
+                         "planting delay against, and to take each field's "
+                         "season length from — the current crop cannot measure "
+                         "its own, since the next flood has not happened "
+                         "(default 2)")
+    ap.add_argument("--paddy-file", metavar="FILE",
+                    help="drought-paddy: rice-field extent (GeoPackage, "
+                         "shapefile or raster), e.g. Lahan Baku Sawah. Without "
+                         "it the extent is detected from the Sentinel-1 "
+                         "flood-then-grow cycle, which is an estimate")
+    ap.add_argument("--paddy-grid", type=float, default=50.0, metavar="METRES",
+                    help="drought-paddy: analysis pixel size (default 50, the "
+                         "resolution the rice work uses). WaPOR ETa is 300 m, "
+                         "so the water balance is not finer than that whatever "
+                         "this is set to")
+    ap.add_argument("--kc-mode", default="curve110", choices=["curve110", "stage"],
+                    help="drought-paddy: crop coefficient. curve110 = the "
+                         "110-day curve stretched onto each field's measured "
+                         "season; stage = the stage-resolved FAO-56 steps "
+                         "(default: curve110)")
+    ap.add_argument("--publish", action="store_true",
+                    help="drought-paddy: also write web/ — Cloud-Optimised "
+                         "GeoTIFFs in web mercator, alert polygons and zones "
+                         "as GeoJSON, plus legend.json and summary.json, ready "
+                         "to serve from a map site")
+    ap.add_argument("--outlook-days", type=int, default=14, metavar="DAYS",
+                    help="drought-paddy: how far the GFS forecast is fetched "
+                         "(default 14). The reported outlook leads on 7 days: "
+                         "tropical rainfall forecasts are thin beyond that")
     ap.add_argument("--admin", help="fire-history/haze: admin-1 area name from FAO GAUL "
                     "(e.g. 'Riau', 'Kalimantan Tengah') — uses the real province "
                     "polygon instead of a square AOI, so figures are per-province")

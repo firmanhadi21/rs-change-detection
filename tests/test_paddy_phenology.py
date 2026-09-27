@@ -32,7 +32,13 @@ def rice(plant=8, floor=-21.0, base=-14.0, peak=-11.0, rise=6, cycle=11,
 
 
 def test_planting_is_found_at_the_dip():
-    assert planting(rice(plant=8))[0] == 8
+    assert planting(rice(plant=8, cycle=99))[0] == 8        # one season only
+
+
+def test_with_several_seasons_the_default_is_the_most_recent():
+    """The default question is "what is standing now", not "what was biggest"."""
+    got = planting(rice(plant=8, cycle=11))                 # 8, 19, 30
+    assert got[0] == max(lo for lo, _ in cycles(rice(plant=8, cycle=11)))
 
 
 @pytest.mark.parametrize("p", [7, 8, 9, 10, 12])
@@ -90,11 +96,11 @@ def test_a_dip_within_the_window_of_the_edge_cannot_be_seen():
     assert planting(rice(plant=8, cycle=99))[0] == 8   # same series, padded
 
 
-def test_deepest_dip_wins_inside_one_window():
+def test_deepest_dip_wins_when_asked_for_the_main_season():
     s = rice(plant=6, cycle=99)
     s[18] = -18.0                                    # a shallower second dip
     s[19:23] = [-16.0, -14.5, -13.0, -12.0]
-    assert planting(s)[0] == 6
+    assert planting(s, pick="deepest")[0] == 6
 
 
 def test_median3_kills_a_spike_and_keeps_the_edge():
@@ -187,3 +193,64 @@ def test_stack_calendar_reports_length_per_pixel():
     plant, length, amp = stack_calendar(cube, mask, first=4, last=14)
     assert abs(length[0, 0] - 75) <= 12 and abs(length[0, 1] - 130) <= 12
     assert length[0, 0] < length[0, 1]               # the varieties differ
+
+
+# --- gaps: Sentinel-1 does not acquire every period everywhere ---
+
+def test_short_gaps_are_interpolated_long_ones_are_not():
+    from earthchange.paddy_phenology import fill_time_gaps
+    s = rice(plant=8, cycle=99).astype("float32")
+    cube = np.repeat(s[:, None, None], 2, axis=2).copy()
+    cube[12:14, 0, 0] = np.nan                       # a 2-period gap: fill
+    cube[3:9, 0, 1] = np.nan                         # a 6-period gap: leave
+    filled, valid = fill_time_gaps(cube, max_gap=3)
+    assert np.isfinite(filled[12:14, 0, 0]).all()
+    assert np.isnan(filled[3:9, 0, 1]).all()
+    assert valid[0, 0] and valid[0, 1]               # both still well covered
+
+
+def test_a_pixel_with_too_little_data_is_not_scored():
+    from earthchange.paddy_phenology import fill_time_gaps
+    cube = np.full((20, 1, 1), -14.0, dtype="float32")
+    cube[:14, 0, 0] = np.nan                         # only 30% observed
+    _, valid = fill_time_gaps(cube, min_coverage=0.6)
+    assert not valid[0, 0]
+
+
+def test_interpolation_is_linear_between_real_observations():
+    from earthchange.paddy_phenology import fill_time_gaps
+    cube = np.full((7, 1, 1), np.nan, dtype="float32")
+    cube[0, 0, 0], cube[4, 0, 0], cube[6, 0, 0] = -20.0, -12.0, -12.0
+    filled, _ = fill_time_gaps(cube, max_gap=3, min_coverage=0.3)
+    assert filled[2, 0, 0] == pytest.approx(-16.0)   # halfway
+    assert np.isnan(filled[5, 0, 0]) or np.isfinite(filled[5, 0, 0])
+
+
+def test_the_edges_are_left_alone_not_extrapolated():
+    from earthchange.paddy_phenology import fill_time_gaps
+    cube = np.full((10, 1, 1), -14.0, dtype="float32")
+    cube[0, 0, 0] = np.nan
+    cube[-1, 0, 0] = np.nan
+    filled, _ = fill_time_gaps(cube)
+    assert np.isnan(filled[0, 0, 0]) and np.isnan(filled[-1, 0, 0])
+
+
+def test_clamped_ends_cannot_invent_a_planting():
+    """The padding may be filled flat, but flat is never a validated trough."""
+    from earthchange.paddy_phenology import fill_time_gaps
+    s = rice(plant=12, cycle=99).astype("float32")
+    s[:4] = np.nan                                   # missing at the start
+    cube = s[:, None, None].copy()
+    filled, valid = fill_time_gaps(cube, clamp_ends=True)
+    assert np.isfinite(filled[:, 0, 0]).all() and valid[0, 0]
+    got = cycles(filled[:, 0, 0])
+    assert got and got[0][0] == 12                   # the real one, and only it
+    assert all(lo >= 4 for lo, _ in got)             # nothing from the flat tail
+
+
+def test_latest_planting_is_the_crop_standing_now():
+    """Two plantings in the window: the current crop is the later one."""
+    s = rice(plant=6, cycle=12)                      # plantings at 6 and 18
+    s[6] = -24.0                                     # make the FIRST deeper
+    assert planting(s, pick="latest")[0] == 18
+    assert planting(s, pick="deepest")[0] == 6
