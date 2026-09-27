@@ -51,6 +51,37 @@ NODATA = {"uint8": {"delay_class": 255, "adequacy_class": pw.ADEQUACY_NODATA,
 GFS_GRID_DEG = 0.05          # ~5.5 km: finer than GFS, coarse enough to be one file
 WORKERS = 4                  # concurrent tiles; Earth Engine throttles beyond a few
 
+# Where the scenario's own framing does not fit the island, the island says so.
+# The water balance compares ETa with an irrigated crop's requirement; on rice
+# that is rainfed or tidal, a deficit against that requirement is the normal
+# state of the system, not a failure of a canal that does not exist.
+ISLAND_NOTES = {
+    "Kalimantan": {
+        "id": "Sebagian besar sawah Kalimantan adalah lahan pasang surut dan "
+              "sawah hujan, bukan daerah irigasi teknis. Deteksi tanam tetap "
+              "berlaku, tetapi 'kecukupan air' di sini dibaca sebagai "
+              "penyimpangan dari kebiasaan petak itu (lapisan anomali), bukan "
+              "sebagai kinerja layanan irigasi.",
+        "en": "Most paddy in Kalimantan is tidal or rainfed, not a gravity "
+              "irrigation scheme. Planting detection still applies, but "
+              "'water adequacy' here should be read as a departure from the "
+              "field's own habit (the anomaly layer), not as irrigation "
+              "service performance.",
+    },
+    "Papua": {
+        "id": "Sawah Papua tersebar dan sebagian besar bukan irigasi teknis; "
+              "angka pulau berasal dari ubin yang sedikit, jadi rapuh.",
+        "en": "Papua's paddy is scattered and largely not scheme-irrigated; the "
+              "island figures rest on few tiles and are correspondingly fragile.",
+    },
+    "Maluku": {
+        "id": "Sawah Maluku sangat sedikit (sekitar 0,4% nasional); angka pulau "
+              "bersifat indikatif.",
+        "en": "Maluku holds very little paddy (about 0.4% of the national "
+              "total); island figures are indicative.",
+    },
+}
+
 
 def _say(msg):
     print(msg, flush=True)
@@ -397,6 +428,16 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
     return {"rasters": written, "stats": stats, "tiles": done}
 
 
+def island_caveats(island, lang="id", grid_m=None):
+    """The scenario's limits, plus anything this island adds to them."""
+    from . import paddy_publish as ppub
+    out = list(ppub.caveats(lang, grid_m))
+    note = ISLAND_NOTES.get(island)
+    if note:
+        out.insert(0, note.get(lang, note["en"]))
+    return out
+
+
 def publish_island(run_dir, written, stats, lang="id"):
     """The island's web bundle, same contract as a single run's."""
     import rasterio
@@ -438,13 +479,90 @@ def publish_island(run_dir, written, stats, lang="id"):
                                 "en": "The water layers come from WaPOR at "
                                       "300 m, not field-level measurement."}},
         "sources": stats.get("sources"), "outlook": stats.get("outlook"),
-        "caveats": ppub.caveats(lang, grid.get("m")),
+        "caveats": island_caveats(stats.get("island"), lang, grid.get("m")),
         "layers": list(web["cog"]),
     }
     with open(os.path.join(out_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
     web["summary"] = os.path.join(out_dir, "summary.json")
     return web
+
+
+def national(base_dir, out_dir=None, lang="id"):
+    """Roll finished islands into one national summary.
+
+    Deliberately not a national mosaic: a 50 m layer over the whole archipelago
+    is 3.1 billion pixels per band, and nobody reads Indonesia at 50 m in one
+    image. What is national is the arithmetic and the index of islands -- a map
+    site loads the island it is showing.
+
+    Islands that have not run are named as missing rather than treated as zero,
+    with the hectares the index says they hold, so the coverage of the national
+    figure is visible instead of implied.
+    """
+    out_dir = out_dir or base_dir
+    islands, missing = {}, {}
+    for name, _ in ptiles.ISLANDS:
+        p = os.path.join(base_dir, name, "stats.json")
+        if os.path.exists(p):
+            with open(p) as f:
+                islands[name] = json.load(f)
+        else:
+            missing[name] = None
+
+    idx = os.path.join(base_dir, "tile_index_all.csv")
+    if os.path.exists(idx):
+        per_island = ptiles.summarise(ptiles.read_csv(idx))
+        for name in missing:
+            missing[name] = (per_island.get(name) or {}).get("paddy_ha", 0.0)
+
+    tot = {}
+    for s in islands.values():
+        for key in ("paddy_ha", "planted_ha", "not_planted_ha",
+                    "puso_candidates_ha"):
+            if s.get(key) is not None:
+                tot[key] = round(tot.get(key, 0.0) + s[key], 1)
+        for group in ("planting_delay_ha", "adequacy_ha", "anomaly_ha",
+                      "outlook_ha"):
+            g = tot.setdefault(group, {})
+            for label, ha in (s.get(group) or {}).items():
+                g[label] = round(g.get(label, 0.0) + ha, 1)
+    if tot.get("paddy_ha"):
+        tot["not_planted_pct"] = round(
+            100.0 * tot.get("not_planted_ha", 0.0) / tot["paddy_ha"], 1)
+
+    from . import paddy_publish as ppub
+    summary = {
+        "scenario": "drought-paddy", "scope": "national",
+        "as_of": next((s.get("as_of") for s in islands.values()), None),
+        "headline": tot,
+        "islands": {
+            name: {"paddy_ha": s.get("paddy_ha"),
+                   "planted_ha": s.get("planted_ha"),
+                   "not_planted_pct": s.get("not_planted_pct"),
+                   "anomaly_ha": s.get("anomaly_ha"),
+                   "tiles": s.get("tiles"),
+                   "path": f"{name}/", "web": f"{name}/web/"}
+            for name, s in islands.items()},
+        "islands_not_run": {k: {"index_paddy_ha": v} for k, v in missing.items()},
+        "coverage": {
+            "paddy_ha_scored": tot.get("paddy_ha", 0.0),
+            "paddy_ha_not_run": round(sum(v or 0.0 for v in missing.values()), 1),
+            "note": {"id": "Angka nasional hanya mencakup pulau yang sudah "
+                           "dijalankan; sisanya didaftar, bukan dianggap nol.",
+                     "en": "The national figures cover only the islands that "
+                           "have run; the rest are listed, not counted as zero."},
+        },
+        "caveats": ppub.caveats(lang, pdata.grid_metres()),
+    }
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "national_summary.json")
+    with open(path, "w") as f:
+        json.dump(summary, f, indent=2)
+    _say(f"national summary: {len(islands)} island(s) rolled up "
+         f"({tot.get('paddy_ha', 0):,.0f} ha), "
+         f"{len(missing)} not run -> {os.path.basename(path)}")
+    return summary
 
 
 def _print(stats, island):
