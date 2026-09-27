@@ -8,6 +8,27 @@ synthetic data they cannot be trusted on a real scene.
 import numpy as np
 import pytest
 
+from earthchange import paddy_phenology as _pp
+
+
+def test_passing_precomputed_cycles_changes_nothing():
+    """The stack path detects once and reuses it; that must be a pure saving.
+
+    cycles() is 95 us a pixel against 84 for everything else in calendar(), and
+    a stack asked for it twice per pixel per season.
+    """
+    rng = np.random.default_rng(7)
+    t = np.arange(60)
+    for trial in range(8):
+        s = (-12 + 6 * np.sin(2 * np.pi * (t - trial) / 11)
+             + rng.normal(0, 0.6, 60)).astype("float32")
+        found = _pp.cycles(s)
+        for first, last in ((None, None), (10, 40), (20, 55)):
+            assert (_pp.planting(s, None, first, last, found=found)
+                    == _pp.planting(s, None, first, last))
+            assert (_pp.calendar(s, None, first, last, found=found)
+                    == _pp.calendar(s, None, first, last))
+
 from earthchange.paddy_phenology import (cycles, heikin_ashi, looks_like_paddy,
                                          median3, planting, stack_planting)
 

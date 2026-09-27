@@ -321,10 +321,26 @@ satu jaringan), `stats.json` (rekap pulau + tabel per ubin + arah orbit tiap
 ubin), `tile_index.csv`/`.geojson`, dan `web/` dengan kontrak yang sama seperti
 satu lokasi.
 
-Yang perlu dibangun selanjutnya: **riwayat yang disimpan**. 84 dari 85 periode
-adalah masa lalu dan tidak berubah, sehingga siklus berikutnya seharusnya hanya
-mengunduh 1–2 periode baru per ubin, bukan 85. Itu mengubah ~31 jam sekali-jalan
-menjadi pekerjaan rutin tiap 12 hari yang jauh lebih ringan.
+### Yang perlu dibangun: riwayat yang disimpan
+
+Tumpukan membentang ~1.012 hari, dan hampir seluruhnya adalah masa lalu yang tidak
+berubah. Dihitung langsung dari jendela musimnya:
+
+| Siklus berikutnya | Periode baru | Bisa dipakai ulang |
+|---|---|---|
+| +12 hari | **2 dari 85 (2,4%)** | 83 (97,6%) |
+| +24 hari | 3 | 82 |
+| +120 hari | 11 | 74 |
+
+Dan penting: **ember 12-hari antar siklus persis berhimpit** — awal rentang
+bergeser tepat 12 hari ketika `as_of` bergeser 12 hari, jadi setiap ember lama
+tetap ember yang sama. Syaratnya `as_of` maju dalam kelipatan 12 hari; maju 7
+hari akan menggeser semua ember dan tidak ada yang bisa dipakai ulang.
+
+Karena itu cache sebaiknya diberi kunci **tanggal awal periode**, bukan indeks,
+supaya pemakaian ulang terjadi sendiri. Dengan itu satu siklus nasional turun dari
+~31 jam menjadi sekitar 45 menit — dari pekerjaan sekali-jalan menjadi denyut rutin
+tiap 12 hari. Belum dibangun.
 
 ---
 

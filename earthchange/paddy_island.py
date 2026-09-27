@@ -23,6 +23,17 @@ What makes this affordable rather than merely possible:
     alone.
   * Tiles are visited richest-first, so an island that is stopped early has
     still covered most of its rice.
+
+Tiles run in separate PROCESSES, because the phenology is a per-pixel Python
+loop -- 31 seconds on a dense tile against about a second of I/O -- and threads
+would serialise on the GIL, so workers would buy nothing. A consequence worth
+knowing: a script that calls run() must guard its entry point, or the spawned
+children re-import it and spawn again:
+
+    if __name__ == "__main__":
+        paddy_island.run("Jawa", "LBS.tif", "out/Jawa")
+
+The console script does this already; a bare `python myrun.py` does not.
 """
 import datetime as dt
 import json
@@ -49,7 +60,17 @@ NODATA = {"uint8": {"delay_class": 255, "adequacy_class": pw.ADEQUACY_NODATA,
                     "outlook_class": pw.ADEQUACY_NODATA,
                     "paddy": None, "puso": None}}
 GFS_GRID_DEG = 0.05          # ~5.5 km: finer than GFS, coarse enough to be one file
-WORKERS = 4                  # concurrent tiles; Earth Engine throttles beyond a few
+
+
+def default_workers():
+    """Concurrent tiles: bounded by cores, because the phenology is CPU-bound.
+
+    A dense tile is about 31 seconds of per-pixel Python against a second of
+    I/O, so the machine's cores set the rate. Two are left for everything else,
+    and 8 is the ceiling -- beyond that the Earth Engine downloads, not the
+    cores, become the queue.
+    """
+    return max(1, min(8, (os.cpu_count() or 4) - 2))
 
 # Where the scenario's own framing does not fit the island, the island says so.
 # The water balance compares ETa with an irrigated crop's requirement; on rice
@@ -142,8 +163,16 @@ def drop_inputs(d):
 
 
 def run_tile(tile, run_dir, as_of, paddy_file, gfs=(None, None),
-             keep_inputs=False, **kw):
-    """One tile, in its own directory. Returns (tile_id, status, detail)."""
+             keep_inputs=False, quiet=True, workdir=None, **kw):
+    """One tile, in its own directory. Returns (tile_id, status, detail).
+
+    Module-level and picklable on purpose: tiles run in separate PROCESSES.
+    The phenology is a per-pixel Python loop -- 45 seconds on a dense tile --
+    so threads would serialise on the GIL and more workers would buy nothing.
+    """
+    if workdir:
+        os.chdir(workdir)          # a spawned process starts wherever it likes
+    pdr._QUIET = quiet             # module state does not survive a spawn
     tid = tile["tile_id"]
     d = tile_dir(run_dir, tid)
     if tile_done(run_dir, tid):
@@ -311,19 +340,20 @@ def roll_up(rows, run_dir, island, as_of, tiles_run):
 
 
 def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
-        tile_deg=ptiles.TILE_DEG, min_ha=1.0, workers=WORKERS,
+        tile_deg=ptiles.TILE_DEG, min_ha=1.0, workers=None,
         index_file=None, publish=True, lang="id", outlook_days=14,
         seasons_back=pdr.DEFAULT_SEASONS_BACK, season_days=pdr.DEFAULT_SEASON_DAYS,
         kc_mode="curve110", orbit_pass="auto", quiet_tiles=True,
         config_key=None, keep_inputs=False):
     """Everything for one island: index, tiles, mosaics, roll-up, web bundle."""
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ProcessPoolExecutor
 
     from .gee_utils import initialize_ee
     as_of = as_of or dt.date.today()
+    workers = workers or default_workers()
     os.makedirs(run_dir, exist_ok=True)
-    # Once, here: the island's own forecast download comes before any tile, and
-    # the tile workers are threads sharing this client.
+    # Once, here: the island's own forecast download comes before any tile.
+    # Each tile process initialises its own client.
     initialize_ee(config_key)
 
     # --- the index ---------------------------------------------------------
@@ -357,15 +387,16 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
     _say(f"  forecast: {'GFS run ' + gfs[1].strftime('%Y-%m-%d %H:%M UTC') if gfs[1] else 'none available'}")
 
     # --- the tiles ---------------------------------------------------------
-    pdr._QUIET = quiet_tiles
     kw = dict(season_days=season_days, seasons_back=seasons_back,
               kc_mode=kc_mode, orbit_pass=orbit_pass, outlook_days=outlook_days,
-              lang=lang)
+              lang=lang, config_key=config_key)
     done = {"ok": 0, "cached": 0, "empty": 0, "failed": 0}
     started = time.time()
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    cwd = os.getcwd()              # relative paths (the paddy layer) must survive
+    with ProcessPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(run_tile, r, run_dir, as_of, paddy_file, gfs,
-                               keep_inputs, **kw) for r in rows]
+                               keep_inputs, quiet_tiles, cwd, **kw)
+                   for r in rows]
         for n, fut in enumerate(futures, start=1):
             tid, status, detail = fut.result()
             done[status] = done.get(status, 0) + 1
@@ -379,7 +410,6 @@ def run(island, paddy_file, run_dir, as_of=None, coverage=None, limit=None,
                       f"({done['ok']} ok, {done['cached']} cached, "
                       f"{done['empty']} empty, {done['failed']} failed)",
                       flush=True)
-    pdr._QUIET = False
     _say(f"  tiles: {done}")
 
     # --- mosaics -----------------------------------------------------------

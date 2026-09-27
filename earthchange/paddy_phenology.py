@@ -224,7 +224,8 @@ def cycles(series, params=None):
     return out
 
 
-def planting(series, params=None, first=None, last=None, pick="latest"):
+def planting(series, params=None, first=None, last=None, pick="latest",
+             found=None):
     """The planting in a window: (plant, peak), or None.
 
     `first`/`last` bound the planting index, so a season's own transplanting
@@ -234,8 +235,13 @@ def planting(series, params=None, first=None, last=None, pick="latest"):
       latest   the most recent -- the crop standing NOW, which is what a
                current-season question is about
       deepest  the deepest flood, i.e. the main season of a double-crop year
+
+    `found` passes in an already-computed `cycles(series)`. The detection is
+    the expensive part -- 95 us a pixel against 84 for everything else -- and a
+    stack asks for the planting and then the calendar of the same pixel, which
+    would otherwise run it twice for the same answer.
     """
-    found = cycles(series, params)
+    found = cycles(series, params) if found is None else found
     s = np.asarray(series, dtype="float32")
     lo = 0 if first is None else first
     hi = len(s) if last is None else last
@@ -327,7 +333,7 @@ def season_length(series, plant_index, period_days=PERIOD_DAYS,
 
 
 def calendar(series, params=None, first=None, last=None,
-             period_days=PERIOD_DAYS, refine=True, pick="latest"):
+             period_days=PERIOD_DAYS, refine=True, pick="latest", found=None):
     """The pixel's own crop calendar: (plant index, season length in days).
 
     Planting is the validated SC trough inside the window -- validated, so a
@@ -336,7 +342,7 @@ def calendar(series, params=None, first=None, last=None,
     the series, matching the Paper 3 calendar, and the length comes from the
     second window. Returns None when the field did not plant.
     """
-    got = planting(series, params, first, last, pick)
+    got = planting(series, params, first, last, pick, found)
     if got is None:
         return None
     lo, _ = got
@@ -406,11 +412,17 @@ def stack_calendar(stack, mask, params=None, first=None, last=None,
         s = stack[:, y, x]
         if not np.isfinite(s).all():
             continue
-        got = planting(s, params, first, last, pick)
+        # Detect once, then read both answers off it: the detection is the
+        # expensive half, and planting and calendar want the same cycles.
+        found = cycles(s, params)
+        if not found:
+            continue
+        got = planting(s, params, first, last, pick, found)
         if got is None:
             continue
         lo, hi = got
-        cal = calendar(s, params, first, last, period_days, pick=pick)
+        cal = calendar(s, params, first, last, period_days, pick=pick,
+                       found=found)
         plant[y, x] = cal[0]
         length[y, x] = cal[1]
         amp[y, x] = s[hi] - s[lo]

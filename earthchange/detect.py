@@ -561,8 +561,8 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                 "drought-paddy-island needs --paddy-file: an island is tiled "
                 "from the paddy layer, and the tiles take their grid from it. "
                 "Use the official Lahan Baku Sawah raster")
-        paddy_island.run(
-            args.island, args.paddy_file, run_dir,
+        from . import paddy_tiles
+        kw = dict(
             as_of=(_dt.date.fromisoformat(args.as_of) if args.as_of else None),
             coverage=args.coverage, limit=args.tiles_limit,
             tile_deg=args.tile_deg, workers=args.workers,
@@ -574,6 +574,27 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
             orbit_pass=("auto" if args.orbit_pass == "auto"
                         else args.orbit_pass.upper()),
             lang=args.lang, config_key=ee_key)
+        if args.island.lower() in ("all", "nasional", "national"):
+            # Islands in descending order of paddy, so the country's figures
+            # are meaningful long before the last island lands. Each island's
+            # own directory under the run, and one shared tile index.
+            order = [n for n, _ in paddy_tiles.ISLANDS]
+            index = os.path.join(run_dir, "tile_index_all.csv")
+            for name in order:
+                print(f"\n########## {name} "
+                      f"({order.index(name) + 1} of {len(order)}) ##########",
+                      flush=True)
+                try:
+                    paddy_island.run(name, args.paddy_file,
+                                     os.path.join(run_dir, name),
+                                     index_file=index, **kw)
+                except SystemExit as e:        # an island with no tiles: skip
+                    print(f"  {name}: {e}", flush=True)
+                # Rolled up after every island, so an interrupted national run
+                # still leaves a summary that states its own coverage.
+                paddy_island.national(run_dir, lang=args.lang)
+            return True
+        paddy_island.run(args.island, args.paddy_file, run_dir, **kw)
         return True
 
     if method == "smoke_dispersion":
@@ -1188,7 +1209,10 @@ def build_parser():
                          "Sumatera, Kalimantan, Sulawesi, Bali-NusaTenggara, "
                          "Maluku or Papua. The island is the unit of work: it "
                          "is tiled, run richest-tile-first, mosaicked and "
-                         "published on its own")
+                         "published on its own. 'all' runs every island in "
+                         "descending order of paddy area and writes a national "
+                         "summary after each one, so an interrupted run still "
+                         "leaves figures that state their own coverage")
     ap.add_argument("--tile-deg", type=float, default=0.125, metavar="DEG",
                     help="drought-paddy-island: tile size (default 0.125 = "
                          "13.9 km, the largest that fits one Earth Engine "
@@ -1201,9 +1225,11 @@ def build_parser():
     ap.add_argument("--tiles-limit", type=int, metavar="N",
                     help="drought-paddy-island: stop after N tiles (they are "
                          "ordered richest first, so this is a useful sample)")
-    ap.add_argument("--workers", type=int, default=4, metavar="N",
-                    help="drought-paddy-island: concurrent tiles (default 4; "
-                         "Earth Engine throttles heavier downloads)")
+    ap.add_argument("--workers", type=int, metavar="N",
+                    help="drought-paddy-island: concurrent tiles, as separate "
+                         "processes. Default is the machine's cores less two, "
+                         "capped at 8 — a dense tile is ~31 s of per-pixel "
+                         "Python against a second of I/O, so cores set the rate")
     ap.add_argument("--kc-mode", default="curve110", choices=["curve110", "stage"],
                     help="drought-paddy: crop coefficient. curve110 = the "
                          "110-day curve stretched onto each field's measured "
