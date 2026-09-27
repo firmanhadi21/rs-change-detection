@@ -45,6 +45,62 @@ ROOT_ZONE = "volumetric_soil_water_layer_2"             # 7-28 cm, crop roots
 # series (paddy_phenology.SC["window_min"]), so every stack is padded.
 PAD_PERIODS = 6
 
+# --- the analysis grid ------------------------------------------------------
+# Every layer is downloaded onto one grid, and which grid is not cosmetic. The
+# national Lahan Baku Sawah raster sits on a 0.0005 deg step (55.66 m) whose
+# LATITUDE origin, 6.0007, is not a multiple of that step. A grid anchored at
+# zero therefore misses the official layer by 0.4 pixel -- about 22 m of shift
+# at every field edge, invented paddy on one side and lost paddy on the other.
+# Anchored on the layer's own grid instead, reading it is a windowed copy:
+# checked over Klambu, 882 paddy pixels either way, arrays identical.
+LBS_GRID_DEG = 0.0005
+LBS_GRID_ANCHOR = (0.0, 0.0002)
+# Earth Engine's metres per degree for EPSG:4326. Asking for `scale` in metres
+# cannot land on the grid: 55.66 m comes back as 0.00050000228 deg, close
+# enough to look right and wrong enough to resample every tile.
+DEG_M = 111319.49079327358
+
+
+def grid_transform(deg=LBS_GRID_DEG, anchor=LBS_GRID_ANCHOR):
+    """A CRS transform for a WGS84 grid of step `deg` anchored at `anchor`.
+
+    Only the anchor's remainder modulo the step matters -- it names which
+    global grid the pixels fall on. Two AOIs sharing a transform share their
+    pixel edges, which is what lets tiles mosaic without resampling.
+    """
+    ax, ay = (_snap(anchor[0], deg), _snap(anchor[1], deg))
+    return [float(deg), 0.0, ax, 0.0, -float(deg), ay]
+
+
+def _snap(value, deg, eps=1e-9):
+    """`value` modulo `deg`, with float dust at either end read as zero."""
+    r = float(value) % deg
+    return 0.0 if (r < eps or deg - r < eps) else r
+
+
+def grid_metres(deg=LBS_GRID_DEG):
+    """The step in metres, for the code that reasons in metres (WaPOR purity)."""
+    return float(deg) * DEG_M
+
+
+def grid_from_raster(path):
+    """(deg, anchor) of an existing raster's grid, or None if it has no usable one.
+
+    Used so that a supplied paddy layer defines the analysis grid: the official
+    extent should never be resampled to suit us.
+    """
+    import rasterio
+    with rasterio.open(path) as ds:
+        epsg = ds.crs.to_epsg() if ds.crs else None
+        if epsg != 4326:
+            return None                       # projected: cannot share a grid
+        t = ds.transform
+        if abs(t.b) > 1e-12 or abs(t.d) > 1e-12:
+            return None                       # rotated
+        if abs(t.a + t.e) > 1e-12:
+            return None                       # non-square pixels
+        return float(t.a), (float(t.c), float(t.f))
+
 
 def period_grid(start, end, days=PERIOD_DAYS):
     """12-day periods covering [start, end], as (index, start, end) triples."""
@@ -220,11 +276,25 @@ def gfs_daily(aoi, run_time, days):
     One GFS run only, so the forecast is internally consistent. Rain comes
     from total_precipitation_surface, which is an accumulation within each
     3-hourly step, and temperature from the 2 m field.
+
+    A run is published forecast hour by forecast hour, so asking for 14 days
+    shortly after it starts leaves the last days with no steps at all. As in
+    s1_vh_stack, a fully masked image is merged in so the band still exists and
+    comes back empty: a day the run has not reached yet is missing, not dry.
     """
     import ee
     ic = (ee.ImageCollection(GFS)
           .filter(ee.Filter.eq("creation_time",
                                int(run_time.timestamp() * 1000))))
+
+    def blank(name):
+        return (ee.Image.constant(0).updateMask(ee.Image.constant(0))
+                .rename(name).toFloat())
+
+    def band(day, name):
+        return (day.select(name).map(lambda im: ee.Image(im).toFloat())
+                .merge(ee.ImageCollection([blank(name)])))
+
     out = []
     for d in range(days):
         a = run_time + dt.timedelta(days=d)
@@ -233,10 +303,11 @@ def gfs_daily(aoi, run_time, days):
             "forecast_time", int(a.timestamp() * 1000), int(b.timestamp() * 1000)))
         # precipitation_rate (kg/m2/s = mm/s) is defined at every step,
         # including hour 0, where the accumulated field does not exist.
-        rain = (day.select("precipitation_rate").mean().multiply(86400)
-                .rename(f"rain{d:02d}"))
-        t = day.select("temperature_2m_above_ground")
-        out += [rain, t.min().rename(f"tmin{d:02d}"), t.max().rename(f"tmax{d:02d}")]
+        rain = (band(day, "precipitation_rate").mean().multiply(86400)
+                .rename(f"rain{d:02d}").toFloat())
+        t = band(day, "temperature_2m_above_ground")
+        out += [rain, t.min().rename(f"tmin{d:02d}").toFloat(),
+                t.max().rename(f"tmax{d:02d}").toFloat()]
     return ee.Image.cat(out).resample("bilinear").clip(aoi)
 
 

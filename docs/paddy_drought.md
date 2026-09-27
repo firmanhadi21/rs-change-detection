@@ -66,12 +66,54 @@ tidak ada riwayat sama sekali dipakai nilai cadangan 86 hari.
 
 | Peran | Produk | Resolusi | Jeda |
 |---|---|---|---|
-| Siklus tanam | Sentinel-1 GRD VH, IW, satu arah orbit | 50 m / 12 hari | ~1 hari |
+| Siklus tanam | Sentinel-1 GRD VH, IW, satu arah orbit | 10 m → filter bintik 90 m | ~1 hari |
 | ETa | `FAO/WAPOR/3/L1_AETI_D` | 300 m / dekade | ~2 pekan |
 | ET acuan | `FAO/WAPOR/3/L1_RET_E` | ~9 km / harian | ~3 hari |
 | Hujan | CHIRPS harian | 5,5 km | ~3 pekan |
 | Prakiraan | GFS 0.25° (16 hari) | 27 km | jam |
 | Lengas tanah | ERA5-Land | 11 km | ~7 hari |
+| Sebaran sawah | Lahan Baku Sawah 2023 | 0,0005° = 55,66 m | tahunan |
+
+### Jaringan analisis: 0,0005°, mengikuti LBS
+
+Semua lapisan diunduh pada **satu** jaringan, dan jaringan itu bukan angka
+bulat. Raster LBS nasional berada pada langkah 0,0005° (55,66 m) dengan titik
+asal **(94,9995; 6,0007)** — dan 6,0007 **bukan** kelipatan 0,0005. Jaringan
+yang berjangkar di nol karena itu melewatkan lapisan resmi sebesar 0,4 piksel,
+sekitar 22 m di setiap tepi petak: sawah yang tidak ada di satu sisi, sawah yang
+hilang di sisi lain.
+
+Dua hal yang sudah diuji langsung ke Earth Engine (`crs_transform`, bukan
+`scale`):
+
+* Meminta `scale=55,66` m menghasilkan 0,00050000228° — dekat, tapi tidak pernah
+  jatuh pada tepi piksel LBS, sehingga **setiap** ubin ikut diresample.
+* Dengan `crs_transform` berjangkar pada asal LBS, hasil unduhan jatuh tepat
+  pada jaringan LBS (selisih bilangan bulat piksel), dan membaca LBS menjadi
+  sekadar potong-jendela: diuji di Klambu, **882 piksel sawah** lewat kedua
+  jalur, isi array identik.
+
+Karena itu jaringan diambil dari `--paddy-file` bila ada; kalau tidak, dari
+jaringan LBS (`--paddy-grid lbs`, baku). Angka dalam meter tetap bisa diberikan
+(`--paddy-grid 20`) dan dijangkarkan di nol, sehingga antar-ubin tetap sebidang
+— syarat mutlak agar mosaik nasional tidak perlu diresample.
+
+### Jaringan bukan resolusi
+
+Grid 55,66 m tidak membuat semua lapisan 55,66 m. Yang jujur, per lapisan
+(`native_m` di `stats.json`, `legend.json`, dan `summary.json`):
+
+| Lapisan | Digambar pada | Informasinya |
+|---|---|---|
+| `paddy` | 55,66 m | 55,66 m (LBS) atau 90 m (deteksi radar) |
+| `planting_doy`, `plant_period`, `delay_days`, `delay_class` | 55,66 m | **90 m** (radius filter bintik) |
+| `adequacy*`, `anomaly*`, `supply_mm`, `demand_mm`, `puso` | 55,66 m | **300 m** (WaPOR AETI) |
+| `outlook_class` | 55,66 m | **27,75 km** (GFS 0,25°) |
+
+Lapisan tanam mendekati 55 m dan itulah yang bergerak lebih dulu saat kekeringan.
+Lapisan air adalah 300 m yang digambar pada jaringan 55 m: satu sel WaPOR
+menutupi sekitar 29 sel analisis, dan karena itu hanya sel yang didominasi sawah
+tertanam yang dinilai (`PURE_ENOUGH = 0,6`).
 
 Dua catatan untuk tim irigasi:
 
@@ -98,6 +140,13 @@ kali: seperti musim kemarau sekarang, dan seolah-olah pertengahan April.
 **Deteksi tanam lulus** — 96% lawan 43% adalah kontras yang memang harus muncul,
 dari kode dan lapisan yang sama. Luas sawah dari LBS resmi (3.214 ha) juga
 sejalan dengan deteksi radar mandiri (3.493 ha).
+
+Kedua angka di atas dihitung pada grid 50 m yang lama. Kasus kemarau dijalankan
+ulang pada jaringan LBS (55,66 m): sawah 3.226 ha, tertanam 1.384 ha (42,9%),
+panjang musim 99 hari, anomali 565 normal · 76 agak kering · 2 lebih kering ·
+31 jauh lebih kering. Pergantian jaringan **tidak menggeser kesimpulan apa pun**
+— dan itu memang yang diharapkan; yang berubah adalah lapisan sawah resmi tidak
+lagi diresample.
 
 **Neraca air mutlak tidak lulus**, dan itu mengubah lapisan utama. Lihat §5.
 
@@ -148,9 +197,15 @@ sebagai produk: angka yang tidak bisa dibongkar bukan angka yang bisa diaudit.
   menunjukkan di mana hujan saja tidak akan menutup kebutuhan — yaitu di mana
   saluran harus bekerja — bukan apa yang akan dilakukan saluran.
 * **Prakiraan hujan tropis** andal ~5–7 hari; 14 hari indikatif.
-* **WaPOR 300 m di atas grid 50 m**: satu piksel menutupi 36 sel. Sel yang
-  kurang dari 60% sawah tertanam tidak dinilai (di Klambu: 2.993 dari 6.013
-  piksel tertanam lolos uji ini).
+* **WaPOR 300 m di atas grid 55,66 m**: satu piksel menutupi sekitar 29 sel.
+  Sel yang kurang dari 60% sawah tertanam tidak dinilai (di Klambu: 2.446 dari
+  4.533 piksel tertanam lolos uji ini).
+* **Prakiraan dihitung hanya untuk hari yang sudah terbit.** Satu run GFS
+  diterbitkan jam-demi-jam, sehingga permintaan 14 hari tak lama setelah 00Z
+  meninggalkan hari-hari terakhir kosong. Hari yang belum ada dilewati di
+  **kedua** sisi — membandingkan kebutuhan 7 hari dengan hujan 3 hari akan
+  mencetak defisit dari data yang belum lengkap — dan jumlah hari yang benar-benar
+  terpakai dilaporkan (`outlook.lead_days`).
 * **Kebutuhan hanya dihitung untuk periode yang pasokannya sudah terbit** —
   WaPOR tertinggal ~2 pekan dan jika tidak, keterlambatan data akan terbaca
   sebagai defisit baru.
@@ -173,12 +228,15 @@ Raster (GeoTIFF, grid analisis): `paddy`, `planting_doy`, `plant_period`,
 web/cog/*.tif      COG EPSG:3857, bertingkat (anomaly_class memimpin)
 web/alerts.geojson poligon yang layak dikunjungi + luas (ha)
 web/zones.geojson  indeks per petak tersier (bila --zones diberikan)
-web/legend.json    nilai, label dwibahasa, warna
-web/summary.json   angka utama, sumber, dan daftar batas di §6
+web/legend.json    nilai, label dwibahasa, warna, plus grid_m dan native_m
+web/summary.json   angka utama, sumber, resolusi per lapisan, dan batas di §6
 ```
 
 Legenda dan caveat ikut dalam paket, supaya peta dan raster tidak bisa
-berselisih dan batasnya tidak tertinggal di kepala seseorang.
+berselisih dan batasnya tidak tertinggal di kepala seseorang. Termasuk
+resolusinya: tiap lapisan di `legend.json` membawa `grid_m` (jaringan yang
+digambar) dan `native_m` (resolusi informasinya), sehingga penampil peta bisa
+menyatakan sendiri bahwa lapisan air adalah 300 m, bukan ukuran per petak.
 
 ---
 
@@ -199,7 +257,9 @@ earthchange -s drought-paddy --lat=-6.95 --lon=110.85 -r 8 \
 Pilihan penting: `--as-of` (tanggal jawaban), `--season-days` (baku 210 — satu
 siklus padi plus tenggang, agar tanaman yang berdiri sekarang masuk jendela),
 `--baseline-seasons` (baku 2 — dasar anomali dan sumber panjang musim),
-`--kc-mode curve110|stage`, `--paddy-grid`, `--orbit-pass`.
+`--kc-mode curve110|stage`, `--orbit-pass`, dan `--paddy-grid` (baku `lbs`:
+ikut jaringan `--paddy-file`, atau jaringan LBS nasional; angka = ukuran piksel
+dalam meter, mis. `--paddy-grid 20` untuk satu daerah irigasi).
 
 Modul: `paddy_phenology.py` (aturan SC, jendela ganda), `paddy_water.py`
 (Kc, SI, CU, RI, anomali, Hargreaves), `paddy_data.py` (pengambilan GEE),

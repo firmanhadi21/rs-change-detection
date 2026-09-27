@@ -113,24 +113,45 @@ def download_png(image, region, out_path, dimensions="1920x1920", vis=None):
     raise last_err
 
 
-def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16):
+def download_geotiff(image, region, out_path, scale=10, max_scale_mult=16,
+                     crs_transform=None):
     """Download a full-resolution single-file GeoTIFF.
 
     Earth Engine's direct download has a per-request size/compute limit, so a
     large AOI can 400. Retry at progressively coarser scale until it fits.
     Returns the path on success, or None if it fails even coarsened.
+
+    `crs_transform` ([x_step, 0, x_origin, 0, -y_step, y_origin]) pins the
+    output to a named grid instead of asking for a size in metres, which is
+    the only way to land on an existing raster's pixel edges -- a scale in
+    metres is converted to degrees and lands near them, not on them. Coarsening
+    still applies, and a coarsened tile no longer shares the grid, so the note
+    says so.
     """
     s, mult = scale, 1
     last_err = None
     while mult <= max_scale_mult:
         try:
-            url = image.getDownloadURL({
-                "region": region, "scale": s, "crs": "EPSG:4326",
-                "format": "GEO_TIFF", "filePerBand": False,
-            })
+            params = {"region": region, "crs": "EPSG:4326",
+                      "format": "GEO_TIFF", "filePerBand": False}
+            if crs_transform:
+                t = list(crs_transform)
+                if mult > 1:                  # coarsen the step, keep the anchor
+                    t = [t[0] * mult, t[1], t[2] % (t[0] * mult),
+                         t[3], t[4] * mult, t[5] % (abs(t[4]) * mult)]
+                params["crs_transform"] = t
+            else:
+                params["scale"] = s
+            url = image.getDownloadURL(params)
             _fetch(url, out_path)  # the pixel fetch can also fail for large AOIs
             size_mb = os.path.getsize(out_path) / 1e6
-            note = f" (coarsened to {s:.0f} m to fit)" if s != scale else ""
+            if mult == 1:
+                note = ""
+            elif crs_transform:
+                note = (f" (grid coarsened {mult}x to fit — no longer aligned "
+                        f"to the source grid)")
+            else:
+                note = f" (coarsened to {s:.0f} m to fit)"
             print(f"Saved: {os.path.normpath(out_path)} ({size_mb:.1f} MB GeoTIFF){note}")
             return out_path
         except Exception as e:  # noqa: BLE001 — retry coarser

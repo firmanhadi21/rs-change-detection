@@ -537,7 +537,7 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                           config_key=ee_key, as_of=as_of,
                           season_days=args.season_days,
                           seasons_back=args.baseline_seasons,
-                          grid_m=args.paddy_grid, paddy_file=args.paddy_file,
+                          grid_spec=args.paddy_grid, paddy_file=args.paddy_file,
                           zones_file=args.zones, zone_field=args.zone_field,
                           kc_mode=args.kc_mode, outlook_days=args.outlook_days,
                           orbit_pass=("DESCENDING" if args.orbit_pass == "auto"
@@ -1145,11 +1145,13 @@ def build_parser():
                          "shapefile or raster), e.g. Lahan Baku Sawah. Without "
                          "it the extent is detected from the Sentinel-1 "
                          "flood-then-grow cycle, which is an estimate")
-    ap.add_argument("--paddy-grid", type=float, default=50.0, metavar="METRES",
-                    help="drought-paddy: analysis pixel size (default 50, the "
-                         "resolution the rice work uses). WaPOR ETa is 300 m, "
-                         "so the water balance is not finer than that whatever "
-                         "this is set to")
+    ap.add_argument("--paddy-grid", default="lbs", metavar="lbs|METRES",
+                    help="drought-paddy: the analysis grid. Default 'lbs' — "
+                         "take it from --paddy-file, or the national Lahan Baku "
+                         "Sawah grid (0.0005 deg = 55.66 m), so the official "
+                         "extent is never resampled. A number is a pixel size "
+                         "in metres. WaPOR ETa is 300 m, so the water balance "
+                         "is no finer than that whatever this is set to")
     ap.add_argument("--kc-mode", default="curve110", choices=["curve110", "stage"],
                     help="drought-paddy: crop coefficient. curve110 = the "
                          "110-day curve stretched onto each field's measured "

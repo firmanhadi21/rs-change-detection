@@ -605,6 +605,15 @@ Pada uji BulakBakal, asumsi 110 hari menempatkan panen di dalam jendela petani
 Musim berjalan memakai panjang musim dari riwayat petak itu sendiri — banjir
 berikutnya belum terjadi.
 
+**Satu jaringan, mengikuti lapisan resmi.** Semua lapisan dihitung pada jaringan
+LBS sendiri — 0,0005° (55,66 m), berjangkar pada titik asal rasternya — sehingga
+lapisan sawah resmi tidak pernah diresample dan ubin-ubin tetap sebidang untuk
+mosaik nasional. Meminta `scale` dalam meter tidak bisa melakukan ini (55,66 m
+menjadi 0,00050000228°); `--paddy-grid` tetap menerima angka meter bila memang
+diperlukan. Jaringan bukan resolusi: setiap keluaran membawa `native_m` sendiri —
+90 m untuk lapisan tanam (radius filter bintik), 300 m untuk neraca air (WaPOR),
+27 km untuk prakiraan (GFS).
+
 **Batas yang dijaga.** Tanam dalam ~60 hari terakhir belum bisa dikonfirmasi
 (tajuk belum tumbuh), jadi dilaporkan sebagai *provisional*, bukan "belum
 tanam". Prakiraan hanya hujan — pasokan irigasi tidak bisa diprakirakan.

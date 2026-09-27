@@ -25,6 +25,7 @@ import numpy as np
 from . import paddy_water as pw
 
 WEB_CRS = "EPSG:3857"
+WAPOR_PIXEL_M = 300         # what the water layers actually resolve
 
 # What a viewer can switch between, and how each is coloured.
 LAYERS = {
@@ -79,8 +80,9 @@ CAVEATS = {
         "cukup, bukan apa yang akan dilakukan saluran.",
         "Prakiraan hujan tropis andal sampai sekitar 5-7 hari; 14 hari bersifat "
         "indikatif.",
-        "Neraca air memakai WaPOR 300 m: satu piksel menutupi 36 sel 50 m, "
-        "sehingga hanya sel yang didominasi sawah tertanam yang dinilai.",
+        "Neraca air memakai WaPOR 300 m: satu piksel menutupi sekitar {cells} "
+        "sel {grid:.0f} m pada jaringan analisis, sehingga hanya sel yang "
+        "didominasi sawah tertanam yang dinilai.",
         "Ambang kelas mengikuti FAO-33 dan belum dikalibrasi dengan data hasil "
         "panen setempat.",
         "ETa satelit di atas sawah tergenang terbaca sekitar 35% di bawah "
@@ -95,8 +97,9 @@ CAVEATS = {
         "what the canals will do.",
         "Tropical rainfall forecasts are useful to about 5-7 days; 14 days is "
         "indicative.",
-        "The water balance uses WaPOR at 300 m: one pixel covers 36 cells of "
-        "the 50 m grid, so only cells dominated by planted paddy are scored.",
+        "The water balance uses WaPOR at 300 m: one pixel covers about {cells} "
+        "cells of the {grid:.0f} m analysis grid, so only cells dominated by "
+        "planted paddy are scored.",
         "Class thresholds follow FAO-33 and are not calibrated against local "
         "yield data.",
         "Satellite ETa over flooded rice reads about 35% below Kc x ET0 even "
@@ -107,13 +110,31 @@ CAVEATS = {
 }
 
 
-def legend(lang="id"):
-    """Values, labels and colours, so map and raster cannot drift apart."""
+def caveats(lang="id", grid_m=None):
+    """The limits, with the WaPOR footprint stated in the grid actually used."""
+    from . import paddy_data as pdata
+    grid = float(grid_m or pdata.grid_metres())
+    cells = max(1, round((WAPOR_PIXEL_M / grid) ** 2))
+    return [c.format(cells=cells, grid=grid) if "{cells}" in c else c
+            for c in CAVEATS.get(lang, CAVEATS["id"])]
+
+
+def legend(lang="id", grid_m=None, native_m=None):
+    """Values, labels and colours, so map and raster cannot drift apart.
+
+    Each layer also carries the grid it is drawn on and what its information
+    actually resolves. They differ -- the water layers are WaPOR at 300 m on a
+    ~56 m grid -- and a viewer that does not say so invites a 300 m number to
+    be read as a field measurement.
+    """
+    native_m = native_m or {}
     out = {}
     for key, spec in LAYERS.items():
         out[key] = {
             "title": spec["title"],
             "nodata": spec["nodata"],
+            "grid_m": round(grid_m, 2) if grid_m else None,
+            "native_m": native_m.get(key),
             "classes": [{"value": cid, "colour": colour,
                          "label": labels if isinstance(labels, dict) else
                          {"id": labels, "en": labels}}
@@ -268,8 +289,10 @@ def publish(run_dir, rasters, stats, profile, area_ha, out_dir=None,
             json.dump(gj, f)
         written["zones"] = os.path.join(out_dir, "zones.geojson")
 
+    grid = stats.get("grid") or {"m": stats.get("grid_m")}
+    native_m = stats.get("native_m") or {}
     with open(os.path.join(out_dir, "legend.json"), "w") as f:
-        json.dump(legend(lang), f, indent=2)
+        json.dump(legend(lang, grid.get("m"), native_m), f, indent=2)
     written["legend"] = os.path.join(out_dir, "legend.json")
 
     summary = {
@@ -293,7 +316,22 @@ def publish(run_dir, rasters, stats, profile, area_ha, out_dir=None,
         "alerts": {"features": len(alerts["features"])},
         "sources": stats.get("sources"),
         "outlook": stats.get("outlook"),
-        "caveats": CAVEATS.get(lang, CAVEATS["id"]),
+        # The grid every layer is drawn on, and what each layer's information
+        # actually resolves. A map that shows only the first invites the water
+        # layers to be read as field measurements.
+        "resolution": {
+            "grid": grid,
+            "native_m": native_m,
+            "note": {
+                "id": "Semua lapisan digambar pada jaringan yang sama; "
+                      "native_m adalah resolusi asli informasinya. Lapisan air "
+                      "berasal dari WaPOR 300 m, bukan ukuran per petak.",
+                "en": "Every layer is drawn on the same grid; native_m is what "
+                      "its information actually resolves. The water layers come "
+                      "from WaPOR at 300 m, not from field-level measurement.",
+            },
+        },
+        "caveats": caveats(lang, grid.get("m")),
         "layers": list(written["cog"]),
     }
     with open(os.path.join(out_dir, "summary.json"), "w") as f:

@@ -25,9 +25,11 @@ Honest limits, stated here because they belong on the map too:
     where the canals must, not what the canals will do.
   * Tropical rainfall forecasts are useful to about 5-7 days and marginal at
     14, so the 7-day outlook leads and the 14-day is marked indicative.
-  * WaPOR AETI is 300 m: one pixel covers 36 of the 50 m paddy cells. Block
-    means are meaningful; sub-block variation is not.
-  * A paddy layer the user supplies always beats detection from radar.
+  * WaPOR AETI is 300 m: one pixel covers about 30 cells of the 55.66 m grid.
+    Block means are meaningful; sub-block variation is not. The grid is not the
+    resolution, so every layer ships its own `native_m` (see NATIVE_M).
+  * A paddy layer the user supplies always beats detection from radar -- and it
+    defines the grid too, so the official extent is never resampled.
 """
 import datetime as dt
 import json
@@ -39,7 +41,10 @@ from . import paddy_data as pdata
 from . import paddy_phenology as phen
 from . import paddy_water as pw
 
-DEFAULT_GRID_M = 50
+# "lbs" = take the grid from the supplied paddy layer, or failing that the
+# national Lahan Baku Sawah grid (0.0005 deg = 55.66 m). A number is read as
+# metres, on a grid anchored at zero so tiles still mosaic.
+DEFAULT_GRID = "lbs"
 # A rice cycle plus its lead time. Shorter and the crop standing now may have
 # been transplanted before the window opens, which reads as "not planted".
 DEFAULT_SEASON_DAYS = 210
@@ -313,11 +318,20 @@ def outlook(rain_daily, tmin_daily, tmax_daily, plant_doy, length, lat_grid,
     Demand is what the crop will need, which its own calendar already fixes.
     Supply is forecast rain alone: irrigation cannot be forecast, so this
     says where rain will not cover the crop, i.e. where the canals have to.
+
+    Only days the run has actually published are counted, and they are counted
+    on both sides: comparing seven days of demand with five days of rain would
+    manufacture a deficit out of a run still being written. Returns the number
+    of days used, because a 3-day outlook must not be reported as a 7-day one.
     """
     n = min(lead_days, rain_daily.shape[0])
-    rain = np.nansum(rain_daily[:n], axis=0)
+    rain = np.zeros(plant_doy.shape, dtype="float32")
     demand = np.zeros(plant_doy.shape, dtype="float32")
+    used = 0
     for d in range(n):
+        if not (np.isfinite(tmin_daily[d]).any() and
+                np.isfinite(tmax_daily[d]).any()):
+            continue                       # this forecast day is not out yet
         when = start_date + dt.timedelta(days=d)
         doy = when.timetuple().tm_yday
         et0 = pw.et0_hargreaves(tmin_daily[d], tmax_daily[d], lat_grid, doy)
@@ -327,12 +341,17 @@ def outlook(rain_daily, tmin_daily, tmax_daily, plant_doy, length, lat_grid,
                              np.broadcast_to(length, plant_doy.shape
                                              ).astype("float32"), kc_mode)
         demand += np.where(k > 0, et0 * k, 0.0)
+        rain += np.nan_to_num(rain_daily[d], nan=0.0)
+        used += 1
+    if not used:
+        nan = np.full(plant_doy.shape, np.nan, dtype="float32")
+        return nan, nan.copy(), nan.copy(), 0
     si = pw.adequacy(rain, demand)
-    return si, rain, demand
+    return si, rain, demand, used
 
 
 # ---------------------------------------------------------------------------
-# zones
+# the grid, and what each layer actually resolves on it
 # ---------------------------------------------------------------------------
 WAPOR_PIXEL_M = 300
 PURE_ENOUGH = 0.6         # planted share of a WaPOR cell before it is scored
@@ -341,8 +360,8 @@ PURE_ENOUGH = 0.6         # planted share of a WaPOR cell before it is scored
 def wapor_cell_purity(planted, grid_m, cell_m=WAPOR_PIXEL_M):
     """Share of each WaPOR cell that is planted paddy, spread back to the grid.
 
-    WaPOR AETI is 300 m: one value covers 36 cells of a 50 m grid. Where that
-    footprint is half fallow, the ET it reports is not the crop's, and
+    WaPOR AETI is 300 m: one value covers about 30 cells of the 55.66 m grid.
+    Where that footprint is half fallow, the ET it reports is not the crop's, and
     adequacy computed from it says more about the neighbours than the field.
     The methodology makes the same point (section 7.1): the honest spatial
     unit is the WaPOR pixel.
@@ -386,6 +405,53 @@ def _r(v, nd=3):
     return None if not np.isfinite(v) else round(v, nd)
 
 
+# Every layer is written on the analysis grid, and for some of them the grid is
+# finer than the information. Stated per layer, so nobody reads a 300 m water
+# balance as a field-level one. The radar figure is the speckle filter's own
+# radius (paddy_data.s1_vh_stack speckle_m): the dip is located on the grid, but
+# its footprint is the filter's.
+S1_EFFECTIVE_M = 90
+GFS_PIXEL_M = 27750          # 0.25 deg, bilinearly upsampled to the grid
+NATIVE_M = {
+    "paddy": None,                          # the extent source's own, set at run time
+    "planting_doy": S1_EFFECTIVE_M,
+    "plant_period": S1_EFFECTIVE_M,
+    "delay_days": S1_EFFECTIVE_M,
+    "delay_class": S1_EFFECTIVE_M,
+    "adequacy": WAPOR_PIXEL_M,
+    "adequacy_class": WAPOR_PIXEL_M,
+    "anomaly": WAPOR_PIXEL_M,
+    "anomaly_class": WAPOR_PIXEL_M,
+    "supply_mm": WAPOR_PIXEL_M,
+    "demand_mm": WAPOR_PIXEL_M,
+    "outlook_class": GFS_PIXEL_M,
+    "puso": WAPOR_PIXEL_M,                  # the starved half binds it
+}
+
+
+def resolve_grid(spec=DEFAULT_GRID, paddy_file=None):
+    """Which grid to compute on: (deg, anchor, metres, what it is aligned to).
+
+    A supplied paddy layer wins, because the official extent is the thing that
+    must not be resampled. Failing that, `spec` is "lbs" (the national Lahan
+    Baku Sawah grid) or a pixel size in metres.
+    """
+    if paddy_file:
+        got = pdata.grid_from_raster(paddy_file) if _is_raster(paddy_file) else None
+        if got:
+            deg, anchor = got
+            return deg, anchor, pdata.grid_metres(deg), os.path.basename(paddy_file)
+    if str(spec).lower() in ("lbs", "auto"):
+        return (pdata.LBS_GRID_DEG, pdata.LBS_GRID_ANCHOR,
+                pdata.grid_metres(pdata.LBS_GRID_DEG), "Lahan Baku Sawah grid")
+    deg = float(spec) / pdata.DEG_M
+    return deg, (0.0, 0.0), float(spec), f"{float(spec):.0f} m, anchored at zero"
+
+
+def _is_raster(path):
+    return os.path.splitext(path)[1].lower() in (".tif", ".tiff", ".vrt", ".img")
+
+
 # ---------------------------------------------------------------------------
 # the run
 # ---------------------------------------------------------------------------
@@ -402,7 +468,7 @@ def _progress(label):
 
 def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         as_of=None, season_days=DEFAULT_SEASON_DAYS,
-        seasons_back=DEFAULT_SEASONS_BACK, grid_m=DEFAULT_GRID_M,
+        seasons_back=DEFAULT_SEASONS_BACK, grid_spec=DEFAULT_GRID,
         paddy_file=None, zones_file=None, zone_field=None,
         kc_mode="curve110", outlook_days=DEFAULT_OUTLOOK_DAYS,
         orbit_pass="DESCENDING", lang="id", do_map=True, publish=False):
@@ -420,6 +486,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     aoi = square_aoi(lon, lat, radius)
     os.makedirs(run_dir, exist_ok=True)
 
+    grid_deg, grid_anchor, grid_m, grid_source = resolve_grid(grid_spec, paddy_file)
+    xform = pdata.grid_transform(grid_deg, grid_anchor)
     windows = season_windows(as_of, season_days, seasons_back)
     start, end = stack_span(windows)
     grid = pdata.period_grid(start, end)
@@ -427,13 +495,14 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
          f"{as_of}")
     _say(f"  season {windows[0][0]} -> {windows[0][1]}, {seasons_back} baseline "
          f"season(s); VH stack {start} -> {end} ({len(grid)} periods of 12 days)")
+    _say(f"  grid {grid_deg:.7f} deg (~{grid_m:.2f} m), aligned to {grid_source}")
 
     # --- Sentinel-1: the flood-then-grow cycle -----------------------------
     vh_path = os.path.join(run_dir, f"paddy_vh_{name}.tif")
     if not os.path.exists(vh_path):
         _say("  fetching Sentinel-1 VH periods...")
         got = download_geotiff(pdata.s1_vh_stack(aoi, grid, orbit_pass),
-                               aoi, vh_path, scale=grid_m)
+                               aoi, vh_path, scale=grid_m, crs_transform=xform)
         if not got:
             raise SystemExit("could not download the VH stack; reduce --radius "
                              "or coarsen --paddy-grid")
@@ -447,15 +516,22 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
          f"to score")
 
     # --- where the paddy is ------------------------------------------------
+    native_m = dict(NATIVE_M)
     if paddy_file:
         paddy = (rasterize_layer(paddy_file, profile) > 0) & covered
         extent_source = os.path.basename(paddy_file)
+        src_grid = pdata.grid_from_raster(paddy_file) if _is_raster(paddy_file) else None
+        # A vector layer is a boundary, exact at whatever grid it is drawn on;
+        # a raster layer resolves no finer than its own pixel.
+        native_m["paddy"] = (round(pdata.grid_metres(src_grid[0]), 2) if src_grid
+                             else round(grid_m, 2))
     else:
         _say("  no --paddy-file: detecting rice from the VH cycle "
              "(an official layer would be better)")
         paddy = detect_paddy(stack, covered=covered,
                              progress=_progress("detecting paddy"))
         extent_source = "detected from Sentinel-1 phenology"
+        native_m["paddy"] = S1_EFFECTIVE_M
     area_ha = pixel_area_ha(profile, lat)
     _say(f"  paddy: {int(paddy.sum()):,} pixels "
          f"({paddy.sum() * area_ha:,.0f} ha) — {extent_source}")
@@ -501,8 +577,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         if not (os.path.exists(ap) and os.path.exists(rp)):
             _say(f"  fetching WaPOR actual and reference ET ({tag})...")
             a_img, r_img = pdata.wapor_periods(aoi, sgrid)
-            download_geotiff(a_img, aoi, ap, scale=grid_m)
-            download_geotiff(r_img, aoi, rp, scale=grid_m)
+            download_geotiff(a_img, aoi, ap, scale=grid_m, crs_transform=xform)
+            download_geotiff(r_img, aoi, rp, scale=grid_m, crs_transform=xform)
         a_arr, _, _ = read_stack(ap)
         r_arr, _, _ = read_stack(rp)
         return adequacy_now(a_arr, r_arr, season["plant"] - f,
@@ -549,19 +625,26 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     # --- the fortnight ahead ----------------------------------------------
     outlook_cls = np.full(paddy.shape, pw.ADEQUACY_NODATA, dtype="uint8")
     out_si = np.full(paddy.shape, np.nan, dtype="float32")
+    lead_used = 0
     run_time = pdata.latest_gfs_run()
-    if run_time is None:
-        _say("  no GFS run available: skipping the outlook")
-    else:
+    gfs_path = os.path.join(run_dir, f"paddy_gfs_{name}.tif")
+    if run_time is not None and not os.path.exists(gfs_path):
         _say(f"  fetching GFS run {run_time:%Y-%m-%d %H:%M} UTC for the next "
              f"{outlook_days} days...")
-        gfs_path = os.path.join(run_dir, f"paddy_gfs_{name}.tif")
-        if not os.path.exists(gfs_path):
-            # On the analysis grid, like every other layer: GFS is a 0.25 deg
-            # field bilinearly upsampled, which adds no information but keeps
-            # every array the same shape as the paddy mask.
-            download_geotiff(pdata.gfs_daily(aoi, run_time, outlook_days),
-                             aoi, gfs_path, scale=grid_m)
+        # On the analysis grid, like every other layer: GFS is a 0.25 deg field
+        # bilinearly upsampled, which adds no information but keeps every array
+        # the same shape as the paddy mask.
+        if not download_geotiff(pdata.gfs_daily(aoi, run_time, outlook_days),
+                                aoi, gfs_path, scale=grid_m,
+                                crs_transform=xform):
+            # The outlook is the one leg that can be missing without voiding
+            # the rest: the season measured so far is already the answer to two
+            # of the three questions.
+            _say("  GFS download failed: reporting the season without an outlook")
+            run_time = None
+    if run_time is None:
+        _say("  no outlook this run")
+    else:
         gfs, gprof, _ = read_stack(gfs_path)
         rain = gfs[0::3]
         # Earth Engine serves GFS 2 m temperature in degrees Celsius, not
@@ -572,14 +655,27 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
             tmin, tmax = tmin - 273.15, tmax - 273.15
         rows = np.linspace(bounds.top, bounds.bottom, paddy.shape[0])
         lat_grid = np.repeat(rows[:, None], paddy.shape[1], axis=1)
-        out_si, out_rain, out_demand = outlook(
+        out_si, out_rain, out_demand, lead_used = outlook(
             rain, tmin, tmax, doy_now, cur["length"], lat_grid,
             run_time.date(), kc_mode, LEAD_ACTIONABLE_DAYS)
         outlook_cls = pw.adequacy_class(out_si)
         outlook_cls[~(paddy & planted)] = pw.ADEQUACY_NODATA
-        _say(f"    next {LEAD_ACTIONABLE_DAYS} days: rain "
-             f"{np.nanmean(out_rain[paddy]):.0f} mm vs demand "
-             f"{np.nanmean(out_demand[paddy & planted]):.0f} mm (paddy mean)")
+        if not lead_used:
+            _say("    this run has not published any of the forecast days yet: "
+                 "no outlook")
+        else:
+            short = ("" if lead_used == LEAD_ACTIONABLE_DAYS else
+                     f" (only {lead_used} of {LEAD_ACTIONABLE_DAYS} days are "
+                     f"published in this run)")
+            # Only where the crop is still asking for water: a field past
+            # harvest has demand 0, and averaging those in halves the figure
+            # and makes it disagree with the map drawn beside it.
+            standing = paddy & planted & (out_demand > 0)
+            _say(f"    next {lead_used} days: rain "
+                 f"{np.nanmean(out_rain[standing]):.0f} mm vs demand "
+                 f"{np.nanmean(out_demand[standing]):.0f} mm "
+                 f"(mean over {int(standing.sum()):,} pixels still in "
+                 f"season){short}")
 
     # --- write the rasters -------------------------------------------------
     products = {
@@ -625,8 +721,16 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         "season": {"start": str(windows[0][0]), "end": str(windows[0][1]),
                    "baseline_seasons": seasons_back},
         "paddy_extent_source": extent_source, "kc_mode": kc_mode,
-        "grid_m": grid_m, "orbit_pass": orbit_pass,
-        "outlook": {"lead_days": LEAD_ACTIONABLE_DAYS,
+        "grid_m": round(grid_m, 3), "orbit_pass": orbit_pass,
+        "grid": {"deg": grid_deg, "m": round(grid_m, 3),
+                 "anchor": [round(v, 9) for v in xform[2::3]],
+                 "aligned_to": grid_source, "crs": "EPSG:4326"},
+        # The grid is not the resolution. Per layer, what the information
+        # behind it actually resolves -- so a 300 m water balance drawn on a
+        # 56 m grid is not read as a field-level measurement.
+        "native_m": native_m,
+        "outlook": {"lead_days": lead_used,
+                    "lead_days_wanted": LEAD_ACTIONABLE_DAYS,
                     "gfs_run": run_time.isoformat() if run_time else None,
                     "basis": "rainfall only; irrigation deliveries not forecast"},
         "zones": {"n": len(zones_rows), "christiansen_uniformity_pct": _r(cu),
