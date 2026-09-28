@@ -539,10 +539,19 @@ NATIVE_M = {
 def resolve_grid(spec=DEFAULT_GRID, paddy_file=None):
     """Which grid to compute on: (deg, anchor, metres, what it is aligned to).
 
-    A supplied paddy layer wins, because the official extent is the thing that
-    must not be resampled. Failing that, `spec` is "lbs" (the national Lahan
-    Baku Sawah grid) or a pixel size in metres.
+    With `spec` left at "lbs", a supplied paddy layer wins, because the official
+    extent is the thing that must not be resampled. An explicit pixel size in
+    metres overrides it: the flag exists to be used, and it is the only way to
+    cover an area too large for one request at the layer's own resolution.
+
+    It used to win unconditionally, which meant asking for 150 m over a 50 km
+    irrigation scheme silently ran at 55.66 m instead, exceeded the request
+    limit, and was coarsened to ~222 m AND off-grid by the download's own
+    fallback -- the worst of both, and only visible in a log line.
     """
+    if str(spec).lower() not in ("lbs", "auto"):
+        deg = float(spec) / pdata.DEG_M
+        return deg, (0.0, 0.0), float(spec), f"{float(spec):.0f} m, anchored at zero"
     if paddy_file:
         got = pdata.grid_from_raster(paddy_file) if _is_raster(paddy_file) else None
         if got:

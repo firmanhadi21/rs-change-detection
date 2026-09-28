@@ -94,6 +94,26 @@ def test_lbs_is_the_default_when_no_layer_is_given():
     assert "Lahan Baku Sawah" in source
 
 
+def test_an_explicit_metre_grid_beats_the_paddy_layer(tmp_path):
+    """The flag exists to be used.
+
+    The layer used to win unconditionally, so asking for 150 m over a 50 km
+    irrigation scheme ran at 55.66 m, exceeded the request limit, and the
+    download's own fallback coarsened it to ~222 m and off-grid -- worse than
+    either choice, and visible only in a log line.
+    """
+    t = rasterio.Affine(0.0005, 0, 110.8412, 0, -0.0005, -6.9408)
+    p = _write(tmp_path / "lbs.tif", t)
+    deg, anchor, metres, source = pd.resolve_grid(150.0, p)
+    assert metres == 150.0
+    assert deg == pytest.approx(150.0 / pdata.DEG_M)
+    assert "150 m" in source
+    # and with the default spec the layer still wins
+    deg2, _, metres2, source2 = pd.resolve_grid("lbs", p)
+    assert metres2 == pytest.approx(55.66, abs=0.01)
+    assert source2 == "lbs.tif"
+
+
 def test_a_metre_value_still_gets_one_shared_grid():
     """Anchored at zero: two AOIs at 20 m still share their pixel edges."""
     deg, anchor, metres, source = pd.resolve_grid(20.0, None)

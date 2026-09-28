@@ -11,6 +11,8 @@ Two ways to get a result out of GEE:
 
 import os
 import sys
+import time
+
 import requests
 
 
@@ -77,14 +79,49 @@ def missing_zones(path):
     return SystemExit(f"--zones not found: {path}\n  {ZONES_NOT_SHIPPED}")
 
 
-def _fetch(url, out_path):
-    resp = requests.get(url, stream=True)
-    resp.raise_for_status()
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=8192):
-            f.write(chunk)
-    return out_path
+# Connect fast, but allow a long silence once connected: Earth Engine computes
+# server-side before it sends a byte, and a big stack legitimately takes minutes
+# to start. Finite, though -- see _fetch.
+FETCH_TIMEOUT = (30, 600)
+FETCH_ATTEMPTS = 3
+
+
+def _fetch(url, out_path, timeout=FETCH_TIMEOUT, attempts=FETCH_ATTEMPTS):
+    """Stream a URL to a file, with a timeout and retries.
+
+    This had no timeout, and that froze a national run for 93 minutes without a
+    word. Eight worker processes sat at 0% CPU, each blocked on a socket that
+    would never deliver -- one ESTABLISHED with nothing flowing, the rest in
+    CLOSE_WAIT, where the server had hung up and the client never noticed.
+    requests waits forever by default, so the queue stopped and nothing in the
+    logs said so: a hang is not a failure and not a completion, so a watcher
+    looking for either sees a healthy job.
+
+    A timeout turns that silence into an exception a retry can act on. The read
+    timeout is generous because Earth Engine's own latency is, and a partial file
+    is removed between attempts so a resumed download never appends to a stump.
+    """
+    last = None
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = requests.get(url, stream=True, timeout=timeout)
+            resp.raise_for_status()
+            os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+            with open(out_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            return out_path
+        except requests.exceptions.RequestException as e:
+            last = e
+            if os.path.exists(out_path):
+                os.remove(out_path)
+            if attempt < attempts:
+                wait = 5 * attempt
+                print(f"  fetch attempt {attempt}/{attempts} failed "
+                      f"({e.__class__.__name__}); retrying in {wait}s",
+                      flush=True)
+                time.sleep(wait)
+    raise last
 
 
 def download_png(image, region, out_path, dimensions="1920x1920", vis=None):
