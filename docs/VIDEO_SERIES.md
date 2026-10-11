@@ -11,6 +11,23 @@ languages, verbatim commands and expected output. This document decides *what*
 the series teaches and in what order; those decide what is on screen and what is
 said, second by second.
 
+> **The sigro.id course built from this plan (October 2026) departs from it — read this before reusing a number.**
+> The course *Pemantauan Lingkungan dari Satelit* pins **earthchange 0.2.0** and narrates every number from answer
+> keys re-run in that version, not from the scripts below. Where they differ, the course is right for 0.2.0:
+>
+> | Script | Script says | earthchange 0.2.0 gives | Why |
+> |---|---|---|---|
+> | EP03 deforestation, Riau 2019→2023 | 86.6 % affected, 2.7 % severe | 0.65 % / 0.06 % | cloud-mask and `--min-obs` changes since; the course uses **Merauke 2023→2025: 61.6 % / 38.5 %** |
+> | EP03 flood, Pekalongan Jan 2026 | 3.37 % flooded, 42.7 % masked | 1.34 % / 41.9 % | flood logic rewritten (single pass); 0.2.0 also fixes the latest-slice bug |
+> | EP05 fire danger, Ketapang 30 Sep 2015 | DC 293, FWI 5.9 | DC 268, FWI 6.68 | GAUL 2025 district boundary |
+> | EP06 drought to 1 Aug 2026 | 74 % of normal, z −1.02, 6th driest | 77 %, z −0.91, 10th driest | CHIRPS preliminary → final |
+> | EP07 fire record | real KLHK layer | synthetic FIKTIF zones (layer not redistributable) | — |
+>
+> Other departures: the course teaches on the finished **2026** season (not 2019 as below); the learner path is a
+> Docker image on macOS/Linux and **Git Bash + Miniforge** on Windows; EP02's smoke video needs a GPU (no CPU fallback
+> in 0.2.0); EP08's refusal names the last complete day as the end of the window, so a 48 h track starts two days
+> earlier. Known issues for 0.2.1 are listed in the course plan.
+
 ---
 
 ## Why this shape
