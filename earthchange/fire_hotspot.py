@@ -47,7 +47,7 @@ FIRMS_IC = "FIRMS"
 DEFAULT_DAYS = 7
 DEFAULT_MIN_CONF = 30
 BASELINE_START = 2001            # first full year of the MODIS record
-GAUL_L1 = "FAO/GAUL/2015/level1"
+GAUL_L1 = "FAO/GAUL/2025/level1"
 
 # Palette: pale green-grey forest paper, deep forest ink, fire in clay and
 # amber, protected forest in teal. Picked against the subject rather than
@@ -140,8 +140,8 @@ def _regions(ee, areas, admin, bbox, lon, lat, radius):
     countries. Country comes from the layer rather than being asserted, so a
     mixed list reports itself correctly.
     """
-    from .gee_utils import square_aoi
-    l1 = ee.FeatureCollection(GAUL_L1)
+    from .gee_utils import gaul, square_aoi
+    l1 = gaul(1)
 
     names = []
     if areas:
@@ -159,7 +159,7 @@ def _regions(ee, areas, admin, bbox, lon, lat, radius):
                 sub = l1.filter(ee.Filter.eq("ADM0_NAME", n))
                 if sub.size().getInfo() == 0:
                     raise SystemExit(
-                        f"area {n!r} not found in FAO GAUL 2015 level-1 "
+                        f"area {n!r} not found in FAO GAUL 2025 level-1 "
                         f"(ADM1_NAME or ADM0_NAME). Use the official spelling, "
                         f"e.g. 'Kalimantan Tengah' or 'Brunei Darussalam'.")
                 feats.append(ee.Feature(sub.geometry().dissolve(maxError=100),
@@ -697,9 +697,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         extent=[b[0] - pad, b[2] + pad, b[1] - pad, b[3] + pad],
         pts=[[round(float(r.lon), 3), round(float(r.lat), 3), r.cls]
              for r in pts.itertuples()],
-        admin_note=("Boundaries are FAO GAUL 2015. Provinces created after "
-                    "that date — Kalimantan Utara among them — are still "
-                    "counted inside their parent."),
+        admin_note=("Boundaries are FAO GAUL 2025 (CC BY 4.0), with "
+                    "Indonesia's 38 current provinces."),
         forest_note=("Detections placed on the supplied forest-estate layer,\n"
                      "ordered by how much legal protection the land carries."),
         forest_caveat=("Detections outside the layer's coverage are reported "
@@ -709,7 +708,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         notes=[
             ("Source.", f"NASA FIRMS active fire, MODIS Terra + Aqua at 1 km, "
              f"via Google Earth Engine, confidence ≥ {min_confidence}. "
-             f"Boundaries FAO GAUL 2015 level 1." +
+             f"Boundaries FAO GAUL 2025 level 1 (CC BY 4.0)." +
              (f" Forest function from {os.path.basename(forest_file)}."
               if "by_function" in S else "")),
             ("Not comparable to VIIRS-based figures.", "BMKG and ASEAN "
@@ -726,7 +725,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     )
     S["npages"] = 5 if "by_function" in S else 4
 
-    src = ("MODIS FIRMS · FAO GAUL 2015" +
+    src = ("MODIS FIRMS · FAO GAUL 2025" +
            (" · forest estate layer" if "by_function" in S else ""))
     os.makedirs(run_dir, exist_ok=True)
     stem = os.path.join(run_dir, f"{run_id}_hotspot")

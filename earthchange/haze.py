@@ -312,7 +312,7 @@ def _render_smoke_map(pm_tif, fire_tif, bbox, run_dir, name, window):
     fig.text(.008, .012,
              "PM2.5: ECMWF CAMS NRT (~40 km) — model, bukan pengukuran stasiun; "
              "kelas ISPU PermenLHK P.14/2020. Titik panas: FIRMS (MODIS, 1 km). "
-             "Batas: FAO GAUL 2015. Peta dasar © OpenStreetMap.",
+             "Batas: FAO GAUL 2025 (CC BY 4.0). Peta dasar © OpenStreetMap.",
              fontsize=8, color="#777")
     # Reserve enough bottom margin that the axis labels clear the footer.
     fig.tight_layout(rect=[0, .045, 1, .94])

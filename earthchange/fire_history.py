@@ -55,13 +55,12 @@ def _resolve_aoi(admin, bbox, lon, lat, radius):
     --admin works for both "Kalimantan Barat" and "Kubu Raya".
     """
     import ee
-    from .gee_utils import square_aoi
+    from .gee_utils import gaul, square_aoi
     if admin:
-        for lvl, field in (("level1", "ADM1_NAME"), ("level2", "ADM2_NAME")):
-            fc = (ee.FeatureCollection(f"FAO/GAUL/2015/{lvl}")
-                  .filter(ee.Filter.eq(field, admin)))
+        for lvl in (1, 2):
+            fc = gaul(lvl).filter(ee.Filter.eq(f"ADM{lvl}_NAME", admin))
             if fc.size().getInfo() > 0:
-                print(f"  admin: {admin} [GAUL {lvl}]")
+                print(f"  admin: {admin} [GAUL 2025 level{lvl}]")
                 return fc.geometry()
         raise SystemExit(f"--admin {admin!r} not found in FAO GAUL level-1 or "
                          "level-2. Use the official spelling, e.g. "

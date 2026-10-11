@@ -656,7 +656,8 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         # the raw string makes Geometry.Rectangle see a list of characters.
         fd_bbox = [float(x) for x in args.bbox.split(",")] if args.bbox else None
         fire_danger.run(args.backend, lat, lon, radius, name, run_dir, run_id,
-                        config_key=ee_key, end=args.fdrs_end,
+                        # --date is the documented spelling; --fdrs-end the original
+                        config_key=ee_key, end=args.fdrs_end or args.date,
                         admin=args.admin, bbox=fd_bbox,
                         spinup=args.spinup, lang=args.lang,
                         zones=args.zones, zone_field=args.zone_field,

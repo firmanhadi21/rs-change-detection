@@ -375,6 +375,24 @@ def span_message(what, need_lo, need_hi, have_lo, have_hi, hint=""):
     return "\n".join(lines)
 
 
+# Admin boundaries: FAO GAUL 2025 (CC BY 4.0), which replaced the noncommercial
+# GAUL 2015 in Earth Engine and carries Indonesia's 38 current provinces. Its
+# fields are GAUL0_NAME..GAUL2_NAME; gaul() renames them to the ADM*_NAME the
+# modules have always read. There is no 2025 level 0 -- country outlines are
+# the union of level 1.
+GAUL_CREDIT = "FAO GAUL 2025 (CC BY 4.0)"
+
+
+def gaul(level):
+    """GAUL 2025 admin level 1 or 2, with names as ADM0_NAME..ADM<level>_NAME."""
+    import ee
+    if level not in (1, 2):
+        raise ValueError(f"GAUL 2025 has levels 1 and 2, not {level}")
+    keep = range(level + 1)
+    return ee.FeatureCollection(f"FAO/GAUL/2025/level{level}").select(
+        [f"GAUL{i}_NAME" for i in keep], [f"ADM{i}_NAME" for i in keep])
+
+
 _PLACEHOLDER_NAMES = ("not available", "unknown", "unnamed", "no data", "n/a")
 
 

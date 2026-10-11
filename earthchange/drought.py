@@ -162,7 +162,7 @@ TEXT = {
         "map_rain_title": "Curah hujan {name} — {months} bulan s/d {end}",
         "map_rain_sub": "% dari normal {b0}–{b1} ({src})",
         "map_rain_cb": "% dari normal  (coklat = lebih kering, hijau = lebih basah)",
-        "map_rain_src": ("Sumber: {src}, batas provinsi FAO GAUL 2015. "
+        "map_rain_src": ("Sumber: {src}, batas provinsi FAO GAUL 2025 (CC BY 4.0). "
                          "Dihitung dengan earthchange -s drought."),
         "map_vhi_title": "Sebaran kekeringan vegetasi — {name}",
         "map_vhi_sub": "VHI (MODIS 1 km), {end}",
@@ -231,7 +231,7 @@ TEXT = {
         "map_rain_title": "Rainfall {name} — {months} months to {end}",
         "map_rain_sub": "% of the {b0}–{b1} normal ({src})",
         "map_rain_cb": "% of normal  (brown = drier, green = wetter)",
-        "map_rain_src": ("Source: {src}, province boundaries FAO GAUL 2015. "
+        "map_rain_src": ("Source: {src}, province boundaries FAO GAUL 2025 (CC BY 4.0). "
                          "Computed with earthchange -s drought."),
         "map_vhi_title": "Vegetation drought extent — {name}",
         "map_vhi_sub": "VHI (MODIS 1 km), {end}",
@@ -634,15 +634,15 @@ def _rain_pct_image(aoi, end, months, src, downscale_m=None):
 
 
 def _land_mask(aoi):
-    """Land from GAUL country polygons.
+    """Land from GAUL province polygons (GAUL 2025 has no country level).
 
     NOT from SRTM: that mask is 30 m, does not survive reprojection to a
     kilometre grid, and punches holes wherever a tile is absent. Vector land
     gives a crisp coastline at any display scale.
     """
     import ee
-    return ee.Image.constant(1).clip(
-        ee.FeatureCollection("FAO/GAUL/2015/level0").filterBounds(aoi)).mask()
+    from .gee_utils import gaul
+    return ee.Image.constant(1).clip(gaul(1).filterBounds(aoi)).mask()
 
 
 def _rings(geom):
@@ -669,8 +669,8 @@ def _draw_admin(ax, box):
     import ee
     import numpy as np
     try:
-        fc = (ee.FeatureCollection("FAO/GAUL/2015/level1")
-              .filterBounds(ee.Geometry.Rectangle(box)))
+        from .gee_utils import gaul
+        fc = gaul(1).filterBounds(ee.Geometry.Rectangle(box))
         feats = fc.getInfo()["features"]
     except Exception:
         return

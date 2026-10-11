@@ -42,7 +42,7 @@ CAMS_START = dt.date(2016, 6, 22)
 WORLDPOP = "WorldPop/GP/100m/pop"                 # annual totals, 2000-
 WORLDPOP_AGE = "WorldPop/GP/100m/pop_age_sex"     # age structure, 2020 only
 POP_SCALE = 93
-GAUL2 = "FAO/GAUL/2015/level2"
+GAUL2 = "FAO/GAUL/2025/level2"
 
 # Under-5 and over-65, the groups the health literature treats as vulnerable.
 UNDER5 = ["M_0", "M_1", "F_0", "F_1"]
@@ -101,7 +101,8 @@ def _population(year):
 
 def _districts(aoi, admin=None):
     import ee
-    fc = ee.FeatureCollection(GAUL2).filterBounds(aoi)
+    from .gee_utils import gaul
+    fc = gaul(2).filterBounds(aoi)
     if admin:
         fc = fc.filter(ee.Filter.eq("ADM1_NAME", admin))
     return fc
@@ -254,7 +255,7 @@ def _write_report(path, order, tot, labels, meta):
           "- Penduduk: WorldPop 100 m; struktur umur 2020 diterapkan pada "
           f"total {meta['pop_year']}, karena rincian umur hanya tersedia 2020",
           "- Kelas ISPU PermenLHK P.14/2020; batas PM2.5 15,5 / 55,4 / 150,4 / 250,4",
-          "- Batas wilayah: FAO GAUL 2015 level 2",
+          "- Batas wilayah: FAO GAUL 2025 level 2 (CC BY 4.0)",
           "", "**Yang tidak diukur di sini.** Konsentrasi luar ruangan bukan "
           "paparan sebenarnya: orang berada di dalam rumah, sebagian memakai "
           "masker, sebagian tidak bisa mengungsi. Angka ini adalah proksi "
