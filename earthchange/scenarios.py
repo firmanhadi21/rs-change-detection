@@ -378,7 +378,7 @@ def run_flood(aoi, p, water_thr=-16.0):
     keep = flood.selfMask().connectedPixelCount(50, True).unmask(0).gte(8)
     flood = flood.multiply(keep).rename("flood")
 
-    stats = {"method": "SAR water (VV), single-scene pre/post, ocean masked (SRTM), ponds kept",
+    stats = {"method": "SAR water (VV), single-pass pre/post, ocean masked (SRTM), ponds kept",
              "orbit": orbit, "relative_orbit": rel if rel is not None else "mixed",
              "date_pre": date_pre, "date_post": date_post,
              "water_threshold_db": water_thr,

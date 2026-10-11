@@ -366,8 +366,19 @@ def s1_relorbits(coll):
 
 
 def s1_latest(coll):
-    """The most recent single scene in a Sentinel-1 collection."""
-    return ee.Image(coll.sort("system:time_start", False).first())
+    """The most recent Sentinel-1 pass in a collection, as one image.
+
+    A pass is stored as consecutive ~25 km slices and the latest slice need
+    not cover the AOI (on a descending pass it is the southernmost), so every
+    slice within half an hour of the latest is mosaicked. The mosaic keeps the
+    slice's projection and time, which later steps read.
+    """
+    last = ee.Image(coll.sort("system:time_start", False).first())
+    t = ee.Number(last.get("system:time_start"))
+    same_pass = coll.filter(ee.Filter.gte("system:time_start",
+                                          t.subtract(30 * 60 * 1000)))
+    return (same_pass.mosaic().setDefaultProjection(last.projection())
+            .set("system:time_start", t))
 
 
 def best_orbit(aoi, periods, pol="VH", forced=None):

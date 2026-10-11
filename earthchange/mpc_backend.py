@@ -325,15 +325,16 @@ def _s1_mean_db(bbox, start, end, pol, orbit, geobox=None):
     return db, len(items), ds.odc.geobox
 
 
-def _s1_item_db(item, pol, bbox, geobox=None):
-    """Backscatter in dB for ONE Sentinel-1 scene. Returns (2-D array, geobox)."""
+def _s1_item_db(items, pol, bbox, geobox=None):
+    """Backscatter in dB for ONE Sentinel-1 pass (its slices, mosaicked by
+    solar day). Returns (2-D array, geobox)."""
     import odc.stac
     load_kw = dict(bands=[pol], groupby="solar_day",
                    chunks={"x": 2048, "y": 2048}, resampling="bilinear")
     if geobox is not None:
-        ds = odc.stac.load([item], geobox=geobox, **load_kw)
+        ds = odc.stac.load(items, geobox=geobox, **load_kw)
     else:
-        ds = odc.stac.load([item], bbox=bbox, crs="EPSG:4326",
+        ds = odc.stac.load(items, bbox=bbox, crs="EPSG:4326",
                            resolution=S1_RES, **load_kw)
     lin = ds[pol].where(ds[pol] > 0)
     val = lin.mean(dim="time").compute() if "time" in lin.dims else lin.compute()
@@ -396,11 +397,28 @@ def _despeckle(mask, min_size=8):
     return np.isin(labels, list(keep))
 
 
-def _s1_single_pair(bbox, pre_win, post_win, orbit):
-    """Pick ONE pre + ONE post Sentinel-1 STAC item, same relative orbit.
+PASS_GAP_S = 30 * 60   # slices of one overpass are seconds apart; repeat passes days
 
-    Each is the most recent pass in its window; both are forced to the same
-    track when one is present in both windows. Returns (pre_item, post_item, rel).
+
+def _latest_pass(items):
+    """Every slice of the most recent overpass in `items`.
+
+    A Sentinel-1 pass is catalogued as consecutive ~25 km slices, one STAC
+    item each, and the latest slice need not cover the AOI: on a descending
+    pass it is the southernmost. Pekalongan, Jan 2026: the latest pre slice
+    held 1.3% of the AOI, and the run reported 0% flooded and 0% sea.
+    """
+    last = max(it.datetime for it in items)
+    return [it for it in items
+            if (last - it.datetime).total_seconds() <= PASS_GAP_S]
+
+
+def _s1_single_pair(bbox, pre_win, post_win, orbit):
+    """Pick ONE pre + ONE post Sentinel-1 pass, same relative orbit.
+
+    Each is the most recent pass in its window, as the list of its slices;
+    both are forced to the same track when one is present in both windows.
+    Returns (pre_items, post_items, rel).
     """
     pre_items = _s1_items(bbox, *pre_win, orbit)
     post_items = _s1_items(bbox, *post_win, orbit)
@@ -415,9 +433,7 @@ def _s1_single_pair(bbox, pre_win, post_win, orbit):
         rel = _ro(max(common, key=lambda it: it.datetime))
         pre_items = [it for it in pre_items if _ro(it) == rel]
         post_items = [it for it in post_items if _ro(it) == rel]
-    pre_item = max(pre_items, key=lambda it: it.datetime)
-    post_item = max(post_items, key=lambda it: it.datetime)
-    return pre_item, post_item, rel
+    return _latest_pass(pre_items), _latest_pass(post_items), rel
 
 
 def run_flood(bbox, params, water_thr=-16.0):
@@ -427,11 +443,11 @@ def run_flood(bbox, params, water_thr=-16.0):
         raise SystemExit(f"No Sentinel-1 orbit covers both windows (MPC): {counts}")
 
     # Standard S1 rapid-flood method: ONE pre scene, ONE post scene, same track.
-    pre_item, post_item, rel = _s1_single_pair(bbox, params["pre"], params["post"], orbit)
-    date_pre = pre_item.datetime.strftime("%Y-%m-%d")
-    date_post = post_item.datetime.strftime("%Y-%m-%d")
-    pre, gbox = _s1_item_db(pre_item, "vv", bbox)
-    post, _g = _s1_item_db(post_item, "vv", bbox, geobox=gbox)
+    pre_pass, post_pass, rel = _s1_single_pair(bbox, params["pre"], params["post"], orbit)
+    date_pre = pre_pass[0].datetime.strftime("%Y-%m-%d")
+    date_post = post_pass[0].datetime.strftime("%Y-%m-%d")
+    pre, gbox = _s1_item_db(pre_pass, "vv", bbox)
+    post, _g = _s1_item_db(post_pass, "vv", bbox, geobox=gbox)
     finite = np.isfinite(post) & np.isfinite(pre)
     pre_water = pre < water_thr
     post_water = post < water_thr
@@ -445,7 +461,7 @@ def run_flood(bbox, params, water_thr=-16.0):
     flood = _despeckle(flood, min_size=8)
 
     land_area = max(int((land & finite).sum()), 1)
-    stats = {"method": "SAR water (VV, MPC), single-scene pre/post, ocean masked, ponds kept",
+    stats = {"method": "SAR water (VV, MPC), single-pass pre/post, ocean masked, ponds kept",
              "orbit": orbit, "relative_orbit": rel if rel is not None else "mixed",
              "date_pre": date_pre, "date_post": date_post,
              "water_threshold_db": water_thr,
@@ -519,11 +535,11 @@ def run_disturbance(bbox, params, drop_thr=-3.0, severe_thr=-6.0, steep_deg=15.0
     if not covered:
         raise SystemExit(f"No Sentinel-1 orbit covers both windows (MPC): {counts}")
 
-    pre_item, post_item, rel = _s1_single_pair(bbox, params["pre"], params["post"], orbit)
-    date_pre = pre_item.datetime.strftime("%Y-%m-%d")
-    date_post = post_item.datetime.strftime("%Y-%m-%d")
-    pre, gbox = _s1_item_db(pre_item, "vh", bbox)
-    post, _g = _s1_item_db(post_item, "vh", bbox, geobox=gbox)
+    pre_pass, post_pass, rel = _s1_single_pair(bbox, params["pre"], params["post"], orbit)
+    date_pre = pre_pass[0].datetime.strftime("%Y-%m-%d")
+    date_post = post_pass[0].datetime.strftime("%Y-%m-%d")
+    pre, gbox = _s1_item_db(pre_pass, "vh", bbox)
+    post, _g = _s1_item_db(post_pass, "vh", bbox, geobox=gbox)
 
     dvh = post - pre
     valid = np.isfinite(dvh)
