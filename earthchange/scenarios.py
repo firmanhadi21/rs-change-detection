@@ -710,6 +710,17 @@ SCENARIOS = {
                            "berjalan dibandingkan jendela tanggal yang sama "
                            "pada tahun-tahun sebelumnya."),
     },
+    "fire-zones": {
+        "label": "Fire recurrence per zone — burned & repeat-burn area inside "
+                 "any polygon layer (KHG, concessions), from a fire-national run",
+        "method": "fire-zones",
+        "radius": 0.0, "needs": "none",
+        "interpretation": ("Kebakaran per zona: luas terbakar dan terbakar "
+                           "berulang di dalam tiap poligon — KHG, konsesi, "
+                           "DAS. Dihitung ulang dari raster fire-national, "
+                           "tanpa Earth Engine. Luas di dalam batas bukan "
+                           "bukti siapa yang membakar."),
+    },
     "fire-hotspot": {
         "label": "Fire hotspot brief — last N days of active fire by admin unit "
                  "and forest function, as printable JPEG pages (FIRMS)",
@@ -814,6 +825,11 @@ SCENARIO_FLAGS = {
     "fire-national": ("--start-year", "--end-year", "--areas", "--peat-file",
                       "--peat-source", "--peat-thr", "--season-start",
                       "--season-end", "--overview-km", "--refresh"),
+    # fire-zones reads an existing fire-national run and touches no satellite
+    # data of its own, so it takes none of the year or peat flags: the period
+    # and the peat definitions come from that run's stats.json.
+    "fire-zones": ("--zones", "--zone-field", "--zone-layer", "--zone-label",
+                   "--from-run", "--min-ha"),
     # fire-danger and smoke-track read args.date directly rather than through
     # the needs branch, so they name it here.
     "fire-danger": ("--date", "--fdrs-end", "--spinup", "--rain-source"

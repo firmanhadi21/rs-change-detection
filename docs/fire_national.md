@@ -268,15 +268,82 @@ tidak tersedia sebagai deret panjang yang homogen di GEE.
 
 ---
 
-## 7. Langkah berikutnya yang didukung produk ini
+## 7. Per zona — `fire-zones`
+
+Pertanyaan lanjutan semuanya berbentuk sama: berapa yang terbakar di dalam
+*KHG ini*, *konsesi ini*, *DAS ini*. Maka akuntansi zonanya satu fungsi dan
+lapisannya jadi argumen. **Tanpa Earth Engine** — semuanya dibaca ulang dari
+raster provinsi yang sudah ada, dengan rumus luas yang sama, sehingga total
+zona dan total provinsi tidak mungkin berselisih soal arti satu hektar.
+
+```bash
+python3 -m earthchange.detect --scenario fire-zones \
+    --zones Kesatuan_Hidrologis_Gambut.shp \
+    --zone-field kode_khg --zone-label nama_khg \
+    --from-run output/fire_national --out-dir output/fire_khg
+```
+
+Keluaran: `zones.csv`, `zones.gpkg` (poligon + statistik, langsung dibuka di
+QGIS), `fire_zones_ranking.png`, dan `stats.json`.
+
+**Satu kehalusan: pencacahan ganda.** Kotak pembatas 38 raster provinsi saling
+bertindih — luas daratan provinsi-provinsi itu sendiri sudah menjumlah ±1% di
+atas luas Indonesia justru karena itu. Menjumlah satu zona lintas dua raster
+akan menghitung perbatasannya dua kali. Karena semua raster duduk di kisi
+global yang sama, perbaikannya adalah mengkomposit ulang ke kisi itu dalam
+pita horizontal sebelum menghitung apa pun, sehingga tiap piksel tanah
+dikunjungi sekali betapa pun banyak provinsi mengklaimnya.
+
+### 7.1 Hasil KHG — 865 unit, SK.130/2017
+
+Dijalankan atas **Kesatuan Hidrologis Gambut** resmi (865 unit dalam 6.405
+bagian). Uji silang pertama: luas KHG yang dihitung ulang di sini
+**24.220.016 ha** melawan `luas__ha` lapisan itu sendiri **24.194.606 ha** —
+selisih 0,1%. Akuntansi luasnya cocok dengan angka resmi.
+
+| | luas | terbakar | % |
+|---|---|---|---|
+| **KHG** | 24,22 juta ha | **2.114.442 ha** | **8,7%** |
+| Indonesia | 193,14 juta ha | 5.472.230 ha | 2,8% |
+
+**KHG adalah 12,5% daratan Indonesia tetapi 38,6% dari seluruh luas terbakar,
+dan 39,3% dari seluruh luas terbakar berulang — konsentrasi 3,1×.** Inilah
+pernyataan kuantitatif dari hal yang selama ini disampaikan secara kualitatif:
+api Indonesia adalah persoalan gambut.
+
+Tetapi persoalannya **terpusat**, bukan merata. Dari 865 unit, **586 tidak
+pernah terdeteksi terbakar sama sekali**; 279 pernah; dan hanya **33 unit yang
+≥25% luasnya pernah terbakar**. Empat unit melampaui 75%.
+
+| KHG | luas | terbakar | berulang |
+|---|---|---|---|
+| Sungai Ulakkedondong – Sungai Lumpur | 71.832 ha | **80,9%** | 44% |
+| Sungai Mangkatip – Sungai Barito 1 | 33.440 ha | 75,3% | 59% |
+| Sungai Buluh Besar | 134.982 ha | 60,0% | 26% |
+| Sungai Sibumbung – Sungai Talangrimba | 105.345 ha | 57,4% | 38% |
+| Sungai Burung – Sungai Way Mesuji | 87.498 ha | 46,1% | 41% |
+| Sungai Kahayan – Sungai Sebangau | 452.396 ha | 38,0% | 45% |
+
+Daftar 33 unit itu adalah daftar prioritas restorasi yang bisa diperiksa, dan
+panjangnya cukup pendek untuk ditindak.
+
+**KHG bukan peta sebaran gambut.** Satu KHG adalah unit hidrologis yang
+dibatasi sungai dan laut; di dalamnya ada gambut *dan* tanah mineral.
+Nasional, KHG ±24 juta ha sementara gambutnya sendiri sekitar 13–14 juta ha.
+Jangan pakai lapisan ini di slot `--peat-file`.
+
+---
+
+## 8. Langkah berikutnya yang didukung produk ini
 
 Raster per provinsi dirancang agar tiga pekerjaan lanjutan hanya perlu
 menumpangkan lapisan, bukan menghitung ulang kebakaran:
 
-1. **Titik panas × konsesi.** Perlu batas PBPH/HTI dan HGU sawit serta KHG.
-   Aritmetika titik-dalam-poligon, sepele begitu poligonnya ada; kendalanya
-   akses data, bukan metode. Batas konsesi yang beredar tidak resmi dan tidak
-   lengkap, jadi hitungannya batas bawah di atas penyebut yang tidak pasti.
+1. **Kebakaran × konsesi.** Sudah siap: `fire-zones` menerima lapisan poligon
+   apa pun, jadi batas PBPH/HTI atau HGU sawit cukup dipasang sebagai
+   `--zones`. Kendalanya akses data, bukan metode — batas konsesi yang beredar
+   tidak resmi dan tidak lengkap, jadi hitungannya batas bawah di atas
+   penyebut yang tidak pasti, dan itu harus dinyatakan.
 2. **Tata guna lahan pasca-bakar.** Bekas bakar 2015–2019 mudah; mengklasifikasi
    yang tumbuh di atasnya sekarang adalah pekerjaannya. Sawit relatif bisa
    (peta sawit global, atau pendekatan S1+S2 di `s1-land-cover-classification`).

@@ -179,10 +179,10 @@ def resolve_location(args):
         return None, None, None, args.name or safe_name(args.island)
     elif getattr(args, "areas", None):
         return None, None, None, args.name or "areas"
-    elif getattr(args, "scenario", None) == "fire-national":
+    elif getattr(args, "scenario", None) in ("fire-national", "fire-zones"):
         # The country is the extent. Asking for a centre would be asking which
         # point in Indonesia the national total is "at".
-        return None, None, None, args.name or "Indonesia"
+        return None, None, None, args.name or ("Indonesia" if args.scenario == "fire-national" else "zones")
     elif getattr(args, "bbox", None):
         w, s, e, n = (float(x) for x in args.bbox.split(","))
         return (s + n) / 2, (w + e) / 2, None, args.name or "bbox"
@@ -492,6 +492,22 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
             peat_source=args.peat_source or "both",
             season_start=args.season_start, season_end=args.season_end,
             overview_km=args.overview_km, refresh=args.refresh)
+        return True
+
+    if method == "fire-zones":
+        from . import fire_zones
+        if not args.zones or not args.zone_field:
+            raise SystemExit("fire-zones needs --zones FILE and --zone-field "
+                             "COLUMN, e.g.\n  --zones KHG.shp "
+                             "--zone-field kode_khg --from-run output/fire_national")
+        if not args.from_run:
+            raise SystemExit("fire-zones needs --from-run DIR: the finished "
+                             "fire-national folder holding provinces/")
+        fire_zones.run(run_dir=run_dir, run_id=run_id, zones_file=args.zones,
+                       zone_field=args.zone_field, zone_layer=args.zone_layer,
+                       zone_label=args.zone_label,
+                       national_dir=args.from_run, name=name,
+                       min_ha=args.min_ha)
         return True
 
     if method == "fire-hotspot":
@@ -954,7 +970,24 @@ def build_parser():
     ap.add_argument("--zone-field", metavar="COLUMN",
                     help="fire-danger: the attribute to group --zones by, "
                          "e.g. FUNGSI_HTN for the Indonesian forest "
-                         "designation layer")
+                         "designation layer. fire-zones: likewise, e.g. "
+                         "kode_khg for the KLHK peat hydrological units")
+    ap.add_argument("--zone-layer", metavar="NAME",
+                    help="fire-zones: layer name inside a multi-layer "
+                         "GeoPackage (not needed for a shapefile)")
+    ap.add_argument("--zone-label", metavar="COLUMN",
+                    help="fire-zones: a readable name to carry beside "
+                         "--zone-field, e.g. nama_khg. The code is the right "
+                         "thing to group on and the wrong thing to put on a "
+                         "chart")
+    ap.add_argument("--from-run", metavar="DIR",
+                    help="fire-zones: the finished fire-national output folder "
+                         "to read the province rasters from. The period and "
+                         "the peat definitions are taken from its stats.json, "
+                         "so zone and province figures cannot disagree")
+    ap.add_argument("--min-ha", type=float, default=0.0,
+                    help="fire-zones: drop zones with less than this much "
+                         "burned area from the table (default 0, keep all)")
     ap.add_argument("--zone-grid", type=float, default=500.0, metavar="METRES",
                     help="fire-danger: grid for the --zones cross-tabulation "
                          "(default 500). Areas are measured on this grid; the "
