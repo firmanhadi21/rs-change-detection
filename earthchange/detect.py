@@ -490,6 +490,7 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
             end_year=args.end_year, provinces=provs,
             peat_file=args.peat_file, peat_thr=args.peat_thr,
             peat_source=args.peat_source or "both",
+            peat_raster_thr=args.peat_raster_thr,
             season_start=args.season_start, season_end=args.season_end,
             overview_km=args.overview_km, refresh=args.refresh)
         return True
@@ -985,6 +986,12 @@ def build_parser():
                          "to read the province rasters from. The period and "
                          "the peat definitions are taken from its stats.json, "
                          "so zone and province figures cannot disagree")
+    ap.add_argument("--peat-raster-thr", type=float, metavar="VALUE",
+                    help="fire-national: the cut that makes a --peat-file "
+                         "raster peat. Omitted, anything above zero counts, "
+                         "which is right for a 0/1 mask. For a thickness grid "
+                         "pass the depth: Indonesia's official definition is "
+                         "50 (cm)")
     ap.add_argument("--min-ha", type=float, default=0.0,
                     help="fire-zones: drop zones with less than this much "
                          "burned area from the table (default 0, keep all)")

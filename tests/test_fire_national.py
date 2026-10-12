@@ -169,6 +169,97 @@ def test_a_supplied_peat_map_leads_and_the_proxies_survive(tmp_path):
     assert st["burned_peat_ha_range"][0] == st["burned_peat_ha_file"]
 
 
+# --- a supplied raster finer than the fire grid ----------------------------
+def _peat_raster(path, arr, west, north, deg, nodata=None, dtype="float32"):
+    h, w = arr.shape
+    prof = {"driver": "GTiff", "width": w, "height": h, "count": 1,
+            "dtype": dtype, "crs": "EPSG:4326",
+            "transform": from_origin(west, north, deg, deg)}
+    if nodata is not None:
+        prof["nodata"] = nodata
+    with rasterio.open(path, "w", **prof) as ds:
+        ds.write(arr.astype(dtype), 1)
+    return str(path)
+
+
+def test_a_finer_peat_raster_becomes_a_fraction_not_a_coin_flip(tmp_path):
+    """Half a cell of peat must read as half, not as all or nothing."""
+    one = np.ones((1, 1), dtype="uint16")
+    tif = _write(tmp_path, one, np.zeros((1, 1), "uint16"), one,
+                 west=110.0, north=-2.0)
+    # ten sub-pixels across one fire cell; four of them are peat
+    sub = np.zeros((10, 10), dtype="float32")
+    sub[:, :4] = 1.0
+    peat = _peat_raster(tmp_path / "p.tif", sub, 110.0, -2.0, 0.0045 / 10)
+    frac, cov = fn._local_peat(peat, tif)
+    assert cov.all()
+    assert frac[0, 0] == pytest.approx(0.4, abs=0.02)
+
+
+def test_nodata_averages_in_as_not_peat(tmp_path):
+    """Declared to GDAL, average skips nodata and one peat pixel reads 1.0."""
+    one = np.ones((1, 1), dtype="uint16")
+    tif = _write(tmp_path, one, np.zeros((1, 1), "uint16"), one,
+                 west=110.0, north=-2.0)
+    sub = np.full((10, 10), -99999.0, dtype="float32")
+    sub[0, 0] = 1.0                       # exactly one peat pixel in a hundred
+    peat = _peat_raster(tmp_path / "p.tif", sub, 110.0, -2.0, 0.0045 / 10,
+                        nodata=-99999.0)
+    frac, _ = fn._local_peat(peat, tif)
+    assert frac[0, 0] == pytest.approx(0.01, abs=0.005)
+
+
+def test_a_threshold_turns_a_thickness_grid_into_peat(tmp_path):
+    """Indonesia's official definition cuts at 50 cm, not at any depth."""
+    one = np.ones((1, 1), dtype="uint16")
+    tif = _write(tmp_path, one, np.zeros((1, 1), "uint16"), one,
+                 west=110.0, north=-2.0)
+    sub = np.zeros((10, 10), dtype="float32")
+    sub[:, :5] = 20.0                      # shallow, below the cut
+    sub[:, 5:] = 80.0                      # deep
+    peat = _peat_raster(tmp_path / "p.tif", sub, 110.0, -2.0, 0.0045 / 10)
+    assert fn._local_peat(peat, tif)[0][0, 0] == pytest.approx(1.0, abs=0.02)
+    deep = fn._local_peat(peat, tif, thr=50.0)[0][0, 0]
+    assert deep == pytest.approx(0.5, abs=0.02)
+
+
+def test_where_the_supplied_map_does_not_reach_is_unknown_not_zero(tmp_path):
+    """A one-island map must not report the mainland as having no peat."""
+    one = np.ones((1, 2), dtype="uint16")
+    tif = _write(tmp_path, one, np.zeros((1, 2), "uint16"), one,
+                 west=110.0, north=-2.0)
+    far = _peat_raster(tmp_path / "p.tif", np.ones((4, 4), "float32"),
+                       130.0, -2.0, 0.0045)
+    st = fn.province_stats(tif, YEARS, ["file"], peat_file=far)
+    assert st["peat_coverage_pct_file"] == 0.0
+    assert st["burned_peat_ha_file"] is None
+    assert st["peat_share_of_burned_pct_file"] is None
+    assert st["burned_peat_ha_range"] is None
+
+
+def test_an_uncovered_definition_does_not_drag_the_range_to_zero(tmp_path):
+    """Riau's soc/peatgrids range must survive a Kalimantan-only raster."""
+    one = np.ones((1, 2), dtype="uint16")
+    tif = _write(tmp_path, one, np.zeros((1, 2), "uint16"), one,
+                 west=110.0, north=-2.0)
+    with rasterio.open(tif) as ds:
+        tr, crs = ds.transform, ds.crs
+    bands = [one, np.zeros((1, 2), "uint16"),
+             np.array([[1, 0]], "uint16"), np.array([[1, 1]], "uint16"), one]
+    with rasterio.open(tif, "w", driver="GTiff", width=2, height=1,
+                       count=len(bands), dtype="uint16", crs=crs,
+                       transform=tr) as ds:
+        for i, a in enumerate(bands, start=1):
+            ds.write(a, i)
+    far = _peat_raster(tmp_path / "p.tif", np.ones((4, 4), "float32"),
+                       130.0, -2.0, 0.0045)
+    st = fn.province_stats(tif, YEARS, ["file", "soc", "peatgrids"],
+                           peat_file=far)
+    assert st["burned_peat_ha_file"] is None
+    lo, hi = st["peat_share_of_burned_pct_range"]
+    assert lo == pytest.approx(50.0) and hi == pytest.approx(100.0)
+
+
 def test_a_stack_whose_bands_do_not_match_the_keys_is_refused(tmp_path):
     """A cache written under one set of peat definitions, read under another."""
     inside = np.ones((1, 2), dtype="uint16")

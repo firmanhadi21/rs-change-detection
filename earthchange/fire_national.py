@@ -231,28 +231,85 @@ def _popcount(nbits=MAX_YEARS):
     return np.array([bin(i).count("1") for i in range(1 << nbits)], dtype="uint8")
 
 
-def _local_peat(peat_file, tif):
-    """A local peat raster read onto the province grid (nearest neighbour)."""
+PEAT_BLOCK_ROWS = 256           # target rows resampled at a time
+
+
+def _local_peat(peat_file, tif, thr=None, block=PEAT_BLOCK_ROWS):
+    """A supplied peat raster as the *fraction* of each fire cell it covers.
+
+    Returns (fraction in 0..1, covered) where `covered` marks the cells the
+    supplied raster actually has data for -- outside its extent the fraction
+    is zero, which means "not surveyed", not "no peat", and the two must not
+    be confused for a province the map does not reach.
+
+    Fraction rather than a nearest-neighbour yes/no, because a supplied map is
+    usually much finer than the 500 m fire grid: the 2019 Kalimantan model is
+    50 m, so one fire cell holds a hundred of its pixels. Nearest would pick
+    one of that hundred and throw the rest away, making each cell's peat
+    status close to a coin flip at the edges of a peat dome. Averaging the
+    hundred instead turns "is this cell peat" into "how much of it is", which
+    is the question the burned-peat area actually needs.
+
+    Nodata is recoded to zero before averaging rather than declared to GDAL.
+    Declared, average resampling *skips* nodata, so a cell holding one peat
+    pixel and ninety-nine nodata would come back 1.0 instead of 0.01. Here
+    nodata means "not peat", so it has to be averaged in as zero.
+    """
     import numpy as np
     import rasterio
     from rasterio.warp import reproject, Resampling
+    from rasterio.windows import Window, bounds as win_bounds, from_bounds
     with rasterio.open(tif) as ref:
-        dst = np.zeros((ref.height, ref.width), dtype="uint8")
-        with rasterio.open(peat_file) as src:
-            reproject(source=rasterio.band(src, 1), destination=dst,
-                      src_transform=src.transform, src_crs=src.crs,
-                      dst_transform=ref.transform, dst_crs=ref.crs,
-                      resampling=Resampling.nearest)
-    return dst > 0
+        dst_tr, H, W, crs = ref.transform, ref.height, ref.width, ref.crs
+    frac = np.zeros((H, W), dtype="float32")
+    covered = np.zeros((H, W), dtype=bool)
+    with rasterio.open(peat_file) as src:
+        sw, ss, se, sn = src.bounds
+        for r0 in range(0, H, block):
+            h = min(block, H - r0)
+            win = Window(0, r0, W, h)
+            sub_tr = rasterio.windows.transform(win, dst_tr)
+            w, s, e, n = win_bounds(win, dst_tr)
+            if e <= sw or w >= se or n <= ss or s >= sn:
+                continue                      # this band is off the map
+            sub = from_bounds(w, s, e, n, transform=src.transform)
+            sub = sub.round_offsets().round_lengths()
+            # one pixel of padding, so an edge cell averages over whole pixels
+            sub = Window(sub.col_off - 1, sub.row_off - 1,
+                         sub.width + 2, sub.height + 2)
+            a = src.read(1, window=sub, boundless=True,
+                         fill_value=(src.nodata if src.nodata is not None
+                                     else 0))
+            m = (a > thr if thr is not None else a > 0).astype("float32")
+            out = np.zeros((h, W), dtype="float32")
+            reproject(source=m, destination=out,
+                      src_transform=rasterio.windows.transform(sub,
+                                                               src.transform),
+                      src_crs=src.crs, dst_transform=sub_tr, dst_crs=crs,
+                      resampling=Resampling.average)
+            frac[r0:r0 + h] = out
+            # the part of this band the supplied raster actually reaches
+            cols = np.arange(W)
+            xs = dst_tr.c + (cols + 0.5) * dst_tr.a
+            ys = n - (np.arange(h) + 0.5) * abs(dst_tr.e)
+            covered[r0:r0 + h] = (((xs >= sw) & (xs <= se))[None, :]
+                                  & ((ys >= ss) & (ys <= sn))[:, None])
+    return np.clip(frac, 0.0, 1.0), covered
 
 
-def province_stats(tif, years, peat_keys=("soc", "peatgrids"), peat_file=None):
+def province_stats(tif, years, peat_keys=("soc", "peatgrids"), peat_file=None,
+                   peat_thr=None):
     """Every hectare figure for one province, unpacked from its own raster.
 
     Deliberately the only place areas are computed. Earth Engine could sum the
     same masks server-side, and the two answers would differ by the projection
     and by how each counts a part-covered pixel -- a disagreement that reaches
     the reader as two numbers for one thing.
+
+    A peat layer is a weight in 0..1, not a flag: the server proxies are 0 or
+    1, a supplied raster finer than this grid is the fraction of each cell it
+    covers. Where a supplied raster does not reach, its figures come back
+    None -- a province the map does not cover has unknown peat, not none.
     """
     import numpy as np
     import rasterio
@@ -267,12 +324,18 @@ def province_stats(tif, years, peat_keys=("soc", "peatgrids"), peat_file=None):
                          f"not the {len(keys) + 2} these peat definitions need")
     inside = arr[0] > 0
     bits = arr[-1]
-    peats = {k: (arr[i + 1] > 0) & inside for i, k in enumerate(keys)}
+    peats = {k: ((arr[i + 1] > 0) & inside).astype("float32")
+             for i, k in enumerate(keys)}
+    coverage = {k: 1.0 for k in keys}
     if peat_file:
         # A local raster is not in the download -- its band came down as
         # zeros -- so it is read onto this grid now. Only that one band is
         # replaced; any proxies riding with it keep their server values.
-        peats["file"] = _local_peat(peat_file, tif) & inside
+        frac, cov = _local_peat(peat_file, tif, thr=peat_thr)
+        peats["file"] = frac * inside
+        land_px = int(inside.sum())
+        coverage["file"] = (float((inside & cov).sum()) / land_px
+                            if land_px else 0.0)
     times = _popcount()[bits]
     burned = times >= 1
     rep = times >= 2
@@ -288,7 +351,7 @@ def province_stats(tif, years, peat_keys=("soc", "peatgrids"), peat_file=None):
             if (times == t).any()}
     land_ha, burned_ha, rep_ha = area(inside), area(burned), area(rep)
     r1 = lambda v: round(v, 1)                              # noqa: E731
-    bp = {k: area(burned & p) for k, p in peats.items()}
+    bp = {k: area(burned * p) for k, p in peats.items()}
     out = {
         "years": list(years),
         "peat_keys": keys,
@@ -309,18 +372,35 @@ def province_stats(tif, years, peat_keys=("soc", "peatgrids"), peat_file=None):
     }
     # Per peat definition, never collapsed to one: see peat_layers().
     for k, p in peats.items():
+        cv = coverage[k]
+        out[f"peat_coverage_pct_{k}"] = round(100 * cv, 1)
+        if cv <= 0:
+            # The map does not reach this province. Zero would read as "no
+            # peat here", which is a different and much stronger claim.
+            for f in ("peat_ha", "burned_peat_ha", "repeat_peat_ha",
+                      "peat_share_of_burned_pct", "peat_burned_ha_by_year"):
+                out[f"{f}_{k}"] = None
+            continue
         out[f"peat_ha_{k}"] = r1(area(p))
         out[f"burned_peat_ha_{k}"] = r1(bp[k])
-        out[f"repeat_peat_ha_{k}"] = r1(area(rep & p))
+        out[f"repeat_peat_ha_{k}"] = r1(area(rep * p))
         out[f"peat_share_of_burned_pct_{k}"] = round(
             100 * bp[k] / (burned_ha or 1), 1)
         out[f"peat_burned_ha_by_year_{k}"] = {
-            y: r1(area(m & p)) for y, m in by_year.items()}
-    lo, hi = min(bp.values()), max(bp.values())
-    out["burned_peat_ha_range"] = [r1(lo), r1(hi)]
-    out["peat_share_of_burned_pct_range"] = [
-        round(100 * lo / (burned_ha or 1), 1),
-        round(100 * hi / (burned_ha or 1), 1)]
+            y: r1(area(m * p)) for y, m in by_year.items()}
+    # Only definitions that actually cover this province span the range. An
+    # uncovered one contributes nothing, and letting its zero in would drag
+    # every range's floor to 0% the moment one island's map is supplied.
+    have = [v for k, v in bp.items() if coverage[k] > 0]
+    if have:
+        lo, hi = min(have), max(have)
+        out["burned_peat_ha_range"] = [r1(lo), r1(hi)]
+        out["peat_share_of_burned_pct_range"] = [
+            round(100 * lo / (burned_ha or 1), 1),
+            round(100 * hi / (burned_ha or 1), 1)]
+    else:
+        out["burned_peat_ha_range"] = None
+        out["peat_share_of_burned_pct_range"] = None
     return out
 
 
@@ -345,7 +425,8 @@ def _usable(path, bands):
         return False
 
 
-def one_province(name, years, peats, peat_file, out_dir, refresh=False):
+def one_province(name, years, peats, peat_file, out_dir, refresh=False,
+                 peat_thr=None):
     """Download (or reuse) one province's stack and derive its statistics."""
     from .gee_utils import download_geotiff
     os.makedirs(out_dir, exist_ok=True)
@@ -365,13 +446,21 @@ def one_province(name, years, peats, peat_file, out_dir, refresh=False):
                         scale=BURN_SCALE,
                         crs_transform=grid_transform()) is None:
         raise SystemExit(f"{name}: stack download failed")
-    st = province_stats(tif, years, peat_keys=keys, peat_file=peat_file)
+    st = province_stats(tif, years, peat_keys=keys, peat_file=peat_file,
+                        peat_thr=peat_thr)
     st.update(province=name, peat_definitions=labels,
               raster=os.path.relpath(tif, os.path.dirname(out_dir)))
     with open(sjson, "w") as f:
         json.dump(st, f, indent=2)
-    lo, hi = st["peat_share_of_burned_pct_range"]
-    share = f"{lo:.0f}%" if lo == hi else f"{lo:.0f}–{hi:.0f}%"
+    rng = st["peat_share_of_burned_pct_range"]
+    if not rng:
+        share = "n/a"
+    else:
+        lo, hi = rng
+        share = f"{lo:.0f}%" if lo == hi else f"{lo:.0f}–{hi:.0f}%"
+    cov = st.get("peat_coverage_pct_file")
+    if cov is not None and 0 < cov < 99.5:
+        share += f" ({cov:.0f}% terpeta)"
     print(f"  {name}: {st['burned_ha']:>12,.0f} ha burned · "
           f"{st['repeat_share_of_burned_pct']:>4.0f}% berulang · "
           f"{share:>8} gambut")
@@ -493,7 +582,10 @@ def _render_ranking(rows, run_dir, years, peat_keys, top=20):
     rs = sorted(rows, key=lambda r: -r["repeat_ha"])[:top]
     names = [r["province"] for r in rs]
     y = np.arange(len(rs))
-    pk = [[r[f"repeat_peat_ha_{k}"] / 1e3 for k in peat_keys] for r in rs]
+    # A definition that does not reach a province contributes nothing to its
+    # bar rather than a zero, which would draw as "no peat burned here".
+    pk = [[r[f"repeat_peat_ha_{k}"] / 1e3 for k in peat_keys
+           if r.get(f"repeat_peat_ha_{k}") is not None] or [0.0] for r in rs]
     lo = [min(v) for v in pk]
     hi = [max(v) for v in pk]
     rep = [r["repeat_ha"] / 1e3 for r in rs]
@@ -566,8 +658,8 @@ def _render_season(hot, run_dir, window, current, top=15):
 def run(backend, name, run_dir, run_id, config_key=None,
         start_year=DEFAULT_START, end_year=None, provinces=None,
         peat_file=None, peat_thr=PEAT_THR, peat_source="both",
-        season_start=SEASON_START_MD, season_end=None, overview_km=2.0,
-        refresh=False, **_):
+        peat_raster_thr=None, season_start=SEASON_START_MD, season_end=None,
+        overview_km=2.0, refresh=False, **_):
     """National fire recurrence + peat, province by province (GEE)."""
     for mod in ("numpy", "matplotlib", "rasterio"):
         try:
@@ -600,8 +692,13 @@ def run(backend, name, run_dir, run_id, config_key=None,
 
     for _, lab, _ in peats:
         print(f"  {lab}")
+    if local_peat:
+        cut = (f"> {peat_raster_thr:g}" if peat_raster_thr is not None
+               else "> 0")
+        print(f"  supplied raster counted as peat where {cut}, averaged to "
+              f"the fraction of each {GRID_DEG * 111320:.0f} m cell it covers")
     if len(peats) > 1:
-        print("  both are carried: the burned-peat figure is published as the "
+        print("  all are carried: the burned-peat figure is published as the "
               "range they span, not as one of them")
     print(f"  recurrence {years[0]}–{years[-1]} ({len(years)} complete years), "
           f"{len(names)} provinces, grid {GRID_DEG}° (~{GRID_DEG * 111320:.0f} m)")
@@ -614,7 +711,8 @@ def run(backend, name, run_dir, run_id, config_key=None,
         try:
             rows.append(one_province(p, years, peats,
                                      peat_file if local_peat else None,
-                                     os.path.join(pdir, slug(p)), refresh))
+                                     os.path.join(pdir, slug(p)), refresh,
+                                     peat_thr=peat_raster_thr))
         except SystemExit as e:
             print(f"  skipped: {e}"); failed.append(p)
         except Exception as e:      # noqa: BLE001 — one province must not end the run
@@ -661,10 +759,24 @@ def run(backend, name, run_dir, run_id, config_key=None,
     _write_csv(flat, peat_keys, os.path.join(run_dir, "provinces.csv"))
 
     keys = ["land_ha", "burned_ha", "repeat_ha", "repeat3_ha"]
-    keys += [f"{c}_{k}" for k in peat_keys for c in
-             ("peat_ha", "burned_peat_ha", "repeat_peat_ha")]
     tot = {k: round(sum(r[k] for r in rows), 1) for k in keys}
-    bp = [tot[f"burned_peat_ha_{k}"] for k in peat_keys]
+    # A peat definition is totalled only over the provinces it reaches, and
+    # the national figure says how much of the burned area that was. A
+    # one-island map summed as if it were national would read as a country
+    # with almost no peat.
+    reach = {}
+    for k in peat_keys:
+        got = [r for r in rows if r.get(f"burned_peat_ha_{k}") is not None]
+        for c in ("peat_ha", "burned_peat_ha", "repeat_peat_ha"):
+            tot[f"{c}_{k}"] = round(sum(r[f"{c}_{k}"] for r in got), 1)
+        reach[k] = {
+            "provinces": len(got),
+            "burned_ha_covered": round(sum(r["burned_ha"] for r in got), 1),
+            "pct_of_national_burned": round(
+                100 * sum(r["burned_ha"] for r in got)
+                / (tot["burned_ha"] or 1), 1)}
+    full = [k for k in peat_keys if reach[k]["provinces"] == len(rows)]
+    bp = [tot[f"burned_peat_ha_{k}"] for k in (full or peat_keys)]
     stats = {
         "run_id": run_id, "scenario": "fire-national", "name": name,
         "dataset": "MODIS MCD64A1 burned area (500 m) + FIRMS hotspots",
@@ -677,6 +789,8 @@ def run(backend, name, run_dir, run_id, config_key=None,
         "peat_share_of_burned_pct_range": [
             round(100 * min(bp) / (tot["burned_ha"] or 1), 1),
             round(100 * max(bp) / (tot["burned_ha"] or 1), 1)],
+        "peat_range_from": full or list(peat_keys),
+        "peat_coverage": reach,
         "repeat_share_of_burned_pct": round(
             100 * tot["repeat_ha"] / (tot["burned_ha"] or 1), 1),
         "by_province": {r["province"]: r for r in flat},

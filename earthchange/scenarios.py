@@ -823,8 +823,9 @@ SCENARIO_FLAGS = {
     # fire-national covers the whole country by construction, so it takes no
     # --lat/--lon/--radius/--bbox: --areas names the provinces to run or resume.
     "fire-national": ("--start-year", "--end-year", "--areas", "--peat-file",
-                      "--peat-source", "--peat-thr", "--season-start",
-                      "--season-end", "--overview-km", "--refresh"),
+                      "--peat-source", "--peat-thr", "--peat-raster-thr",
+                      "--season-start", "--season-end", "--overview-km",
+                      "--refresh"),
     # fire-zones reads an existing fire-national run and touches no satellite
     # data of its own, so it takes none of the year or peat flags: the period
     # and the peat definitions come from that run's stats.json.
