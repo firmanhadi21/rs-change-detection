@@ -699,6 +699,17 @@ SCENARIOS = {
                            "mineral), peta berapa kali tiap piksel terbakar, dan "
                            "musim kebakaran (puncak kemarau)."),
     },
+    "fire-national": {
+        "label": "Fire recurrence, national — how often every pixel burned and "
+                 "how much of it is peat, province by province (MODIS + FIRMS)",
+        "method": "fire-national",
+        "radius": 0.0, "needs": "none",
+        "interpretation": ("Keberulangan karhutla se-Indonesia: berapa kali tiap "
+                           "piksel terbakar sepanjang periode, porsi di gambut, "
+                           "dan rekapitulasi per provinsi. Titik panas musim "
+                           "berjalan dibandingkan jendela tanggal yang sama "
+                           "pada tahun-tahun sebelumnya."),
+    },
     "fire-hotspot": {
         "label": "Fire hotspot brief — last N days of active fire by admin unit "
                  "and forest function, as printable JPEG pages (FIRMS)",
@@ -798,6 +809,11 @@ SCENARIO_FLAGS = {
     "fire-history": ("--start-year", "--end-year", "--areas", "--regions",
                      "--vs-baseline", "--peat-file", "--peat-source",
                      "--peat-thr"),
+    # fire-national covers the whole country by construction, so it takes no
+    # --lat/--lon/--radius/--bbox: --areas names the provinces to run or resume.
+    "fire-national": ("--start-year", "--end-year", "--areas", "--peat-file",
+                      "--peat-source", "--peat-thr", "--season-start",
+                      "--season-end", "--overview-km", "--refresh"),
     # fire-danger and smoke-track read args.date directly rather than through
     # the needs branch, so they name it here.
     "fire-danger": ("--date", "--fdrs-end", "--spinup", "--rain-source"

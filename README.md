@@ -160,6 +160,7 @@ gratis), atau `--site NAMA`.
 | `population-change` | Perubahan populasi 2 epoch: infografik siluet-pulau gaya Miloš + peta + ekspor forge3d | GHSL GHS_POP |
 | `haze` | Asap & kualitas udara karhutla: PM2.5 (ISPU), indeks aerosol, titik panas | CAMS + Sentinel-5P + FIRMS |
 | `fire-history` | Riwayat karhutla: luas terbakar/tahun (gambut vs mineral), peta frekuensi, musim | MODIS MCD64A1 + FIRMS |
+| `fire-national` | Keberulangan karhutla **se-Indonesia**, 38 provinsi, 500 m: berapa kali tiap piksel terbakar, porsi gambut sebagai **rentang dua definisi**, dan musim berjalan vs rekor. Bisa dilanjutkan bila terhenti | MODIS MCD64A1 + FIRMS |
 | `drought` | Kekeringan: anomali hujan (z-score), VCI/TCI/VHI, ENSO + IOD; `--cdi` menggabungkan meteorologis/pertanian/vegetasi jadi satu peta kelas, `--cdi-mask` membacanya hanya di atas sawah | CHIRPS/ERA5-Land/IMERG + MODIS + OISST |
 | `drought-paddy` | Kekeringan **di sawah**, per petak: kapan ditanam (dan mundur berapa hari dibanding musim sebelumnya), berapa yang belum tanam, kecukupan air terhadap kebutuhan tanaman, dan prakiraan 7 hari. Panjang musim **diukur** per petak dengan jendela ganda, bukan diasumsikan 110 hari | Sentinel-1 VH + WaPOR 3.0 (AETI/RET) + CHIRPS + GFS |
 

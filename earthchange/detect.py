@@ -179,6 +179,10 @@ def resolve_location(args):
         return None, None, None, args.name or safe_name(args.island)
     elif getattr(args, "areas", None):
         return None, None, None, args.name or "areas"
+    elif getattr(args, "scenario", None) == "fire-national":
+        # The country is the extent. Asking for a centre would be asking which
+        # point in Indonesia the national total is "at".
+        return None, None, None, args.name or "Indonesia"
     elif getattr(args, "bbox", None):
         w, s, e, n = (float(x) for x in args.bbox.split(","))
         return (s + n) / 2, (w + e) / 2, None, args.name or "bbox"
@@ -385,7 +389,7 @@ def _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key):
               config_key=ee_key,
               start_year=args.start_year or fire_history.DEFAULT_START,
               end_year=args.end_year, peat_file=args.peat_file,
-              peat_thr=args.peat_thr, peat_source=args.peat_source,
+              peat_thr=args.peat_thr, peat_source=args.peat_source or "soc",
               vs_baseline=args.vs_baseline)
     if args.areas:
         areas = [a.strip() for a in args.areas.split(",") if a.strip()]
@@ -473,6 +477,21 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
 
     if method == "fire-history":
         _run_fire_history(args, lat, lon, radius, name, run_dir, run_id, ee_key)
+        return True
+
+    if method == "fire-national":
+        from . import fire_national
+        provs = ([a.strip() for a in args.areas.split(",") if a.strip()]
+                 if args.areas else None)
+        fire_national.run(
+            backend=args.backend, name=name, run_dir=run_dir, run_id=run_id,
+            config_key=ee_key,
+            start_year=args.start_year or fire_national.DEFAULT_START,
+            end_year=args.end_year, provinces=provs,
+            peat_file=args.peat_file, peat_thr=args.peat_thr,
+            peat_source=args.peat_source or "both",
+            season_start=args.season_start, season_end=args.season_end,
+            overview_km=args.overview_km, refresh=args.refresh)
         return True
 
     if method == "fire-hotspot":
@@ -1275,15 +1294,34 @@ def build_parser():
                     "polygon instead of a square AOI, so figures are per-province")
     ap.add_argument("--areas", help="fire-history: comma-separated admin names to "
                     "run and compare, e.g. --areas 'Riau,Jambi,Sumatera Selatan' "
-                    "— writes each area plus fire_areas_comparison.png")
+                    "— writes each area plus fire_areas_comparison.png. "
+                    "fire-national: the provinces to run (default: all 38)")
+    ap.add_argument("--season-start", default="08-01", metavar="MM-DD",
+                    help="fire-national: first day of the hotspot season window "
+                         "(default 08-01, the start of the Indonesian fire season)")
+    ap.add_argument("--season-end", metavar="MM-DD",
+                    help="fire-national: last day of the hotspot window "
+                         "(default: today, so the running season is compared "
+                         "against the same calendar window in earlier years)")
+    ap.add_argument("--overview-km", type=float, default=2.0,
+                    help="fire-national: pixel size of the national overview "
+                         "raster used for the map, in km (default 2); the "
+                         "per-province rasters stay at 500 m")
+    ap.add_argument("--refresh", action="store_true",
+                    help="fire-national: re-download provinces that are already "
+                         "cached, instead of resuming")
     ap.add_argument("--vs-baseline", action="store_true",
                     help="fire-history: also compare the current season to date "
                          "against the same calendar window in every prior year "
                          "(FIRMS hotspots) — writes fire_vs_baseline.png")
-    ap.add_argument("--peat-source", choices=["soc", "peatgrids"], default="soc",
-                    help="fire-history: peat layer when no --peat-file is given — "
-                         "'soc' (default, OpenLandMap soil-carbon proxy) or "
-                         "'peatgrids' (PEATGRIDS 1 km peat thickness > 0)")
+    ap.add_argument("--peat-source", choices=["soc", "peatgrids", "both"], default=None,
+                    help="peat layer when no --peat-file is given — 'soc' "
+                         "(OpenLandMap soil-carbon proxy, the fire-history "
+                         "default), 'peatgrids' (PEATGRIDS 1 km peat thickness "
+                         "> 0), or 'both' (the fire-national default: the two "
+                         "disagree by 1.9 M ha on Riau alone and fail in "
+                         "opposite directions, so the burned-peat figure is "
+                         "published as the range they span)")
     ap.add_argument("--peat-thr", type=float, default=30.0,
                     help="fire-history: peat proxy threshold on OpenLandMap soil "
                          "organic carbon at 10 cm, raw units (default 30 — calibrated "
