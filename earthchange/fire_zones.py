@@ -26,13 +26,18 @@ import csv
 import json
 import os
 
-from .fire_national import GRID_DEG, _popcount, slug
+from .fire_national import GRID_DEG, _local_peat, _popcount, slug
 
 os.environ.pop("PROJ_LIB", None)
 os.environ.pop("PROJ_DATA", None)
 
 BAND_ROWS = 1024                 # global rows composited at a time
 MIN_HA = 0.0                     # keep every zone by default
+# The complement: land inside a province but outside every zone. For KHG it
+# answers the question the zone table cannot -- how much of what burned was
+# outside the officially recognised peat hydrology altogether.
+OUTSIDE = "__outside__"
+OUTSIDE_LABEL = "(di luar semua zona)"
 
 
 def _grid_index(x, deg=GRID_DEG):
@@ -105,7 +110,8 @@ def _read_zones(path, field, layer=None, label=None):
 
 
 def zone_stats(provinces_dir, zones, field, years, peat_keys, label=None,
-               band_rows=BAND_ROWS, progress=print):
+               band_rows=BAND_ROWS, progress=print, peat_file=None,
+               peat_thr=None):
     """Hectares per zone, composited band by band off the global lattice."""
     import numpy as np
     import rasterio
@@ -138,14 +144,17 @@ def zone_stats(provinces_dir, zones, field, years, peat_keys, label=None,
     maxt = np.zeros(n + 1, dtype="uint8")
     pop = _popcount()
 
-    opened = {}
+    opened, filled = {}, {}
     try:
         for top in range(r0, r1, band_rows):
             bot = min(top + band_rows, r1)
             h = bot - top
             inside = np.zeros((h, width), dtype=bool)
             bits = np.zeros((h, width), dtype="uint16")
-            peat = {k: np.zeros((h, width), dtype=bool) for k in peat_keys}
+            # Float, because a supplied raster finer than this grid arrives as
+            # the fraction of each cell it covers, not as a flag.
+            peat = {k: np.zeros((h, width), dtype="float32")
+                    for k in peat_keys}
             touched = False
             for f in frames:
                 fr0, fr1 = f["row0"], f["row0"] + f["h"]
@@ -168,7 +177,18 @@ def zone_stats(provinces_dir, zones, field, years, peat_keys, label=None,
                 inside[sl] |= ins
                 np.maximum(bits[sl], np.where(ins, a[-1], 0), out=bits[sl])
                 for i, k in enumerate(peat_keys):
-                    peat[k][sl] |= (a[i + 1] > 0) & ins
+                    if k == "file" and peat_file:
+                        # Its band came down as zeros: fire-national fills it
+                        # locally and never writes it back, so reading the
+                        # band here would report no peat at all. Recompute it
+                        # on this province's own grid, once, and window in.
+                        if f["path"] not in filled:
+                            filled[f["path"]] = _local_peat(
+                                peat_file, f["path"], thr=peat_thr)[0]
+                        v = filled[f["path"]][sr - fr0:er - fr0, :]
+                    else:
+                        v = (a[i + 1] > 0).astype("float32")
+                    np.maximum(peat[k][sl], v * ins, out=peat[k][sl])
             if not touched or not inside.any():
                 continue
 
@@ -176,7 +196,11 @@ def zone_stats(provinces_dir, zones, field, years, peat_keys, label=None,
             tr = from_origin(c0 * deg, north, deg, deg)
             zid = rasterize(shapes, out_shape=(h, width), transform=tr,
                             fill=0, dtype="int32", all_touched=False)
-            m = inside & (zid > 0)
+            # Index 0 is kept, not discarded: it is the land inside a province
+            # but outside every zone, and it ships as its own row. For a layer
+            # like KHG that complement is the question -- how much of what
+            # burned was outside the officially recognised peat hydrology.
+            m = inside
             if not m.any():
                 continue
             ha = np.repeat(row_areas_ha(tr, h)[:, None], width, axis=1)
@@ -185,17 +209,17 @@ def zone_stats(provinces_dir, zones, field, years, peat_keys, label=None,
             times = pop[bits[m]]
 
             def add(key, sel):
-                acc[key] += np.bincount(z[sel], weights=w[sel],
-                                        minlength=n + 1)
+                """sel is a mask or a 0..1 weight; peat is the latter."""
+                acc[key] += np.bincount(z, weights=w * sel, minlength=n + 1)
 
-            add("land", np.ones(z.shape, dtype=bool))
+            add("land", np.ones(z.shape))
             add("burned", times >= 1)
             add("repeat", times >= 2)
             add("repeat3", times >= 3)
             for k in peat_keys:
                 pm = peat[k][m]
                 add(f"peat_{k}", pm)
-                add(f"burnpeat_{k}", pm & (times >= 1))
+                add(f"burnpeat_{k}", pm * (times >= 1))
             bm = bits[m]
             for i, y in enumerate(years):
                 add(f"year_{y}", ((bm >> i) & 1).astype(bool))
@@ -208,11 +232,11 @@ def zone_stats(provinces_dir, zones, field, years, peat_keys, label=None,
 
     labels = list(zones[label]) if label else None
     rows = []
-    for i, nm in enumerate(names, start=1):
+    for i, nm in enumerate([OUTSIDE] + names):
         land, burned = acc["land"][i], acc["burned"][i]
         rec = {field: nm}
         if labels:
-            rec[label] = labels[i - 1]
+            rec[label] = OUTSIDE_LABEL if i == 0 else labels[i - 1]
         rec.update({
             "land_ha": round(land, 1),
             "burned_ha": round(burned, 1),
@@ -336,13 +360,19 @@ def run(run_dir, run_id, zones_file, zone_field, national_dir,
     print(f"  {len(zones)} zones, grid {GRID_DEG}°, "
           f"{years[0]}–{years[-1]}, peat: {', '.join(peat_keys)}")
 
-    rows = zone_stats(pdir, zones, zone_field, years, peat_keys,
-                      label=zone_label)
+    if nat.get("peat_file"):
+        print(f"  supplied peat raster: "
+              f"{os.path.basename(nat['peat_file'])} (from the run)")
+    allrows = zone_stats(pdir, zones, zone_field, years, peat_keys,
+                         label=zone_label, peat_file=nat.get("peat_file"),
+                         peat_thr=nat.get("peat_raster_thr"))
+    outside = next(r for r in allrows if r[zone_field] == OUTSIDE)
+    rows = [r for r in allrows if r[zone_field] != OUTSIDE]
     if min_ha:
         rows = [r for r in rows if r["burned_ha"] >= min_ha]
         print(f"  {len(rows)} zones with ≥ {min_ha:g} ha burned")
 
-    write_csv(rows, zone_field, peat_keys,
+    write_csv(rows + [outside], zone_field, peat_keys,
               os.path.join(run_dir, "zones.csv"), label=zone_label)
     write_gpkg(zones, rows, zone_field, os.path.join(run_dir, "zones.gpkg"))
     _render(rows, zone_field, run_dir, years, peat_keys,
@@ -360,6 +390,13 @@ def run(run_dir, run_id, zones_file, zone_field, national_dir,
         "years": years, "peat_definitions": nat["peat_definitions"],
         "zones": len(rows), "total": tot,
         "burned_peat_ha_by_definition": bp,
+        # The land these zones do not cover, so the reader can see how much
+        # of the problem sits outside the layer rather than assuming it all
+        # sits inside.
+        "outside_zones": outside,
+        "burned_share_inside_zones_pct": round(
+            100 * tot["burned_ha"]
+            / ((tot["burned_ha"] + outside["burned_ha"]) or 1), 1),
         "burned_pct_of_zones": round(
             100 * tot["burned_ha"] / (tot["land_ha"] or 1), 2),
         "repeat_share_of_burned_pct": round(
@@ -382,6 +419,18 @@ def run(run_dir, run_id, zones_file, zone_field, national_dir,
           f"{tot['burned_ha']:,.0f} ha terbakar "
           f"({stats['burned_pct_of_zones']:.1f}%), "
           f"{stats['repeat_share_of_burned_pct']:.0f}% berulang")
+    print(f"  di luar semua zona: {outside['land_ha']:,.0f} ha · "
+          f"{outside['burned_ha']:,.0f} ha terbakar "
+          f"({outside['burned_pct_of_zone']:.1f}%) — "
+          f"{stats['burned_share_inside_zones_pct']:.0f}% dari yang terbakar "
+          f"ada di dalam zona")
+    for k in peat_keys:
+        inside_p = bp[k]
+        out_p = outside[f"burned_peat_ha_{k}"]
+        if inside_p or out_p:
+            print(f"    gambut terbakar [{k}]: {inside_p:,.0f} ha di dalam, "
+                  f"{out_p:,.0f} ha di luar "
+                  f"({100 * inside_p / ((inside_p + out_p) or 1):.0f}% di dalam)")
     for r in sorted(rows, key=lambda r: -r["burned_ha"])[:8]:
         print(f"    {str(r.get(zone_label) or r[zone_field])[:44]:<46}"
               f"{r['burned_ha']:>11,.0f} ha "

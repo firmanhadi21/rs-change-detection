@@ -43,6 +43,15 @@ def _zones(geoms, codes, field="code", label=None, labels=None):
     return gpd.GeoDataFrame(data, geometry=geoms, crs="EPSG:4326")
 
 
+def _z(rows, code):
+    """The row for one zone key. Row 0 is now the complement, not a zone."""
+    return next(r for r in rows if r["code"] == code)
+
+
+def _out(rows):
+    return next(r for r in rows if r["code"] == fz.OUTSIDE)
+
+
 # --- the overlap, which is the whole point ---------------------------------
 def test_two_provinces_claiming_one_pixel_count_it_once(tmp_path):
     """The same ground in two rasters is one hectare, not two."""
@@ -52,10 +61,10 @@ def test_two_provinces_claiming_one_pixel_count_it_once(tmp_path):
     _province(tmp_path / "B", on, on * 0, on, west=D, north=0.0)
     z = _zones([box(-D, -D, 3 * D, D)], ["all"])
     rows = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS, progress=None)
-    one = rows[0]["land_ha"] / 3
+    one = _z(rows, "all")["land_ha"] / 3
     # three distinct lattice columns were covered, not four
-    assert rows[0]["land_ha"] == pytest.approx(3 * one)
-    assert rows[0]["burned_ha"] == pytest.approx(3 * one)
+    assert _z(rows, "all")["land_ha"] == pytest.approx(3 * one)
+    assert _z(rows, "all")["burned_ha"] == pytest.approx(3 * one)
 
 
 def test_a_pixel_only_one_province_claims_is_still_counted(tmp_path):
@@ -65,9 +74,9 @@ def test_a_pixel_only_one_province_claims_is_still_counted(tmp_path):
     _province(tmp_path / "B", on, on * 0, on, west=10 * D, north=0.0)
     z = _zones([box(-D, -D, 20 * D, D)], ["all"])
     rows = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS, progress=None)
-    assert rows[0]["burned_ha"] > 0
-    per = rows[0]["land_ha"] / 4
-    assert rows[0]["land_ha"] == pytest.approx(4 * per)
+    assert _z(rows, "all")["burned_ha"] > 0
+    per = _z(rows, "all")["land_ha"] / 4
+    assert _z(rows, "all")["land_ha"] == pytest.approx(4 * per)
 
 
 def test_outside_a_province_boundary_is_not_land(tmp_path):
@@ -78,8 +87,8 @@ def test_outside_a_province_boundary_is_not_land(tmp_path):
               west=0.0, north=0.0)
     z = _zones([box(-D, -D, 3 * D, D)], ["all"])
     rows = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS, progress=None)
-    assert rows[0]["burned_ha"] == pytest.approx(rows[0]["land_ha"])
-    assert rows[0]["max_times"] == 1
+    assert _z(rows, "all")["burned_ha"] == pytest.approx(_z(rows, "all")["land_ha"])
+    assert _z(rows, "all")["max_times"] == 1
 
 
 # --- zones -----------------------------------------------------------------
@@ -92,9 +101,9 @@ def test_each_zone_gets_only_its_own_pixels(tmp_path):
     east = _zones([box(2 * D, -D, 4 * D, 0)], ["E"])
     rw = fz.zone_stats(str(tmp_path), west, "code", YEARS, KEYS, progress=None)
     re = fz.zone_stats(str(tmp_path), east, "code", YEARS, KEYS, progress=None)
-    assert rw[0]["burned_ha"] > 0
-    assert re[0]["burned_ha"] == 0
-    assert re[0]["land_ha"] > 0          # the zone exists, it just did not burn
+    assert _z(rw, "W")["burned_ha"] > 0
+    assert _z(re, "E")["burned_ha"] == 0
+    assert _z(re, "E")["land_ha"] > 0          # the zone exists, it just did not burn
 
 
 def test_a_zone_spanning_two_provinces_is_summed_not_split(tmp_path):
@@ -107,7 +116,7 @@ def test_a_zone_spanning_two_provinces_is_summed_not_split(tmp_path):
     just_a = fz.zone_stats(str(tmp_path), _zones([box(-D, -D, 3 * D, D)],
                                                  ["a"]),
                            "code", YEARS, KEYS, progress=None)
-    assert rows[0]["land_ha"] > just_a[0]["land_ha"]
+    assert _z(rows, "all")["land_ha"] > _z(just_a, "a")["land_ha"]
 
 
 def test_the_year_bits_survive_the_composite(tmp_path):
@@ -117,10 +126,10 @@ def test_the_year_bits_survive_the_composite(tmp_path):
     _province(tmp_path / "A", on, on * 0, bits, west=0.0, north=0.0)
     z = _zones([box(-D, -D, 3 * D, D)], ["all"])
     rows = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS, progress=None)
-    by = rows[0]["burned_ha_by_year"]
+    by = _z(rows, "all")["burned_ha_by_year"]
     assert set(by) == set(YEARS)
     assert all(v > 0 for v in by.values())
-    assert rows[0]["repeat_ha"] == 0               # neither pixel burned twice
+    assert _z(rows, "all")["repeat_ha"] == 0               # neither pixel burned twice
 
 
 def test_a_band_boundary_does_not_lose_or_double_a_row(tmp_path):
@@ -129,11 +138,50 @@ def test_a_band_boundary_does_not_lose_or_double_a_row(tmp_path):
     on = np.ones((h, 2), dtype="uint16")
     _province(tmp_path / "A", on, on * 0, on, west=0.0, north=0.0)
     z = _zones([box(-D, -h * D - D, 3 * D, D)], ["all"])
-    whole = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS,
-                          band_rows=64, progress=None)[0]["land_ha"]
-    split = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS,
-                          band_rows=2, progress=None)[0]["land_ha"]
+    whole = _z(fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS,
+                          band_rows=64, progress=None), "all")["land_ha"]
+    split = _z(fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS,
+                          band_rows=2, progress=None), "all")["land_ha"]
     assert whole == pytest.approx(split, abs=0.2)
+
+
+# --- the complement --------------------------------------------------------
+def test_land_outside_every_zone_ships_as_its_own_row(tmp_path):
+    """For KHG the complement is the question, not a leftover."""
+    on = np.ones((1, 4), dtype="uint16")
+    bits = np.array([[1, 1, 1, 1]], dtype="uint16")
+    _province(tmp_path / "A", on, np.zeros((1, 4), "uint16"), bits,
+              west=0.0, north=0.0)
+    half = _zones([box(0, -D, 2 * D, 0)], ["in"])
+    rows = fz.zone_stats(str(tmp_path), half, "code", YEARS, KEYS,
+                         progress=None)
+    zin, out = _z(rows, "in"), _out(rows)
+    assert zin["burned_ha"] > 0 and out["burned_ha"] > 0
+    assert zin["burned_ha"] == pytest.approx(out["burned_ha"], rel=0.02)
+
+
+def test_the_complement_is_empty_when_the_zones_cover_everything(tmp_path):
+    on = np.ones((1, 2), dtype="uint16")
+    _province(tmp_path / "A", on, on * 0, on, west=0.0, north=0.0)
+    all_of_it = _zones([box(-D, -D, 3 * D, D)], ["all"])
+    out = _out(fz.zone_stats(str(tmp_path), all_of_it, "code", YEARS, KEYS,
+                             progress=None))
+    assert out["land_ha"] == 0
+    assert out["burned_ha"] == 0
+
+
+def test_zone_and_complement_land_add_up_to_the_province(tmp_path):
+    on = np.ones((1, 4), dtype="uint16")
+    _province(tmp_path / "A", on, np.zeros((1, 4), "uint16"), on,
+              west=0.0, north=0.0)
+    z = _zones([box(0, -D, 2 * D, 0)], ["in"])
+    rows = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS, progress=None)
+    total = _z(rows, "in")["land_ha"] + _out(rows)["land_ha"]
+    # four lattice cells of province, nothing lost to the partition
+    none = _zones([box(90.0, 0, 91.0, 1.0)], ["far"])
+    whole = _out(fz.zone_stats(str(tmp_path), none, "code", YEARS, KEYS,
+                               progress=None))["land_ha"]
+    assert total == pytest.approx(whole, rel=1e-9)
 
 
 # --- peat ------------------------------------------------------------------
@@ -142,11 +190,39 @@ def test_peat_columns_are_named_after_their_definition(tmp_path):
     peat = np.array([[1, 0]], dtype="uint16")
     _province(tmp_path / "A", on, peat, on, west=0.0, north=0.0)
     z = _zones([box(-D, -D, 3 * D, D)], ["all"])
-    r = fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS,
-                      progress=None)[0]
+    r = _z(fz.zone_stats(str(tmp_path), z, "code", YEARS, KEYS,
+                         progress=None), "all")
     assert "peat_ha_soc" in r and "burned_peat_ha_soc" in r
     assert "peat_ha" not in r and "burned_peat_ha" not in r
     assert r["peat_share_of_burned_pct_soc"] == pytest.approx(50.0)
+
+
+def test_a_supplied_peat_raster_is_not_read_as_the_zero_band(tmp_path):
+    """fire-national fills that band locally and never writes it back.
+
+    Reading the band here would report no peat at all for the one map the
+    whole exercise is meant to use.
+    """
+    on = np.ones((1, 2), dtype="uint16")
+    _province(tmp_path / "A", on, np.zeros((1, 2), "uint16"), on,
+              west=0.0, north=0.0)             # the "file" band is zeros
+    peat = tmp_path / "peat.tif"
+    from rasterio.transform import from_origin as fo
+    with rasterio.open(peat, "w", driver="GTiff", width=20, height=10,
+                       count=1, dtype="float32", crs="EPSG:4326",
+                       transform=fo(0.0, 0.0, D / 10, D / 10)) as ds:
+        a = np.zeros((10, 20), dtype="float32")
+        a[:, :10] = 1.0                        # all of the first cell
+        ds.write(a, 1)
+    z = _zones([box(-D, -D, 3 * D, D)], ["all"])
+    blind = _z(fz.zone_stats(str(tmp_path), z, "code", YEARS, ["file"],
+                             progress=None), "all")
+    assert blind["burned_peat_ha_file"] == 0   # the zero band, as stored
+    seen = _z(fz.zone_stats(str(tmp_path), z, "code", YEARS, ["file"],
+                            progress=None, peat_file=str(peat)), "all")
+    assert seen["burned_peat_ha_file"] > 0
+    assert seen["peat_share_of_burned_pct_file"] == pytest.approx(50.0,
+                                                                  abs=2.0)
 
 
 # --- inputs ----------------------------------------------------------------

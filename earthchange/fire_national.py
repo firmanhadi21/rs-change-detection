@@ -781,6 +781,11 @@ def run(backend, name, run_dir, run_id, config_key=None,
         "run_id": run_id, "scenario": "fire-national", "name": name,
         "dataset": "MODIS MCD64A1 burned area (500 m) + FIRMS hotspots",
         "peat_definitions": {k: lab for k, lab, _ in peats},
+        # The supplied raster is not in the downloads -- its band came down as
+        # zeros and is filled locally -- so anything reading these rasters
+        # later needs the path, or it will read that zero band as "no peat".
+        "peat_file": os.path.abspath(peat_file) if local_peat else None,
+        "peat_raster_thr": peat_raster_thr,
         "years": years, "grid_deg": GRID_DEG,
         "provinces_run": [r["province"] for r in rows], "provinces_failed": failed,
         "national": tot,

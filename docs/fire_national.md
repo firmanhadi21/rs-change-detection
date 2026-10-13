@@ -101,6 +101,43 @@ rentang**, kolom CSV-nya bernama `*_soc` dan `*_peatgrids` sehingga tidak ada
 kolom `peat_ha` polos yang bisa salah dikutip, dan grafik menggambar selisihnya
 sebagai arsir, bukan garis.
 
+### 3.1 Peta gambut yang dipasok — Kalimantan 2019
+
+Model gambut Kalimantan 2019 (Agrisoft) dipasang lewat `--peat-file`. Sifatnya:
+**masker biner** (1 = gambut, −99999 = nodata), EPSG:4326, **0,00045° ≈ 50 m**
+— sepuluh kali lebih halus dari kisi api 500 m, jadi satu sel api memuat
+seratus pikselnya. **Tidak ada versi ketebalan**, sehingga tidak ada ambang
+kedalaman: lapisan ini adalah sebaran gambut apa adanya, bukan "gambut >50 cm",
+dan tidak boleh dilabeli demikian.
+
+Karena jauh lebih halus, lapisan ini **tidak** dibaca tetangga-terdekat. Satu
+piksel dari seratus akan membuat status gambut tiap sel nyaris lemparan koin di
+tepi kubah gambut. Yang dipakai adalah **fraksi** liputan tiap sel, sehingga
+luas gambut terbakar menjadi terboboti-luas, bukan ada/tidak ada.
+
+Hasil untuk lima provinsi Kalimantan — porsi luas terbakar yang di gambut:
+
+| Provinsi | model 2019 | SOC | PEATGRIDS |
+|---|---|---|---|
+| Kalimantan Tengah | 93,4% | 94,3% | 94,6% |
+| Kalimantan Barat | 74,8% | 76,8% | 75,9% |
+| Kalimantan Selatan | 71,1% | 72,1% | 70,1% |
+| Kalimantan Timur | **50,6%** | **24,3%** | 42,9% |
+| Kalimantan Utara | **62,4%** | **0,1%** | 32,6% |
+| **Total** | **78,3%** | 74,0% | 77,2% |
+
+**Kesimpulan gambut-terbakar tahan terhadap pilihan peta** — 74–78% apa pun
+yang dipakai — karena api terkonsentrasi di kubah inti yang ketiganya sepakati.
+Itu temuan yang lebih kuat daripada angka tunggal mana pun. Yang tidak tahan
+adalah Kaltim dan Kaltara, tempat ketiganya berselisih sampai dua kali lipat
+atau lebih; di situ angka provinsi harus dibaca dengan rentangnya.
+
+Luas sebaran gambut Kalimantan menurut ketiganya: model 2019 **12,33 juta ha**,
+SOC 12,72, PEATGRIDS 12,48 — ketiganya sejalan, dan ketiganya di atas angka
+BBSDLP yang lazim dikutip (±5,3–5,8 juta ha). Itu selisih sistematis antara
+pemetaan penginderaan jauh dan survei tanah, bukan sifat satu peta. §7.2
+menguji ini terhadap KHG resmi.
+
 ### Yang seharusnya dipakai untuk publikasi
 
 **Gumbricht et al. 2017 (CIFOR), 231 m, terbit peer-review dan bisa disitasi.**
@@ -331,6 +368,52 @@ panjangnya cukup pendek untuk ditindak.
 dibatasi sungai dan laut; di dalamnya ada gambut *dan* tanah mineral.
 Nasional, KHG ±24 juta ha sementara gambutnya sendiri sekitar 13–14 juta ha.
 Jangan pakai lapisan ini di slot `--peat-file`.
+
+### 7.2 Berapa banyak gambut yang terbakar berada di luar KHG?
+
+Baris pelengkap (`__outside__`) menjawab yang tak bisa dijawab tabel zona:
+daratan yang berada di luar **semua** zona. Disilangkan dengan ketiga definisi
+gambut, atas lima provinsi Kalimantan:
+
+| | luas | terbakar |
+|---|---|---|
+| di dalam KHG | 8,41 juta ha | 1.172.817 ha (13,9%) |
+| di luar KHG | 45,59 juta ha | 974.339 ha (2,1%) |
+
+Jadi **55% dari seluruh luas terbakar Kalimantan ada di dalam KHG**, yang
+hanya 16% daratannya — konsentrasi 6,6×.
+
+Lalu angka yang penting. Sebaran gambut yang berada **di dalam** KHG:
+
+| definisi | di dalam KHG | di luar | % di dalam |
+|---|---|---|---|
+| model 2019 | 6,77 juta ha | 5,54 juta ha | **55%** |
+| SOC | 6,79 juta ha | 5,91 juta ha | 53% |
+| PEATGRIDS | 7,97 juta ha | 4,50 juta ha | 64% |
+
+Dan gambut yang **terbakar**:
+
+| definisi | terbakar di dalam KHG | di luar | % di dalam |
+|---|---|---|---|
+| model 2019 | 1.110.135 ha | 570.405 ha | 66% |
+| SOC | 1.102.525 ha | 486.272 ha | 69% |
+| PEATGRIDS | 1.154.008 ha | 503.626 ha | 70% |
+
+**Ketiga definisi menempatkan sekitar separuh sebaran gambut dan sekitar
+sepertiga gambut yang terbakar di luar KHG.** Ini temuan tentang **batas
+KHG**, bukan tentang satu peta gambut: tiga lapisan yang dibuat dengan cara
+yang sama sekali berbeda sepakat soal ini.
+
+Konsekuensi kebijakannya langsung: KHG adalah satuan pengaturan perlindungan
+gambut, dan sekitar **sepertiga gambut yang benar-benar terbakar di Kalimantan
+berada di luarnya**. Kalau hanya gambut di dalam KHG yang dihitung, porsi
+gambut dari seluruh luas terbakar turun dari 74–78% menjadi 51–54%.
+
+Catatan akuntansi: total di sini (2.147.156 ha) sedikit di bawah total
+`fire-national` (2.153.033 ha) justru karena `fire-zones` mengkomposit dulu
+lalu menghitung, sementara total provinsi menjumlah angka per provinsi dan
+menghitung perbatasan dua kali. Selisih 0,3% itu adalah besarnya tindih
+tersebut — dan buktinya penghilangan-ganda bekerja.
 
 ---
 
