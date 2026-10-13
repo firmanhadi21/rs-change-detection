@@ -37,6 +37,15 @@ scenes/
 *.mp4
 *.mp3
 
+# Remotion explainer (video/narasi-karhutla): deps, render output, and the
+# assets siapkan.sh rebuilds from the smoke-video run. The narration mp3s are
+# already covered by the *.mp3 rule above -- they are ElevenLabs renders, not
+# source, and the README says how to restore them.
+node_modules/
+video/*/out/
+video/*/public/asap.mp4
+video/*/public/latar.png
+
 # Temp files
 /tmp/
 *.pyc
