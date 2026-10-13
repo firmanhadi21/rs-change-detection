@@ -781,6 +781,36 @@ def _scenario_help(ap, scenario):
           "Use --help without -s to see all of them.")
 
 
+def _video_size(text):
+    """Parse --video-size: 'N', 'WxH' or 'Wxauto'.
+
+    The frame used to be square whatever the area, which suits an island but
+    squeezes anything wide: Indonesia is 47 degrees across and 18 tall, so a
+    square frame stretches it more than twofold. 'auto' leaves the height to
+    be worked out from the bbox at run time, because the honest number is a
+    Mercator ratio and nobody should have to compute it by hand.
+    """
+    s = str(text).strip().lower()
+    if "x" not in s:
+        n = int(s)
+        if n < 64:
+            raise argparse.ArgumentTypeError(f"--video-size {text}: too small")
+        return (n, n)
+    w, _, h = s.partition("x")
+    try:
+        wi = int(w)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"--video-size {text}: width must be a number, as in 2880x1110")
+    if h in ("auto", ""):
+        return (wi, None)
+    try:
+        return (wi, int(h))
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"--video-size {text}: height must be a number or 'auto'")
+
+
 def build_parser():
     """The full CLI. Separate from main() so the help table can be tested.
 
@@ -921,8 +951,12 @@ def build_parser():
     ap.add_argument("--met-cache", metavar="DIR",
                     help="where to keep ARL GDAS1 files (~571 MiB each; "
                          "default ~/.cache/earthchange/arl)")
-    ap.add_argument("--video-size", type=int, default=1080, metavar="PX",
-                    help="smoke-video: square frame size (default 1080)")
+    ap.add_argument("--video-size", type=_video_size, default=(1080, 1080),
+                    metavar="PX|WxH|Wxauto",
+                    help="smoke-video: frame size. A single number is a square "
+                         "frame (default 1080). 'WxH' sets both, and 'Wxauto' "
+                         "takes the height from the bbox so a wide area is not "
+                         "squeezed into a square")
     ap.add_argument("--firms-region", metavar="NAME",
                     help="smoke-video: which FIRMS continental 7-day feed to "
                          "pull (SouthEast_Asia, South_America, Europe, "

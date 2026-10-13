@@ -6,10 +6,35 @@ import requests
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 from config import DATA, LON_MIN, LON_MAX, LAT_MIN, LAT_MAX
 
-STEP = 0.2
+FLOOR = 0.2          # never sample finer than this, whatever the bbox
+MAX_POINTS = 1600    # Kalimantan's 2704 went through; Sumatera's 3721 did not
+
+
+def _step(span_lon, span_lat, budget=MAX_POINTS, floor=FLOOR):
+    """Grid spacing that keeps the request count inside the free tier.
+
+    This was pinned at 0.2 degrees for every region, so the point count grew
+    with the area of the bbox and an island-sized box asked for thousands --
+    which is what returned 429 and killed the run several minutes in, after
+    the terrain and the fires had already downloaded.
+
+    Coarsening costs nothing real: CAMS global runs at about 0.4 degrees, so
+    a 0.2-degree grid was already asking for four points per cell that holds
+    distinct data, and the field is resampled and blurred before it is drawn.
+    Small boxes keep the old spacing; only boxes big enough to trip the limit
+    are widened, and the run says what it chose.
+    """
+    s = floor
+    while (span_lon / s + 1) * (span_lat / s + 1) > budget:
+        s *= 1.25
+    return round(s, 3)
+
+
+STEP = _step(LON_MAX - LON_MIN, LAT_MAX - LAT_MIN)
 lats = np.round(np.arange(LAT_MIN, LAT_MAX + 1e-9, STEP), 3)
 lons = np.round(np.arange(LON_MIN, LON_MAX + 1e-9, STEP), 3)
-print(f"grid {len(lats)} x {len(lons)} = {len(lats)*len(lons)} points")
+print(f"grid {len(lats)} x {len(lons)} = {len(lats)*len(lons)} points "
+      f"at {STEP}{'' if STEP == FLOOR else ' (widened from %s to stay inside the rate limit)' % FLOOR}")
 
 points = [(la, lo) for la in lats for lo in lons]
 # Open-Meteo weights a call by locations x variables x days, so 50 points over

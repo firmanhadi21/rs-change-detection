@@ -98,6 +98,25 @@ def preflight(basemap=True):
             + "\n\n  Everything else installs with: pip install 'earthchange[video]'")
 
 
+def frame_size(size, bbox):
+    """Pixel width and height for this bbox.
+
+    compose.py places x linearly in longitude and y in Mercator, so a frame
+    whose pixel ratio does not match that of the bbox stretches the map. An
+    'auto' height is the one that does not: the same pixels per unit on both
+    axes, with longitude degrees turned into Mercator units by radians().
+    """
+    import math
+    w, s, e, n = bbox
+    px_w, px_h = (size if isinstance(size, (tuple, list)) else (size, size))
+    if px_h:
+        return int(px_w), int(px_h)
+    my = (math.log(math.tan(math.pi / 4 + math.radians(n) / 2))
+          - math.log(math.tan(math.pi / 4 + math.radians(s) / 2)))
+    px_h = round(px_w * abs(my) / math.radians(e - w) / 2) * 2   # keep it even
+    return int(px_w), int(max(64, px_h))
+
+
 def _write_config(work, bbox, cities, title, subtitle, region, size, labels=None):
     """Generate config.py for this run, instead of editing the shipped one."""
     w, s, e, n = bbox
@@ -115,7 +134,7 @@ def _write_config(work, bbox, cities, title, subtitle, region, size, labels=None
         "",
         f"LON_MIN, LON_MAX = {w}, {e}",
         f"LAT_MIN, LAT_MAX = {s}, {n}",
-        f"WIDTH = HEIGHT = {size}",
+        f"WIDTH, HEIGHT = {size[0]}, {size[1]}",
         f"FIRMS_REGION = {region!r}",
         "",
         f"TITLE = {title!r}",
@@ -196,8 +215,13 @@ def _cities_from(spec, bbox):
         if not (w <= clon <= e and s <= clat <= n):
             print(f"  note: {bits[0]} ({clat:.3f}, {clon:.3f}) is outside the "
                   f"frame and will not be drawn")
+        # "big" is what --video-labels documents and "major" what
+        # --video-cities documents; both come through here, so accept either
+        # rather than silently drawing a label small because the user used the
+        # word their own flag's help told them to.
         out.append((bits[0], clon, clat,
-                    len(bits) > 3 and bits[3].lower() in ("major", "true", "1")))
+                    len(bits) > 3
+                    and bits[3].lower() in ("major", "big", "true", "1", "yes")))
     return out
 
 
@@ -227,13 +251,14 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
     work = _stage(Path(run_dir) / "pipeline")
     places = _cities_from(cities, (w, s, e, n))
     marks = _cities_from(labels, (w, s, e, n)) if labels else []
+    px = frame_size(size, (w, s, e, n))
     _write_config(work, (w, s, e, n), places,
                   title or "WILDFIRE SMOKE",
                   subtitle or f"{name.upper()} · {{period}} · CAMS + VIIRS",
-                  region, size, marks)
+                  region, px, marks)
 
     print(f"  {name}: bbox {w:.2f},{s:.2f} → {e:.2f},{n:.2f} · "
-          f"FIRMS {region} · {size}x{size}")
+          f"FIRMS {region} · {px[0]}x{px[1]}")
     if places:
         print(f"  {len(places)} place labels")
     else:
@@ -261,7 +286,8 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None,
         shutil.rmtree(work, ignore_errors=True)
 
     stats = {"run_id": run_id, "scenario": "smoke-video", "name": name,
-             "bbox": [w, s, e, n], "firms_region": region, "size": size,
+             "bbox": [w, s, e, n], "firms_region": region,
+             "size": {"width": px[0], "height": px[1]},
              "cities": [c[0] for c in places],
              "sources": {
                  "smoke": "CAMS aerosol optical depth via Open-Meteo Air Quality",

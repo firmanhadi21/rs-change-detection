@@ -37,6 +37,15 @@ def to_px(lon, lat):
     y = (merc_y(lat) - MY0) / (MY1 - MY0) * HEIGHT
     return x, y
 
+# The smoke and its texture are built on an intermediate grid that follows the
+# frame's aspect. It was square at 270x270, scaled by WIDTH/270 and cropped to
+# the frame, which is only correct while WIDTH == HEIGHT: on a wide frame the
+# crop kept the top of the field and discarded the rest, so the smoke stopped
+# sitting over the ground it came from -- silently, because smoke over a map
+# still looks like smoke. A square frame gets NG_W == 270 and is unchanged.
+NG_H = 270
+NG_W = max(1, int(round(270 * WIDTH / HEIGHT)))
+
 # ---------- static assets ----------
 base = np.asarray(Image.open(DATA / "basemap.png").convert("RGB"), dtype=np.float32) / 255.0
 sea = np.load(DATA / "sea_mask.npy")
@@ -71,14 +80,18 @@ print(f"timeline: {T_START:%Y-%m-%d %H:%M} -> {T_END:%Y-%m-%d %H:%M} UTC, {N_FRA
 rng = np.random.default_rng(42)
 N_NOISE = 8
 noise_keys = []
+# Keys follow the frame's aspect too. Square keys stretched onto a wide grid
+# would smear every eddy horizontally, which reads as motion blur rather than
+# turbulence. A square frame gets 68x68 as before.
+_NK = (68, max(1, int(round(68 * NG_W / NG_H))))
 for i in range(N_NOISE):
-    n = rng.standard_normal((68, 68))
+    n = rng.standard_normal(_NK)
     n = gaussian_filter(n, 3.0)
     n = (n - n.mean()) / (n.std() + 1e-9)
     noise_keys.append(n.astype(np.float32))
 
 def noise_field(hours):
-    """Slowly evolving multiplicative texture, 270x270."""
+    """Slowly evolving multiplicative texture, on the NG_H x NG_W grid."""
     ph = (hours / 30.0) % N_NOISE
     i0 = int(ph) % N_NOISE
     i1 = (i0 + 1) % N_NOISE
@@ -109,8 +122,8 @@ def smoke_rgba(a):
     alpha = np.clip((a - 0.20) / 1.7, 0, 1) ** 1.15 * 0.62
     return col, alpha.astype(np.float32)
 
-def _to_noise_grid(a, n=270, order=3):
-    """Resize an array to exactly n x n.
+def _resize(a, shape, order=3):
+    """Resize an array to exactly shape, padding rather than trusting rounding.
 
     The zoom factor has to come from the array's own shape. It was hardcoded as
     270/17, where 17 was simply the AOD grid the original bbox happened to
@@ -119,11 +132,16 @@ def _to_noise_grid(a, n=270, order=3):
     against the fixed 270x270 noise field. Rounding can also land a pixel short,
     so the result is padded by edge repetition rather than trusted.
     """
-    a = zoom(a, n / a.shape[0], order=order)[:n, :n]
-    if a.shape != (n, n):
-        a = np.pad(a, ((0, max(0, n - a.shape[0])),
-                       (0, max(0, n - a.shape[1]))), mode="edge")
+    h, w = shape
+    a = zoom(a, (h / a.shape[0], w / a.shape[1]), order=order)[:h, :w]
+    if a.shape != shape:
+        a = np.pad(a, ((0, max(0, h - a.shape[0])),
+                       (0, max(0, w - a.shape[1]))), mode="edge")
     return a
+
+
+def _to_noise_grid(a, order=3):
+    return _resize(a, (NG_H, NG_W), order=order)
 
 
 def smoke_layer(t_utc):
@@ -134,7 +152,7 @@ def smoke_layer(t_utc):
     a = _to_noise_grid(a)
     a = np.clip(a, 0, None) * noise_field(hours)
     a = gaussian_filter(a, 3.0)
-    a = zoom(a, WIDTH / 270, order=1)[:HEIGHT, :WIDTH]
+    a = _resize(a, (HEIGHT, WIDTH), order=1)
     return smoke_rgba(a)
 
 # ---------- fire layer ----------
