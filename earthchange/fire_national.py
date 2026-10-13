@@ -198,6 +198,28 @@ def stack(geom, years, peats, inside_fc=None):
     return out if inside_fc is None else out.updateMask(inside)
 
 
+def hotspot_stack(years, md_start, md_end):
+    """One uint16 band per year: FIRMS pixel-days in the same window.
+
+    Downloaded as a raster rather than reduced server-side so that anything
+    with a polygon layer -- KHG, concessions -- can count hotspots inside it
+    without another Earth Engine round trip, and so a zone total and a
+    province total come from the same pixels.
+
+    Kept on the FIRMS grid, not the 500 m fire grid. A hotspot count is a
+    count, not an area: resampled onto a finer grid each detection would be
+    duplicated across the subpixels and every sum would inflate.
+    """
+    import ee
+    bands = []
+    for y in years:
+        ic = (ee.ImageCollection(FIRMS_IC)
+              .filterDate(f"{y}-{md_start}", f"{y}-{md_end}").select("T21"))
+        bands.append(ic.map(lambda i: i.gt(0)).sum().unmask(0)
+                     .rename(f"y{y}"))
+    return ee.Image.cat(bands).toUint16()
+
+
 def season_hotspots(fc, years, md_start, md_end):
     """FIRMS pixel-days per province for the same calendar window each year.
 
@@ -525,8 +547,8 @@ def _plt():
     return plt
 
 
-def _render_map(tif, run_dir, years, nbands):
-    """The national recurrence map: how many years each pixel burned."""
+def _render_map(tif, run_dir, years, nbands, name=None):
+    """The recurrence map: how many years each pixel burned."""
     import numpy as np
     import rasterio
     from matplotlib.colors import ListedColormap, BoundaryNorm
@@ -545,9 +567,15 @@ def _render_map(tif, run_dir, years, nbands):
     colors = [src(0.33 + 0.67 * i / max(top - 1, 1)) for i in range(top)]
     cmap = ListedColormap(colors); cmap.set_bad((0, 0, 0, 0))
     norm = BoundaryNorm(np.arange(0.5, top + 1.5, 1), cmap.N)
-    fig, ax = plt.subplots(figsize=(16, 7), dpi=150)
+    # Sized from the extent. Hardcoding the national landscape shape leaves
+    # an island like Kalimantan, which is nearly square, floating in half a
+    # page of empty paper.
+    aspect = (e - w) / max(n - s, 1e-6)
+    wide = min(max(7.0, 7.0 * aspect), 16.0)
+    fig, ax = plt.subplots(figsize=(wide + 1.6, 7.6), dpi=150)
     fig.patch.set_facecolor("#faf8f4")
     ax.set_xlim(w, e); ax.set_ylim(s, n)
+    ax.set_aspect("equal", adjustable="box")
     try:
         import contextily as cx
         cx.add_basemap(ax, crs="EPSG:4326", source=LIGHT_BASEMAP,
@@ -559,7 +587,8 @@ def _render_map(tif, run_dir, years, nbands):
     cb = fig.colorbar(im, ax=ax, fraction=0.022, pad=0.01,
                       ticks=range(1, top + 1))
     cb.set_label(f"jumlah tahun terbakar, {years[0]}–{years[-1]}", fontsize=9)
-    ax.set_title(f"Keberulangan kebakaran Indonesia, {years[0]}–{years[-1]}\n"
+    ax.set_title(f"Keberulangan kebakaran {name or 'Indonesia'}, "
+                 f"{years[0]}–{years[-1]}\n"
                  "MODIS MCD64A1 — piksel merah tua terbakar berkali-kali",
                  fontsize=14, fontweight="bold")
     ax.set_xlabel("Longitude"); ax.set_ylabel("Latitude")
@@ -747,10 +776,19 @@ def run(backend, name, run_dir, run_id, config_key=None,
     deg = overview_km * 1000 / 111320.0
     country = ee.Geometry.Rectangle(mosaic_bounds(pdir), proj="EPSG:4326",
                                     geodesic=False)
-    if download_geotiff(stack(country, years, peats, inside_fc=fc), country, over,
+    # No peat bands: the map draws recurrence only, and leaving them out is
+    # what lets an island be asked for at 1 km instead of the national 2 km.
+    if download_geotiff(stack(country, years, [], inside_fc=fc), country, over,
                         scale=overview_km * 1000,
                         crs_transform=[deg, 0, 0, 0, -deg, 0]) is not None:
-        _render_map(over, run_dir, years, len(peats) + 2)
+        _render_map(over, run_dir, years, 2, name=name)
+
+    # The hotspot stack, for anything that wants to count them inside a
+    # polygon later without going back to Earth Engine.
+    hs_tif = os.path.join(run_dir, "hotspots.tif")
+    if series and not (os.path.exists(hs_tif) and _usable(hs_tif, len(hyears))):
+        download_geotiff(hotspot_stack(hyears, season_start, season_end),
+                         country, hs_tif, scale=HOTSPOT_SCALE)
     _render_ranking(rows, run_dir, years, peat_keys)
     if hot:
         _render_season(hot, run_dir, window, today.year)
@@ -800,6 +838,8 @@ def run(backend, name, run_dir, run_id, config_key=None,
             100 * tot["repeat_ha"] / (tot["burned_ha"] or 1), 1),
         "by_province": {r["province"]: r for r in flat},
         "hotspot_window": window,
+        "hotspot_years": hyears,
+        "hotspot_start": season_start, "hotspot_end": season_end,
         "hotspots_by_year": {str(y): v for y, v in series.items()},
         "hotspots_national_by_year": {str(y): sum(v.values())
                                       for y, v in series.items()},

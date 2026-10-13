@@ -261,15 +261,61 @@ def zone_stats(provinces_dir, zones, field, years, peat_keys, label=None,
     return rows
 
 
+def zone_hotspots(hs_tif, zones, field, years, current):
+    """FIRMS pixel-days per zone per year, off the stack fire-national wrote.
+
+    Counted on the hotspot raster's own grid, not the fire grid. A detection
+    is a count, not an area: resampled onto a finer grid it would be
+    duplicated across the subpixels and every total would inflate.
+
+    `all_touched` because a zone narrower than a 1 km FIRMS pixel would
+    otherwise score zero -- for a count, touching is the right test, and the
+    cost is that neighbouring zones can both claim one detection.
+    """
+    import numpy as np
+    import rasterio
+    from rasterio.features import rasterize
+    with rasterio.open(hs_tif) as ds:
+        if ds.count != len(years):
+            raise SystemExit(f"{os.path.basename(hs_tif)} has {ds.count} bands "
+                             f"but the run recorded {len(years)} hotspot years")
+        arr = ds.read()
+        tr, H, W = ds.transform, ds.height, ds.width
+    names = list(zones[field])
+    n = len(names)
+    zid = rasterize([(g, i + 1) for i, g in enumerate(zones.geometry)],
+                    out_shape=(H, W), transform=tr, fill=0, dtype="int32",
+                    all_touched=True)
+    flat = zid.ravel()
+    out = {}
+    for i, y in enumerate(years):
+        c = np.bincount(flat, weights=arr[i].ravel().astype("float64"),
+                        minlength=n + 1)
+        out[y] = c
+    rows = {}
+    prior = [y for y in years if y != current]
+    for j, nm in enumerate(names, start=1):
+        cur = int(out.get(current, np.zeros(n + 1))[j])
+        base = (sum(out[y][j] for y in prior) / len(prior)) if prior else 0.0
+        rows[nm] = {
+            "hotspots_season": cur,
+            "hotspots_baseline": round(base, 1),
+            "hotspots_ratio": round(cur / base, 2) if base else None,
+            "hotspots_by_year": {y: int(out[y][j]) for y in years},
+        }
+    return rows
+
+
 def write_csv(rows, field, peat_keys, path, label=None):
-    flat = [{k: v for k, v in r.items()
-             if k not in ("burned_ha_by_year", "burned_peat_ha_range")}
-            for r in rows]
+    drop = ("burned_ha_by_year", "burned_peat_ha_range", "hotspots_by_year")
+    flat = [{k: v for k, v in r.items() if k not in drop} for r in rows]
     fields = [field] + ([label] if label else []) + [
         "land_ha", "burned_ha", "repeat_ha", "repeat3_ha",
         "max_times", "burned_pct_of_zone", "repeat_share_of_burned_pct"]
     fields += [f"{c}_{k}" for k in peat_keys for c in
                ("peat_ha", "burned_peat_ha", "peat_share_of_burned_pct")]
+    if any("hotspots_season" in r for r in rows):
+        fields += ["hotspots_season", "hotspots_baseline", "hotspots_ratio"]
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
@@ -283,9 +329,8 @@ def write_gpkg(zones, rows, field, path):
         import pandas as pd
     except ImportError:
         return None
-    flat = [{k: v for k, v in r.items()
-             if k not in ("burned_ha_by_year", "burned_peat_ha_range")}
-            for r in rows]
+    drop = ("burned_ha_by_year", "burned_peat_ha_range", "hotspots_by_year")
+    flat = [{k: v for k, v in r.items() if k not in drop} for r in rows]
     g = zones.merge(pd.DataFrame(flat), on=field, how="left")
     try:
         g.to_file(path, driver="GPKG", layer="zones")
@@ -368,6 +413,25 @@ def run(run_dir, run_id, zones_file, zone_field, national_dir,
                          peat_thr=nat.get("peat_raster_thr"))
     outside = next(r for r in allrows if r[zone_field] == OUTSIDE)
     rows = [r for r in allrows if r[zone_field] != OUTSIDE]
+
+    # The running season per zone, if the run left a hotspot stack. Without
+    # it the table is history only: which zones burned 2015-2025, not which
+    # are burning now.
+    hs_tif = os.path.join(national_dir, "hotspots.tif")
+    hyears = nat.get("hotspot_years")
+    if os.path.exists(hs_tif) and hyears:
+        import datetime as _dt
+        cur = _dt.date.today().year
+        try:
+            hs = zone_hotspots(hs_tif, zones, zone_field, hyears, cur)
+            for r in rows:
+                r.update(hs.get(r[zone_field], {}))
+            print(f"  hotspots per zone from {os.path.basename(hs_tif)} "
+                  f"({nat.get('hotspot_window', '')})")
+        except Exception as e:      # noqa: BLE001 — the area table stands alone
+            print(f"  (per-zone hotspots skipped: {e.__class__.__name__}: {e})")
+    else:
+        print("  (no hotspots.tif in the run — zone table is history only)")
     if min_ha:
         rows = [r for r in rows if r["burned_ha"] >= min_ha]
         print(f"  {len(rows)} zones with ≥ {min_ha:g} ha burned")
