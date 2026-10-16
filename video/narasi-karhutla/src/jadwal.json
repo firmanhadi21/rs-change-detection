@@ -1,0 +1,42 @@
+{
+  "_comment": [
+    "The film's timing, in one place, because two things need it: jadwal.ts",
+    "builds the cut from it, and bake_musik.py uses it to automate the music",
+    "bed offline. Keeping it here rather than in either of them is what stops",
+    "the score's duck drifting away from the scene it is meant to duck under.",
+    "",
+    "durasi values are ffprobe measurements of the narration mp3s, in seconds."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.5,
+  "judul_detik": 4.0,
+  "tutup_detik": 3.0,
+  "urutan": [
+    "01-buka",
+    "02-sepekan",
+    "03-pulau",
+    "04-rekor",
+    "05-gambut",
+    "06-khg",
+    "07-berulang",
+    "08-tutup"
+  ],
+  "durasi": {
+    "01-buka": 4.8,
+    "02-sepekan": 15.6,
+    "03-pulau": 19.52,
+    "04-rekor": 17.52,
+    "05-gambut": 21.28,
+    "06-khg": 21.52,
+    "07-berulang": 12.64,
+    "08-tutup": 9.92
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

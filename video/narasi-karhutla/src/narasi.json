@@ -1,0 +1,114 @@
+{
+  "_comment": [
+    "Single source of truth for the film: the narration Bian speaks, and the",
+    "figure each line puts on screen. Every number here was derived in",
+    "scratchpad/narr_facts.py from the analysis outputs, not typed from memory.",
+    "",
+    "Two different sensors appear and must never be added together:",
+    "  VIIRS 375 m, 6-12 Oct 2026   -> the one-week national counts (seg 2, 3)",
+    "  MODIS MCD64A1 + FIRMS 1 km   -> the 1 Aug - 13 Oct season and the",
+    "                                  2015-2025 burn-scar record (seg 4-7)",
+    "Each segment therefore carries its own source line, burnt into the frame."
+  ],
+  "segments": [
+    {
+      "id": "01-buka",
+      "teks": "Yang Anda lihat ini bukan awan. Ini asap. Dan ini hanya tujuh hari di Indonesia.",
+      "judul": "Ini bukan awan.",
+      "angka": null,
+      "satuan": null,
+      "ket": null,
+      "sumber": "NASA FIRMS VIIRS + CAMS aerosol optical depth, 6–12 Oktober 2026"
+    },
+    {
+      "id": "02-sepekan",
+      "teks": "Enam sampai dua belas Oktober dua ribu dua puluh enam. Satelit VIIRS milik NASA merekam dua ratus enam puluh dua ribu titik panas di seluruh Indonesia. Dua ratus enam puluh dua ribu, dalam satu minggu.",
+      "judul": "Satu minggu",
+      "angka": 262176,
+      "satuan": "titik panas",
+      "ket": "seluruh Indonesia, 6–12 Oktober 2026",
+      "sumber": "NASA FIRMS VIIRS 375 m (SNPP + NOAA-20 + NOAA-21)"
+    },
+    {
+      "id": "03-pulau",
+      "teks": "Kalimantan, delapan puluh enam ribu titik. Papua, tujuh puluh tiga ribu. Sumatera, tiga puluh delapan ribu. Tetapi kerapatan tertinggi di seluruh negeri bukan di Kalimantan. Melainkan di Merauke, di Papua Selatan.",
+      "judul": "Di mana",
+      "angka": null,
+      "satuan": null,
+      "ket": "kerapatan per 1.000 km²",
+      "sumber": "NASA FIRMS VIIRS 375 m, 6–12 Oktober 2026",
+      "batang": [
+        { "nama": "Kalimantan", "titik": 86080, "kerapatan": 65.5 },
+        { "nama": "Papua", "titik": 72968, "kerapatan": 57.1 },
+        { "nama": "Sumatera", "titik": 38256, "kerapatan": 20.9 },
+        { "nama": "Sulawesi", "titik": 12317, "kerapatan": 14.8 },
+        { "nama": "Jawa", "titik": 2445, "kerapatan": 5.7 }
+      ],
+      "sorot": "Merauke, Papua Selatan — 275,3 per 1.000 km², terpadat di Indonesia"
+    },
+    {
+      "id": "04-rekor",
+      "teks": "Sejak awal Agustus, Kalimantan saja sudah mencatat dua ratus enam puluh ribu titik panas. Lima kali lipat rata-rata sebelas tahun terakhir. Dan tujuh puluh empat persen lebih tinggi daripada dua ribu sembilan belas, tahun terburuk yang pernah tercatat.",
+      "judul": "Rekor",
+      "angka": 260365,
+      "satuan": "titik panas di Kalimantan",
+      "ket": "1 Agustus – 13 Oktober 2026 · 5,0× rata-rata 2015–2025",
+      "sumber": "NASA FIRMS MODIS 1 km, jendela musim 1 Agt – 13 Okt",
+      "deret": [
+        { "tahun": 2015, "nilai": 141986 },
+        { "tahun": 2016, "nilai": 12669 },
+        { "tahun": 2017, "nilai": 16207 },
+        { "tahun": 2018, "nilai": 67903 },
+        { "tahun": 2019, "nilai": 149675 },
+        { "tahun": 2020, "nilai": 16134 },
+        { "tahun": 2021, "nilai": 12920 },
+        { "tahun": 2022, "nilai": 12761 },
+        { "tahun": 2023, "nilai": 83986 },
+        { "tahun": 2024, "nilai": 34268 },
+        { "tahun": 2025, "nilai": 20784 },
+        { "tahun": 2026, "nilai": 260365 }
+      ]
+    },
+    {
+      "id": "05-gambut",
+      "teks": "Yang terbakar bukan tanah biasa. Dari dua juta seratus lima puluh ribu hektare bekas kebakaran di Kalimantan, tujuh puluh empat sampai tujuh puluh delapan persen adalah gambut. Gambut menyimpan karbon yang terkunci ribuan tahun. Sekali terbakar, karbon itu lepas, dan tidak kembali.",
+      "judul": "Yang terbakar adalah gambut",
+      "angka": 2153033,
+      "satuan": "hektare bekas terbakar",
+      "ket": "Kalimantan, luas yang terbakar minimal sekali, 2015–2025",
+      "sumber": "MODIS MCD64A1 500 m · gambut: 3 peta berbeda, karena itu rentang",
+      "donat": { "min": 74.0, "maks": 78.3, "label": "gambut" }
+    },
+    {
+      "id": "06-khg",
+      "teks": "Lebih dari separuh luas terbakar itu berada di dalam Kesatuan Hidrologis Gambut. Kawasan yang resmi ditetapkan untuk dilindungi dan dipulihkan. Di dalam kawasan itu, hampir empat belas persen lahan sudah terbakar. Di luarnya, hanya dua persen. Enam setengah kali lipat lebih sering.",
+      "judul": "Di kawasan yang dilindungi",
+      "angka": null,
+      "satuan": null,
+      "ket": "54,6% luas terbakar Kalimantan berada di dalam KHG",
+      "sumber": "KHG: 865 unit nasional, 190 tercakup, 154 aktif terbakar",
+      "banding": [
+        { "nama": "Di dalam KHG", "nilai": 13.95 },
+        { "nama": "Di luar KHG", "nilai": 2.14 }
+      ]
+    },
+    {
+      "id": "07-berulang",
+      "teks": "Lima ratus delapan belas ribu hektare terbakar lebih dari sekali. Sebagian terbakar delapan kali. Delapan kali, di lahan yang katanya sedang direstorasi.",
+      "judul": "Dan terbakar lagi",
+      "angka": 518389,
+      "satuan": "hektare terbakar berulang",
+      "ket": "24,1% dari seluruh luas terbakar · hingga 8 kali di titik yang sama",
+      "sumber": "MODIS MCD64A1, 11 musim kebakaran 2015–2025"
+    },
+    {
+      "id": "08-tutup",
+      "teks": "Datanya terbuka. Satelit merekamnya setiap hari. Yang belum ada hanya satu: tanggapan yang sepadan dengan bencananya.",
+      "judul": "Datanya ada.",
+      "angka": null,
+      "satuan": null,
+      "ket": null,
+      "sumber": "NASA FIRMS · MODIS MCD64A1 · CAMS/Open-Meteo · KHG KLHK"
+    }
+  ]
+}

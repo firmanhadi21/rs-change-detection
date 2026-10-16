@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "The words Bian speaks in the companion film, one entry per segment of",
+    "jadwalBukti.json's urutan. Nothing reads this file at render time -- the",
+    "cut is driven by the measured mp3 lengths -- but the mp3s are gitignored,",
+    "so without it the script would exist nowhere in the repository.",
+    "",
+    "Figures spoken here come from src/buktiData.json. Every thresholded",
+    "number is Sentinel-2; PlanetScope has no SWIR and cannot produce one.",
+    "",
+    "Generated once with ElevenLabs eleven_v4, voice 1k39YpzqXZn52BgyLyGO.",
+    "Regenerating costs credits and will not reproduce the same takes, and",
+    "the cut depends on their exact lengths -- keep a backup of",
+    "public/audio/bukti/ rather than rebuilding it."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-angka": "Angka bisa diperdebatkan. Citra satelit lebih sulit dibantah.",
+    "02-petak": "Satu petak, dua puluh kali dua puluh kilometer, di Kalimantan Tengah. Gambut yang sudah dikeringkan. Garis-garis lurus yang Anda lihat itu adalah kanal drainase.",
+    "03-21jul": "Dua puluh satu Juli dua ribu dua puluh enam. Sebelum musim kebakaran. Hijau.",
+    "04-18agt": "Dua puluh delapan hari kemudian, delapan belas Agustus. Api sudah bekerja.",
+    "05-29agt": "Sebelas hari berikutnya, dua puluh sembilan Agustus. Bekas bakar itu melebar.",
+    "06-keparahan": "Sentinel-2 mengukur keparahannya. Lima belas ribu tiga ratus delapan puluh empat hektare terbakar pada tingkat sedang ke atas. Tiga puluh sembilan persen dari petak itu. Enam ribu lima ratus hektare di antaranya terbakar paling hebat.",
+    "07-dua-satelit": "Dua satelit, dua tugas berbeda. PlanetScope melihat permukaannya pada tiga meter. Tetapi PlanetScope tidak punya kanal inframerah gelombang pendek, jadi ia tidak bisa mengukur keparahan. Itu tugas Sentinel-2.",
+    "08-tanpa-tepi": "Dan petak ini bukan batas kebakarannya. Diperlebar menjadi enam puluh kilometer, luas terbakar naik menjadi lima puluh lima ribu hektare. Tidak ada tepi. Yang ada hanya bingkai yang kita pilih sendiri.",
+    "09-tutup": "Tiga satelit berbeda merekam peristiwa yang sama. Yang masih bisa diperdebatkan bukan lagi apakah ini terjadi, melainkan apa yang akan dilakukan."
+  }
+}

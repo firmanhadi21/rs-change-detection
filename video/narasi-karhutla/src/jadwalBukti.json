@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "Jadwal film pendamping. Sama seperti jadwal.json: durasi",
+    "adalah ukuran ffprobe atas mp3 yang SUDAH dinormalisasi,",
+    "dan bake_musik membaca berkas ini agar bed-nya pas."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.45,
+  "judul_detik": 3.5,
+  "tutup_detik": 3.0,
+  "urutan": [
+    "01-angka",
+    "02-petak",
+    "03-21jul",
+    "04-18agt",
+    "05-29agt",
+    "06-keparahan",
+    "07-dua-satelit",
+    "08-tanpa-tepi",
+    "09-tutup"
+  ],
+  "durasi": {
+    "01-angka": 4.56,
+    "02-petak": 13.6,
+    "03-21jul": 6.32,
+    "04-18agt": 5.36,
+    "05-29agt": 6.64,
+    "06-keparahan": 17.68,
+    "07-dua-satelit": 16.24,
+    "08-tanpa-tepi": 16.16,
+    "09-tutup": 11.36
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

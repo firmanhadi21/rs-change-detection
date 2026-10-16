@@ -1,0 +1,50 @@
+{
+  "_comment": [
+    "Figures for the companion film. All derived, not typed from memory:",
+    "  dnbr      -> scratchpad/dnbr_blok20.py, Sentinel-2 B8/B12 over the",
+    "               20 km block, USGS severity bins",
+    "  cincin    -> scratchpad/luas_kompleks.py, concentric boxes from the",
+    "               same centre, dNBR >= 0.27 throughout",
+    "  awan      -> each Planet mosaic's own UDM2, via panel_video.py",
+    "",
+    "PlanetScope has no SWIR, so none of the dNBR numbers come from it."
+  ],
+  "lokasi": { "lat": -2.8881, "lon": 112.8958, "blok_km": 20, "blok_km2": 400 },
+  "dnbr": {
+    "total_ha": 39067,
+    "sedang_plus_ha": 15384,
+    "tinggi_ha": 6513,
+    "rendah_ha": 9978,
+    "tidak_terbakar_ha": 13705,
+    "sedang_plus_pct": 39.4,
+    "tinggi_pct": 16.7
+  },
+  "cincin": [
+    { "sisi_km": 12, "kotak_ha": 14349, "terbakar_ha": 8573 },
+    { "sisi_km": 20, "kotak_ha": 39860, "terbakar_ha": 15393 },
+    { "sisi_km": 30, "kotak_ha": 89684, "terbakar_ha": 22927 },
+    { "sisi_km": 40, "kotak_ha": 159439, "terbakar_ha": 31618 },
+    { "sisi_km": 60, "kotak_ha": 358737, "terbakar_ha": 55383 }
+  ],
+  "citra": [
+    { "id": "21jul", "tanggal": "21 Juli 2026", "ket": "sebelum musim", "awan": 44, "n": 3 },
+    { "id": "18agt", "tanggal": "18 Agustus 2026", "ket": "api sudah bekerja", "awan": 27, "n": 3 },
+    { "id": "29agt", "tanggal": "29 Agustus 2026", "ket": "sebelas hari kemudian", "awan": 37, "n": 4 }
+  ],
+  "sensor": [
+    {
+      "nama": "PlanetScope",
+      "res": "3 m",
+      "kanal": "8 kanal, tanpa SWIR",
+      "tugas": "melihat permukaan: tepi bekas bakar, kanal drainase",
+      "bisa_dnbr": false
+    },
+    {
+      "nama": "Sentinel-2",
+      "res": "20 m",
+      "kanal": "B8 + B12 (SWIR)",
+      "tugas": "mengukur keparahan: dNBR, ambang USGS",
+      "bisa_dnbr": true
+    }
+  ]
+}

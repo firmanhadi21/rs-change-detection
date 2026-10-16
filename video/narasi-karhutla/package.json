@@ -1,0 +1,21 @@
+{
+  "name": "narasi-karhutla",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion explainer that narrates the 2026 Indonesian fire season over the smoke-video animation",
+  "scripts": {
+    "start": "remotion studio",
+    "build": "remotion render Narasi out/narasi-karhutla.mp4",
+    "build:bukti": "remotion render Bukti out/bukti-karhutla.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.410",
+    "@remotion/google-fonts": "^4.0.410",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.410",
+    "typescript": "^5.7.3"
+  }
+}
