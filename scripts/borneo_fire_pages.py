@@ -45,6 +45,9 @@ _DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
 OUT = os.path.expanduser(_DATA_ROOT + "/output/fire")
 PAYLOAD = os.path.join(OUT, "infographic_payload.json")
 ADMIN_GEOJSON = os.path.join(OUT, "borneo_admin.geojson")
+# Written by scripts/borneo_conservation.py. Optional: without it the
+# named-areas page is skipped rather than invented.
+CONSERVATION = os.path.join(OUT, "borneo_conservation.json")
 # TWO ORDERINGS, AND THEY ARE NOT THE SAME. A GIS bbox is
 # [lon_min, lat_min, lon_max, lat_max] -- what ee.Geometry.Rectangle and
 # shapely take. cartopy's set_extent takes matplotlib order,
@@ -143,7 +146,7 @@ def header(fig, eyebrow, title, sub=None, y=0.955):
                  family="DejaVu Sans", va="top", wrap=True)
 
 
-def footer(fig, n, total=6):
+def footer(fig, n, total=7):
     fig.text(0.07, 0.028, "MODIS FIRMS · KLHK Penunjukan Kawasan Hutan · "
              "FAO GAUL 2015", fontsize=9, color=C["muted"])
     fig.text(0.93, 0.028, f"{n} / {total}", fontsize=9, color=C["muted"],
@@ -368,6 +371,108 @@ def function_page(D, out):
 
 
 # ---------------------------------------------------------------- page 4
+def conservation_page(D, K, out):
+    """Which protected areas. Page 3 raises the question; this answers it."""
+    import matplotlib.patches as mp
+    import textwrap
+    fig = page()
+    header(fig, "page 4 · named areas", "Which protected areas",
+           "The conservation detections from the previous page, joined to "
+           "WDPA\nfor names. The counts are unchanged — only the labels are "
+           "new.")
+
+    ok = [a for a in K["areas"] if a["corroborated"]]
+    iffy = [a for a in K["areas"] if not a["corroborated"]]
+
+    # ---- the concentration --------------------------------------------
+    top2 = ok[:2]
+    share = 100 * sum(a["n"] for a in top2) / K["total_protected"]
+    fig.text(0.07, 0.836,
+             f"{share:.0f}%", fontsize=68, color=C["cons"],
+             family="DejaVu Serif", va="top", fontweight="bold")
+    fig.text(0.295, 0.818,
+             f"of all conservation-area burning this week is inside\n"
+             f"just two national parks: {top2[0]['name']} and "
+             f"{top2[1]['name']}.",
+             fontsize=15.5, color=C["ink"], family="DejaVu Serif", va="top")
+
+    # ---- the ranking ---------------------------------------------------
+    rows = ok[:10]
+    ax = fig.add_axes([0.30, 0.445, 0.52, 0.315])
+    ax.set_facecolor(C["ground"])
+    y = np.arange(len(rows))[::-1]
+    vals = [a["n"] for a in rows]
+    # National parks in the darkest green; everything else a step lighter.
+    cols = [C["cons"] if a["desig"] == "National Park" else C["canopy"]
+            for a in rows]
+    ax.barh(y, vals, color=cols, height=.66)
+    ax.set_yticks(y)
+    ax.set_yticklabels([a["name"][:30] for a in rows], fontsize=11.5)
+    ax.set_xlabel("detections in the window", fontsize=10.5,
+                  color=C["muted"])
+    for s in ("top", "right", "left"):
+        ax.spines[s].set_visible(False)
+    ax.spines["bottom"].set_color(C["rule"])
+    ax.tick_params(colors=C["muted"], length=0)
+    ax.set_axisbelow(True); ax.xaxis.grid(True, color=C["rule"], lw=.7)
+    for yi, a in zip(y, rows):
+        ax.text(a["n"] + max(vals) * .015, yi, fmt(a["n"]), va="center",
+                fontsize=11, color=C["ink"], fontweight="bold")
+    # Rate, not just count: a small reserve with a few detections can be
+    # burning harder than a big park with many.
+    for yi, a in zip(y, rows):
+        ax.text(-max(vals) * .02, yi - .42,
+                f"{a['desig']} · {a['per_1000km2']:.0f} per 1,000 km²",
+                va="center", ha="right", fontsize=8.5, color=C["muted"])
+
+    # ---- provisional ----------------------------------------------------
+    fig.text(0.07, 0.400, "NAMES WDPA DOES NOT CORROBORATE", fontsize=10,
+             color=C["muted"], fontweight="bold")
+    axr = fig.add_axes([0.07, 0.388, 0.86, 0.0012]); axr.set_axis_off()
+    axr.add_patch(mp.Rectangle((0, 0), 1, 1, color=C["rule"]))
+    axr.set_xlim(0, 1); axr.set_ylim(0, 1)
+    listed = ", ".join(f"{a['name']} {fmt(a['n'])}" for a in iffy[:6])
+    fig.text(0.07, 0.370, textwrap.fill(
+        f"A further {fmt(K['provisional'])} detections fall in WDPA polygons "
+        f"with no government-reported area, no designation, or a name that "
+        f"does not belong to the ground they cover — {listed}. They are "
+        f"counted in the total and kept out of the ranking above.", 104),
+        fontsize=10.5, color=C["muted"], va="top")
+
+    # ---- what this is and is not ---------------------------------------
+    notes = [
+        ("The counts come from KLHK, not from WDPA.",
+         "Whether a detection is in a conservation area is decided by the "
+         "same Penunjukan Kawasan Hutan layer as page 3, so the total here "
+         "is page 3's total. WDPA supplies the name and nothing else. A "
+         "detection is never added because WDPA covers it, nor dropped "
+         "because WDPA does not."),
+        ("Protection forest is absent on purpose.",
+         f"All {fmt(D['protected'] - K['total_protected'])} HL detections "
+         "fall outside WDPA entirely. HL is a KLHK watershed category, not "
+         "an IUCN protected area — the two registries describe different "
+         "things, which is why no figure here is built from both."),
+        ("Muara Angke is the clearest mislabelling.",
+         "WDPA places a 654 km² reserve of that name at 116.7°E, 0.18°N in "
+         "East Kalimantan. The Muara Angke reserve is about 25 ha, in "
+         "Jakarta. The polygon is real and the burning in it is real; the "
+         "name is not evidence about either."),
+    ]
+    # Three notes of three lines each have to land above the footer at
+    # 0.028; this start leaves roughly two lines of margin if a wrap grows.
+    y = 0.285
+    for bold, rest in notes:
+        fig.text(0.07, y, bold, fontsize=11, color=C["ink"],
+                 fontweight="bold")
+        body = textwrap.fill(rest, 110)
+        fig.text(0.07, y - 0.0165, body, fontsize=10.5, color=C["muted"],
+                 va="top")
+        y -= 0.0165 + 0.0185 * (body.count("\n") + 1) + 0.0075
+    footer(fig, 4)
+    save(fig, out)
+
+
+# ---------------------------------------------------------------- page 5
 def map_page(D, admin, out):
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
@@ -375,7 +480,7 @@ def map_page(D, admin, out):
     import matplotlib.patheffects as pe
 
     fig = page()
-    header(fig, "page 4 · location", "Where they are",
+    header(fig, "page 5 · location", "Where they are",
            "Every detection in the window, over land, sea, international and\n"
            "provincial boundaries, with the cities the clusters sit near.")
 
@@ -450,17 +555,17 @@ def map_page(D, admin, out):
                      bbox_to_anchor=(0.5, 0.037), frameon=False, fontsize=10.5)
     for t in leg.get_texts():
         t.set_color(C["ink"])
-    footer(fig, 4)
+    footer(fig, 5)
     save(fig, out)
 
 
-# ---------------------------------------------------------------- page 5
+# ---------------------------------------------------------------- page 6
 def context_page(D, out):
     import matplotlib.patches as mp
     fig = page()
     lo = int(D["window"][1][:4]) - D["ytd_years"] + 1
     hi = int(D["window"][1][:4]) - 1
-    header(fig, "page 5 · context", "The season so far",
+    header(fig, "page 6 · context", "The season so far",
            f"How this week sits against the {lo}–{hi} record, and how much\n"
            "a ranking taken at this point in the year is worth.")
 
@@ -540,26 +645,26 @@ def context_page(D, out):
     axb.add_patch(mp.Rectangle((0, 0), 1, 1, color=C["ember"]))
     axb.set_xlim(0, 1); axb.set_ylim(0, 1)
 
-    # The source and caveat notes that used to sit here are now page 6, which
-    # is about provenance in full. Repeating them would have the deck say the
-    # same thing twice, in two places that could drift apart.
+    # The source and caveat notes that used to sit here are now the method
+    # page, which is about provenance in full. Repeating them would have the
+    # deck say the same thing twice, in two places that could drift apart.
     fig.text(0.07, 0.225,
-             "Page 6 sets out the data and the method in full: every input, "
+             "Page 7 sets out the data and the method in full: every input, "
              "the\nquery that produced each figure, and what the counts do "
              "not mean.",
              fontsize=12.5, color=C["muted"], va="top", style="italic")
-    footer(fig, 5)
+    footer(fig, 6)
     save(fig, out)
 
 
-# ---------------------------------------------------------------- page 6
+# ---------------------------------------------------------------- page 7
 def method_page(D, out):
     """Provenance. Every figure in the deck, traced to the query behind it."""
     import matplotlib.patches as mp
     import textwrap
     M = D.get("method", {})
     fig = page()
-    header(fig, "page 6 · data and method", "How this was made",
+    header(fig, "page 7 · data and method", "How this was made",
            "Three public datasets and a four-step chain, run end to end.\n"
            "The counts beside each step are this run's own.")
 
@@ -676,7 +781,7 @@ def method_page(D, out):
         fig.text(0.07, y - 0.0165, body, fontsize=10.5, color=C["muted"],
                  va="top")
         y -= 0.0165 + 0.0185 * (body.count("\n") + 1) + 0.0075
-    footer(fig, 6)
+    footer(fig, 7)
     save(fig, out)
 
 
@@ -708,15 +813,34 @@ def main():
         print(f"  (provincial boundaries skipped: {exc.__class__.__name__}: "
               f"{str(exc)[:80]})")
 
-    names = ["01_cover", "02_admin", "03_forest_function", "04_map",
-             "05_context", "06_method"]
+    # Required, not optional. Making the named-areas page skippable would
+    # mean every page after it carries two possible numbers, and a deck
+    # that misnumbers itself when an input is missing is the same bug this
+    # file has already been fixed for twice.
+    if not os.path.exists(CONSERVATION):
+        raise SystemExit(
+            f"missing {CONSERVATION}\n"
+            f"Run:  conda run -n base python scripts/borneo_conservation.py")
+    K = json.load(open(CONSERVATION))
+    if K["window"] != D["window"]:
+        raise SystemExit(
+            f"borneo_conservation.json is from a different window:\n"
+            f"  pages    {D['window'][0]} .. {D['window'][1]}\n"
+            f"  named    {K['window'][0]} .. {K['window'][1]}\n"
+            f"Re-run scripts/borneo_conservation.py.")
+    print(f"  named areas: {len(K['areas'])} over "
+          f"{fmt(K['total_protected'])} detections")
+
+    names = ["01_cover", "02_admin", "03_forest_function", "04_named_areas",
+             "05_map", "06_context", "07_method"]
     paths = [os.path.join(a.out, f"borneo_fire_{n}.jpg") for n in names]
     cover(D, paths[0])
     admin_page(D, paths[1])
     function_page(D, paths[2])
-    map_page(D, admin, paths[3])
-    context_page(D, paths[4])
-    method_page(D, paths[5])
+    conservation_page(D, K, paths[3])
+    map_page(D, admin, paths[4])
+    context_page(D, paths[5])
+    method_page(D, paths[6])
     print(f"\n{len(names)} pages in {a.out}")
     return 0
 
