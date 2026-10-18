@@ -100,34 +100,54 @@ CITIES = [
 PAGE = (11.0, 15.6)          # inches; A4-ish portrait
 
 
-def fmt(n):
-    return f"{int(n):,}"
-
-
 # These pages are re-rendered every season, and the first version of them
 # stated the August window in prose ("Half the Indonesian fires...", "1 JAN -
 # 20 AUG 2026", "RANK IN 26 YEARS"). Prose does not move when the payload
 # does, so a re-run silently published the new numbers under the old claims.
 # Anything that depends on the window is derived from here down.
-_BULAN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+#
+# The same applies across languages: every string lives in
+# borneo_fire_text.py and every number is formatted for the language before
+# it reaches a template, because Indonesian writes 1.234 and 3,45 where
+# English writes 1,234 and 3.45.
+import borneo_fire_text as TX                              # noqa: E402
+
+LANG = "en"
+
+
+def S(key):
+    return TX.T[LANG][key]
+
+
+def fmt(n):
+    return TX.ribuan(n, LANG)
+
+
+def dec(v, d=1):
+    return TX.desimal(v, LANG, d)
+
+
+def bulan(i):
+    """Month name, 1-based."""
+    return TX.MONTHS[LANG][i - 1]
+
+
+def fungsi(k):
+    return TX.FUNGSI[LANG].get(k, k)
+
+
+def desig(k):
+    return TX.DESIG.get(k, k) if LANG == "id" else k
 
 
 def ytd_label(D):
     """'1 JAN - 16 OCT 2026' from the payload's own window end."""
     mm, dd = D["ytd_window_end"].split("-")
-    year = D["window"][1][:4]
-    return f"1 JAN – {int(dd)} {_BULAN[int(mm) - 1].upper()} {year}"
+    return f"1 JAN – {int(dd)} {bulan(int(mm)).upper()} {D['window'][1][:4]}"
 
 
 def share_word(pct):
-    """A fraction in words, for prose that must not contradict its figure."""
-    for cut, word in ((88, "Nearly all of"), (72, "Three quarters of"),
-                      (60, "Two thirds of"), (44, "Half"),
-                      (28, "A third of"), (12, "A fifth of")):
-        if pct >= cut:
-            return word
-    return "A small share of"
+    return TX.share_word(pct, LANG)
 
 
 def page(fig_title=None):
@@ -147,10 +167,37 @@ def header(fig, eyebrow, title, sub=None, y=0.955):
 
 
 def footer(fig, n, total=7):
-    fig.text(0.07, 0.028, "MODIS FIRMS · KLHK Penunjukan Kawasan Hutan · "
-             "FAO GAUL 2015", fontsize=9, color=C["muted"])
+    fig.text(0.07, 0.028, S("footer_src"), fontsize=9, color=C["muted"])
     fig.text(0.93, 0.028, f"{n} / {total}", fontsize=9, color=C["muted"],
              ha="right")
+
+
+def notes_block(fig, notes, top, floor=0.044, width=108):
+    """A stack of bold-headed notes that always clears the footer.
+
+    Hand-tuned leading worked while there was one language. Indonesian runs
+    roughly a fifth longer than the English for the same content, which
+    pushed the last note under the footer -- so the block measures itself
+    and steps the type down until it fits rather than trusting a constant.
+    Returns the y it finished at.
+    """
+    import textwrap
+    for size, lead, wrap in ((11.0, 0.0185, width), (10.5, 0.0175, width + 6),
+                             (10.0, 0.0166, width + 12),
+                             (9.5, 0.0158, width + 18)):
+        bodies = [textwrap.fill(b, wrap) for _, b in notes]
+        need = sum(0.0165 + lead * (b.count("\n") + 1) + 0.0075
+                   for b in bodies)
+        if top - need >= floor:
+            break
+    y = top
+    for (bold, _), body in zip(notes, bodies):
+        fig.text(0.07, y, bold, fontsize=size, color=C["ink"],
+                 fontweight="bold")
+        fig.text(0.07, y - 0.0165, body, fontsize=size - 0.5,
+                 color=C["muted"], va="top")
+        y -= 0.0165 + lead * (body.count("\n") + 1) + 0.0075
+    return y
 
 
 def save(fig, path, dpi=140):
@@ -165,29 +212,26 @@ def save(fig, path, dpi=140):
 # ---------------------------------------------------------------- page 1
 def cover(D, out):
     fig = page()
-    header(fig, f"MODIS FIRMS · {D['window'][0]} to {D['window'][1]}",
-           "Titik Panas Borneo",
-           "Active-fire detections across the whole island — Kalimantan,\n"
-           "Sarawak, Sabah, Labuan and Brunei — attributed to province and,\n"
-           "on the Indonesian side, to the legal function of the land beneath.")
+    header(fig, S("p1_eyebrow").format(d0=D["window"][0], d1=D["window"][1]),
+           S("p1_title"), S("p1_sub"))
 
     fig.text(0.07, 0.70, fmt(D["total"]), fontsize=132, color=C["ember"],
              family="DejaVu Serif", va="center")
-    fig.text(0.07, 0.605, "DETECTIONS IN SEVEN DAYS", fontsize=12,
+    fig.text(0.07, 0.605, S("p1_kicker"), fontsize=12,
              color=C["muted"], fontweight="bold")
 
     idn = next(x["n"] for x in D["by_country"] if x["c"] == "Indonesia")
     mys = next((x["n"] for x in D["by_country"] if x["c"] == "Malaysia"), 0)
-    rows = [("Indonesia — Kalimantan", idn, C["ember"]),
-            ("Malaysia — Sarawak + Sabah", mys, C["muted"]),
-            ("Brunei Darussalam", 0, C["muted"])]
+    rows = [(S("p1_idn"), idn, C["ember"]),
+            (S("p1_mys"), mys, C["muted"]),
+            (S("p1_brn"), 0, C["muted"])]
     y = 0.52
     for label, v, col in rows:
         fig.text(0.07, y, label, fontsize=14, color=C["ink"])
         fig.text(0.60, y, fmt(v), fontsize=15, color=col, fontweight="bold",
                  ha="right")
         pct = 100 * v / D["total"] if D["total"] else 0
-        fig.text(0.68, y, f"{pct:.1f}%", fontsize=13, color=C["muted"],
+        fig.text(0.68, y, f"{dec(pct)}%", fontsize=13, color=C["muted"],
                  ha="right")
         ax = fig.add_axes([0.71, y - 0.004, 0.22, 0.016])
         ax.set_axis_off()
@@ -199,16 +243,12 @@ def cover(D, out):
         y -= 0.052
 
     share = 100 * D["total"] / D["ytd_total"]
-    fig.text(0.07, 0.315,
-             f"These seven days are {share:.0f}% of every hotspot detected\n"
-             f"on Borneo since 1 January.",
+    fig.text(0.07, 0.315, S("p1_share").format(share=dec(share, 0)),
              fontsize=19, color=C["ink"], family="DejaVu Serif", va="top")
     est_pct = 100 * D["in_estate"] / D["indonesia_total"]
     fig.text(0.07, 0.225,
-             f"{share_word(est_pct)} the Indonesian fires are inside the "
-             f"forest estate, and\n{fmt(D['protected'])} of them are in "
-             "protection forest or conservation areas,\nwhere burning is not "
-             "permitted under any licence.",
+             S("p1_estate").format(word=share_word(est_pct),
+                                   protected=fmt(D["protected"])),
              fontsize=13, color=C["muted"], va="top")
     # The rule brackets the quote, so it has to start where the text starts.
     # Text is drawn va="top" from 0.315 and runs two lines at 19 pt.
@@ -231,20 +271,17 @@ def admin_page(D, out):
     my = [r for r in rat if r["c"] == "Malaysia"]
     idn = [r for r in rat if r["c"] == "Indonesia"]
     my_below = my and all(r["ratio"] < 1 for r in my)
-    sub = (f"{idn_pct:.0f}% of the island's fires this week are on the "
-           f"Indonesian side. ")
+    sub = S("p2_sub_a").format(pct=dec(idn_pct, 0))
     if my_below and idn:
-        sub += (f"Sarawak and Sabah are not merely quieter — both run BELOW "
-                f"their own {D['ytd_years'] - 1}-year medians for the season "
-                f"to date, while every Kalimantan province runs "
-                f"{min(r['ratio'] for r in idn):.1f} to "
-                f"{max(r['ratio'] for r in idn):.1f} times above.")
+        sub += S("p2_sub_b").format(
+            years=D["ytd_years"] - 1,
+            lo=dec(min(r["ratio"] for r in idn)),
+            hi=dec(max(r["ratio"] for r in idn)))
     else:
-        sub += (f"Island-wide the season stands at "
-                f"{D['ytd_total']/D['ytd_median']:.1f}× the "
-                f"{D['ytd_years'] - 1}-year median to this date.")
-    header(fig, "page 2 · administrative boundary",
-           "This is a Kalimantan event", textwrap.fill(sub, 64))
+        sub += S("p2_sub_c").format(
+            ratio=dec(D["ytd_total"] / D["ytd_median"]),
+            years=D["ytd_years"] - 1)
+    header(fig, S("p2_eyebrow"), S("p2_title"), textwrap.fill(sub, 64))
     # Left margin fits the longest tick label ("Kaltim (+Kaltara)"), which
     # was being cut in half at 0.07.
     ax = fig.add_axes([0.185, 0.30, 0.745, 0.50])
@@ -259,11 +296,11 @@ def admin_page(D, out):
     ax.set_yticks(y)
     ax.set_yticklabels(names, fontsize=14)
     d0, d1 = D["window"]
-    span = (f"{int(d0[8:])}–{int(d1[8:])} {_BULAN[int(d1[5:7]) - 1]} "
+    span = (f"{int(d0[8:])}–{int(d1[8:])} {bulan(int(d1[5:7]))} "
             f"{d1[:4]}" if d0[:7] == d1[:7] else
-            f"{int(d0[8:])} {_BULAN[int(d0[5:7]) - 1]} – "
-            f"{int(d1[8:])} {_BULAN[int(d1[5:7]) - 1]} {d1[:4]}")
-    ax.set_xlabel(f"hotspot detections, {span}", fontsize=11,
+            f"{int(d0[8:])} {bulan(int(d0[5:7]))} – "
+            f"{int(d1[8:])} {bulan(int(d1[5:7]))} {d1[:4]}")
+    ax.set_xlabel(S("p2_xlabel").format(span=span), fontsize=11,
                   color=C["muted"])
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
@@ -279,24 +316,18 @@ def admin_page(D, out):
     # Name whichever two provinces actually lead, and say so only if a
     # region really did record nothing.
     top = regions[:2]
-    line = (f"{top[0]['r']} alone carries "
-            f"{100*top[0]['n']/D['total']:.0f}% of the island total")
+    line = S("p2_lead1").format(region=top[0]["r"],
+                                pct=dec(100 * top[0]["n"] / D["total"], 0))
     if len(top) > 1:
-        line += (f", and {top[1]['r']} another "
-                 f"{100*top[1]['n']/D['total']:.0f}%")
+        line += S("p2_lead2").format(
+            region=top[1]["r"], pct=dec(100 * top[1]["n"] / D["total"], 0))
     line += "."
     silent = [r["r"] for r in D["ytd_ratio"]
               if not any(x["r"] == r["r"] for x in regions)]
     if silent:
-        line += ("\n" + ", ".join(silent) +
-                 (" recorded no detections at all in the window."
-                  if len(silent) == 1 else
-                  " recorded no detections at all in the window."))
+        line += "\n" + S("p2_silent").format(regions=", ".join(silent))
     fig.text(0.07, 0.22, line, fontsize=13, color=C["muted"], va="top")
-    fig.text(0.07, 0.145,
-             "Kalimantan Utara does not appear: FAO GAUL 2015 predates the "
-             "province\ncreated in 2012, so its territory is counted inside "
-             "Kalimantan Timur.",
+    fig.text(0.07, 0.145, S("p2_note"),
              fontsize=11.5, color=C["muted"], va="top", style="italic")
     footer(fig, 2)
     save(fig, out)
@@ -306,9 +337,7 @@ def admin_page(D, out):
 def function_page(D, out):
     import matplotlib.patches as mp
     fig = page()
-    header(fig, "page 3 · forest function", "Whose land is burning",
-           "Indonesian detections placed on the KLHK Penunjukan Kawasan Hutan\n"
-           "designation, ordered by how much legal protection the land carries.")
+    header(fig, S("p3_eyebrow"), S("p3_title"), S("p3_sub"))
     byF = {x["f"]: x["n"] for x in D["by_function"]}
     funcs = [k for k in ORDER if byF.get(k)]
     tot = D["indonesia_total"]
@@ -320,12 +349,13 @@ def function_page(D, out):
         w = byF[k] / tot
         ax.add_patch(mp.Rectangle((x, 0), w, 1, color=FCOL[k]))
         if w > 0.06:
-            ax.text(x + w / 2, .5, f"{100*w:.0f}%", ha="center", va="center",
-                    color="white", fontsize=12, fontweight="bold")
+            ax.text(x + w / 2, .5, f"{dec(100*w, 0)}%", ha="center",
+                    va="center", color="white", fontsize=12,
+                    fontweight="bold")
         x += w
-    fig.text(0.07, 0.755, "WEAKEST PROTECTION", fontsize=9,
+    fig.text(0.07, 0.755, S("p3_weak"), fontsize=9,
              color=C["muted"], fontweight="bold")
-    fig.text(0.93, 0.755, "STRONGEST PROTECTION", fontsize=9,
+    fig.text(0.93, 0.755, S("p3_strong"), fontsize=9,
              color=C["muted"], fontweight="bold", ha="right")
 
     y = 0.635
@@ -335,24 +365,23 @@ def function_page(D, out):
         ax2.add_patch(mp.Rectangle((0, 0), 1, 1, color=FCOL[k]))
         ax2.set_xlim(0, 1); ax2.set_ylim(0, 1)
         strong = k in ("HL (protection forest)", "Conservation (KSA/KPA)")
-        fig.text(0.105, y, k, fontsize=13.5, color=C["ink"],
+        fig.text(0.105, y, fungsi(k), fontsize=13.5, color=C["ink"],
                  fontweight="bold" if strong else "normal")
         fig.text(0.74, y, fmt(n), fontsize=13.5, ha="right",
                  fontweight="bold", color=C["ink"])
-        fig.text(0.83, y, f"{100*n/tot:.1f}%", fontsize=13, ha="right",
+        fig.text(0.83, y, f"{dec(100*n/tot)}%", fontsize=13, ha="right",
                  color=C["muted"])
         y -= 0.042
 
     # Wrapped, not hand-broken. The figures in this sentence change length
     # every season and fixed newlines left it ragged.
     import textwrap
-    quote = textwrap.fill(
-        f"{share_word(100*D['in_estate']/tot)} the Indonesian fires — "
-        f"{fmt(D['in_estate'])}, {100*D['in_estate']/tot:.1f}% — are inside "
-        "the forest estate rather than on land released for other use. "
-        f"{fmt(D['protected'])} of them ({100*D['protected']/tot:.1f}%) are "
-        "in protection forest or conservation areas, where burning is not "
-        "permitted under any licence.", 68)
+    quote = textwrap.fill(S("p3_quote").format(
+        word=share_word(100 * D["in_estate"] / tot),
+        estate=fmt(D["in_estate"]),
+        estate_pct=dec(100 * D["in_estate"] / tot),
+        protected=fmt(D["protected"]),
+        prot_pct=dec(100 * D["protected"] / tot)), 68)
     # Rule height follows the wrap, so it brackets the quote at any length.
     _h3 = (quote.count("\n") + 1) * 15 * 1.32 / 72 / PAGE[1]
     ax3 = fig.add_axes([0.068, 0.278 - _h3, 0.004, _h3]); ax3.set_axis_off()
@@ -360,11 +389,7 @@ def function_page(D, out):
     ax3.set_xlim(0, 1); ax3.set_ylim(0, 1)
     fig.text(0.09, 0.278, quote,
              fontsize=15, color=C["ink"], family="DejaVu Serif", va="top")
-    fig.text(0.07, 0.125,
-             "Kawasan hutan is an Indonesian legal designation with no "
-             "Malaysian or Bruneian\nequivalent, so Sarawak, Sabah, Labuan "
-             "and Brunei are left unclassified here rather\nthan mapped onto "
-             "a foreign scheme.",
+    fig.text(0.07, 0.125, S("p3_note"),
              fontsize=11.5, color=C["muted"], va="top", style="italic")
     footer(fig, 3)
     save(fig, out)
@@ -376,10 +401,7 @@ def conservation_page(D, K, out):
     import matplotlib.patches as mp
     import textwrap
     fig = page()
-    header(fig, "page 4 · named areas", "Which protected areas",
-           "The conservation detections from the previous page, joined to "
-           "WDPA\nfor names. The counts are unchanged — only the labels are "
-           "new.")
+    header(fig, S("p4_eyebrow"), S("p4_title"), S("p4_sub"))
 
     ok = [a for a in K["areas"] if a["corroborated"]]
     iffy = [a for a in K["areas"] if not a["corroborated"]]
@@ -388,12 +410,10 @@ def conservation_page(D, K, out):
     top2 = ok[:2]
     share = 100 * sum(a["n"] for a in top2) / K["total_protected"]
     fig.text(0.07, 0.836,
-             f"{share:.0f}%", fontsize=68, color=C["cons"],
+             f"{dec(share, 0)}%", fontsize=68, color=C["cons"],
              family="DejaVu Serif", va="top", fontweight="bold")
     fig.text(0.295, 0.818,
-             f"of all conservation-area burning this week is inside\n"
-             f"just two national parks: {top2[0]['name']} and "
-             f"{top2[1]['name']}.",
+             S("p4_lead").format(a=top2[0]["name"], b=top2[1]["name"]),
              fontsize=15.5, color=C["ink"], family="DejaVu Serif", va="top")
 
     # ---- the ranking ---------------------------------------------------
@@ -408,8 +428,7 @@ def conservation_page(D, K, out):
     ax.barh(y, vals, color=cols, height=.66)
     ax.set_yticks(y)
     ax.set_yticklabels([a["name"][:30] for a in rows], fontsize=11.5)
-    ax.set_xlabel("detections in the window", fontsize=10.5,
-                  color=C["muted"])
+    ax.set_xlabel(S("p4_xlabel"), fontsize=10.5, color=C["muted"])
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
     ax.spines["bottom"].set_color(C["rule"])
@@ -422,52 +441,29 @@ def conservation_page(D, K, out):
     # burning harder than a big park with many.
     for yi, a in zip(y, rows):
         ax.text(-max(vals) * .02, yi - .42,
-                f"{a['desig']} · {a['per_1000km2']:.0f} per 1,000 km²",
+                S("p4_rate").format(desig=desig(a["desig"]),
+                                    rate=dec(a["per_1000km2"], 0)),
                 va="center", ha="right", fontsize=8.5, color=C["muted"])
 
     # ---- provisional ----------------------------------------------------
-    fig.text(0.07, 0.400, "NAMES WDPA DOES NOT CORROBORATE", fontsize=10,
+    fig.text(0.07, 0.400, S("p4_prov_head"), fontsize=10,
              color=C["muted"], fontweight="bold")
     axr = fig.add_axes([0.07, 0.388, 0.86, 0.0012]); axr.set_axis_off()
     axr.add_patch(mp.Rectangle((0, 0), 1, 1, color=C["rule"]))
     axr.set_xlim(0, 1); axr.set_ylim(0, 1)
     listed = ", ".join(f"{a['name']} {fmt(a['n'])}" for a in iffy[:6])
-    fig.text(0.07, 0.370, textwrap.fill(
-        f"A further {fmt(K['provisional'])} detections fall in WDPA polygons "
-        f"with no government-reported area, no designation, or a name that "
-        f"does not belong to the ground they cover — {listed}. They are "
-        f"counted in the total and kept out of the ranking above.", 104),
+    fig.text(0.07, 0.370, textwrap.fill(S("p4_prov").format(
+        n=fmt(K["provisional"]), listed=listed), 104),
         fontsize=10.5, color=C["muted"], va="top")
 
     # ---- what this is and is not ---------------------------------------
     notes = [
-        ("The counts come from KLHK, not from WDPA.",
-         "Whether a detection is in a conservation area is decided by the "
-         "same Penunjukan Kawasan Hutan layer as page 3, so the total here "
-         "is page 3's total. WDPA supplies the name and nothing else. A "
-         "detection is never added because WDPA covers it, nor dropped "
-         "because WDPA does not."),
-        ("Protection forest is absent on purpose.",
-         f"All {fmt(D['protected'] - K['total_protected'])} HL detections "
-         "fall outside WDPA entirely. HL is a KLHK watershed category, not "
-         "an IUCN protected area — the two registries describe different "
-         "things, which is why no figure here is built from both."),
-        ("Muara Angke is the clearest mislabelling.",
-         "WDPA places a 654 km² reserve of that name at 116.7°E, 0.18°N in "
-         "East Kalimantan. The Muara Angke reserve is about 25 ha, in "
-         "Jakarta. The polygon is real and the burning in it is real; the "
-         "name is not evidence about either."),
+        (S("p4_n1_h"), S("p4_n1_b")),
+        (S("p4_n2_h"), S("p4_n2_b").format(
+            hl=fmt(D["protected"] - K["total_protected"]))),
+        (S("p4_n3_h"), S("p4_n3_b")),
     ]
-    # Three notes of three lines each have to land above the footer at
-    # 0.028; this start leaves roughly two lines of margin if a wrap grows.
-    y = 0.285
-    for bold, rest in notes:
-        fig.text(0.07, y, bold, fontsize=11, color=C["ink"],
-                 fontweight="bold")
-        body = textwrap.fill(rest, 110)
-        fig.text(0.07, y - 0.0165, body, fontsize=10.5, color=C["muted"],
-                 va="top")
-        y -= 0.0165 + 0.0185 * (body.count("\n") + 1) + 0.0075
+    notes_block(fig, notes, 0.285, width=110)
     footer(fig, 4)
     save(fig, out)
 
@@ -480,9 +476,7 @@ def map_page(D, admin, out):
     import matplotlib.patheffects as pe
 
     fig = page()
-    header(fig, "page 5 · location", "Where they are",
-           "Every detection in the window, over land, sea, international and\n"
-           "provincial boundaries, with the cities the clusters sit near.")
+    header(fig, S("p5_eyebrow"), S("p5_title"), S("p5_sub"))
 
     pc = ccrs.PlateCarree()
     ax = fig.add_axes([0.055, 0.115, 0.89, 0.66], projection=pc)
@@ -544,13 +538,12 @@ def map_page(D, admin, out):
     # Scale bar: one degree of longitude at the equator, stated honestly.
     ax.plot([109.0, 110.8], [-4.05, -4.05], color=C["ink"], lw=2.4,
             zorder=12, transform=pc, solid_capstyle="butt")
-    ax.text(109.9, -3.95, "200 km", ha="center", fontsize=8.5,
+    ax.text(109.9, -3.95, S("p5_scale"), ha="center", fontsize=8.5,
             color=C["ink"], zorder=12, transform=pc)
 
-    handles = [mp.Patch(color=FCOL[k], label=k) for k in ORDER if
+    handles = [mp.Patch(color=FCOL[k], label=fungsi(k)) for k in ORDER if
                any(p[2] == k for p in pts)]
-    handles.append(mp.Patch(color=FCOL["_MY"],
-                            label="Malaysia (no KLHK class)"))
+    handles.append(mp.Patch(color=FCOL["_MY"], label=fungsi("_MY")))
     leg = fig.legend(handles=handles, loc="lower center", ncol=3,
                      bbox_to_anchor=(0.5, 0.037), frameon=False, fontsize=10.5)
     for t in leg.get_texts():
@@ -565,9 +558,8 @@ def context_page(D, out):
     fig = page()
     lo = int(D["window"][1][:4]) - D["ytd_years"] + 1
     hi = int(D["window"][1][:4]) - 1
-    header(fig, "page 6 · context", "The season so far",
-           f"How this week sits against the {lo}–{hi} record, and how much\n"
-           "a ranking taken at this point in the year is worth.")
+    header(fig, S("p6_eyebrow"), S("p6_title"),
+           S("p6_sub").format(lo=lo, hi=hi))
 
     ax = fig.add_axes([0.07, 0.60, 0.86, 0.20])
     days = D["daily"]
@@ -576,7 +568,7 @@ def context_page(D, out):
     ax.set_xticks(xs)
     # The month comes from the date, not from a literal. This read " Aug" for
     # every bar, which was invisibly correct in August and wrong thereafter.
-    ax.set_xticklabels([f"{int(d['d'][8:])} {_BULAN[int(d['d'][5:7]) - 1]}"
+    ax.set_xticklabels([f"{int(d['d'][8:])} {bulan(int(d['d'][5:7]))}"
                         for d in days], fontsize=11)
     ax.set_facecolor(C["ground"])
     for s in ("top", "right", "left"):
@@ -587,23 +579,17 @@ def context_page(D, out):
     for xi, d in zip(xs, days):
         ax.text(xi, d["n"] * 1.03, fmt(d["n"]), ha="center", fontsize=10.5,
                 color=C["ink"], fontweight="bold")
-    ax.set_title("detections per day", fontsize=11, color=C["muted"],
-                 loc="left")
-    fig.text(0.07, 0.565,
-             "MODIS sees a place twice a day at best and cloud blocks it "
-             "entirely. The dips are as likely to be cloud as calm.",
+    ax.set_title(S("p6_perday"), fontsize=11, color=C["muted"], loc="left")
+    fig.text(0.07, 0.565, S("p6_cloud"),
              fontsize=11, color=C["muted"], style="italic")
 
-    base_lo = int(D["window"][1][:4]) - D["ytd_years"] + 1
-    base_hi = int(D["window"][1][:4]) - 1
-    cards = [(fmt(D["ytd_total"]), ytd_label(D),
-              "total detections, same definition"),
-             (f"{D['ytd_total']/D['ytd_median']:.2f}×",
-              f"VS {base_lo}–{base_hi} MEDIAN",
-              f"median {fmt(round(D['ytd_median']))}"),
+    cards = [(fmt(D["ytd_total"]), ytd_label(D), S("p6_card1")),
+             (f"{dec(D['ytd_total']/D['ytd_median'], 2)}×",
+              S("p6_card2_l").format(lo=lo, hi=hi),
+              S("p6_card2_s").format(median=fmt(round(D["ytd_median"])))),
              (f"{D['ytd_rank']} / {D['ytd_years']}",
-              f"RANK IN {D['ytd_years']} YEARS",
-              "to this date in the year")]
+              S("p6_card3_l").format(years=D["ytd_years"]),
+              S("p6_card3_s"))]
     x0 = 0.07
     for val, lab, sub in cards:
         axc = fig.add_axes([x0, 0.395, 0.268, 0.125]); axc.set_axis_off()
@@ -623,18 +609,7 @@ def context_page(D, out):
     # August it is nearly meaningless; cut after October it has seen the peak.
     # The caveat has to move with the window or it argues against its own page.
     cut_month = int(D["ytd_window_end"].split("-")[0])
-    if cut_month <= 8:
-        caveat = ("2015 sat exactly at the median on 20 August, and became "
-                  "the\ncatastrophe everyone remembers — because its fires "
-                  "peaked in\nSeptember and October. An August ranking "
-                  "systematically\nunderstates El Niño years and cannot tell "
-                  "you how a season ends.")
-    else:
-        caveat = ("Borneo's fires peak in September and October, so a ranking "
-                  "cut\nhere has seen the worst of the season rather than "
-                  "guessing at it.\nThat is what makes this one worth "
-                  "reading: 2015 and 2019 are\nalready in the record it is "
-                  "being measured against.")
+    caveat = S("p6_caveat_early" if cut_month <= 8 else "p6_caveat_late")
     fig.text(0.07, 0.352, caveat,
              fontsize=14.5, color=C["ink"], family="DejaVu Serif", va="top")
     # The rule brackets the quote, so its height is the quote's height: four
@@ -648,10 +623,7 @@ def context_page(D, out):
     # The source and caveat notes that used to sit here are now the method
     # page, which is about provenance in full. Repeating them would have the
     # deck say the same thing twice, in two places that could drift apart.
-    fig.text(0.07, 0.225,
-             "Page 7 sets out the data and the method in full: every input, "
-             "the\nquery that produced each figure, and what the counts do "
-             "not mean.",
+    fig.text(0.07, 0.225, S("p6_pointer"),
              fontsize=12.5, color=C["muted"], va="top", style="italic")
     footer(fig, 6)
     save(fig, out)
@@ -664,9 +636,7 @@ def method_page(D, out):
     import textwrap
     M = D.get("method", {})
     fig = page()
-    header(fig, "page 7 · data and method", "How this was made",
-           "Three public datasets and a four-step chain, run end to end.\n"
-           "The counts beside each step are this run's own.")
+    header(fig, S("p7_eyebrow"), S("p7_title"), S("p7_sub"))
 
     def section(y, label):
         fig.text(0.07, y, label, fontsize=10, color=C["muted"],
@@ -680,18 +650,9 @@ def method_page(D, out):
     conf = M.get("min_confidence", 30)
 
     # ---- inputs --------------------------------------------------------
-    section(0.828, "INPUTS")
-    inputs = [
-        ("NASA FIRMS active fire",
-         "MODIS Terra + Aqua, 1 km, daily",
-         "via Google Earth Engine · the detections themselves"),
-        ("FAO GAUL 2015, level 1",
-         "administrative boundaries, all three countries",
-         "which province, and which country, each detection is in"),
-        ("KLHK Penunjukan Kawasan Hutan",
-         "1:250,000 (2019) · Indonesia only",
-         "the legal function of the land under each Indonesian detection"),
-    ]
+    section(0.828, S("p7_inputs"))
+    inputs = [(S(f"p7_i{i}_n"), S(f"p7_i{i}_s"), S(f"p7_i{i}_r"))
+              for i in (1, 2, 3)]
     y = 0.796
     for name, spec, role in inputs:
         fig.text(0.075, y, name, fontsize=13.5, color=C["ink"],
@@ -704,30 +665,26 @@ def method_page(D, out):
     # ---- the chain -----------------------------------------------------
     # Numbered because this genuinely is a sequence: each step consumes the
     # previous step's output, and the count beside it is what survived.
-    section(0.612, "THE CHAIN, AND WHAT SURVIVED EACH STEP")
+    section(0.612, S("p7_chain"))
     mm, dd = D["ytd_window_end"].split("-")
-    ytd_end = f"{int(dd)} {_BULAN[int(mm) - 1]}"
+    ytd_end = f"{int(dd)} {bulan(int(mm))}"
+    start = M.get("ytd_start_year", 2001)
     steps = [
-        ("Query FIRMS",
-         f"over {bbox[0]}–{bbox[2]}°E, {abs(bbox[1])}°S–{bbox[3]}°N, "
-         f"{w[0]} to {w[1]}, confidence ≥ {conf}",
-         f"{fmt(M['n_fetched'])} detections" if M.get("n_fetched") else None),
-        ("Join to administrative boundaries",
-         "point in polygon against GAUL level 1. Anything at sea or off the "
-         "island is dropped, never snapped to the nearest unit",
-         f"{fmt(D['total'])} kept · {fmt(M['n_outside'])} dropped"
+        (S("p7_s1_n"),
+         S("p7_s1_b").format(w=f"{bbox[0]}–{bbox[2]}", s=abs(bbox[1]),
+                             n=bbox[3], d0=w[0], d1=w[1], conf=conf),
+         S("p7_s1_c").format(n=fmt(M["n_fetched"]))
+         if M.get("n_fetched") else None),
+        (S("p7_s2_n"), S("p7_s2_b"),
+         S("p7_s2_c").format(kept=fmt(D["total"]),
+                             dropped=fmt(M["n_outside"]))
          if M.get("n_outside") is not None else None),
-        ("Join to forest function",
-         f"point in polygon against {fmt(M['n_kawasan_polygons'])} kawasan "
-         f"polygons read over the fire extent. A point on a shared boundary "
-         f"is counted once, so the total is conserved"
-         if M.get("n_kawasan_polygons") else
-         "point in polygon against the kawasan layer, Indonesian points only",
-         f"{fmt(D['indonesia_total'])} attributed"),
-        ("Rebuild the whole record",
-         f"the same definition for 1 Jan–{ytd_end} of every year from "
-         f"{M.get('ytd_start_year', 2001)}, summed per region at 1 km",
-         f"{fmt(D['ytd_total'])} this year"),
+        (S("p7_s3_n"),
+         S("p7_s3_b").format(poly=fmt(M["n_kawasan_polygons"])),
+         S("p7_s3_c").format(n=fmt(D["indonesia_total"]))),
+        (S("p7_s4_n"),
+         S("p7_s4_b").format(end=ytd_end, start=start),
+         S("p7_s4_c").format(n=fmt(D["ytd_total"]))),
     ]
     # A fixed slot per step. Letting each one size itself to its own wrap
     # left the counts drifting out of line with the steps they belong to.
@@ -744,43 +701,18 @@ def method_page(D, out):
                  color=C["muted"], va="top")
         y -= SLOT
 
-    fig.text(0.075, y + 0.012,
-             "borneo_fire_payload.py folds the two runs together and refuses "
-             "to write if they came from\ndifferent FIRMS vintages. This "
-             "document is borneo_fire_pages.py.",
+    fig.text(0.075, y + 0.012, S("p7_foot"),
              fontsize=10.5, color=C["muted"], style="italic", va="top")
 
     # ---- limits --------------------------------------------------------
-    section(0.312, "WHAT THESE NUMBERS ARE NOT")
+    section(0.312, S("p7_not"))
     notes = [
-        ("A detection is not a fire.", "Each count is one 1 km pixel on one "
-         "day — a pixel-day. A single fire burning a week across four pixels "
-         "contributes 28. The quantity is comparable across regions and "
-         "years, and nothing more is claimed of it."),
-        ("Not comparable to BMKG or ASEAN figures.", "Those use VIIRS at "
-         "375 m, which detects several times more hotspots for the same "
-         "fires. Earth Engine carries no VIIRS active fire, so the trade is a "
-         "lower count for a record that is consistent back to "
-         f"{M.get('ytd_start_year', 2001)}."),
-        ("Absence is not calm.", "MODIS sees a place twice a day at best and "
-         "cloud blocks it entirely. A quiet day in the chart may be a clouded "
-         "one, and smoke over a fire front suppresses detection where it is "
-         "thickest."),
-        ("Kalimantan Utara is inside Kalimantan Timur.", "GAUL 2015 predates "
-         "the province created in 2012. The forest layer is Indonesian law "
-         "and has no Malaysian or Bruneian equivalent, so Sabah, Sarawak, "
-         "Labuan and Brunei carry no forest-function breakdown rather than a "
-         "fabricated one."),
+        (S("p7_n1_h"), S("p7_n1_b")),
+        (S("p7_n2_h"), S("p7_n2_b").format(start=start)),
+        (S("p7_n3_h"), S("p7_n3_b")),
+        (S("p7_n4_h"), S("p7_n4_b")),
     ]
-    # Four notes have to clear the footer at 0.028 whatever the wrap does.
-    y = 0.284
-    for bold, rest in notes:
-        fig.text(0.07, y, bold, fontsize=11, color=C["ink"],
-                 fontweight="bold")
-        body = textwrap.fill(rest, 108)
-        fig.text(0.07, y - 0.0165, body, fontsize=10.5, color=C["muted"],
-                 va="top")
-        y -= 0.0165 + 0.0185 * (body.count("\n") + 1) + 0.0075
+    notes_block(fig, notes, 0.292)
     footer(fig, 7)
     save(fig, out)
 
@@ -788,6 +720,9 @@ def method_page(D, out):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default=OUT)
+    ap.add_argument("--lang", nargs="+", default=["en", "id"],
+                    choices=sorted(TX.T),
+                    help="which language decks to render (default: both)")
     a = ap.parse_args()
     import matplotlib
     matplotlib.use("Agg")
@@ -833,15 +768,24 @@ def main():
 
     names = ["01_cover", "02_admin", "03_forest_function", "04_named_areas",
              "05_map", "06_context", "07_method"]
-    paths = [os.path.join(a.out, f"borneo_fire_{n}.jpg") for n in names]
-    cover(D, paths[0])
-    admin_page(D, paths[1])
-    function_page(D, paths[2])
-    conservation_page(D, K, paths[3])
-    map_page(D, admin, paths[4])
-    context_page(D, paths[5])
-    method_page(D, paths[6])
-    print(f"\n{len(names)} pages in {a.out}")
+    # Each language gets its own directory. Writing both into one would
+    # need a suffix on every filename, and the carousel builder would have
+    # to know the suffix rather than just the folder.
+    global LANG
+    for lang in a.lang:
+        LANG = lang
+        dest = os.path.join(a.out, f"pages_{lang}")
+        os.makedirs(dest, exist_ok=True)
+        print(f"\n[{lang}]")
+        paths = [os.path.join(dest, f"borneo_fire_{n}.jpg") for n in names]
+        cover(D, paths[0])
+        admin_page(D, paths[1])
+        function_page(D, paths[2])
+        conservation_page(D, K, paths[3])
+        map_page(D, admin, paths[4])
+        context_page(D, paths[5])
+        method_page(D, paths[6])
+        print(f"  {len(names)} pages in {dest}")
     return 0
 
 
