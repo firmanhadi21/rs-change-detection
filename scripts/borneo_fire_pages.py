@@ -101,6 +101,32 @@ def fmt(n):
     return f"{int(n):,}"
 
 
+# These pages are re-rendered every season, and the first version of them
+# stated the August window in prose ("Half the Indonesian fires...", "1 JAN -
+# 20 AUG 2026", "RANK IN 26 YEARS"). Prose does not move when the payload
+# does, so a re-run silently published the new numbers under the old claims.
+# Anything that depends on the window is derived from here down.
+_BULAN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def ytd_label(D):
+    """'1 JAN - 16 OCT 2026' from the payload's own window end."""
+    mm, dd = D["ytd_window_end"].split("-")
+    year = D["window"][1][:4]
+    return f"1 JAN – {int(dd)} {_BULAN[int(mm) - 1].upper()} {year}"
+
+
+def share_word(pct):
+    """A fraction in words, for prose that must not contradict its figure."""
+    for cut, word in ((88, "Nearly all of"), (72, "Three quarters of"),
+                      (60, "Two thirds of"), (44, "Half"),
+                      (28, "A third of"), (12, "A fifth of")):
+        if pct >= cut:
+            return word
+    return "A small share of"
+
+
 def page(fig_title=None):
     import matplotlib.pyplot as plt
     fig = plt.figure(figsize=PAGE, facecolor=C["ground"])
@@ -174,11 +200,12 @@ def cover(D, out):
              f"These seven days are {share:.0f}% of every hotspot detected\n"
              f"on Borneo since 1 January.",
              fontsize=19, color=C["ink"], family="DejaVu Serif", va="top")
+    est_pct = 100 * D["in_estate"] / D["indonesia_total"]
     fig.text(0.07, 0.225,
-             "Half the Indonesian fires are inside the forest estate, and\n"
-             f"{fmt(D['protected'])} of them are in protection forest or "
-             "conservation areas,\nwhere burning is not permitted under any "
-             "licence.",
+             f"{share_word(est_pct)} the Indonesian fires are inside the "
+             f"forest estate, and\n{fmt(D['protected'])} of them are in "
+             "protection forest or conservation areas,\nwhere burning is not "
+             "permitted under any licence.",
              fontsize=13, color=C["muted"], va="top")
     # The rule brackets the quote, so it has to start where the text starts.
     # Text is drawn va="top" from 0.315 and runs two lines at 19 pt.
@@ -192,13 +219,32 @@ def cover(D, out):
 # ---------------------------------------------------------------- page 2
 def admin_page(D, out):
     fig = page()
+    # Every quantity in this subtitle is measured. It previously asserted a
+    # 43/31 split and a "three to five times" range that were true of the
+    # August window and of no other.
+    import textwrap
+    idn_pct = 100 * D["indonesia_total"] / D["total"]
+    rat = [r for r in D["ytd_ratio"] if r["ratio"]]
+    my = [r for r in rat if r["c"] == "Malaysia"]
+    idn = [r for r in rat if r["c"] == "Indonesia"]
+    my_below = my and all(r["ratio"] < 1 for r in my)
+    sub = (f"{idn_pct:.0f}% of the island's fires this week are on the "
+           f"Indonesian side. ")
+    if my_below and idn:
+        sub += (f"Sarawak and Sabah are not merely quieter — both run BELOW "
+                f"their own {D['ytd_years'] - 1}-year medians for the season "
+                f"to date, while every Kalimantan province runs "
+                f"{min(r['ratio'] for r in idn):.1f} to "
+                f"{max(r['ratio'] for r in idn):.1f} times above.")
+    else:
+        sub += (f"Island-wide the season stands at "
+                f"{D['ytd_total']/D['ytd_median']:.1f}× the "
+                f"{D['ytd_years'] - 1}-year median to this date.")
     header(fig, "page 2 · administrative boundary",
-           "This is a Kalimantan event",
-           "Ninety-nine percent of the island's fires this week are on the\n"
-           "Indonesian side. Sarawak and Sabah are not merely quieter — both\n"
-           "run BELOW their own 25-year medians for the season to date, while\n"
-           "every Kalimantan province runs three to five times above.")
-    ax = fig.add_axes([0.07, 0.30, 0.86, 0.50])
+           "This is a Kalimantan event", textwrap.fill(sub, 64))
+    # Left margin fits the longest tick label ("Kaltim (+Kaltara)"), which
+    # was being cut in half at 0.07.
+    ax = fig.add_axes([0.185, 0.30, 0.745, 0.50])
     ax.set_facecolor(C["ground"])
     regions = D["by_region"]
     names = [r["r"] for r in regions][::-1]
@@ -209,7 +255,12 @@ def admin_page(D, out):
     ax.barh(y, vals, color=cols, height=.62)
     ax.set_yticks(y)
     ax.set_yticklabels(names, fontsize=14)
-    ax.set_xlabel("hotspot detections, 14–20 Aug 2026", fontsize=11,
+    d0, d1 = D["window"]
+    span = (f"{int(d0[8:])}–{int(d1[8:])} {_BULAN[int(d1[5:7]) - 1]} "
+            f"{d1[:4]}" if d0[:7] == d1[:7] else
+            f"{int(d0[8:])} {_BULAN[int(d0[5:7]) - 1]} – "
+            f"{int(d1[8:])} {_BULAN[int(d1[5:7]) - 1]} {d1[:4]}")
+    ax.set_xlabel(f"hotspot detections, {span}", fontsize=11,
                   color=C["muted"])
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
@@ -222,10 +273,23 @@ def admin_page(D, out):
                 color=C["ink"], fontweight="bold")
         ax.text(v + max(vals) * .012, yi - .30, r["c"], va="center",
                 fontsize=9.5, color=C["muted"])
-    fig.text(0.07, 0.22,
-             "Kalbar alone carries 43% of the island total, and Kalteng "
-             "another 31%.\nBrunei recorded no detections at all in the window.",
-             fontsize=13, color=C["muted"], va="top")
+    # Name whichever two provinces actually lead, and say so only if a
+    # region really did record nothing.
+    top = regions[:2]
+    line = (f"{top[0]['r']} alone carries "
+            f"{100*top[0]['n']/D['total']:.0f}% of the island total")
+    if len(top) > 1:
+        line += (f", and {top[1]['r']} another "
+                 f"{100*top[1]['n']/D['total']:.0f}%")
+    line += "."
+    silent = [r["r"] for r in D["ytd_ratio"]
+              if not any(x["r"] == r["r"] for x in regions)]
+    if silent:
+        line += ("\n" + ", ".join(silent) +
+                 (" recorded no detections at all in the window."
+                  if len(silent) == 1 else
+                  " recorded no detections at all in the window."))
+    fig.text(0.07, 0.22, line, fontsize=13, color=C["muted"], va="top")
     fig.text(0.07, 0.145,
              "Kalimantan Utara does not appear: FAO GAUL 2015 predates the "
              "province\ncreated in 2012, so its territory is counted inside "
@@ -276,16 +340,22 @@ def function_page(D, out):
                  color=C["muted"])
         y -= 0.042
 
-    ax3 = fig.add_axes([0.068, 0.175, 0.004, 0.105]); ax3.set_axis_off()
+    # Wrapped, not hand-broken. The figures in this sentence change length
+    # every season and fixed newlines left it ragged.
+    import textwrap
+    quote = textwrap.fill(
+        f"{share_word(100*D['in_estate']/tot)} the Indonesian fires — "
+        f"{fmt(D['in_estate'])}, {100*D['in_estate']/tot:.1f}% — are inside "
+        "the forest estate rather than on land released for other use. "
+        f"{fmt(D['protected'])} of them ({100*D['protected']/tot:.1f}%) are "
+        "in protection forest or conservation areas, where burning is not "
+        "permitted under any licence.", 68)
+    # Rule height follows the wrap, so it brackets the quote at any length.
+    _h3 = (quote.count("\n") + 1) * 15 * 1.32 / 72 / PAGE[1]
+    ax3 = fig.add_axes([0.068, 0.278 - _h3, 0.004, _h3]); ax3.set_axis_off()
     ax3.add_patch(mp.Rectangle((0, 0), 1, 1, color=C["ember"]))
     ax3.set_xlim(0, 1); ax3.set_ylim(0, 1)
-    fig.text(0.09, 0.278,
-             f"Half the Indonesian fires — {fmt(D['in_estate'])}, "
-             f"{100*D['in_estate']/tot:.1f}% — are inside the\n"
-             f"forest estate rather than on land released for other use.\n"
-             f"{fmt(D['protected'])} of them ({100*D['protected']/tot:.1f}%) "
-             "are in protection forest or\nconservation areas, where burning "
-             "is not permitted\nunder any licence.",
+    fig.text(0.09, 0.278, quote,
              fontsize=15, color=C["ink"], family="DejaVu Serif", va="top")
     fig.text(0.07, 0.125,
              "Kawasan hutan is an Indonesian legal designation with no "
@@ -388,8 +458,10 @@ def map_page(D, admin, out):
 def context_page(D, out):
     import matplotlib.patches as mp
     fig = page()
+    lo = int(D["window"][1][:4]) - D["ytd_years"] + 1
+    hi = int(D["window"][1][:4]) - 1
     header(fig, "page 5 · context and method", "The season so far",
-           "How this week sits against the 2001–2025 record, and what the\n"
+           f"How this week sits against the {lo}–{hi} record, and what the\n"
            "numbers can and cannot be asked to do.")
 
     ax = fig.add_axes([0.07, 0.60, 0.86, 0.20])
@@ -397,7 +469,10 @@ def context_page(D, out):
     xs = np.arange(len(days))
     ax.bar(xs, [d["n"] for d in days], color=C["flame"], width=.62)
     ax.set_xticks(xs)
-    ax.set_xticklabels([d["d"][8:] + " Aug" for d in days], fontsize=11)
+    # The month comes from the date, not from a literal. This read " Aug" for
+    # every bar, which was invisibly correct in August and wrong thereafter.
+    ax.set_xticklabels([f"{int(d['d'][8:])} {_BULAN[int(d['d'][5:7]) - 1]}"
+                        for d in days], fontsize=11)
     ax.set_facecolor(C["ground"])
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
@@ -414,11 +489,15 @@ def context_page(D, out):
              "entirely. The dips are as likely to be cloud as calm.",
              fontsize=11, color=C["muted"], style="italic")
 
-    cards = [(fmt(D["ytd_total"]), "1 JAN – 20 AUG 2026",
+    base_lo = int(D["window"][1][:4]) - D["ytd_years"] + 1
+    base_hi = int(D["window"][1][:4]) - 1
+    cards = [(fmt(D["ytd_total"]), ytd_label(D),
               "total detections, same definition"),
-             (f"{D['ytd_total']/D['ytd_median']:.2f}×", "VS 2001–2025 MEDIAN",
+             (f"{D['ytd_total']/D['ytd_median']:.2f}×",
+              f"VS {base_lo}–{base_hi} MEDIAN",
               f"median {fmt(round(D['ytd_median']))}"),
-             (f"{D['ytd_rank']} / {D['ytd_years']}", "RANK IN 26 YEARS",
+             (f"{D['ytd_rank']} / {D['ytd_years']}",
+              f"RANK IN {D['ytd_years']} YEARS",
               "to this date in the year")]
     x0 = 0.07
     for val, lab, sub in cards:
@@ -434,13 +513,30 @@ def context_page(D, out):
         axc.text(.08, .22, sub, fontsize=10, color=C["muted"])
         x0 += 0.288
 
-    fig.text(0.07, 0.352,
-             "2015 sat exactly at the median on 20 August, and became the\n"
-             "catastrophe everyone remembers — because its fires peaked in\n"
-             "September and October. An August ranking systematically\n"
-             "understates El Niño years and cannot tell you how a season ends.",
+    # How much a year-to-date ranking is worth depends on where in the season
+    # it is cut, because Borneo's fires peak in September and October. Cut in
+    # August it is nearly meaningless; cut after October it has seen the peak.
+    # The caveat has to move with the window or it argues against its own page.
+    cut_month = int(D["ytd_window_end"].split("-")[0])
+    if cut_month <= 8:
+        caveat = ("2015 sat exactly at the median on 20 August, and became "
+                  "the\ncatastrophe everyone remembers — because its fires "
+                  "peaked in\nSeptember and October. An August ranking "
+                  "systematically\nunderstates El Niño years and cannot tell "
+                  "you how a season ends.")
+    else:
+        caveat = ("Borneo's fires peak in September and October, so a ranking "
+                  "cut\nhere has seen the worst of the season rather than "
+                  "guessing at it.\nThat is what makes this one worth "
+                  "reading: 2015 and 2019 are\nalready in the record it is "
+                  "being measured against.")
+    fig.text(0.07, 0.352, caveat,
              fontsize=14.5, color=C["ink"], family="DejaVu Serif", va="top")
-    axb = fig.add_axes([0.068, 0.245, 0.004, 0.10]); axb.set_axis_off()
+    # The rule brackets the quote, so its height is the quote's height: four
+    # lines of 14.5 pt on a 15.6 in page. A fixed 0.10 overhung the text by
+    # half a paragraph once the wording changed length.
+    _h = 4 * 14.5 * 1.32 / 72 / PAGE[1]
+    axb = fig.add_axes([0.068, 0.352 - _h, 0.004, _h]); axb.set_axis_off()
     axb.add_patch(mp.Rectangle((0, 0), 1, 1, color=C["ember"]))
     axb.set_xlim(0, 1); axb.set_ylim(0, 1)
 
@@ -458,7 +554,11 @@ def context_page(D, out):
          "The quantity is comparable across regions and years, and nothing "
          "more is claimed of it."),
     ]
-    y = 0.205
+    # The three notes are measured down from here and the last one was
+    # running under the footer. Spacing is tight on purpose: these must fit
+    # above 0.028 whatever the wrap does, so the block is laid out from a
+    # start that leaves a margin rather than from the first comfortable value.
+    y = 0.228
     for bold, rest in notes:
         fig.text(0.07, y, bold, fontsize=11, color=C["ink"],
                  fontweight="bold")
@@ -466,7 +566,7 @@ def context_page(D, out):
         body = textwrap.fill(rest, 108)
         fig.text(0.07, y - 0.018, body, fontsize=10.5, color=C["muted"],
                  va="top")
-        y -= 0.018 + 0.021 * (body.count("\n") + 1) + 0.012
+        y -= 0.018 + 0.0195 * (body.count("\n") + 1) + 0.009
     footer(fig, 5)
     save(fig, out)
 

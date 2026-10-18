@@ -67,13 +67,14 @@ CONSERVATION = {
 
 
 def init_gee():
+    # Delegate to the package resolver rather than hardcoding one key path.
+    # Two service-account keys exist on this machine and they are NOT the
+    # same account; the resolver prefers ~/.secrets/gee-sa.json and prints
+    # which one it used.
     import ee
-    key = os.path.expanduser("~/.config/earthengine/ee-geodetic.json")
-    if os.path.exists(key):
-        email = json.load(open(key))["client_email"]
-        ee.Initialize(ee.ServiceAccountCredentials(email, key_file=key))
-    else:
-        ee.Initialize()
+    sys.path.insert(0, _REPO_ROOT)
+    from earthchange.gee_utils import initialize_ee
+    initialize_ee()
     return ee
 
 

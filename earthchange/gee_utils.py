@@ -268,8 +268,13 @@ def initialize_ee(config_key=None, prefer_user=False):
     Looks for a key JSON in priority order:
       1. `config_key` (e.g. the CLI --ee-key, or <cwd>/scripts/config/…)
       2. $EARTHCHANGE_EE_KEY  (works from any directory — best for pip installs)
-      3. ~/.config/earthengine/ee-geodetic.json  (global fallback)
+      3. ~/.secrets/gee-sa.json           (current key)
+      4. ~/.config/earthengine/ee-geodetic.json  (older global fallback)
     Falls back to user credentials (`earthengine authenticate`) if none exist.
+
+    3 is tried before 4 because both may exist and hold DIFFERENT service
+    accounts; the one under ~/.secrets is the live one. Whichever is used is
+    printed, so a run can never be ambiguous about who it authenticated as.
 
     `prefer_user=True` skips service-account keys and uses personal credentials —
     required for Drive exports (a service account writes to its OWN Drive, which
@@ -294,6 +299,7 @@ def initialize_ee(config_key=None, prefer_user=False):
         p for p in (config_key,
                     os.environ.get("EARTHCHANGE_EE_KEY"),
                     os.environ.get("SATCHANGE_EE_KEY"),   # backward-compat (former name)
+                    os.path.expanduser("~/.secrets/gee-sa.json"),
                     os.path.expanduser("~/.config/earthengine/ee-geodetic.json"))
         if p
     ]
