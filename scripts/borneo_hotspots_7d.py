@@ -139,8 +139,12 @@ def main():
     pts = gpd.sjoin(pts, adm[["label", "country", "geometry"]],
                     how="left", predicate="within").drop(columns="index_right")
     inside = pts.label.notna()
+    # Kept for the method page, which states how many detections were
+    # fetched and how many survived each join. Those have to be counted
+    # where the join happens, not reconstructed afterwards.
+    n_fetched, n_outside = len(pts), len(pts) - int(inside.sum())
     print(f"  {int(inside.sum())} fall inside a Borneo admin unit "
-          f"({len(pts) - int(inside.sum())} at sea or outside)")
+          f"({n_outside} at sea or outside)")
     pts = pts[inside].copy()
 
     # --- forest function join, Indonesia only ----------------------------
@@ -197,6 +201,11 @@ def main():
         "min_confidence": a.min_confidence,
         "date_min": str(pts.date.min()), "date_max": str(pts.date.max()),
         "total": int(len(pts)),
+        # Provenance for the method page.
+        "n_fetched": int(n_fetched), "n_outside": int(n_outside),
+        "bbox": BORNEO_BBOX,
+        "forest_layer": FOREST_LAYER,
+        "n_kawasan_polygons": int(len(forest)) if len(kal) else 0,
         "by_admin": [{"country": c, "region": l, "n": int(n)}
                      for (c, l), n in by_adm.items()],
         "by_function": [{"fungsi": k, "n": int(n)} for k, n in by_f.items()],

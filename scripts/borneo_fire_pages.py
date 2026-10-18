@@ -143,7 +143,7 @@ def header(fig, eyebrow, title, sub=None, y=0.955):
                  family="DejaVu Sans", va="top", wrap=True)
 
 
-def footer(fig, n, total=5):
+def footer(fig, n, total=6):
     fig.text(0.07, 0.028, "MODIS FIRMS · KLHK Penunjukan Kawasan Hutan · "
              "FAO GAUL 2015", fontsize=9, color=C["muted"])
     fig.text(0.93, 0.028, f"{n} / {total}", fontsize=9, color=C["muted"],
@@ -460,9 +460,9 @@ def context_page(D, out):
     fig = page()
     lo = int(D["window"][1][:4]) - D["ytd_years"] + 1
     hi = int(D["window"][1][:4]) - 1
-    header(fig, "page 5 · context and method", "The season so far",
-           f"How this week sits against the {lo}–{hi} record, and what the\n"
-           "numbers can and cannot be asked to do.")
+    header(fig, "page 5 · context", "The season so far",
+           f"How this week sits against the {lo}–{hi} record, and how much\n"
+           "a ranking taken at this point in the year is worth.")
 
     ax = fig.add_axes([0.07, 0.60, 0.86, 0.20])
     days = D["daily"]
@@ -540,34 +540,143 @@ def context_page(D, out):
     axb.add_patch(mp.Rectangle((0, 0), 1, 1, color=C["ember"]))
     axb.set_xlim(0, 1); axb.set_ylim(0, 1)
 
+    # The source and caveat notes that used to sit here are now page 6, which
+    # is about provenance in full. Repeating them would have the deck say the
+    # same thing twice, in two places that could drift apart.
+    fig.text(0.07, 0.225,
+             "Page 6 sets out the data and the method in full: every input, "
+             "the\nquery that produced each figure, and what the counts do "
+             "not mean.",
+             fontsize=12.5, color=C["muted"], va="top", style="italic")
+    footer(fig, 5)
+    save(fig, out)
+
+
+# ---------------------------------------------------------------- page 6
+def method_page(D, out):
+    """Provenance. Every figure in the deck, traced to the query behind it."""
+    import matplotlib.patches as mp
+    import textwrap
+    M = D.get("method", {})
+    fig = page()
+    header(fig, "page 6 · data and method", "How this was made",
+           "Three public datasets and a four-step chain, run end to end.\n"
+           "The counts beside each step are this run's own.")
+
+    def section(y, label):
+        fig.text(0.07, y, label, fontsize=10, color=C["muted"],
+                 fontweight="bold", family="DejaVu Sans")
+        ax = fig.add_axes([0.07, y - 0.012, 0.86, 0.0012]); ax.set_axis_off()
+        ax.add_patch(mp.Rectangle((0, 0), 1, 1, color=C["rule"]))
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+
+    w = D["window"]
+    bbox = M.get("bbox") or BBOX_GIS
+    conf = M.get("min_confidence", 30)
+
+    # ---- inputs --------------------------------------------------------
+    section(0.828, "INPUTS")
+    inputs = [
+        ("NASA FIRMS active fire",
+         "MODIS Terra + Aqua, 1 km, daily",
+         "via Google Earth Engine · the detections themselves"),
+        ("FAO GAUL 2015, level 1",
+         "administrative boundaries, all three countries",
+         "which province, and which country, each detection is in"),
+        ("KLHK Penunjukan Kawasan Hutan",
+         "1:250,000 (2019) · Indonesia only",
+         "the legal function of the land under each Indonesian detection"),
+    ]
+    y = 0.796
+    for name, spec, role in inputs:
+        fig.text(0.075, y, name, fontsize=13.5, color=C["ink"],
+                 fontweight="bold")
+        fig.text(0.075, y - 0.018, spec, fontsize=10.5, color=C["ink"])
+        fig.text(0.075, y - 0.034, role, fontsize=10.5, color=C["muted"],
+                 style="italic")
+        y -= 0.058
+
+    # ---- the chain -----------------------------------------------------
+    # Numbered because this genuinely is a sequence: each step consumes the
+    # previous step's output, and the count beside it is what survived.
+    section(0.612, "THE CHAIN, AND WHAT SURVIVED EACH STEP")
+    mm, dd = D["ytd_window_end"].split("-")
+    ytd_end = f"{int(dd)} {_BULAN[int(mm) - 1]}"
+    steps = [
+        ("Query FIRMS",
+         f"over {bbox[0]}–{bbox[2]}°E, {abs(bbox[1])}°S–{bbox[3]}°N, "
+         f"{w[0]} to {w[1]}, confidence ≥ {conf}",
+         f"{fmt(M['n_fetched'])} detections" if M.get("n_fetched") else None),
+        ("Join to administrative boundaries",
+         "point in polygon against GAUL level 1. Anything at sea or off the "
+         "island is dropped, never snapped to the nearest unit",
+         f"{fmt(D['total'])} kept · {fmt(M['n_outside'])} dropped"
+         if M.get("n_outside") is not None else None),
+        ("Join to forest function",
+         f"point in polygon against {fmt(M['n_kawasan_polygons'])} kawasan "
+         f"polygons read over the fire extent. A point on a shared boundary "
+         f"is counted once, so the total is conserved"
+         if M.get("n_kawasan_polygons") else
+         "point in polygon against the kawasan layer, Indonesian points only",
+         f"{fmt(D['indonesia_total'])} attributed"),
+        ("Rebuild the whole record",
+         f"the same definition for 1 Jan–{ytd_end} of every year from "
+         f"{M.get('ytd_start_year', 2001)}, summed per region at 1 km",
+         f"{fmt(D['ytd_total'])} this year"),
+    ]
+    # A fixed slot per step. Letting each one size itself to its own wrap
+    # left the counts drifting out of line with the steps they belong to.
+    y, SLOT = 0.580, 0.058
+    for i, (what, how, count) in enumerate(steps, 1):
+        fig.text(0.075, y, f"{i}.", fontsize=12.5, color=C["ember"],
+                 fontweight="bold", family="DejaVu Sans")
+        fig.text(0.103, y, what, fontsize=12.5, color=C["ink"],
+                 fontweight="bold", family="DejaVu Sans")
+        if count:
+            fig.text(0.93, y, count, fontsize=11.5, color=C["ember"],
+                     ha="right", fontweight="bold")
+        fig.text(0.103, y - 0.016, textwrap.fill(how, 90), fontsize=10.5,
+                 color=C["muted"], va="top")
+        y -= SLOT
+
+    fig.text(0.075, y + 0.012,
+             "borneo_fire_payload.py folds the two runs together and refuses "
+             "to write if they came from\ndifferent FIRMS vintages. This "
+             "document is borneo_fire_pages.py.",
+             fontsize=10.5, color=C["muted"], style="italic", va="top")
+
+    # ---- limits --------------------------------------------------------
+    section(0.312, "WHAT THESE NUMBERS ARE NOT")
     notes = [
-        ("Source.", "NASA FIRMS active fire, MODIS Terra + Aqua at 1 km, via "
-         "Google Earth Engine, confidence ≥ 30. Boundaries FAO GAUL 2015 "
-         "level 1. Forest function from KLHK Penunjukan Kawasan Hutan "
-         "1:250,000 (2019)."),
+        ("A detection is not a fire.", "Each count is one 1 km pixel on one "
+         "day — a pixel-day. A single fire burning a week across four pixels "
+         "contributes 28. The quantity is comparable across regions and "
+         "years, and nothing more is claimed of it."),
         ("Not comparable to BMKG or ASEAN figures.", "Those use VIIRS at "
          "375 m, which detects several times more hotspots for the same "
          "fires. Earth Engine carries no VIIRS active fire, so the trade is a "
-         "lower count for a consistent record back to 2001."),
-        ("A detection is not a fire.", "Each count is one 1 km pixel on one "
-         "day. A single fire burning a week across four pixels contributes 28. "
-         "The quantity is comparable across regions and years, and nothing "
-         "more is claimed of it."),
+         "lower count for a record that is consistent back to "
+         f"{M.get('ytd_start_year', 2001)}."),
+        ("Absence is not calm.", "MODIS sees a place twice a day at best and "
+         "cloud blocks it entirely. A quiet day in the chart may be a clouded "
+         "one, and smoke over a fire front suppresses detection where it is "
+         "thickest."),
+        ("Kalimantan Utara is inside Kalimantan Timur.", "GAUL 2015 predates "
+         "the province created in 2012. The forest layer is Indonesian law "
+         "and has no Malaysian or Bruneian equivalent, so Sabah, Sarawak, "
+         "Labuan and Brunei carry no forest-function breakdown rather than a "
+         "fabricated one."),
     ]
-    # The three notes are measured down from here and the last one was
-    # running under the footer. Spacing is tight on purpose: these must fit
-    # above 0.028 whatever the wrap does, so the block is laid out from a
-    # start that leaves a margin rather than from the first comfortable value.
-    y = 0.228
+    # Four notes have to clear the footer at 0.028 whatever the wrap does.
+    y = 0.284
     for bold, rest in notes:
         fig.text(0.07, y, bold, fontsize=11, color=C["ink"],
                  fontweight="bold")
-        import textwrap
         body = textwrap.fill(rest, 108)
-        fig.text(0.07, y - 0.018, body, fontsize=10.5, color=C["muted"],
+        fig.text(0.07, y - 0.0165, body, fontsize=10.5, color=C["muted"],
                  va="top")
-        y -= 0.018 + 0.0195 * (body.count("\n") + 1) + 0.009
-    footer(fig, 5)
+        y -= 0.0165 + 0.0185 * (body.count("\n") + 1) + 0.0075
+    footer(fig, 6)
     save(fig, out)
 
 
@@ -600,14 +709,15 @@ def main():
               f"{str(exc)[:80]})")
 
     names = ["01_cover", "02_admin", "03_forest_function", "04_map",
-             "05_context"]
+             "05_context", "06_method"]
     paths = [os.path.join(a.out, f"borneo_fire_{n}.jpg") for n in names]
     cover(D, paths[0])
     admin_page(D, paths[1])
     function_page(D, paths[2])
     map_page(D, admin, paths[3])
     context_page(D, paths[4])
-    print(f"\n5 pages in {a.out}")
+    method_page(D, paths[5])
+    print(f"\n{len(names)} pages in {a.out}")
     return 0
 
 

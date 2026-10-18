@@ -126,6 +126,19 @@ def main():
         "indonesia_total": ind,
         "protected": sum(by_function.get(k, 0) for k in PROTECTED),
         "in_estate": sum(by_function.get(k, 0) for k in ESTATE),
+        # Carried through for the method page, so it describes the run that
+        # actually happened rather than the one the scripts default to.
+        "method": {
+            "days": W["days"],
+            "min_confidence": W["min_confidence"],
+            "n_fetched": W.get("n_fetched"),
+            "n_outside": W.get("n_outside"),
+            "bbox": W.get("bbox"),
+            "forest_layer": W.get("forest_layer"),
+            "n_kawasan_polygons": W.get("n_kawasan_polygons"),
+            "ytd_start_year": int(Y["years"][0]),
+            "n_regions": len(Y["labels"]),
+        },
         **ytd,
     }
     D["pts"] = out_pts
