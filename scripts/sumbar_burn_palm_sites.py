@@ -166,6 +166,7 @@ def main():
 
     # --- how long after the fire -------------------------------------
     lag = (pyear - burn)[btp]
+    lag_hist = []
     if lag.size:
         print(f"\nyears from fire to planting (n={lag.size:,} cells)")
         print(f"  median {np.median(lag):.0f}   mean {lag.mean():.1f}")
@@ -173,7 +174,8 @@ def main():
         for i, c in enumerate(hist):
             lo, hi = edges[i], edges[i + 1]
             bar = "#" * int(40 * c / max(hist.max(), 1))
-            rng = f"{lo}" if hi - lo == 1 else f"{lo}-{hi-1}"
+            rng = f"{lo}" if hi - lo == 1 else f"{lo}–{hi-1}"
+            lag_hist.append([rng, int(c)])
             print(f"  {rng:>6} yr {c:>7,}  {bar}")
 
     # --- named sites inside the estate -------------------------------
@@ -209,6 +211,11 @@ def main():
     dest = os.path.join(a.out, "burn_palm_sites.json")
     with open(dest, "w") as f:
         json.dump({"cell_ha": cell_ha, "by_status": rows,
+                   "min_ha": a.min_ha,
+                   "total_burnt_ha": ha(burnt),
+                   "total_then_palm_ha": ha(btp),
+                   "palm_any_ha": ha(is_palm),
+                   "lag_hist": lag_hist,
                    "estate_burnt_ha": ha(burnt & est_mask),
                    "estate_then_palm_ha": ha(btp & est_mask),
                    "conservation_burnt_ha": ha(burnt & con_mask),

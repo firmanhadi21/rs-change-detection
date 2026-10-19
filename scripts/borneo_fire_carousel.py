@@ -71,6 +71,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--lang", nargs="+", default=["en", "id"])
     ap.add_argument("--out", default=OUT)
+    ap.add_argument("--deck", default=None,
+                    help="directory holding pages_<lang>/ for another "
+                         "deck. Its hold times come from the holds.json "
+                         "that deck writes beside its pages, so reading "
+                         "time lives with the pages rather than here.")
+    ap.add_argument("--name", default="borneo_fire_carousel",
+                    help="output filename stem")
     ap.add_argument("--music", default=MUSIC)
     ap.add_argument("--no-music", action="store_true")
     ap.add_argument("--fps", type=int, default=30)
@@ -78,7 +85,10 @@ def main():
 
     if not shutil.which("ffmpeg"):
         raise SystemExit("ffmpeg not on PATH")
-    dest = os.path.join(a.out, "carousel")
+    # The video lands beside the pages it was made from, not in a shared
+    # folder where two decks' carousels would sit next to each other with
+    # only a filename to tell them apart.
+    dest = os.path.join(a.deck or a.out, "carousel")
     os.makedirs(dest, exist_ok=True)
 
     have_music = (not a.no_music) and os.path.exists(a.music)
@@ -86,20 +96,29 @@ def main():
         print(f"  (no music at {a.music} — rendering silent)")
 
     for lang in a.lang:
-        src = os.path.join(a.out, f"pages_{lang}")
-        pages = [os.path.join(src, f"borneo_fire_{n}.jpg") for n in HOLD]
+        src = os.path.join(a.deck or a.out, f"pages_{lang}")
+        sidecar = os.path.join(src, "holds.json")
+        if os.path.exists(sidecar):
+            with open(sidecar) as f:
+                holds_map = json.load(f)
+        elif a.deck:
+            raise SystemExit(f"missing {sidecar}\nThe deck that writes "
+                             f"those pages must write it too.")
+        else:
+            holds_map = {f"borneo_fire_{k}": v for k, v in HOLD.items()}
+        pages = [os.path.join(src, f"{n}.jpg") for n in holds_map]
         missing = [p for p in pages if not os.path.exists(p)]
         if missing:
             raise SystemExit(
                 f"missing {len(missing)} page(s) for '{lang}', first: "
-                f"{missing[0]}\nRun scripts/borneo_fire_pages.py")
+                f"{missing[0]}")
 
         # Page aspect decides the frame. Scaling to a fixed 16:9 or 4:5
         # would either crop the footer off or letterbox half the screen.
         s = probe(pages[0])
         h = int(round(WIDTH * s["height"] / s["width"]))
         h += h % 2                                   # h264 needs even
-        holds = list(HOLD.values())
+        holds = list(holds_map.values())
         total = sum(holds) - FADE * (len(holds) - 1)
         print(f"\n[{lang}] {len(pages)} pages, {WIDTH}x{h}, "
               f"{total:.1f}s")
@@ -165,7 +184,7 @@ def main():
         else:
             maps += ["-an"]
 
-        out_mp4 = os.path.join(dest, f"borneo_fire_carousel_{lang}.mp4")
+        out_mp4 = os.path.join(dest, f"{a.name}_{lang}.mp4")
         cmd += ["-filter_complex", ";".join(fc)] + maps + [
             "-c:v", "libx264", "-preset", "slow", "-crf", "20",
             "-pix_fmt", "yuv420p", "-movflags", "+faststart",
