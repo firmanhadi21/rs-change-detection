@@ -208,6 +208,26 @@ def main():
         print(f"  {s_['lon']:>10.4f}{s_['lat']:>10.4f}{s_['ha']:>8.0f}"
               f"{s_['burn_year']:>7}{s_['palm_year']:>9}  {s_['status']}")
 
+    # A classified raster for the map page: 1 where planting was
+    # permitted (APL/HPK), 2 where it was not (HP/HPT/HL/conservation).
+    # Written here rather than recomputed in the pages script, so the map
+    # and the bar chart cannot disagree about the same cell.
+    lawful_names = {"AREA PENGGUNAAN LAIN", "HUTAN PRODUKSI KONVERSI"}
+    lawful = np.isin(status, [codes[n] for n in lawful_names
+                              if n in codes])
+    cls = np.zeros(status.shape, dtype="uint8")
+    cls[btp & lawful] = 1
+    cls[btp & ~lawful] = 2
+    tif = os.path.join(a.out, "btp_class.tif")
+    with rasterio.open(a.stack) as s:
+        prof = s.profile
+    prof.update(count=1, dtype="uint8", compress="deflate", nodata=0)
+    with rasterio.open(tif, "w", **prof) as d:
+        d.write(cls, 1)
+    print(f"\nwrote {tif}  "
+          f"({int((cls == 1).sum()):,} lawful, "
+          f"{int((cls == 2).sum()):,} restricted cells)")
+
     dest = os.path.join(a.out, "burn_palm_sites.json")
     with open(dest, "w") as f:
         json.dump({"cell_ha": cell_ha, "by_status": rows,

@@ -37,8 +37,11 @@ _DATA_ROOT = (os.environ.get("RSCD_DATA_ROOT")
 OUT = os.path.expanduser(_DATA_ROOT + "/output/fire/sumbar")
 SITES = os.path.join(OUT, "burn_palm_sites.json")
 BURN_FROM, BURN_TO, PLANT_TO, SCALE = 2001, 2018, 2021, 200
-TOTAL = 6
+TOTAL = 7
 C = K.C
+PAGE_W, PAGE_H = K.PAGE
+ADMIN = os.path.join(OUT, "sumbar_admin.geojson")
+CLS_TIF = os.path.join(OUT, "btp_class.tif")
 LANG = "en"
 
 # Weakest protection to strongest. The gradient is the argument, so the
@@ -195,6 +198,130 @@ def p_timing(D, out):
 
 
 # ------------------------------------------------------------------ 4
+# Mainland West Sumatra. The Mentawai islands are part of the province
+# and carry none of this, so including them would shrink the part of the
+# map that has something on it by half.
+EXTENT = [99.8, 102.0, -2.95, 0.95]
+CITIES = [("Padang", 100.37, -0.95, 1), ("Bukittinggi", 100.37, -0.31, 0),
+          ("Payakumbuh", 100.63, -0.22, 0), ("Solok", 100.66, -0.79, 0),
+          ("Sawahlunto", 100.78, -0.68, 0),
+          ("Pulau Punjung", 101.55, -0.99, 0)]
+# The 2026 case, from the MODIS cluster in scripts/dharmasraya_hpt_site.py
+# -- found from the date and the designation, not taken from the article.
+CASE = (101.549, -0.903)
+
+
+def p_map(D, out, admin, cls_tif):
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import matplotlib.lines as ml
+    import matplotlib.patheffects as pe
+    import rasterio
+
+    fig = K.page()
+    K.header(fig, S("pm_eyebrow"), S("pm_title"), S("pm_sub"))
+    pc = ccrs.PlateCarree()
+    # Size the axes to the data, not the page. Cartopy holds a true
+    # aspect inside whatever box it is given, so a box of the wrong
+    # shape is paid for in blank margin -- here the province is twice as
+    # tall as it is wide, and a full-width box wasted a third of the page
+    # on empty Indian Ocean.
+    import numpy as _n
+    w_deg = (EXTENT[1] - EXTENT[0]) * _n.cos(_n.radians(
+        (EXTENT[2] + EXTENT[3]) / 2))
+    h_frac = 0.60
+    w_frac = h_frac * PAGE_H / PAGE_W * w_deg / (EXTENT[3] - EXTENT[2])
+    ax = fig.add_axes([(1 - w_frac) / 2, 0.235, w_frac, h_frac],
+                      projection=pc)
+    ax.set_extent(EXTENT, crs=pc)
+    ax.set_facecolor(C["sea"])
+    for feat, kw in (
+            (cfeature.OCEAN, dict(facecolor=C["sea"], zorder=0)),
+            (cfeature.LAND, dict(facecolor=C["land"], zorder=1)),
+            (cfeature.LAKES, dict(facecolor=C["sea"], zorder=2)),
+            (cfeature.RIVERS, dict(edgecolor=C["water"], lw=.4, zorder=3)),
+            (cfeature.COASTLINE, dict(edgecolor="#7C8C83", lw=.7, zorder=6)),
+            (cfeature.BORDERS, dict(edgecolor="#5A6B62", lw=1.0, zorder=7))):
+        ax.add_feature(feat.with_scale("10m"), **kw)
+    if admin is not None:
+        ax.add_geometries(list(admin.geometry), crs=pc, facecolor="none",
+                          edgecolor="#9FAEA3", linewidth=.55, zorder=5)
+        dh = admin[admin.ADM2_NAME == "Dharmasraya"]
+        if len(dh):
+            ax.add_geometries(list(dh.geometry), crs=pc, facecolor="none",
+                              edgecolor=C["ink"], linewidth=1.3, zorder=8)
+
+    # Cell centres, not the raster: at 200 m on a page this wide a cell
+    # is a quarter of a pixel, so imshow would simply lose them.
+    with rasterio.open(cls_tif) as s:
+        cls = s.read(1)
+        tr = s.transform
+    import numpy as _np
+    for val, col, size, z in ((1, C["flame"], 2.4, 9),
+                              (2, C["cons"], 22.0, 10)):
+        rr, cc = _np.nonzero(cls == val)
+        if not rr.size:
+            continue
+        xs, ys = rasterio.transform.xy(tr, rr, cc)
+        ax.scatter(xs, ys, s=size, c=col, marker="o", linewidths=0,
+                   alpha=.85 if val == 1 else .95, zorder=z, transform=pc)
+
+    # The two protection-forest sites get a ring, because at this scale a
+    # 20 ha patch is smaller than the dot that marks it.
+    for s_ in D["sites"]:
+        if s_["status"] != "HUTAN LINDUNG":
+            continue
+        ax.plot(s_["lon"], s_["lat"], marker="o", ms=13, mfc="none",
+                mec=C["ember"], mew=2.0, zorder=12, transform=pc)
+
+    ax.plot(*CASE, marker="X", ms=11, mfc=C["ember"], mec="white",
+            mew=1.2, zorder=13, transform=pc)
+
+    for name, lon, lat, cap in CITIES:
+        ax.plot(lon, lat, marker="o", ms=4.4 if cap else 3.0, mfc="white",
+                mec=C["ink"], mew=1.0 if cap else .7, zorder=14,
+                transform=pc)
+        ax.text(lon + 0.04, lat + 0.03, name, fontsize=8.4 if cap else 7.6,
+                color=C["ink"], zorder=15, transform=pc,
+                fontweight="bold" if cap else "normal",
+                path_effects=[pe.withStroke(linewidth=2.2,
+                                            foreground="white")])
+    ax.set_extent(EXTENT, crs=pc)          # pin it after every autoscale
+
+    gl = ax.gridlines(draw_labels=True, lw=.4, color=C["rule"], alpha=.7)
+    gl.top_labels = gl.right_labels = False
+    gl.xlabel_style = gl.ylabel_style = {"size": 8.5, "color": C["muted"]}
+    # 50 km at this latitude, stated as what it is.
+    ax.plot([100.0, 100.449], [-2.80, -2.80], color=C["ink"], lw=2.4,
+            zorder=14, transform=pc, solid_capstyle="butt")
+    ax.text(100.22, -2.74, S("pm_scale"), ha="center", fontsize=8.5,
+            color=C["ink"], zorder=14, transform=pc)
+
+    handles = [
+        ml.Line2D([], [], marker="o", ls="", ms=6, mfc=C["flame"],
+                  mec="none", label=S("pm_leg1")),
+        ml.Line2D([], [], marker="o", ls="", ms=8, mfc=C["cons"],
+                  mec="none", label=S("pm_leg2")),
+        ml.Line2D([], [], marker="o", ls="", ms=11, mfc="none",
+                  mec=C["ember"], mew=2.0, label=S("pm_leg3")),
+        ml.Line2D([], [], marker="X", ls="", ms=9, mfc=C["ember"],
+                  mec="white", label=S("pm_leg4")),
+    ]
+    leg = fig.legend(handles=handles, loc="lower center", ncol=2,
+                     bbox_to_anchor=(0.5, 0.145), frameon=False,
+                     fontsize=10.5)
+    for t in leg.get_texts():
+        t.set_color(C["ink"])
+
+    n_r = int((cls == 2).sum())
+    fig.text(0.07, 0.108,
+             S("pm_note").format(n=fmt(n_r), tot=fmt(int((cls > 0).sum()))),
+             fontsize=11, color=C["muted"], va="top", style="italic")
+    foot(fig, 4)
+    K.save(fig, out)
+
+
+# ------------------------------------------------------------------ 5
 def p_sites(D, out):
     fig = K.page()
     K.header(fig, S("p4_eyebrow"), S("p4_title"),
@@ -297,7 +424,8 @@ def p_method(D, out):
 # Reading time per page. The sites table and the method page carry the
 # most text and get the most screen; the cover is one number.
 HOLDS = {"01_cover": 7.0, "02_status": 11.0, "03_timing": 10.0,
-         "04_sites": 13.0, "05_case": 12.0, "06_method": 13.0}
+         "04_map": 11.0, "05_sites": 13.0, "06_case": 12.0,
+         "07_method": 13.0}
 
 
 def main():
@@ -319,9 +447,22 @@ def main():
     print(f"{fmt(D['total_then_palm_ha'])} ha burnt-then-palm, "
           f"{len(D['sites'])} estate sites")
 
+    # The map needs two extra inputs. Both are required: a deck whose
+    # map page silently disappears when a file is missing would renumber
+    # itself, which is the bug this repo has already been bitten by.
+    for p, how in ((ADMIN, "the scratchpad boundary cache"),
+                   (CLS_TIF, "scripts/sumbar_burn_palm_sites.py")):
+        if not os.path.exists(p):
+            raise SystemExit(f"missing {p}\nWrite it with {how}.")
+    import geopandas as gpd
+    admin = gpd.read_file(ADMIN)
+    print(f"  {len(admin)} kabupaten boundaries")
+
     global LANG
     names = list(HOLDS)
-    pages = [p_cover, p_status, p_timing, p_sites, p_case, p_method]
+    pages = [p_cover, p_status, p_timing,
+             lambda D_, o: p_map(D_, o, admin, CLS_TIF),
+             p_sites, p_case, p_method]
     for lang in a.lang:
         LANG = lang
         dest = os.path.join(a.out, f"pages_{lang}")

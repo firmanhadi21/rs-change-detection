@@ -82,8 +82,23 @@ T = {
             "planting are one\nevent rather than two things that happen in "
             "the same kind of place. It is\nstill association, not intent.",
 
- # ---- 4 sites ------------------------------------------------------
- "p4_eyebrow": "page 4 · the residue",
+ # ---- 4 map --------------------------------------------------------
+ "pm_eyebrow": "page 4 · location",
+ "pm_title": "Where on the ground",
+ "pm_sub": "Every cell that burned and now carries palm planted after the\n"
+           "fire, coloured by whether planting was permitted there.",
+ "pm_leg1": "planting permitted · APL and HPK",
+ "pm_leg2": "planting restricted · HP, HPT, HL",
+ "pm_leg3": "site in HUTAN LINDUNG",
+ "pm_leg4": "Dharmasraya HPT fire, 15 Sep 2026",
+ "pm_scale": "50 km",
+ "pm_note": "The restricted cells are {n} of {tot}, which is why they are "
+            "drawn larger than\nscale — at true size they would be "
+            "invisible on a page this wide. Their\nposition is exact; "
+            "their area is not.",
+
+ # ---- 5 sites ------------------------------------------------------
+ "p4_eyebrow": "page 5 · the residue",
  "p4_title": "What does not explain away",
  "p4_sub": "Contiguous sites of {minha} ha or more inside the forest "
            "estate.\nEach one can be checked against the gazette for that "
@@ -96,7 +111,7 @@ T = {
             "settles that. These are\nplaces to check, not findings.",
 
  # ---- 5 the 2026 case ----------------------------------------------
- "p5_eyebrow": "page 5 · dharmasraya, september 2026",
+ "p5_eyebrow": "page 6 · dharmasraya, september 2026",
  "p5_title": "The case in the news",
  "p5_sub": "Police in Dharmasraya reported about 5.9 ha of recently burnt\n"
            "limited-production forest found planted with oil palm "
@@ -122,7 +137,7 @@ T = {
              "they describe is there, on that date, on that land status.",
 
  # ---- 6 method -----------------------------------------------------
- "p6_eyebrow": "page 6 · data and method",
+ "p6_eyebrow": "page 7 · data and method",
  "p6_title": "How this was made",
  "p6_sub": "Three public datasets on one {scale} m grid, and four limits\n"
            "that bound what any of it can mean.",
@@ -214,8 +229,24 @@ T = {
             "adalah satu\nperistiwa, bukan dua hal yang kebetulan terjadi "
             "di jenis tempat yang sama.\nIni tetap asosiasi, bukan niat.",
 
- # ---- 4 sites ------------------------------------------------------
- "p4_eyebrow": "halaman 4 · sisanya",
+ # ---- 4 map --------------------------------------------------------
+ "pm_eyebrow": "halaman 4 · lokasi",
+ "pm_title": "Di mana letaknya",
+ "pm_sub": "Setiap sel yang terbakar dan kini bersawit yang ditanam "
+           "setelah\nkebakaran, diwarnai menurut apakah penanaman di "
+           "sana diizinkan.",
+ "pm_leg1": "penanaman diizinkan · APL dan HPK",
+ "pm_leg2": "penanaman dibatasi · HP, HPT, HL",
+ "pm_leg3": "lokasi di HUTAN LINDUNG",
+ "pm_leg4": "kebakaran HPT Dharmasraya, 15 Sep 2026",
+ "pm_scale": "50 km",
+ "pm_note": "Sel yang dibatasi berjumlah {n} dari {tot}, karena itu "
+            "digambar lebih besar dari\nskala — pada ukuran sebenarnya "
+            "keduanya tak akan terlihat di halaman selebar\nini. "
+            "Posisinya tepat; luasnya tidak.",
+
+ # ---- 5 sites ------------------------------------------------------
+ "p4_eyebrow": "halaman 5 · sisanya",
  "p4_title": "Yang tidak mudah dijelaskan",
  "p4_sub": "Lokasi menyatu seluas {minha} ha atau lebih di dalam kawasan "
            "hutan.\nMasing-masing dapat diperiksa terhadap SK untuk "
@@ -229,7 +260,7 @@ T = {
             "kesimpulan.",
 
  # ---- 5 the 2026 case ----------------------------------------------
- "p5_eyebrow": "halaman 5 · dharmasraya, september 2026",
+ "p5_eyebrow": "halaman 6 · dharmasraya, september 2026",
  "p5_title": "Kasus yang diberitakan",
  "p5_sub": "Polisi di Dharmasraya melaporkan sekitar 5,9 ha bekas "
            "kebakaran\ndi hutan produksi terbatas yang ditemukan sudah "
@@ -259,7 +290,7 @@ T = {
              "itu, pada status lahan itu.",
 
  # ---- 6 method -----------------------------------------------------
- "p6_eyebrow": "halaman 6 · data dan metode",
+ "p6_eyebrow": "halaman 7 · data dan metode",
  "p6_title": "Bagaimana ini dibuat",
  "p6_sub": "Tiga pangkalan data publik pada satu grid {scale} m, dan "
            "empat batas\nyang membingkai arti semuanya.",

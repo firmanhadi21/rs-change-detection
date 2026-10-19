@@ -167,6 +167,14 @@ def main():
                 a_fc = f"[{ai}:a]atempo={tempo:.5f}"
                 print(f"  score {md:.1f}s -> {total:.1f}s "
                       f"(atempo {tempo:.3f})")
+                # Up to about a tenth is inaudible on an ambient bed.
+                # Past that it starts to drag, and the right fix is a
+                # longer score rather than a slower one -- so say so
+                # instead of letting it pass as a routine line of log.
+                if abs(1 - tempo) > 0.12:
+                    print(f"  NOTE: that is a {abs(1-tempo)*100:.0f}% "
+                          f"stretch, which is audible. Consider a "
+                          f"~{total:.0f}s score instead.")
             else:
                 a_fc = f"[{ai}:a]aloop=loop=-1:size=2e9"
                 print(f"  score {md:.1f}s looped to {total:.1f}s "
