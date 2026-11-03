@@ -10,8 +10,13 @@
   3. ffprobe each levelled clip and write its length into
      src/jadwalKonsesi.json, which is what the cut and the bed are built from.
 
-    ELEVENLABS_API_KEY=... python3 tts_konsesi.py
+    ELEVENLABS_API_KEY=... python3 tts_konsesi.py               # Indonesian
+    ELEVENLABS_API_KEY=... python3 tts_konsesi.py --bahasa en   # English
+
+--bahasa en reads src/narasiKonsesiEN.json, writes public/audio/konsesi-en/
+and src/jadwalKonsesiEN.json; the voice comes from the narration file.
 """
+import argparse
 import json
 import os
 import re
@@ -20,10 +25,14 @@ import sys
 from pathlib import Path
 
 AKAR = Path(__file__).parent
-N = json.loads((AKAR / "src/narasiKonsesi.json").read_text())
-JP = AKAR / "src/jadwalKonsesi.json"
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--bahasa", choices=["id", "en"], default="id")
+_B = _ap.parse_args().bahasa
+_SUF = "" if _B == "id" else "EN"
+N = json.loads((AKAR / f"src/narasiKonsesi{_SUF}.json").read_text())
+JP = AKAR / f"src/jadwalKonsesi{_SUF}.json"
 J = json.loads(JP.read_text())
-AUD = AKAR / "public/audio/konsesi"
+AUD = AKAR / ("public/audio/konsesi" if _B == "id" else "public/audio/konsesi-en")
 MENTAH = AUD / "mentah"
 MENTAH.mkdir(parents=True, exist_ok=True)
 

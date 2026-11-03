@@ -7,7 +7,8 @@
     "start": "remotion studio",
     "build": "remotion render Narasi out/narasi-karhutla.mp4",
     "build:bukti": "remotion render Bukti out/bukti-karhutla.mp4",
-    "build:konsesi": "remotion render Konsesi out/konsesi-karhutla.mp4"
+    "build:konsesi": "remotion render Konsesi out/konsesi-karhutla.mp4",
+    "build:konsesi-en": "remotion render KonsesiEN out/konsesi-karhutla-en.mp4"
   },
   "dependencies": {
     "@remotion/cli": "4.0.410",

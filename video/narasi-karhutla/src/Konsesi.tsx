@@ -1,12 +1,16 @@
 /**
- * "Di dalam konsesi?" — how much of Kalimantan's 2026 burn fell inside
- * oil-palm concessions.
+ * "Di dalam konsesi?" / "Inside the concessions?" — how much of
+ * Kalimantan's 2026 burn fell inside oil-palm concessions.
  *
  * The argument is a comparison against chance: concessions cover 19.6% of
  * the land, so a fire that ignored their boundaries would put about that
  * share of its scars inside them. 2019 and 2023 sit right on it; 2026 is a
  * little over, and the excess is concentrated in four concessions on the
  * Ketapang coast. Three quarters of the burn is still outside.
+ *
+ * One component, two languages. Every on-screen string lives in TEKS below,
+ * keyed by `bahasa`; layout and timing are shared, and each language has
+ * its own measured schedule (jadwalKonsesi*.json) and audio folder.
  *
  * Concessions are named by acronym only. Two sensors appear and are never
  * added: MCD64A1 burned area (Jan–Aug) and FIRMS hotspots (Sep–Oct), each
@@ -16,7 +20,7 @@
  * scripts/kalimantan_concession_film_assets.py.
  */
 
-import React from "react";
+import React, { createContext, useContext } from "react";
 import {
   AbsoluteFill,
   Audio,
@@ -26,7 +30,7 @@ import {
   staticFile,
   useCurrentFrame,
 } from "remotion";
-import { adegan, akhirNarasi, JUDUL_FRAME, TUTUP_FRAME } from "./jadwalKonsesi";
+import { Bahasa, JADWAL } from "./jadwalKonsesi";
 import {
   Bingkai,
   Judul,
@@ -37,15 +41,175 @@ import {
   masuk,
   Penghitung,
 } from "./komponen";
-import { angkaGaya, judulFont, koma, ribuan, tubuhFont, warna } from "./teema";
+import {
+  angkaGaya,
+  judulFont,
+  koma as komaId,
+  ribuan as ribuanId,
+  tubuhFont,
+  warna,
+} from "./teema";
 import D from "./konsesiData.json";
 
-const WAKTU = "November 2026";
-const KIRI = "Karhutla Kalimantan";
 const KONSESI_HIJAU = "#34493C";
 const KINI = D.tahun.find((t) => t.tahun === 2026)!;
-const SUMBER_BA =
-  "MODIS MCD64A1 500 m, Jan–Agu 2026 · konsesi sawit: Global Forest Watch (Kementerian Kehutanan ±2012)";
+
+/* ------------------------------- the words ---------------------------- */
+
+const TEKS = {
+  id: {
+    lokal: "id-ID",
+    audio: "audio/konsesi",
+    kiri: "Karhutla Kalimantan",
+    waktu: "November 2026",
+    sumber: "Sumber",
+    sumberBA:
+      "MODIS MCD64A1 500 m, Jan–Agu 2026 · konsesi sawit: Global Forest Watch (Kementerian Kehutanan ±2012)",
+    alisJudul: "Karhutla Kalimantan · 2026",
+    judul: ["DI DALAM", "KONSESI?"],
+    judulUkuran: 150,
+    subJudul: "Bekas kebakaran tahun ini, dibandingkan dengan batas konsesi sawit.",
+    tanya1: "Kalimantan terbakar lagi.",
+    tanya2: "Berapa yang terbakar di dalam konsesi sawit?",
+    janAgu: "Januari – Agustus 2026",
+    haKal: "hektare terbakar di Kalimantan",
+    legenda: ["terbakar, di dalam konsesi", "terbakar, di luar konsesi", "konsesi sawit"],
+    tebal: "Di peta ini tiap bekas bakar ditebalkan ±1,5 km agar terlihat. Angka dihitung dari piksel asli.",
+    sumberLahan: (n: string) =>
+      `Global Forest Watch, ${n} poligon konsesi sawit di Kalimantan · luas daratan dari FAO GAUL 2025`,
+    seperlima: "Konsesi sawit menutupi hampir seperlima daratan",
+    jutaDari: (a: string, b: string) => `${a} juta dari ${b} juta hektare`,
+    peluang: "Jika api tidak mengenal batas konsesi, kira-kira seperlima bekas bakar akan jatuh di dalamnya.",
+    sumberTahun:
+      "MODIS MCD64A1 500 m · 2019 dan 2023 setahun penuh, 2026 hanya Jan–Agu · konsesi: Global Forest Watch",
+    bagianDalam: "Bagian bekas bakar yang jatuh di dalam konsesi",
+    garisPeluang: (p: string) => `luas konsesi: ${p}% daratan`,
+    catatanTahun: "* Januari–Agustus. Data luas bakar September–Oktober belum terbit.",
+    pikselAsli: "piksel asli 500 m",
+    ketapang: "Ketapang, Kalimantan Barat",
+    empat: "Empat konsesi di satu pesisir",
+    haEmpat: "hektare terbakar di dalam keempatnya",
+    bagianAreal: "Bagian areal konsesi yang terbakar, Jan–Agu 2026",
+    sepertiga: "sepertiga",
+    dari: (a: string, b: string) => `${a} dari ${b} ha`,
+    tetapi: "Tetapi",
+    diLuar: "bekas bakar berada di luar konsesi",
+    terbesar: "Kebakaran terbesar 2026",
+    pctDalam: (p: string) => `${p}% di dalam konsesi`,
+    sumberTitik: (w: string) =>
+      `NASA FIRMS MODIS 1 km, keyakinan ≥ 30, ${w} 2026 · deteksi titik panas per piksel per hari, bukan luas terbakar`,
+    titikKal: "deteksi titik panas di Kalimantan",
+    dalam: "di dalam konsesi",
+    sensorLain: "Sensor dan periode lain dari luas bakar — angkanya tidak dijumlahkan.",
+    tutup1: "Lokasi bukan pembuktian.",
+    tutupKet: "Batas konsesi dari data Kementerian Kehutanan sekitar 2012, dan api bisa menyeberang batas.",
+    tutup2: "Peta ini menunjukkan di mana pemeriksaan harus dimulai.",
+    sumberData: "Sumber data",
+    baris: [
+      ["Luas bakar", "MODIS MCD64A1 v6.1, 500 m, Jan–Agu 2026 (2019 dan 2023 setahun penuh)"],
+      ["Titik panas", "NASA FIRMS MODIS 1 km, keyakinan ≥ 30, 1 Sep – 1 Nov 2026"],
+      ["Konsesi", "Global Forest Watch, Indonesia oil palm concessions (Kementerian Kehutanan ±2012)"],
+      ["Nama", "Konsesi disebut dengan singkatan huruf awal nama perusahaan"],
+      ["Wilayah", "FAO GAUL 2025, lima provinsi Kalimantan"],
+    ] as [string, string][],
+    peringatan:
+      "Bekas bakar di dalam batas konsesi menunjukkan lokasi api, bukan siapa yang menyalakannya. Batas konsesi bisa sudah berubah sejak 2012. MCD64A1 tidak menangkap kebakaran beberapa hektare, sehingga semua luas adalah batas bawah.",
+  },
+  en: {
+    lokal: "en-GB",
+    audio: "audio/konsesi-en",
+    kiri: "Kalimantan fires",
+    waktu: "November 2026",
+    sumber: "Source",
+    sumberBA:
+      "MODIS MCD64A1 500 m, Jan–Aug 2026 · oil palm concessions: Global Forest Watch (Ministry of Forestry, c. 2012)",
+    alisJudul: "Kalimantan fires · 2026",
+    judul: ["INSIDE THE", "CONCESSIONS?"],
+    judulUkuran: 100, // "CONCESSIONS?" is wider than "KONSESI?"; keep it off the map
+    subJudul: "This year's burn scars, set against oil palm concession boundaries.",
+    tanya1: "Kalimantan is burning again.",
+    tanya2: "How much burned inside oil palm concessions?",
+    janAgu: "January – August 2026",
+    haKal: "hectares burned in Kalimantan",
+    legenda: ["burned, inside a concession", "burned, outside", "oil palm concession"],
+    tebal: "On this map each burn is drawn ~1.5 km wider so it can be seen. Figures use the true pixels.",
+    sumberLahan: (n: string) =>
+      `Global Forest Watch, ${n} oil palm concession polygons in Kalimantan · land area from FAO GAUL 2025`,
+    seperlima: "Oil palm concessions cover almost a fifth of the land",
+    jutaDari: (a: string, b: string) => `${a} million of ${b} million hectares`,
+    peluang: "If fire ignored concession boundaries, roughly a fifth of the burn scars would fall inside them.",
+    sumberTahun:
+      "MODIS MCD64A1 500 m · 2019 and 2023 full years, 2026 Jan–Aug only · concessions: Global Forest Watch",
+    bagianDalam: "Share of the burned area inside concessions",
+    garisPeluang: (p: string) => `concessions: ${p}% of land`,
+    catatanTahun: "* January–August. Burned-area data for September–October is not yet published.",
+    pikselAsli: "true 500 m pixels",
+    ketapang: "Ketapang, West Kalimantan",
+    empat: "Four concessions on one coast",
+    haEmpat: "hectares burned inside the four",
+    bagianAreal: "Share of each concession that burned, Jan–Aug 2026",
+    sepertiga: "one third",
+    dari: (a: string, b: string) => `${a} of ${b} ha`,
+    tetapi: "But",
+    diLuar: "of the burned area lies outside concessions",
+    terbesar: "Largest fire of 2026",
+    pctDalam: (p: string) => `${p}% inside a concession`,
+    sumberTitik: (w: string) =>
+      `NASA FIRMS MODIS 1 km, confidence ≥ 30, ${w} 2026 · hotspot detections per pixel per day, not burned area`,
+    titikKal: "hotspot detections in Kalimantan",
+    dalam: "inside concessions",
+    sensorLain: "A different sensor and period from the burned area — the numbers are never added.",
+    tutup1: "Location is not proof.",
+    tutupKet: "Concession boundaries are Ministry of Forestry data from around 2012, and fire crosses boundaries.",
+    tutup2: "This map shows where the checking should begin.",
+    sumberData: "Data sources",
+    baris: [
+      ["Burned area", "MODIS MCD64A1 v6.1, 500 m, Jan–Aug 2026 (2019 and 2023 full years)"],
+      ["Hotspots", "NASA FIRMS MODIS 1 km, confidence ≥ 30, 1 Sep – 1 Nov 2026"],
+      ["Concessions", "Global Forest Watch, Indonesia oil palm concessions (Ministry of Forestry, c. 2012)"],
+      ["Names", "Concessions are given as the initials of the company name"],
+      ["Area", "FAO GAUL 2025, the five provinces of Kalimantan"],
+    ] as [string, string][],
+    peringatan:
+      "A burn inside a concession boundary shows where the fire was, not who lit it. Boundaries may have changed since 2012. MCD64A1 misses fires of a few hectares, so every area here is a lower bound.",
+  },
+};
+
+const Ctx = createContext<Bahasa>("id");
+
+/** The words and number formatting for the film being rendered. */
+const useB = () => {
+  const b = useContext(Ctx);
+  const t = TEKS[b];
+  return {
+    t,
+    ribuan: (n: number) => ribuanId(n, t.lokal),
+    koma: (n: number, d = 1) => komaId(n, d, t.lokal),
+    // en-GB abbreviates September as "Sept"; the sources card says "Sep".
+    tgl: (s: string) =>
+      new Date(s + "T00:00:00Z")
+        .toLocaleDateString(t.lokal, {
+          day: "numeric",
+          month: "short",
+          timeZone: "UTC",
+        })
+        .replace("Sept", "Sep"),
+  };
+};
+
+/** The standing frame, in the film's language. */
+const Bkg: React.FC<{ sumber?: string; tampil?: number }> = ({ sumber, tampil }) => {
+  const { t } = useB();
+  return (
+    <Bingkai
+      kiri={t.kiri}
+      waktu={t.waktu}
+      labelSumber={t.sumber}
+      sumber={sumber}
+      tampil={tampil}
+    />
+  );
+};
 
 /* ------------- a map still, drifting slowly so it is not a slide -------- */
 const Peta: React.FC<{
@@ -95,36 +259,35 @@ const Alis: React.FC<{ anak: string }> = ({ anak }) => (
   </div>
 );
 
-const Legenda: React.FC<{ t: number }> = ({ t }) => (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 12,
-      opacity: t,
-      fontFamily: tubuhFont,
-      fontSize: 23,
-      color: warna.kapur,
-    }}
-  >
-    {(
-      [
-        [warna.bara, "terbakar, di dalam konsesi"],
-        [warna.nyala, "terbakar, di luar konsesi"],
-        [KONSESI_HIJAU, "konsesi sawit"],
-      ] as [string, string][]
-    ).map(([w, k]) => (
-      <div key={k} style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ width: 26, height: 18, background: w, borderRadius: 2 }} />
-        {k}
-      </div>
-    ))}
-  </div>
-);
+const Legenda: React.FC<{ t: number }> = ({ t: tampil }) => {
+  const { t } = useB();
+  const warnaL = [warna.bara, warna.nyala, KONSESI_HIJAU];
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        opacity: tampil,
+        fontFamily: tubuhFont,
+        fontSize: 23,
+        color: warna.kapur,
+      }}
+    >
+      {t.legenda.map((k, i) => (
+        <div key={k} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 26, height: 18, background: warnaL[i], borderRadius: 2 }} />
+          {k}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 /* ---------------------------------- scenes --------------------------- */
 
 const KartuJudul: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 24);
   return (
@@ -133,28 +296,25 @@ const KartuJudul: React.FC<{ panjang: number }> = ({ panjang }) => {
       <Kolom jarak={26}>
         <div style={{ opacity: a, transform: `translateY(${(1 - a) * 20}px)` }}>
           <div style={{ marginBottom: 24 }}>
-            <Alis anak="Karhutla Kalimantan · 2026" />
+            <Alis anak={t.alisJudul} />
           </div>
           <h1
             style={{
               fontFamily: judulFont,
               fontWeight: 900,
-              fontSize: 150,
+              fontSize: t.judulUkuran,
               lineHeight: 0.9,
               letterSpacing: "-0.04em",
               color: warna.kapur,
               margin: 0,
             }}
           >
-            DI DALAM
+            {t.judul[0]}
             <br />
-            KONSESI?
+            {t.judul[1]}
           </h1>
           <div style={{ marginTop: 28 }}>
-            <Keterangan
-              lebar={700}
-              anak="Bekas kebakaran tahun ini, dibandingkan dengan batas konsesi sawit."
-            />
+            <Keterangan lebar={700} anak={t.subJudul} />
           </div>
         </div>
       </Kolom>
@@ -163,42 +323,33 @@ const KartuJudul: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Pertanyaan: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 22);
   const b = masuk(f, 70, 22);
+  const besar: React.CSSProperties = {
+    fontFamily: judulFont,
+    fontWeight: 900,
+    fontSize: 104,
+    lineHeight: 1.02,
+    letterSpacing: "-0.03em",
+    margin: 0,
+  };
   return (
     <Lembut panjang={panjang}>
       <LatarDiam />
       <Kolom jarak={18}>
-        <h1
-          style={{
-            fontFamily: judulFont,
-            fontWeight: 900,
-            fontSize: 104,
-            lineHeight: 1.02,
-            letterSpacing: "-0.03em",
-            color: warna.abu,
-            margin: 0,
-            opacity: a,
-          }}
-        >
-          Kalimantan terbakar lagi.
-        </h1>
+        <h1 style={{ ...besar, color: warna.abu, opacity: a }}>{t.tanya1}</h1>
         <h2
           style={{
-            fontFamily: judulFont,
-            fontWeight: 900,
-            fontSize: 104,
-            lineHeight: 1.02,
-            letterSpacing: "-0.03em",
+            ...besar,
             color: warna.kapur,
-            margin: 0,
             maxWidth: 1500,
             opacity: b,
             transform: `translateY(${(1 - b) * 18}px)`,
           }}
         >
-          Berapa yang terbakar di dalam konsesi sawit?
+          {t.tanya2}
         </h2>
       </Kolom>
     </Lembut>
@@ -206,27 +357,27 @@ const Pertanyaan: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const PetaBakar: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   return (
     <Lembut panjang={panjang}>
       <Peta berkas="peta.png" panjang={panjang} zoom={1.05} />
-      <Bingkai kiri={KIRI} waktu={WAKTU} sumber={SUMBER_BA} tampil={a} />
+      <Bkg sumber={t.sumberBA} tampil={a} />
       <Kolom jarak={22}>
         <div style={{ opacity: a, width: 640 }}>
-          <Alis anak="Januari – Agustus 2026" />
+          <Alis anak={t.janAgu} />
           <div style={{ marginTop: 22 }}>
-            <Penghitung ke={KINI.terbakar_ha} mulai={10} panjang={70} ukuran={128} />
+            <Penghitung
+              ke={KINI.terbakar_ha}
+              mulai={10}
+              panjang={70}
+              ukuran={128}
+              lokal={t.lokal}
+            />
           </div>
-          <div
-            style={{
-              fontFamily: tubuhFont,
-              fontSize: 32,
-              color: warna.kapur,
-              marginTop: 8,
-            }}
-          >
-            hektare terbakar di Kalimantan
+          <div style={{ fontFamily: tubuhFont, fontSize: 32, color: warna.kapur, marginTop: 8 }}>
+            {t.haKal}
           </div>
           <div style={{ marginTop: 52 }}>
             <Legenda t={masuk(f, 60, 24)} />
@@ -241,8 +392,7 @@ const PetaBakar: React.FC<{ panjang: number }> = ({ panjang }) => {
               opacity: masuk(f, 80, 24),
             }}
           >
-            Di peta ini tiap bekas bakar ditebalkan ±1,5 km agar terlihat.
-            Angka dihitung dari piksel asli.
+            {t.tebal}
           </div>
         </div>
       </Kolom>
@@ -251,22 +401,18 @@ const PetaBakar: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Seperlima: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t, koma, ribuan } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
-  const t = masuk(f, 40, 50);
+  const n = masuk(f, 40, 50);
   const pct = D.konsesi_pct;
   return (
     <Lembut panjang={panjang}>
       <LatarDiam />
-      <Bingkai
-        kiri={KIRI}
-        waktu={WAKTU}
-        sumber={`Global Forest Watch, ${ribuan(D.poligon_konsesi)} poligon konsesi sawit di Kalimantan · luas daratan dari FAO GAUL 2025`}
-        tampil={a}
-      />
+      <Bkg sumber={t.sumberLahan(ribuan(D.poligon_konsesi))} tampil={a} />
       <Kolom jarak={0}>
         <div style={{ opacity: a, width: 1600 }}>
-          <Judul anak="Konsesi sawit menutupi hampir seperlima daratan" ukuran={64} />
+          <Judul anak={t.seperlima} ukuran={64} />
           <div style={{ display: "flex", alignItems: "baseline", gap: 22, marginTop: 40 }}>
             <div
               style={{
@@ -277,10 +423,10 @@ const Seperlima: React.FC<{ panjang: number }> = ({ panjang }) => {
                 lineHeight: 1,
               }}
             >
-              {koma(pct * t)}%
+              {koma(pct * n)}%
             </div>
             <div style={{ fontFamily: tubuhFont, fontSize: 30, color: warna.abu }}>
-              {koma(D.konsesi_ha / 1e6)} juta dari {koma(D.daratan_ha / 1e6)} juta hektare
+              {t.jutaDari(koma(D.konsesi_ha / 1e6), koma(D.daratan_ha / 1e6))}
             </div>
           </div>
           <div
@@ -296,7 +442,7 @@ const Seperlima: React.FC<{ panjang: number }> = ({ panjang }) => {
           >
             <div
               style={{
-                width: `${pct * t}%`,
+                width: `${pct * n}%`,
                 height: "100%",
                 background: KONSESI_HIJAU,
                 borderRight: `3px solid ${warna.nyala}`,
@@ -316,8 +462,7 @@ const Seperlima: React.FC<{ panjang: number }> = ({ panjang }) => {
               opacity: masuk(f, 150, 24),
             }}
           >
-            Jika api tidak mengenal batas konsesi, kira-kira seperlima bekas
-            bakar akan jatuh di dalamnya.
+            {t.peluang}
           </div>
         </div>
       </Kolom>
@@ -326,6 +471,7 @@ const Seperlima: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const TigaTahun: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t, koma } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const TINGGI = 400;
@@ -334,15 +480,10 @@ const TigaTahun: React.FC<{ panjang: number }> = ({ panjang }) => {
   return (
     <Lembut panjang={panjang}>
       <LatarDiam />
-      <Bingkai
-        kiri={KIRI}
-        waktu={WAKTU}
-        sumber="MODIS MCD64A1 500 m · 2019 dan 2023 setahun penuh, 2026 hanya Jan–Agu · konsesi: Global Forest Watch"
-        tampil={a}
-      />
+      <Bkg sumber={t.sumberTahun} tampil={a} />
       <Kolom jarak={0}>
         <div style={{ opacity: a, width: 1600 }}>
-          <Judul anak="Bagian bekas bakar yang jatuh di dalam konsesi" ukuran={60} />
+          <Judul anak={t.bagianDalam} ukuran={60} />
           <div
             style={{
               position: "relative",
@@ -375,11 +516,11 @@ const TigaTahun: React.FC<{ panjang: number }> = ({ panjang }) => {
                   color: warna.abu,
                 }}
               >
-                luas konsesi: {koma(D.konsesi_pct)}% daratan
+                {t.garisPeluang(koma(D.konsesi_pct))}
               </div>
             </div>
             {D.tahun.map((y, i) => {
-              const t = masuk(f, 50 + i * 40, 34);
+              const n = masuk(f, 50 + i * 40, 34);
               const ini = y.tahun === 2026;
               return (
                 <div
@@ -395,7 +536,7 @@ const TigaTahun: React.FC<{ panjang: number }> = ({ panjang }) => {
                   <div
                     style={{
                       width: "100%",
-                      height: (y.dalam_pct / SKALA) * TINGGI * t,
+                      height: (y.dalam_pct / SKALA) * TINGGI * n,
                       background: ini
                         ? `linear-gradient(180deg, ${warna.nyala} 0%, ${warna.bara} 100%)`
                         : "#3A424D",
@@ -412,10 +553,10 @@ const TigaTahun: React.FC<{ panjang: number }> = ({ panjang }) => {
                         fontSize: 46,
                         fontWeight: 600,
                         color: ini ? warna.jelaga : warna.kapur,
-                        opacity: t,
+                        opacity: n,
                       }}
                     >
-                      {koma(y.dalam_pct * t)}%
+                      {koma(y.dalam_pct * n)}%
                     </div>
                   </div>
                   <div
@@ -435,7 +576,7 @@ const TigaTahun: React.FC<{ panjang: number }> = ({ panjang }) => {
             })}
           </div>
           <div style={{ fontFamily: tubuhFont, fontSize: 21, color: warna.samar, marginTop: 6 }}>
-            * Januari–Agustus. Data luas bakar September–Oktober belum terbit.
+            {t.catatanTahun}
           </div>
         </div>
       </Kolom>
@@ -444,18 +585,19 @@ const TigaTahun: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Ketapang: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const daftar = D.konsesi_teratas;
   return (
     <Lembut panjang={panjang}>
       <Peta berkas="ketapang.png" panjang={panjang} zoom={1.06} />
-      <Bingkai kiri={KIRI} waktu={WAKTU} sumber={`${SUMBER_BA} · piksel asli 500 m`} tampil={a} />
+      <Bkg sumber={`${t.sumberBA} · ${t.pikselAsli}`} tampil={a} />
       <Kolom jarak={0}>
         <div style={{ opacity: a, width: 820 }}>
-          <Alis anak="Ketapang, Kalimantan Barat" />
+          <Alis anak={t.ketapang} />
           <div style={{ marginTop: 18 }}>
-            <Judul anak="Empat konsesi di satu pesisir" ukuran={60} />
+            <Judul anak={t.empat} ukuran={60} />
           </div>
           <div style={{ marginTop: 34 }}>
             <Penghitung
@@ -463,10 +605,11 @@ const Ketapang: React.FC<{ panjang: number }> = ({ panjang }) => {
               mulai={150}
               panjang={60}
               ukuran={110}
+              lokal={t.lokal}
             />
           </div>
           <div style={{ fontFamily: tubuhFont, fontSize: 28, color: warna.kapur, marginTop: 6 }}>
-            hektare terbakar di dalam keempatnya
+            {t.haEmpat}
           </div>
           <div style={{ display: "flex", gap: 22, marginTop: 34, flexWrap: "wrap" }}>
             {daftar.map((c, i) => (
@@ -493,6 +636,7 @@ const Ketapang: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Sepertiga: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t, koma, ribuan } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const LEBAR = 900;
@@ -500,10 +644,10 @@ const Sepertiga: React.FC<{ panjang: number }> = ({ panjang }) => {
   return (
     <Lembut panjang={panjang}>
       <LatarDiam />
-      <Bingkai kiri={KIRI} waktu={WAKTU} sumber={SUMBER_BA} tampil={a} />
+      <Bkg sumber={t.sumberBA} tampil={a} />
       <Kolom jarak={0}>
         <div style={{ opacity: a, width: 1600 }}>
-          <Judul anak="Bagian areal konsesi yang terbakar, Jan–Agu 2026" ukuran={56} />
+          <Judul anak={t.bagianAreal} ukuran={56} />
           <div style={{ position: "relative", marginTop: 54 }}>
             {/* one-third marker */}
             <div
@@ -527,11 +671,11 @@ const Sepertiga: React.FC<{ panjang: number }> = ({ panjang }) => {
                   whiteSpace: "nowrap",
                 }}
               >
-                sepertiga
+                {t.sepertiga}
               </div>
             </div>
             {D.konsesi_teratas.map((c, i) => {
-              const t = masuk(f, 20 + i * 14, 34);
+              const n = masuk(f, 20 + i * 14, 34);
               const lewat = c.terbakar_pct > 100 / 3;
               return (
                 <div
@@ -556,7 +700,7 @@ const Sepertiga: React.FC<{ panjang: number }> = ({ panjang }) => {
                   </div>
                   <div
                     style={{
-                      width: (c.terbakar_pct / SKALA) * LEBAR * t,
+                      width: (c.terbakar_pct / SKALA) * LEBAR * n,
                       height: 48,
                       background: lewat ? warna.bara : "#B4541F",
                       borderRadius: "0 3px 3px 0",
@@ -571,7 +715,7 @@ const Sepertiga: React.FC<{ panjang: number }> = ({ panjang }) => {
                       display: "flex",
                       alignItems: "baseline",
                       gap: 24,
-                      opacity: t,
+                      opacity: n,
                     }}
                   >
                     <div
@@ -584,10 +728,10 @@ const Sepertiga: React.FC<{ panjang: number }> = ({ panjang }) => {
                         color: lewat ? warna.nyala : warna.kapur,
                       }}
                     >
-                      {koma(c.terbakar_pct * t, 0)}%
+                      {koma(c.terbakar_pct * n, 0)}%
                     </div>
                     <div style={{ ...angkaGaya, fontSize: 24, color: warna.abu }}>
-                      {ribuan(c.terbakar_ha)} dari {ribuan(c.luas_ha)} ha
+                      {t.dari(ribuan(c.terbakar_ha), ribuan(c.luas_ha))}
                     </div>
                   </div>
                 </div>
@@ -601,6 +745,7 @@ const Sepertiga: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const DiLuar: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t, koma, ribuan } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const b = masuk(f, 150, 24);
@@ -608,10 +753,10 @@ const DiLuar: React.FC<{ panjang: number }> = ({ panjang }) => {
   return (
     <Lembut panjang={panjang}>
       <Peta berkas="peta.png" panjang={panjang} zoom={1.05} redup={0.2} />
-      <Bingkai kiri={KIRI} waktu={WAKTU} sumber={SUMBER_BA} tampil={a} />
+      <Bkg sumber={t.sumberBA} tampil={a} />
       <Kolom jarak={0}>
         <div style={{ opacity: a, width: 700 }}>
-          <Alis anak="Tetapi" />
+          <Alis anak={t.tetapi} />
           <div
             style={{
               ...angkaGaya,
@@ -625,7 +770,7 @@ const DiLuar: React.FC<{ panjang: number }> = ({ panjang }) => {
             {koma(D.luar_pct * masuk(f, 10, 60), 0)}%
           </div>
           <div style={{ fontFamily: tubuhFont, fontSize: 34, color: warna.kapur, marginTop: 6 }}>
-            bekas bakar berada di luar konsesi
+            {t.diLuar}
           </div>
           <div
             style={{
@@ -636,8 +781,16 @@ const DiLuar: React.FC<{ panjang: number }> = ({ panjang }) => {
               transform: `translateY(${(1 - b) * 14}px)`,
             }}
           >
-            <div style={{ fontFamily: tubuhFont, fontSize: 21, letterSpacing: "0.18em", textTransform: "uppercase", color: warna.abu }}>
-              Kebakaran terbesar 2026
+            <div
+              style={{
+                fontFamily: tubuhFont,
+                fontSize: 21,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: warna.abu,
+              }}
+            >
+              {t.terbesar}
             </div>
             <div style={{ ...angkaGaya, fontSize: 52, fontWeight: 600, color: warna.kapur, marginTop: 8 }}>
               {ribuan(p.luas_ha)} ha
@@ -645,7 +798,7 @@ const DiLuar: React.FC<{ panjang: number }> = ({ panjang }) => {
             <div style={{ fontFamily: tubuhFont, fontSize: 26, color: warna.abu, marginTop: 4 }}>
               {p.kabupaten}, {p.provinsi}
               <br />
-              {koma((100 * p.dalam_ha) / p.luas_ha, 0)}% di dalam konsesi
+              {t.pctDalam(koma((100 * p.dalam_ha) / p.luas_ha, 0))}
             </div>
           </div>
         </div>
@@ -655,32 +808,29 @@ const DiLuar: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const September: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t, koma, tgl } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const [w0, w1] = D.titik_jendela;
-  const tgl = (s: string) =>
-    new Date(s + "T00:00:00Z").toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      timeZone: "UTC",
-    });
+  const jendela = `${tgl(w0)} – ${tgl(w1)}`;
   return (
     <Lembut panjang={panjang}>
       <Peta berkas="peta_titik.png" panjang={panjang} zoom={1.05} />
-      <Bingkai
-        kiri={KIRI}
-        waktu={WAKTU}
-        sumber={`NASA FIRMS MODIS 1 km, keyakinan ≥ 30, ${tgl(w0)} – ${tgl(w1)} 2026 · deteksi titik panas per piksel per hari, bukan luas terbakar`}
-        tampil={a}
-      />
+      <Bkg sumber={t.sumberTitik(jendela)} tampil={a} />
       <Kolom jarak={0}>
         <div style={{ opacity: a, width: 660 }}>
-          <Alis anak={`${tgl(w0)} – ${tgl(w1)} 2026`} />
+          <Alis anak={`${jendela} 2026`} />
           <div style={{ marginTop: 22 }}>
-            <Penghitung ke={D.titik.total} mulai={90} panjang={70} ukuran={124} />
+            <Penghitung
+              ke={D.titik.total}
+              mulai={90}
+              panjang={70}
+              ukuran={124}
+              lokal={t.lokal}
+            />
           </div>
           <div style={{ fontFamily: tubuhFont, fontSize: 30, color: warna.kapur, marginTop: 6 }}>
-            deteksi titik panas di Kalimantan
+            {t.titikKal}
           </div>
           <div
             style={{
@@ -695,7 +845,7 @@ const September: React.FC<{ panjang: number }> = ({ panjang }) => {
               {koma(D.titik.dalam_pct)}%
             </div>
             <div style={{ fontFamily: tubuhFont, fontSize: 28, color: warna.kapur }}>
-              di dalam konsesi
+              {t.dalam}
             </div>
           </div>
           <div
@@ -708,7 +858,7 @@ const September: React.FC<{ panjang: number }> = ({ panjang }) => {
               opacity: masuk(f, 230, 22),
             }}
           >
-            Sensor dan periode lain dari luas bakar — angkanya tidak dijumlahkan.
+            {t.sensorLain}
           </div>
         </div>
       </Kolom>
@@ -717,6 +867,7 @@ const September: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Tutup: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { t } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 22);
   const b = masuk(f, Math.round(panjang * 0.62), 24);
@@ -736,13 +887,10 @@ const Tutup: React.FC<{ panjang: number }> = ({ panjang }) => {
             opacity: a,
           }}
         >
-          Lokasi bukan pembuktian.
+          {t.tutup1}
         </h1>
         <div style={{ opacity: a, maxWidth: 1300 }}>
-          <Keterangan
-            lebar={1300}
-            anak="Batas konsesi dari data Kementerian Kehutanan sekitar 2012, dan api bisa menyeberang batas."
-          />
+          <Keterangan lebar={1300} anak={t.tutupKet} />
         </div>
         <h2
           style={{
@@ -758,31 +906,33 @@ const Tutup: React.FC<{ panjang: number }> = ({ panjang }) => {
             transform: `translateY(${(1 - b) * 18}px)`,
           }}
         >
-          Peta ini menunjukkan di mana pemeriksaan harus dimulai.
+          {t.tutup2}
         </h2>
       </Kolom>
     </Lembut>
   );
 };
 
-const KartuSumber: React.FC<{ panjang: number }> = ({ panjang }) => {
+const KartuSumber: React.FC<{ panjang: number }> = () => {
+  const { t } = useB();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 20);
-  const baris: [string, string][] = [
-    ["Luas bakar", "MODIS MCD64A1 v6.1, 500 m, Jan–Agu 2026 (2019 dan 2023 setahun penuh)"],
-    ["Titik panas", "NASA FIRMS MODIS 1 km, keyakinan ≥ 30, 1 Sep – 1 Nov 2026"],
-    ["Konsesi", "Global Forest Watch, Indonesia oil palm concessions (Kementerian Kehutanan ±2012)"],
-    ["Nama", "Konsesi disebut dengan singkatan huruf awal nama perusahaan"],
-    ["Wilayah", "FAO GAUL 2025, lima provinsi Kalimantan"],
-  ];
   return (
     <AbsoluteFill style={{ backgroundColor: warna.jelaga, opacity: a }}>
       <Kolom jarak={20}>
-        <Alis anak="Sumber data" />
+        <Alis anak={t.sumberData} />
         <div style={{ display: "flex", flexDirection: "column", gap: 13, width: 1620 }}>
-          {baris.map(([k, v]) => (
+          {t.baris.map(([k, v]) => (
             <div key={k} style={{ display: "flex", gap: 28, alignItems: "baseline" }}>
-              <div style={{ width: 230, fontFamily: tubuhFont, fontSize: 25, fontWeight: 600, color: warna.kapur }}>
+              <div
+                style={{
+                  width: 230,
+                  fontFamily: tubuhFont,
+                  fontSize: 25,
+                  fontWeight: 600,
+                  color: warna.kapur,
+                }}
+              >
                 {k}
               </div>
               <div style={{ fontFamily: tubuhFont, fontSize: 25, color: warna.abu }}>{v}</div>
@@ -801,10 +951,7 @@ const KartuSumber: React.FC<{ panjang: number }> = ({ panjang }) => {
             maxWidth: 1620,
           }}
         >
-          Bekas bakar di dalam batas konsesi menunjukkan lokasi api, bukan
-          siapa yang menyalakannya. Batas konsesi bisa sudah berubah sejak
-          2012. MCD64A1 tidak menangkap kebakaran beberapa hektare, sehingga
-          semua luas adalah batas bawah.
+          {t.peringatan}
         </div>
       </Kolom>
     </AbsoluteFill>
@@ -813,7 +960,7 @@ const KartuSumber: React.FC<{ panjang: number }> = ({ panjang }) => {
 
 /* --------------------------------- film ------------------------------ */
 
-const PETA: Record<string, React.FC<{ panjang: number }>> = {
+const ADEGAN: Record<string, React.FC<{ panjang: number }>> = {
   "01-pertanyaan": Pertanyaan,
   "02-peta": PetaBakar,
   "03-seperlima": Seperlima,
@@ -825,26 +972,33 @@ const PETA: Record<string, React.FC<{ panjang: number }>> = {
   "09-tutup": Tutup,
 };
 
-export const Konsesi: React.FC = () => (
-  <AbsoluteFill style={{ backgroundColor: warna.jelaga }}>
-    <Audio src={staticFile("audio/konsesi/musik-konsesi.mp3")} />
+export const Konsesi: React.FC<{ bahasa?: Bahasa }> = ({ bahasa = "id" }) => {
+  const j = JADWAL[bahasa];
+  const dir = TEKS[bahasa].audio;
+  const musik = bahasa === "id" ? "musik-konsesi.mp3" : "musik-konsesi-en.mp3";
+  return (
+    <Ctx.Provider value={bahasa}>
+      <AbsoluteFill style={{ backgroundColor: warna.jelaga }}>
+        <Audio src={staticFile(`${dir}/${musik}`)} />
 
-    <Sequence durationInFrames={JUDUL_FRAME}>
-      <KartuJudul panjang={JUDUL_FRAME} />
-    </Sequence>
-
-    {adegan.map((a) => {
-      const K = PETA[a.id as string];
-      return (
-        <Sequence key={a.id} from={a.mulai} durationInFrames={a.panjang}>
-          <K panjang={a.panjang} />
-          <Audio src={staticFile(`audio/konsesi/${a.id}.mp3`)} />
+        <Sequence durationInFrames={j.JUDUL_FRAME}>
+          <KartuJudul panjang={j.JUDUL_FRAME} />
         </Sequence>
-      );
-    })}
 
-    <Sequence from={akhirNarasi} durationInFrames={TUTUP_FRAME}>
-      <KartuSumber panjang={TUTUP_FRAME} />
-    </Sequence>
-  </AbsoluteFill>
-);
+        {j.adegan.map((a) => {
+          const K = ADEGAN[a.id];
+          return (
+            <Sequence key={a.id} from={a.mulai} durationInFrames={a.panjang}>
+              <K panjang={a.panjang} />
+              <Audio src={staticFile(`${dir}/${a.id}.mp3`)} />
+            </Sequence>
+          );
+        })}
+
+        <Sequence from={j.akhirNarasi} durationInFrames={j.TUTUP_FRAME}>
+          <KartuSumber panjang={j.TUTUP_FRAME} />
+        </Sequence>
+      </AbsoluteFill>
+    </Ctx.Provider>
+  );
+};

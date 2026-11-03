@@ -49,9 +49,9 @@ export const angkaGaya: React.CSSProperties = {
   fontFeatureSettings: '"tnum" 1',
 };
 
-/** Indonesian uses "." for thousands. */
-export const ribuan = (n: number): string =>
-  Math.round(n).toLocaleString("id-ID");
+/** Indonesian uses "." for thousands; pass "en-GB" for an English film. */
+export const ribuan = (n: number, lokal = "id-ID"): string =>
+  Math.round(n).toLocaleString(lokal);
 
-export const koma = (n: number, d = 1): string =>
-  n.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+export const koma = (n: number, d = 1, lokal = "id-ID"): string =>
+  n.toLocaleString(lokal, { minimumFractionDigits: d, maximumFractionDigits: d });

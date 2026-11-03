@@ -7,12 +7,7 @@ import {
   TINGGI as TINGGI_B,
   TOTAL_FRAME as TOTAL_B,
 } from "./jadwalBukti";
-import {
-  FPS as FPS_K,
-  LEBAR as LEBAR_K,
-  TINGGI as TINGGI_K,
-  TOTAL_FRAME as TOTAL_K,
-} from "./jadwalKonsesi";
+import { JADWAL } from "./jadwalKonsesi";
 import { Narasi } from "./Narasi";
 import { Bukti } from "./Bukti";
 import { Konsesi } from "./Konsesi";
@@ -37,14 +32,25 @@ export const RemotionRoot: React.FC = () => (
       width={LEBAR_B}
       height={TINGGI_B}
     />
-    {/* Third piece: Kalimantan's 2026 burn against oil-palm concessions. */}
+    {/* Third piece: Kalimantan's 2026 burn against oil-palm concessions,
+        in Indonesian and English. Same component, own cut per language. */}
     <Composition
       id="Konsesi"
       component={Konsesi}
-      durationInFrames={TOTAL_K}
-      fps={FPS_K}
-      width={LEBAR_K}
-      height={TINGGI_K}
+      defaultProps={{ bahasa: "id" as const }}
+      durationInFrames={JADWAL.id.TOTAL_FRAME}
+      fps={JADWAL.id.FPS}
+      width={JADWAL.id.LEBAR}
+      height={JADWAL.id.TINGGI}
+    />
+    <Composition
+      id="KonsesiEN"
+      component={Konsesi}
+      defaultProps={{ bahasa: "en" as const }}
+      durationInFrames={JADWAL.en.TOTAL_FRAME}
+      fps={JADWAL.en.FPS}
+      width={JADWAL.en.LEBAR}
+      height={JADWAL.en.TINGGI}
     />
   </>
 );

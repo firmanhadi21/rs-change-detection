@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "Schedule for the English concessions film. durasi is written by",
+    "tts_konsesi.py --bahasa en from ffprobe of the normalised mp3s;",
+    "bake_musik_bukti.py --jadwal src/jadwalKonsesiEN.json reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.5,
+  "judul_detik": 3.5,
+  "tutup_detik": 5.0,
+  "urutan": [
+    "01-pertanyaan",
+    "02-peta",
+    "03-seperlima",
+    "04-tiga-tahun",
+    "05-ketapang",
+    "06-sepertiga",
+    "07-di-luar",
+    "08-september",
+    "09-tutup"
+  ],
+  "durasi": {
+    "01-pertanyaan": 8.8,
+    "02-peta": 10.08,
+    "03-seperlima": 13.76,
+    "04-tiga-tahun": 11.76,
+    "05-ketapang": 19.68,
+    "06-sepertiga": 7.2,
+    "07-di-luar": 12.88,
+    "08-september": 14.56,
+    "09-tutup": 12.96
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

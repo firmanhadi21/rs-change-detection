@@ -134,7 +134,14 @@ export const Bingkai: React.FC<{
   sumber?: string;
   tampil?: number;
   waktu?: string;
-}> = ({ kiri, sumber, tampil = 1, waktu = "Oktober 2026" }) => (
+  labelSumber?: string;
+}> = ({
+  kiri,
+  sumber,
+  tampil = 1,
+  waktu = "Oktober 2026",
+  labelSumber = "Sumber",
+}) => (
   <AbsoluteFill style={{ opacity: tampil }}>
     <div
       style={{
@@ -188,7 +195,7 @@ export const Bingkai: React.FC<{
           color: warna.abu,
         }}
       >
-        <span style={{ color: warna.garis, marginRight: 12 }}>Sumber</span>
+        <span style={{ color: warna.garis, marginRight: 12 }}>{labelSumber}</span>
         {sumber}
       </div>
     ) : null}
@@ -202,7 +209,15 @@ export const Penghitung: React.FC<{
   panjang?: number;
   ukuran?: number;
   warnaAngka?: string;
-}> = ({ ke, mulai = 0, panjang = 48, ukuran = 190, warnaAngka = warna.nyala }) => {
+  lokal?: string;
+}> = ({
+  ke,
+  mulai = 0,
+  panjang = 48,
+  ukuran = 190,
+  warnaAngka = warna.nyala,
+  lokal = "id-ID",
+}) => {
   const frame = useCurrentFrame();
   const nilai = interpolate(frame, [mulai, mulai + panjang], [0, ke], {
     extrapolateLeft: "clamp",
@@ -220,7 +235,7 @@ export const Penghitung: React.FC<{
         letterSpacing: "-0.02em",
       }}
     >
-      {ribuan(nilai)}
+      {ribuan(nilai, lokal)}
     </div>
   );
 };

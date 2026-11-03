@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "The English narration of the concessions film, one entry per segment",
+    "of jadwalKonsesiEN.json's urutan. tts_konsesi.py --bahasa en generates",
+    "each clip from here; the mp3s are gitignored.",
+    "",
+    "Same figures as narasiKonsesi.json, all from src/konsesiData.json.",
+    "Acronyms are written as hyphenated capitals (P-T-A-M) so the voice",
+    "reads letters; 'P.T. A.M.' would risk 'a.m.' being read as morning.",
+    "",
+    "Voice: Max (Gfpl8Yo74Is0W6cPUWWT), American, documentary register."
+  ],
+  "model": "eleven_v4",
+  "suara": "Gfpl8Yo74Is0W6cPUWWT",
+  "teks": {
+    "01-pertanyaan": "Kalimantan is burning again this year. And the question that always follows is: how much of it burned inside oil palm concessions?",
+    "02-peta": "From January to August twenty twenty-six, NASA's MODIS satellites mapped about two hundred and ninety-two thousand hectares of burned land across Kalimantan.",
+    "03-seperlima": "Oil palm concessions cover almost a fifth of Kalimantan's land. Nineteen point six percent. If fire paid no attention to concession boundaries, roughly a fifth of the burn scars would fall inside them.",
+    "04-tiga-tahun": "In twenty nineteen and twenty twenty-three, that is exactly what happened. About nineteen percent. This year, twenty-three point six percent. Higher, but not by much.",
+    "05-ketapang": "The excess gathers in one place: the coast of Ketapang, in West Kalimantan. Just four concessions, P-T-A-M, P-T-S-K-M, P-T-M-K-K, and P-T-S-P-A-S, account for almost twenty-six thousand hectares.",
+    "06-sepertiga": "In two of them, more than a third of the concession burned in a single season. In the third, almost a third.",
+    "07-di-luar": "But three quarters of the burned area lies outside concessions. This year's largest fire, almost fifteen thousand hectares in Kotawaringin Timur, was only one tenth inside a concession.",
+    "08-september": "Burned-area data only runs to August. Since September, satellites have logged almost two hundred thousand fire hotspot detections in Kalimantan. Twenty-two percent of them inside concessions. The same pattern.",
+    "09-tutup": "Location is not proof. These boundaries come from Ministry of Forestry data from around twenty twelve, and fire crosses boundaries. What this map shows is where the checking should begin."
+  }
+}
