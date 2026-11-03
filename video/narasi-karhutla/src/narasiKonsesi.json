@@ -7,7 +7,8 @@
     "Every figure is from src/konsesiData.json, written by",
     "scripts/kalimantan_concession_film_assets.py. Concessions are named by",
     "acronym only, spelled out in Indonesian letter names so the voice reads",
-    "them as letters (PT AM -> 'pe-te a-em').",
+    "them as letters (PT AM -> 'pe-te a-èm'). M is written 'èm' -- open e,",
+    "as in English 'em-dash' -- because plain 'em' was read with a schwa.",
     "",
     "Same voice and model as the other two films."
   ],
@@ -18,7 +19,7 @@
     "02-peta": "Dari Januari sampai Agustus dua ribu dua puluh enam, satelit MODIS mencatat sekitar dua ratus sembilan puluh dua ribu hektare lahan terbakar di Kalimantan.",
     "03-seperlima": "Konsesi sawit menutupi hampir seperlima daratan Kalimantan. Sembilan belas koma enam persen. Kalau api tidak mengenal batas konsesi, kira-kira seperlima bekas bakar akan jatuh di dalamnya.",
     "04-tiga-tahun": "Pada dua ribu sembilan belas dan dua ribu dua puluh tiga, memang begitu. Sekitar sembilan belas persen. Tahun ini, dua puluh tiga koma enam persen. Lebih tinggi, tetapi tidak jauh.",
-    "05-ketapang": "Kelebihannya terkumpul di satu tempat: pesisir Ketapang, Kalimantan Barat. Empat konsesi saja, pe-te a-em, pe-te es-ka-em, pe-te em-ka-ka, dan pe-te es-pe-a-es, menyumbang hampir dua puluh enam ribu hektare.",
+    "05-ketapang": "Kelebihannya terkumpul di satu tempat: pesisir Ketapang, Kalimantan Barat. Empat konsesi saja, pe-te a-èm, pe-te es-ka-èm, pe-te èm-ka-ka, dan pe-te es-pe-a-es, menyumbang hampir dua puluh enam ribu hektare.",
     "06-sepertiga": "Di dua di antaranya, lebih dari sepertiga areal konsesi terbakar dalam satu musim. Di yang ketiga, hampir sepertiga.",
     "07-di-luar": "Tetapi tiga perempat bekas bakar justru berada di luar konsesi. Kebakaran terbesar tahun ini, hampir lima belas ribu hektare di Kotawaringin Timur, hanya sepersepuluhnya yang masuk konsesi.",
     "08-september": "Data luas bakar baru sampai Agustus. Sejak September, satelit mencatat hampir dua ratus ribu deteksi titik panas di Kalimantan. Dua puluh dua persen di dalam konsesi. Polanya sama.",

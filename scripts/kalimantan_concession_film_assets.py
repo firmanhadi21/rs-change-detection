@@ -53,7 +53,7 @@ def ucap(acr):
     """How Bian should say it: Indonesian letter names."""
     nama = {"A": "a", "B": "be", "C": "ce", "D": "de", "E": "e", "F": "ef",
             "G": "ge", "H": "ha", "I": "i", "J": "je", "K": "ka", "L": "el",
-            "M": "em", "N": "en", "O": "o", "P": "pe", "Q": "ki", "R": "er",
+            "M": "èm", "N": "en", "O": "o", "P": "pe", "Q": "ki", "R": "er",
             "S": "es", "T": "te", "U": "u", "V": "ve", "W": "we", "X": "eks",
             "Y": "ye", "Z": "zet"}
     return "pe-te " + "-".join(nama[c] for c in acr.split(" ", 1)[1])

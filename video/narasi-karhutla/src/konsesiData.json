@@ -44,7 +44,7 @@
  "konsesi_teratas": [
   {
    "akronim": "PT AM",
-   "ucap": "pe-te a-em",
+   "ucap": "pe-te a-èm",
    "kabupaten": "Ketapang",
    "provinsi": "Kalimantan Barat",
    "luas_ha": 24697.074057744987,
@@ -53,7 +53,7 @@
   },
   {
    "akronim": "PT SKM",
-   "ucap": "pe-te es-ka-em",
+   "ucap": "pe-te es-ka-èm",
    "kabupaten": "Ketapang",
    "provinsi": "Kalimantan Barat",
    "luas_ha": 21447.21817174618,
@@ -62,7 +62,7 @@
   },
   {
    "akronim": "PT MKK",
-   "ucap": "pe-te em-ka-ka",
+   "ucap": "pe-te èm-ka-ka",
    "kabupaten": "Ketapang",
    "provinsi": "Kalimantan Barat",
    "luas_ha": 17391.07089933622,
