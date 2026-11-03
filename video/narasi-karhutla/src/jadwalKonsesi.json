@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "Jadwal film konsesi. durasi ditulis oleh tts_konsesi.py dari ukuran",
+    "ffprobe atas mp3 yang sudah dinormalisasi; bake_musik_bukti.py",
+    "--jadwal src/jadwalKonsesi.json membaca berkas yang sama."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.5,
+  "judul_detik": 3.5,
+  "tutup_detik": 5.0,
+  "urutan": [
+    "01-pertanyaan",
+    "02-peta",
+    "03-seperlima",
+    "04-tiga-tahun",
+    "05-ketapang",
+    "06-sepertiga",
+    "07-di-luar",
+    "08-september",
+    "09-tutup"
+  ],
+  "durasi": {
+    "01-pertanyaan": 7.76,
+    "02-peta": 9.12,
+    "03-seperlima": 12.64,
+    "04-tiga-tahun": 12.32,
+    "05-ketapang": 15.6,
+    "06-sepertiga": 8.32,
+    "07-di-luar": 12.56,
+    "08-september": 12.48,
+    "09-tutup": 13.84
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

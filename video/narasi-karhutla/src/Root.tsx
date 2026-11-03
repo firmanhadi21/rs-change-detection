@@ -7,8 +7,15 @@ import {
   TINGGI as TINGGI_B,
   TOTAL_FRAME as TOTAL_B,
 } from "./jadwalBukti";
+import {
+  FPS as FPS_K,
+  LEBAR as LEBAR_K,
+  TINGGI as TINGGI_K,
+  TOTAL_FRAME as TOTAL_K,
+} from "./jadwalKonsesi";
 import { Narasi } from "./Narasi";
 import { Bukti } from "./Bukti";
+import { Konsesi } from "./Konsesi";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -29,6 +36,15 @@ export const RemotionRoot: React.FC = () => (
       fps={FPS_B}
       width={LEBAR_B}
       height={TINGGI_B}
+    />
+    {/* Third piece: Kalimantan's 2026 burn against oil-palm concessions. */}
+    <Composition
+      id="Konsesi"
+      component={Konsesi}
+      durationInFrames={TOTAL_K}
+      fps={FPS_K}
+      width={LEBAR_K}
+      height={TINGGI_K}
     />
   </>
 );

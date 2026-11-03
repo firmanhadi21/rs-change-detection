@@ -1,0 +1,90 @@
+{
+ "_comment": [
+  "Ditulis oleh scripts/kalimantan_concession_film_assets.py",
+  "dari keluaran kalimantan_burn_concessions.py. Jangan ketik",
+  "angka di sini dengan tangan; jalankan ulang skripnya."
+ ],
+ "mcd64a1_bulan_akhir": "2026-08",
+ "titik_jendela": [
+  "2026-09-01",
+  "2026-11-01"
+ ],
+ "daratan_ha": 53680714.91086489,
+ "konsesi_ha": 10519942.161647743,
+ "konsesi_pct": 19.597246756336556,
+ "poligon_konsesi": 1207,
+ "tahun": [
+  {
+   "tahun": 2019,
+   "terbakar_ha": 956839.8312058188,
+   "dalam_ha": 184587.38107900642,
+   "dalam_pct": 19.291356302171035,
+   "periode": "2019-01..2019-12"
+  },
+  {
+   "tahun": 2023,
+   "terbakar_ha": 464086.6046009449,
+   "dalam_ha": 87524.19674443759,
+   "dalam_pct": 18.85945335993854,
+   "periode": "2023-01..2023-12"
+  },
+  {
+   "tahun": 2026,
+   "terbakar_ha": 291960.5362191848,
+   "dalam_ha": 68758.20067067494,
+   "dalam_pct": 23.550511846935297,
+   "periode": "2026-01..2026-08"
+  }
+ ],
+ "titik": {
+  "total": 195857,
+  "dalam": 43015,
+  "dalam_pct": 21.962452197266373
+ },
+ "konsesi_teratas": [
+  {
+   "akronim": "PT AM",
+   "ucap": "pe-te a-em",
+   "kabupaten": "Ketapang",
+   "provinsi": "Kalimantan Barat",
+   "luas_ha": 24697.074057744987,
+   "terbakar_ha": 9158.181985312269,
+   "terbakar_pct": 37.08205256986816
+  },
+  {
+   "akronim": "PT SKM",
+   "ucap": "pe-te es-ka-em",
+   "kabupaten": "Ketapang",
+   "provinsi": "Kalimantan Barat",
+   "luas_ha": 21447.21817174618,
+   "terbakar_ha": 8083.396077819811,
+   "terbakar_pct": 37.689718140083066
+  },
+  {
+   "akronim": "PT MKK",
+   "ucap": "pe-te em-ka-ka",
+   "kabupaten": "Ketapang",
+   "provinsi": "Kalimantan Barat",
+   "luas_ha": 17391.07089933622,
+   "terbakar_ha": 5580.1094093669435,
+   "terbakar_pct": 32.08605980428683
+  },
+  {
+   "akronim": "PT SPAS",
+   "ucap": "pe-te es-pe-a-es",
+   "kabupaten": "Ketapang",
+   "provinsi": "Kalimantan Barat",
+   "luas_ha": 13089.67620090744,
+   "terbakar_ha": 2978.2242317724813,
+   "terbakar_pct": 22.752466799492076
+  }
+ ],
+ "patch_terbesar": {
+  "luas_ha": 14977.9,
+  "dalam_ha": 1525.4,
+  "kabupaten": "Kotawaringin Timur",
+  "provinsi": "Kalimantan Tengah"
+ },
+ "konsesi_teratas_total_ha": 25799.911704271504,
+ "luar_pct": 76.4494881530647
+}

@@ -16,9 +16,17 @@ import sys
 from pathlib import Path
 
 AKAR = Path(__file__).parent
-J = json.loads((AKAR / "src/jadwalBukti.json").read_text())
+# Any companion film can reuse this: pass its schedule and its output.
+#   python3 bake_musik_bukti.py --jadwal src/jadwalKonsesi.json \
+#       --keluar public/audio/konsesi/musik-konsesi.mp3
+import argparse
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--jadwal", default="src/jadwalBukti.json")
+_ap.add_argument("--keluar", default="public/audio/bukti/musik-bukti.mp3")
+_a = _ap.parse_args()
+J = json.loads((AKAR / _a.jadwal).read_text())
 MASUK = AKAR / "public/audio/musik.mp3"          # already -30 LUFS
-KELUAR = AKAR / "public/audio/bukti/musik-bukti.mp3"
+KELUAR = AKAR / _a.keluar
 KELUAR.parent.mkdir(parents=True, exist_ok=True)
 
 FPS, M = J["fps"], J["musik"]

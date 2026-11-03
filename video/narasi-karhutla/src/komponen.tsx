@@ -133,7 +133,8 @@ export const Bingkai: React.FC<{
   kiri?: string;
   sumber?: string;
   tampil?: number;
-}> = ({ kiri, sumber, tampil = 1 }) => (
+  waktu?: string;
+}> = ({ kiri, sumber, tampil = 1, waktu = "Oktober 2026" }) => (
   <AbsoluteFill style={{ opacity: tampil }}>
     <div
       style={{
@@ -169,7 +170,7 @@ export const Bingkai: React.FC<{
           color: warna.abu,
         }}
       >
-        Oktober 2026
+        {waktu}
       </span>
     </div>
     {sumber ? (
