@@ -1,0 +1,40 @@
+{
+  "_comment": [
+    "Schedule for the English edition of Part 2. durasi is written by",
+    "tts_konsesi.py --film telusur --bahasa en; bake_musik_bukti.py reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 3.5,
+  "tutup_detik": 6.0,
+  "urutan": [
+    "01-kilas",
+    "02-api",
+    "03-sawit",
+    "04-penyiapan",
+    "05-izin",
+    "06-kemarau",
+    "07-gambut",
+    "08-setara",
+    "09-tutup"
+  ],
+  "durasi": {
+    "01-kilas": 13.44,
+    "02-api": 25.2,
+    "03-sawit": 20.16,
+    "04-penyiapan": 26.72,
+    "05-izin": 11.04,
+    "06-kemarau": 19.92,
+    "07-gambut": 13.12,
+    "08-setara": 25.36,
+    "09-tutup": 25.84
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

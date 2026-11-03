@@ -27,12 +27,17 @@ from pathlib import Path
 AKAR = Path(__file__).parent
 _ap = argparse.ArgumentParser()
 _ap.add_argument("--bahasa", choices=["id", "en"], default="id")
-_B = _ap.parse_args().bahasa
+# --film telusur: Part 2 ("Mengapa lebih parah?") -- src/narasiTelusur.json,
+# src/jadwalTelusur.json, public/audio/telusur[-en]/
+_ap.add_argument("--film", choices=["konsesi", "telusur"], default="konsesi")
+_A = _ap.parse_args()
+_B = _A.bahasa
 _SUF = "" if _B == "id" else "EN"
-N = json.loads((AKAR / f"src/narasiKonsesi{_SUF}.json").read_text())
-JP = AKAR / f"src/jadwalKonsesi{_SUF}.json"
+_NAMA = {"konsesi": "Konsesi", "telusur": "Telusur"}[_A.film]
+N = json.loads((AKAR / f"src/narasi{_NAMA}{_SUF}.json").read_text())
+JP = AKAR / f"src/jadwal{_NAMA}{_SUF}.json"
 J = json.loads(JP.read_text())
-AUD = AKAR / ("public/audio/konsesi" if _B == "id" else "public/audio/konsesi-en")
+AUD = AKAR / f"public/audio/{_A.film}{'' if _B == 'id' else '-en'}"
 MENTAH = AUD / "mentah"
 MENTAH.mkdir(parents=True, exist_ok=True)
 

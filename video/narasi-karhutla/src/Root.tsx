@@ -11,6 +11,8 @@ import { JADWAL } from "./jadwalKonsesi";
 import { Narasi } from "./Narasi";
 import { Bukti } from "./Bukti";
 import { Konsesi } from "./Konsesi";
+import { Telusur } from "./Telusur";
+import { JADWAL_TELUSUR } from "./jadwalTelusur";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -51,6 +53,26 @@ export const RemotionRoot: React.FC = () => (
       fps={JADWAL.en.FPS}
       width={JADWAL.en.LEBAR}
       height={JADWAL.en.TINGGI}
+    />
+    {/* Fourth piece: Part 2 of the concessions film -- why the four Ketapang
+        concessions burned worse (ignitions, land use, drought, peat). */}
+    <Composition
+      id="Telusur"
+      component={Telusur}
+      defaultProps={{ bahasa: "id" as const }}
+      durationInFrames={JADWAL_TELUSUR.id.TOTAL_FRAME}
+      fps={JADWAL_TELUSUR.id.FPS}
+      width={JADWAL_TELUSUR.id.LEBAR}
+      height={JADWAL_TELUSUR.id.TINGGI}
+    />
+    <Composition
+      id="TelusurEN"
+      component={Telusur}
+      defaultProps={{ bahasa: "en" as const }}
+      durationInFrames={JADWAL_TELUSUR.en.TOTAL_FRAME}
+      fps={JADWAL_TELUSUR.en.FPS}
+      width={JADWAL_TELUSUR.en.LEBAR}
+      height={JADWAL_TELUSUR.en.TINGGI}
     />
   </>
 );

@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Bian's words for Part 2 of the concessions film, 'Mengapa lebih parah?',",
+    "one entry per segment of jadwalTelusur.json's urutan. tts_konsesi.py",
+    "--film telusur generates each clip from here; the mp3s are gitignored.",
+    "",
+    "Every figure is from src/telusurData.json, written by",
+    "scripts/ketapang_film2_assets.py from the Ketapang analysis. Acronyms",
+    "are spelled in Indonesian letter names with é, as in Part 1.",
+    "",
+    "The wording keeps to what the data shows: where fires started and what",
+    "burned, not who lit them. Land preparation for oil palm is tested and",
+    "not supported; drainage is named as the explanation being tested, not",
+    "as a finding."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-kilas": "Di bagian pertama, kita menemukan empat konsesi di pesisir Ketapang yang terbakar jauh lebih luas daripada sekitarnya. Pertanyaannya sekarang: mengapa di sana? Apakah lahan itu sengaja dibakar untuk ditanami sawit?",
+    "02-api": "Kami menelusuri seratus enam puluh empat titik awal api di dalam keempat konsesi, dari Juli sampai Oktober. Di pé-té-és-ka-ém, hampir semua api di dalam konsesi bermula dari dalam. Di pé-té-ém-ka-ka dan pé-té-a-ém, sekitar empat perlima. Tetapi api tidak lebih sering muncul di dalam konsesi daripada di lahan sekitarnya.",
+    "03-sawit": "Yang terbakar hampir bukan sawit. Dari tiga puluh lima ribu hektare bekas bakar, hanya sekitar seratus dua puluh hektare berupa kebun sawit. Citra PlanetScope sebelum kebakaran memperlihatkan pakis, semak, dan petak-petak terbuka. Bandingkan dengan kebun sawit di kanan bawah.",
+    "04-penyiapan": "Kalau api dipakai untuk menyiapkan lahan, bekas bakar akan segera ditanami. Di konsesi lain di sekitarnya, dua puluh dua persen lahan yang terbakar pada dua ribu lima belas sudah menjadi sawit enam tahun kemudian. Di keempat konsesi ini, kurang dari dua persen. Petak yang dibuka di pé-té-ém-ka-ka pun umumnya kurang dari satu hektare: ukuran kebun warga, bukan blok perusahaan.",
+    "05-izin": "Lain halnya dengan pé-té-a-ém. Hampir sembilan puluh persen arealnya tumpang tindih dengan izin hutan tanaman industri, kebun kayu untuk bubur kertas. Dua izin digambar di atas tanah yang sama.",
+    "06-kemarau": "Mengapa tahun ini? Dari Juli sampai pertengahan September, pesisir ini hanya menerima dua puluh sembilan milimeter hujan. Kode kekeringan dalam sistem bahaya kebakaran yang dipakai BMKG naik sampai tujuh ratus delapan belas, jauh di atas tahun kebakaran dua ribu sembilan belas, dan dua kali ambang ekstrem.",
+    "07-gambut": "Sekitar separuh dari yang terbakar adalah gambut. Di pé-té-és-ka-ém dan pé-té-ém-ka-ka, gambut di dalam konsesi terbakar satu setengah sampai dua kali lebih luas daripada gambut di luarnya.",
+    "08-setara": "Sebagian karena lahannya memang berbeda. Setelah dibandingkan dengan lahan serupa, gambut yang sama, tutupan yang sama, riwayat kebakaran yang sama, selisihnya menyusut dari dua koma tiga kali menjadi satu koma empat kali. Tetapi tidak hilang. Selisih terbesar ada di bawah tegakan hutan, dan api di dalam konsesi menyala lebih lama. Pola seperti ini sesuai dengan gambut yang dikeringkan, tetapi pengeringan itu sendiri belum dapat kami ukur.",
+    "09-tutup": "Data ini tidak menunjukkan siapa yang menyalakan api, dan tidak mendukung dugaan penyiapan lahan untuk sawit. Yang terlihat adalah gambut rusak di dalam konsesi yang terbakar lebih luas dan lebih lama. Menurut undang-undang, pemegang izin tetap bertanggung jawab atas kebakaran di arealnya. Berikutnya: mengikuti jalannya api sepanjang musim dengan radar satelit yang menembus asap."
+  }
+}

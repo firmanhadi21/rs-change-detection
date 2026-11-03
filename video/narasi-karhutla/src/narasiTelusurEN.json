@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "The English narration of Part 2, 'Why worse?', one entry per segment of",
+    "jadwalTelusurEN.json's urutan. tts_konsesi.py --film telusur --bahasa en",
+    "generates each clip from here; the mp3s are gitignored.",
+    "",
+    "Same figures as narasiTelusur.json, all from src/telusurData.json.",
+    "Acronyms as hyphenated capitals (P-T-A-M), as in Part 1's English",
+    "edition, so the voice reads letters.",
+    "",
+    "Voice: Max (Gfpl8Yo74Is0W6cPUWWT), as in Part 1's English edition."
+  ],
+  "model": "eleven_v4",
+  "suara": "Gfpl8Yo74Is0W6cPUWWT",
+  "teks": {
+    "01-kilas": "In part one, we found four concessions on the Ketapang coast that burned far more widely than the land around them. Now the question is: why there? Was that land burned on purpose, to be planted with oil palm?",
+    "02-api": "We traced one hundred and sixty-four points where fire began inside the four concessions, from July to October. In P-T-S-K-M, almost all of the fire inside the concession started inside it. In P-T-M-K-K and P-T-A-M, about four fifths. But fires did not start any more often inside the concessions than on the land around them.",
+    "03-sawit": "What burned was almost never oil palm. Of thirty-five thousand hectares of burn scars, only about a hundred and twenty were oil palm plantation. PlanetScope images from before the fires show ferns, scrub and open plots. Compare them with the oil palm plantation at bottom right.",
+    "04-penyiapan": "If fire were being used to prepare land, the burned land would soon be planted. In the other concessions nearby, twenty-two percent of the land that burned in twenty fifteen had become oil palm six years later. In these four concessions, less than two percent. And the plots being cleared in P-T-M-K-K are mostly under one hectare: the size of a family farm, not a company block.",
+    "05-izin": "P-T-A-M is different. Almost ninety percent of it overlaps a timber plantation permit, for pulpwood. Two permits, drawn over the same ground.",
+    "06-kemarau": "Why this year? From July to mid-September, this coast received just twenty-nine millimeters of rain. The Drought Code, in the fire danger rating system Indonesia's weather agency uses, climbed to seven hundred and eighteen. Far above the fire year of twenty nineteen, and twice the extreme threshold.",
+    "07-gambut": "About half of what burned was peat. In P-T-S-K-M and P-T-M-K-K, peat inside the concession burned one and a half to two times more widely than peat outside.",
+    "08-setara": "Partly, that is because the land is different. Compared like for like, the same peat, the same cover, the same fire history, the gap shrinks from two point three times to one point four. But it does not disappear. The gap is largest under forest canopy, and fires inside the concessions burned longer. That pattern fits drained peat, but the drainage itself we could not yet measure.",
+    "09-tutup": "This data does not show who lit the fires, and it does not support the claim that land was being prepared for oil palm. What it does show is damaged peat inside the concessions, burning wider and longer. Under Indonesian law, permit holders remain responsible for fires on their land. Next: following the fire through the season with satellite radar, which sees through smoke."
+  }
+}

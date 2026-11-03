@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "Schedule for Part 2 of the concessions film. durasi is written by",
+    "tts_konsesi.py --film telusur from ffprobe of the normalised mp3s;",
+    "bake_musik_bukti.py --jadwal src/jadwalTelusur.json reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 3.5,
+  "tutup_detik": 6.0,
+  "urutan": [
+    "01-kilas",
+    "02-api",
+    "03-sawit",
+    "04-penyiapan",
+    "05-izin",
+    "06-kemarau",
+    "07-gambut",
+    "08-setara",
+    "09-tutup"
+  ],
+  "durasi": {
+    "01-kilas": 14.24,
+    "02-api": 22.0,
+    "03-sawit": 17.84,
+    "04-penyiapan": 24.88,
+    "05-izin": 13.42,
+    "06-kemarau": 20.0,
+    "07-gambut": 12.8,
+    "08-setara": 30.0,
+    "09-tutup": 24.48
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}
