@@ -50,13 +50,17 @@ def akronim(name):
 
 
 def ucap(acr):
-    """How Bian should say it: Indonesian letter names."""
-    nama = {"A": "a", "B": "be", "C": "ce", "D": "de", "E": "e", "F": "ef",
-            "G": "ge", "H": "ha", "I": "i", "J": "je", "K": "ka", "L": "el",
-            "M": "èm", "N": "en", "O": "o", "P": "pe", "Q": "ki", "R": "er",
-            "S": "es", "T": "te", "U": "u", "V": "ve", "W": "we", "X": "eks",
-            "Y": "ye", "Z": "zet"}
-    return "pe-te " + "-".join(nama[c] for c in acr.split(" ", 1)[1])
+    """How Bian should say it: Indonesian letter names, one hyphenated run.
+
+    Every e-letter carries é so the voice does not reduce it to a schwa:
+    PT AM -> 'pé-té-a-ém'.
+    """
+    nama = {"A": "a", "B": "bé", "C": "cé", "D": "dé", "E": "é", "F": "éf",
+            "G": "gé", "H": "ha", "I": "i", "J": "jé", "K": "ka", "L": "él",
+            "M": "ém", "N": "én", "O": "o", "P": "pé", "Q": "ki", "R": "ér",
+            "S": "és", "T": "té", "U": "u", "V": "vé", "W": "wé", "X": "éks",
+            "Y": "yé", "Z": "zét"}
+    return "-".join(nama[c] for c in acr.replace(" ", ""))
 
 
 def stack():
