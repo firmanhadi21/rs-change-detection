@@ -79,3 +79,6 @@ grok_understand.md
 .Rhistory
 .RData
 .Rproj.user/
+
+# private research plan (kept local; output/RESEARCH_PLAN.md links to it)
+docs/RESEARCH_PLAN.md

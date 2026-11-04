@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Do Kalimantan's concessions burn more than comparable unpermitted land,
 and does fire arrive there earlier? The Ketapang case study scaled to all
-of Kalimantan (research plan WP0, WP2 and the timing test; output/
+of Kalimantan (research plan WP0, WP2 and the timing test; docs/
 RESEARCH_PLAN.md).
 
 Unit: a 200 m cell on a lattice of 0.0018 deg anchored at 0,0 (8 x 8 of the
