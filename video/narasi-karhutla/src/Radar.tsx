@@ -96,7 +96,9 @@ const TEKS_ID = {
   batasKet: "Radar lewat setiap 12 hari; jendelanya terlalu lebar untuk memutuskan. Asal api tetap dibaca dari titik panas (Bagian 2).",
   tutup1: "Radar memastikan di mana; titik panas memberi kapan.",
   tutupKet: "Radar menembus asap, tetapi tanggalnya hanya setepat lintasannya: sekitar 12 hari.",
-  tutup2: "Di dalam keempat konsesi, api datang sekitar seminggu lebih awal.",
+  tutup2: (a: string, b: string) =>
+    `Di dalam keempat konsesi, api datang ${a}–${b} hari lebih awal daripada lahan serupa di luar.`,
+  tutupBatas: "Lahan tepat di luar batas terbakar pada hari yang sama.",
   tutup3: "Gambut yang lebih kering lebih cepat terbakar — dugaan yang masih perlu diuji, bukan temuan.",
   sumberData: "Sumber data",
   baris: [
@@ -170,7 +172,9 @@ const TEKS_EN: Teks = {
   batasKet: "Radar passes every 12 days; its windows are too wide to decide. Where fires began is still read from heat detections (Part 2).",
   tutup1: "Radar confirms where; heat detections give when.",
   tutupKet: "Radar sees through smoke, but its dates are only as fine as its revisit: about 12 days.",
-  tutup2: "Inside the four concessions, fire arrived about a week earlier.",
+  tutup2: (a: string, b: string) =>
+    `Inside the four concessions, fire arrived ${a}–${b} days earlier than on similar land outside.`,
+  tutupBatas: "Land just outside the boundary burned on the same days.",
   tutup3: "Drier peat catches fire sooner — a hypothesis still to be tested, not a finding.",
   sumberData: "Data sources",
   baris: [
@@ -727,7 +731,7 @@ const Batas: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Tutup: React.FC<{ panjang: number }> = ({ panjang }) => {
-  const { t } = useT();
+  const { t, koma } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 22);
   const b = masuk(f, Math.round(panjang * 0.38), 24);
@@ -768,7 +772,10 @@ const Tutup: React.FC<{ panjang: number }> = ({ panjang }) => {
             transform: `translateY(${(1 - b) * 18}px)`,
           }}
         >
-          {t.tutup2}
+          {t.tutup2(koma(-D.setara.radar.hari, 0), koma(-D.setara.viirs.hari, 0))}
+          <div style={{ fontFamily: tubuhFont, fontSize: 30, fontWeight: 400, color: warna.kapur, marginTop: 12, letterSpacing: 0 }}>
+            {t.tutupBatas}
+          </div>
         </h2>
         <div
           style={{
