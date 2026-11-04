@@ -138,7 +138,8 @@ def stack_image():
     op = ee.ImageCollection("BIOPAMA/GlobalOilPalm/v1_2")
     cls = op.select("classification").mosaic().unmask(0)
     py = op.select("planting_year").mosaic().unmask(0)
-    tc, loss, dm = gfc.select("treecover2000"), gfc.select("lossyear"), gfc.select("datamask")
+    tc, dm = gfc.select("treecover2000"), gfc.select("datamask")
+    loss = gfc.select("lossyear").unmask(0)          # masked where no loss: unmask, or standing forest is lost
 
     # land cover at 30 m, exactly as ketapang_fire_origin.classify
     palm = cls.gt(0)
@@ -211,6 +212,7 @@ def stage_stack(_a):
 
 DIRECT_PX = 300          # 600 px tiles of the computed stack fail (400); 300 px take ~3 min
 DIRECT_WORKERS = 12
+MIN_PX = 75              # smallest tile after splitting on HTTP 400
 
 
 def direct_download(img, tdir):
@@ -239,34 +241,59 @@ def direct_download(img, tdir):
     todo = [j for j in jobs if not os.path.exists(j[0])]
     print(f"{len(jobs)} land tiles, {len(todo)} to fetch")
 
-    def fetch(job):
-        path, e = job
-        for attempt in range(4):
-            try:
-                url = img.getDownloadURL({"region": ee.Geometry.Rectangle(e, None, False), "crs": "EPSG:4326",
-                                          "crs_transform": [STEP, 0, 0, 0, -STEP, 0], "format": "GEO_TIFF"})
-                rq = requests.get(url, timeout=900)
-                if rq.status_code == 200:
-                    with open(path + ".part", "wb") as f:
-                        f.write(rq.content)
-                    os.replace(path + ".part", path)
-                    return path, None
-                err = f"HTTP {rq.status_code}"
-            except Exception as ex:                       # noqa: BLE001
-                err = str(ex)[:120]
-            time.sleep(20 * (attempt + 1))
-        return path, err
+    def fetch(path, e, px):
+        """One tile; a 400 (too heavy to compute) splits it into quarters down to MIN_PX.
+        Returns the list of tile paths that failed."""
+        if os.path.exists(path) or os.path.exists(path + ".split"):
+            subs = []
+        else:
+            for attempt in range(3):
+                code = None
+                try:
+                    url = img.getDownloadURL({"region": ee.Geometry.Rectangle(e, None, False),
+                                              "crs": "EPSG:4326", "format": "GEO_TIFF",
+                                              "crs_transform": [STEP, 0, 0, 0, -STEP, 0]})
+                    rq = requests.get(url, timeout=900)
+                    code = rq.status_code
+                    if code == 200:
+                        with open(path + ".part", "wb") as f:
+                            f.write(rq.content)
+                        os.replace(path + ".part", path)
+                        return []
+                except Exception:                         # noqa: BLE001 — network: retry
+                    pass
+                if code == 400:
+                    break
+                time.sleep(20 * (attempt + 1))
+            if px // 2 < MIN_PX:
+                return [path]
+            open(path + ".split", "w").close()
+            subs = None
+        if subs is None or os.path.exists(path + ".split"):
+            h = px // 2
+            xm, ym = e[0] + h * STEP, e[3] - h * STEP
+            out = []
+            for k, q in enumerate(([e[0], ym, xm, e[3]], [xm, ym, e[2], e[3]],
+                                   [e[0], e[1], xm, ym], [xm, e[1], e[2], ym])):
+                if q[2] > q[0] and q[3] > q[1]:
+                    out += fetch(f"{path[:-4]}_{k}.tif", q, h)
+            return out
+        return []
 
     t0 = time.time()
+    failed = []
     with ThreadPoolExecutor(DIRECT_WORKERS) as ex:
-        for k, f in enumerate(as_completed([ex.submit(fetch, j) for j in todo]), 1):
-            p, err = f.result()
-            print(f"  {k}/{len(todo)} {os.path.basename(p)} {err or 'ok'}  [{(time.time() - t0) / 60:.0f} min]",
-                  flush=True)
-    missing = [j[0] for j in jobs if not os.path.exists(j[0])]
-    if missing:
-        raise SystemExit(f"{len(missing)} tiles failed; rerun to retry them")
-    srcs = [rasterio.open(j[0]) for j in jobs]
+        futs = [ex.submit(fetch, p, e, DIRECT_PX) for p, e in todo]
+        for k, f in enumerate(as_completed(futs), 1):
+            bad = f.result()
+            failed += bad
+            print(f"  {k}/{len(todo)} {'ok' if not bad else f'{len(bad)} sub-tiles failed'}"
+                  f"  [{(time.time() - t0) / 60:.0f} min]", flush=True)
+    if failed:
+        raise SystemExit(f"{len(failed)} tiles failed even at {MIN_PX} px; rerun to retry them")
+    import glob
+    paths = sorted(glob.glob(os.path.join(tdir, "stack_r*.tif")))
+    srcs = [rasterio.open(p) for p in paths]
     arr, tr = merge(srcs, bounds=(c0 * STEP, -r1 * STEP, c1 * STEP, -r0 * STEP), method="first", nodata=0)
     for s in srcs:
         s.close()
@@ -291,6 +318,26 @@ def stage_download(_a):
         ds.write(arr.astype("int16"))
         ds.descriptions = tuple(BANDS)
     print(f"Saved: {STACK} {arr.shape}")
+
+
+def stage_lcfix(_a):
+    """Re-download only the land-cover band and write it into the stack (the first stack
+    lacked class 4, standing forest, because Hansen lossyear is masked where no loss)."""
+    import numpy as np
+    import rasterio
+    from earthchange.gee_utils import initialize_ee
+    initialize_ee()
+    arr, _ = direct_download(stack_image().select("lc"), os.path.join(DATA, "lc_tiles_direct"))
+    lc = arr[0]
+    with rasterio.open(STACK, "r+") as ds:
+        if lc.shape != (ds.height, ds.width):
+            raise SystemExit(f"lc grid {lc.shape} != stack {(ds.height, ds.width)}")
+        old = ds.read(1)
+        kal = ds.read(BANDS.index("kal") + 1) == 1
+        ds.write(lc.astype("int16"), 1)
+    for name, a in (("before", old), ("after", lc)):
+        u, c = np.unique(a[kal], return_counts=True)
+        print(name, dict(zip(u.tolist(), (100 * c / c.sum()).round(1).tolist())))
 
 
 def stage_viirs(_a):
@@ -515,9 +562,9 @@ def stage_match(_a):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--stage", required=True,
-                    choices=["vectors", "stack", "download", "viirs", "sample", "match"])
+                    choices=["vectors", "stack", "download", "lcfix", "viirs", "sample", "match"])
     a = ap.parse_args()
-    {"vectors": stage_vectors, "stack": stage_stack, "download": stage_download,
+    {"vectors": stage_vectors, "stack": stage_stack, "download": stage_download, "lcfix": stage_lcfix,
      "viirs": stage_viirs, "sample": stage_sample, "match": stage_match}[a.stage](a)
     return 0
 
