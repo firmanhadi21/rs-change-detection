@@ -13,6 +13,8 @@ import { Bukti } from "./Bukti";
 import { Konsesi } from "./Konsesi";
 import { Telusur } from "./Telusur";
 import { JADWAL_TELUSUR } from "./jadwalTelusur";
+import { RadarFilm } from "./Radar";
+import { JADWAL_RADAR } from "./jadwalRadar";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -73,6 +75,26 @@ export const RemotionRoot: React.FC = () => (
       fps={JADWAL_TELUSUR.en.FPS}
       width={JADWAL_TELUSUR.en.LEBAR}
       height={JADWAL_TELUSUR.en.TINGGI}
+    />
+    {/* Fifth piece: Part 3 -- the fire through the season, VIIRS as the
+        clock and NISAR L-band radar as the check under the smoke. */}
+    <Composition
+      id="Radar"
+      component={RadarFilm}
+      defaultProps={{ bahasa: "id" as const }}
+      durationInFrames={JADWAL_RADAR.id.TOTAL_FRAME}
+      fps={JADWAL_RADAR.id.FPS}
+      width={JADWAL_RADAR.id.LEBAR}
+      height={JADWAL_RADAR.id.TINGGI}
+    />
+    <Composition
+      id="RadarEN"
+      component={RadarFilm}
+      defaultProps={{ bahasa: "en" as const }}
+      durationInFrames={JADWAL_RADAR.en.TOTAL_FRAME}
+      fps={JADWAL_RADAR.en.FPS}
+      width={JADWAL_RADAR.en.LEBAR}
+      height={JADWAL_RADAR.en.TINGGI}
     />
   </>
 );

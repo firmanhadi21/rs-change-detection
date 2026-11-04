@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "Bian's words for Part 3 of the concessions film, 'Menembus asap',",
+    "one entry per segment of jadwalRadar.json's urutan. tts_konsesi.py",
+    "--film radar generates each clip from here; the mp3s are gitignored.",
+    "",
+    "Every figure is from src/radarData.json, written by",
+    "scripts/ketapang_film3_assets.py from ketapang_nisar_spread.py (v2).",
+    "",
+    "The wording keeps to what the radar can carry: where the ground burned",
+    "(7 in 10 confirmed), dates only to its 12-day revisit, and no verdict",
+    "on which side of a boundary fire crossed. 'Earlier inside' is stated",
+    "because both clocks (heat detections and radar) agree on it; why is",
+    "left as a hypothesis."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-kilas": "Di bagian kedua, kami menemukan gambut rusak di dalam empat konsesi di pesisir Ketapang yang terbakar lebih luas dan lebih lama. Kali ini kita ikuti jalannya api sepanjang musim: kapan api datang, dan ke mana ia bergerak.",
+    "02-asap": "Tetapi pada puncak kebakaran, satelit optik hampir tidak melihat tanah. Pada tanggal dua September, kepulan asap membentang dari pesisir. Lima hari kemudian, seluruh daerah ini tertutup kabut.",
+    "03-jam": "Satelit pemantau titik panas menangkap panas api dua kali sehari, bahkan melalui asap tipis. Dari Juli sampai Oktober, tercatat lebih dari seratus dua puluh ribu deteksi di pesisir ini. Api meluas sejak awal Agustus, dan memuncak di akhir bulan itu.",
+    "04-radar": "Untuk melihat tanah di bawah asap, kita perlu radar. Radar Sentinel satu memakai gelombang lima koma enam sentimeter. Di atas gambut dan semak, sinyalnya sudah kehilangan keselarasan dalam dua belas hari. Satelit baru NISAR memakai gelombang dua puluh empat sentimeter. Gelombang panjang ini menembus tajuk, dan sinyalnya tetap selaras.",
+    "05-peta": "Api merusak keselarasan itu, dan mengubah pantulan radar. Dari tiga puluh lima pasang citra pada empat lintasan, NISAR menandai sekitar delapan puluh ribu hektare bekas bakar. Tujuh dari sepuluh cocok dengan bekas bakar dari Sentinel dua. Data NISAR ini masih versi awal.",
+    "06-pekan": "Radar hanya lewat setiap dua belas hari, jadi tanggalnya kasar. Tetapi kedua jam sepakat. Di dalam keempat konsesi, api datang sekitar seminggu lebih awal daripada di lahan tanpa izin di sekitarnya. Sebelum September, delapan dari sepuluh lokasi api di dalam konsesi sudah menyala. Di luar, dua pertiga.",
+    "07-batas": "Apakah api menyeberang dari luar ke dalam, atau sebaliknya? Dua puluh lima petak bekas bakar melintasi batas konsesi. Delapan lebih dulu terbakar di dalam, empat di luar, dan tiga belas dalam jendela yang sama. Radar terlalu jarang lewat untuk memutuskannya. Asal api tetap dibaca dari titik panas, seperti di bagian kedua.",
+    "08-tutup": "Radar menembus asap dan memastikan di mana tanah terbakar, tetapi belum bisa menentukan harinya. Titik panas memberi jamnya, radar memberi buktinya di permukaan. Keduanya menunjukkan hal yang sama: di dalam keempat konsesi, api datang lebih awal. Gambut yang lebih kering memang lebih cepat terbakar, tetapi itu masih dugaan yang perlu diuji."
+  }
+}

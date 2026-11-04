@@ -29,11 +29,13 @@ _ap = argparse.ArgumentParser()
 _ap.add_argument("--bahasa", choices=["id", "en"], default="id")
 # --film telusur: Part 2 ("Mengapa lebih parah?") -- src/narasiTelusur.json,
 # src/jadwalTelusur.json, public/audio/telusur[-en]/
-_ap.add_argument("--film", choices=["konsesi", "telusur"], default="konsesi")
+# --film radar: Part 3 ("Menembus asap") -- src/narasiRadar.json, src/jadwalRadar.json,
+# public/audio/radar[-en]/
+_ap.add_argument("--film", choices=["konsesi", "telusur", "radar"], default="konsesi")
 _A = _ap.parse_args()
 _B = _A.bahasa
 _SUF = "" if _B == "id" else "EN"
-_NAMA = {"konsesi": "Konsesi", "telusur": "Telusur"}[_A.film]
+_NAMA = {"konsesi": "Konsesi", "telusur": "Telusur", "radar": "Radar"}[_A.film]
 N = json.loads((AKAR / f"src/narasi{_NAMA}{_SUF}.json").read_text())
 JP = AKAR / f"src/jadwal{_NAMA}{_SUF}.json"
 J = json.loads(JP.read_text())

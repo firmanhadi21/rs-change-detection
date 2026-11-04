@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "Schedule for Part 3 of the concessions film. durasi is written by",
+    "tts_konsesi.py --film radar from ffprobe of the normalised mp3s;",
+    "bake_musik_bukti.py --jadwal src/jadwalRadar.json reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 3.5,
+  "tutup_detik": 6.0,
+  "urutan": [
+    "01-kilas",
+    "02-asap",
+    "03-jam",
+    "04-radar",
+    "05-peta",
+    "06-pekan",
+    "07-batas",
+    "08-tutup"
+  ],
+  "durasi": {
+    "01-kilas": 15.12,
+    "02-asap": 13.76,
+    "03-jam": 17.52,
+    "04-radar": 22.24,
+    "05-peta": 18.08,
+    "06-pekan": 20.64,
+    "07-batas": 21.6,
+    "08-tutup": 22.8
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

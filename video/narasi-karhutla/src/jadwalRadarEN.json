@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "English schedule for Part 3. durasi is written by",
+    "tts_konsesi.py --film radar --bahasa en."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 3.5,
+  "tutup_detik": 6.0,
+  "urutan": [
+    "01-kilas",
+    "02-asap",
+    "03-jam",
+    "04-radar",
+    "05-peta",
+    "06-pekan",
+    "07-batas",
+    "08-tutup"
+  ],
+  "durasi": {
+    "01-kilas": 12.56,
+    "02-asap": 12.08,
+    "03-jam": 16.0,
+    "04-radar": 20.72,
+    "05-peta": 16.08,
+    "06-pekan": 19.12,
+    "07-batas": 20.24,
+    "08-tutup": 21.44
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}
