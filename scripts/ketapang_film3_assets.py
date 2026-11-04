@@ -112,6 +112,24 @@ def rgb_base(land, s2b=None):
     return img
 
 
+def setara():
+    """Matched first-fire gap inside the four vs unconceded (days, negative =
+    earlier inside) and the 1 km boundary gap, from ketapang_timing_test.py."""
+    p = os.path.join(ORIGIN, "timing", "timing_report.json")
+    if not os.path.exists(p):
+        return None
+    R = json.load(open(p))
+    full = {r["clock"]: r for r in R["matched"]
+            if r["control"] == "unconceded" and r["matched_on"] == "+ ignition density"}
+    out = {k.lower(): {"hari": full[k]["gap_days"], "ci95": full[k]["gap_days_ci95"]} for k in full}
+    for clock in ("VIIRS", "radar"):
+        b = [x for x in R["boundary"] if x["clock"] == clock]
+        ins = [x["mean_day"] for x in b if -1 < x["signed_km"] < 0]
+        outs = [x["mean_day"] for x in b if 0 < x["signed_km"] < 1]
+        out[clock.lower()]["batas_1km_hari"] = sum(ins) / len(ins) - sum(outs) / len(outs)
+    return out
+
+
 def main_all(_a):
     import geopandas as gpd
     import numpy as np
@@ -331,6 +349,8 @@ def main_all(_a):
         "batas_total": {k: int(sum(r[x] for r in bnd)) for k, x in
                         (("dalam", "inside_first"), ("luar", "outside_first"), ("sama", "same_window"))},
         "waktu": timing,
+        # like-for-like gap (ketapang_timing_test.py): matched on all Part 2 strata
+        "setara": setara(),
     }
     with open(os.path.join(FILM, "src", "radarData.json"), "w") as f:
         json.dump(D, f, indent=1, ensure_ascii=False)

@@ -177,6 +177,7 @@ def main():
         "lc": lc[sl].ravel(), "hist": hist[sl].ravel(),
         "d_water": d_water[sl].ravel(), "d_settle": d_settle[sl].ravel(),
         "ign": ign_dens[sl].ravel(),
+        "r": yy.ravel(), "c": xx.ravel(),
         "block": ((yy * GRID * 111.32 // BLOCK_KM).astype(int) * 1000
                   + (xx * GRID * 111.32 // BLOCK_KM).astype(int)).ravel(),
         **{f"sd_{k}": v[sl].ravel() for k, v in sd.items()},
@@ -198,6 +199,10 @@ def main():
     df["ign_bin"] = pd.qcut(df.ign.rank(method="first"), 3, labels=False)
     print(f"sample: {len(df):,} pixels at 100 m; zones",
           df.zone.value_counts().to_dict())
+    # the matched sample, for ketapang_timing_test.py (same strata, same blocks)
+    df.to_parquet(os.path.join(OUT, "sample.parquet"))
+    json.dump({"transform": list(tr)[:6], "shape": list(shape)},
+              open(os.path.join(OUT, "sample_grid.json"), "w"))
 
     blocks = df.block.unique()
     bidx = pd.Series(np.arange(len(blocks)), index=blocks)
