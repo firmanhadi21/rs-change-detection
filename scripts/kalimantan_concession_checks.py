@@ -34,6 +34,8 @@ from kalimantan_excess_burn import (BANDS, CONC, DATA, HTI, KAL, NAMES, NBOOT, O
                                     STACK, matched, stratum)
 
 MIN_CELLS = 250          # 10 km2 of cloud-free land
+Q_FDR = 0.05             # Benjamini-Hochberg false discovery rate, per concession type
+NBOOT_UNIT = 2000        # per-unit bootstrap draws (BH over ~900 units needs p < 1/300)
 LINEAGE = os.path.join(os.path.dirname(OUT), "kalimantan_lineage", "per_concession.csv")
 
 
@@ -123,37 +125,49 @@ def main():
     b_all = bidx[dv.block.to_numpy()].to_numpy()
     ctl = (dv.zone == 1).to_numpy()
 
-    def control_tables(val):
-        g = pd.DataFrame({"b": b_all[ctl], "s": s_all[ctl], "v": val[ctl]}) \
-            .groupby(["b", "s"]).agg(n=("v", "size"), x=("v", "sum")).reset_index()
-        b, s, n, x = (g[k].to_numpy() for k in ("b", "s", "n", "x"))
-        Cn = np.vstack([np.bincount(s, np.ones(boot_w.shape[1])[b] * n, ns)]
-                       + [np.bincount(s, w[b] * n, ns) for w in boot_w])
-        Cx = np.vstack([np.bincount(s, np.ones(boot_w.shape[1])[b] * x, ns)]
-                       + [np.bincount(s, w[b] * x, ns) for w in boot_w])
-        return Cn, Cx                     # row 0 = point estimate, rows 1.. = bootstrap
+    # 2,000 block-bootstrap draws for the per-unit tests: Benjamini-Hochberg over ~900 units
+    # needs percentile p-values well below 1/300. Sums by (block, stratum) as sparse matrices,
+    # so each draw is one matrix product: weights (draws x blocks) @ sums (blocks x strata).
+    from scipy import sparse
+    nb = len(blocks_all)
+    Wu = np.vstack([np.ones(nb), rng.multinomial(nb, np.ones(nb) / nb, size=NBOOT_UNIT)]).astype(np.float32)
 
-    tabs = {k: control_tables(dv[k].to_numpy(float)) for k in ("burned", "viirs_cell")}
-    W = np.vstack([np.ones(boot_w.shape[1]), boot_w])
+    def bs_sums(m, val):
+        g = pd.DataFrame({"b": b_all[m], "s": s_all[m], "v": val[m]}) \
+            .groupby(["b", "s"]).agg(n=("v", "size"), x=("v", "sum")).reset_index()
+        return g.b.to_numpy(), g.s.to_numpy(), g.n.to_numpy(np.float32), g.x.to_numpy(np.float32)
+
+    def control_tables(val):
+        b, s, n, x = bs_sums(ctl, val)
+        N = sparse.csr_matrix((n, (b, s)), shape=(nb, ns))
+        X = sparse.csr_matrix((x, (b, s)), shape=(nb, ns))
+        return (N.T @ Wu.T).T, (X.T @ Wu.T).T          # (draws+1) x strata; row 0 = point estimate
+
+    tabs = {k: control_tables(dv[k].to_numpy(np.float32)) for k in ("burned", "viirs_cell")}
 
     def unit_ratio(m, key):
+        """Matched ratio for one unit, percentile CI and two-sided bootstrap p (ratio = 1)."""
         Cn, Cx = tabs[key]
-        g = pd.DataFrame({"b": b_all[m], "s": s_all[m], "v": dv[key].to_numpy(float)[m]}) \
-            .groupby(["b", "s"]).agg(n=("v", "size"), x=("v", "sum")).reset_index()
-        us, si = np.unique(g.s.to_numpy(), return_inverse=True)
-        wb = W[:, g.b.to_numpy()]
-        tn = np.stack([np.bincount(si, w * g.n.to_numpy(), len(us)) for w in wb])
-        tx = np.stack([np.bincount(si, w * g.x.to_numpy(), len(us)) for w in wb])
+        b, s, n, x = bs_sums(m, dv[key].to_numpy(np.float32))
+        us, si = np.unique(s, return_inverse=True)
+        ub, bi = np.unique(b, return_inverse=True)
+        Tn = sparse.csr_matrix((n, (bi, si)), shape=(len(ub), len(us)))
+        Tx = sparse.csr_matrix((x, (bi, si)), shape=(len(ub), len(us)))
+        w = Wu[:, ub]
+        tn, tx = np.asarray((Tn.T @ w.T).T), np.asarray((Tx.T @ w.T).T)
         cn, cx = Cn[:, us], Cx[:, us]
         ok_ = (tn > 0) & (cn > 0)
         T = np.where(ok_, tx, 0).sum(1)
         E = np.where(ok_, tn * cx / np.where(cn > 0, cn, 1), 0).sum(1)
-        cov = np.where(ok_[0], tn[0], 0).sum() / tn[0].sum()
         TN = np.where(ok_, tn, 0).sum(1)
+        cov = TN[0] / tn[0].sum()
         with np.errstate(divide="ignore", invalid="ignore"):
             q = T / E
-        lo, hi = np.nanpercentile(q[1:], [2.5, 97.5])
-        return T[0] / TN[0], E[0] / TN[0], q[0], lo, hi, cov
+        qb = q[1:][(TN[1:] > 0) & (E[1:] > 0)]          # draws that resampled the unit at all
+        lo, hi = np.percentile(qb, [2.5, 97.5])
+        B = len(qb)
+        p = min(1.0, 2 * (min((qb <= 1).sum(), (qb >= 1).sum()) + 1) / (B + 1))
+        return T[0] / TN[0], E[0] / TN[0], q[0], lo, hi, cov, p, B
 
     lin = pd.read_csv(LINEAGE) if os.path.exists(LINEAGE) else None
     rows = []
@@ -164,17 +178,17 @@ def main():
     for kind, i, m in units:
         if m.sum() < MIN_CELLS:
             continue
-        t_b, c_b, q_b, lo_b, hi_b, cov_b = unit_ratio(m, "burned")
-        t_v, c_v, q_v, lo_v, hi_v, _ = unit_ratio(m, "viirs_cell")
+        t_b, c_b, q_b, lo_b, hi_b, cov_b, p_b, nb_b = unit_ratio(m, "burned")
+        t_v, c_v, q_v, lo_v, hi_v, _, p_v, _ = unit_ratio(m, "viirs_cell")
         src = op.iloc[i - 1] if kind == "oil palm" else hti.iloc[i - 1]
         luid = (i - 1) if kind == "oil palm" else len(op) + i - 1
         sub = dv[m]
         rows.append({"kind": kind, "id": int(i), "label": src.get("company", None) or src.get("name"),
                      "group": src.get("group_comp"), "cells": int(m.sum()), "area_km2": 0.04 * m.sum(),
                      "burned_pct": 100 * t_b, "matched_ctl_pct": 100 * c_b, "ratio": q_b,
-                     "ci_lo": lo_b, "ci_hi": hi_b, "coverage": cov_b,
+                     "ci_lo": lo_b, "ci_hi": hi_b, "coverage": cov_b, "p": p_b, "boot_draws": nb_b,
                      "viirs_cell_pct": 100 * t_v, "viirs_ctl_pct": 100 * c_v, "viirs_ratio": q_v,
-                     "viirs_ci_lo": lo_v, "viirs_ci_hi": hi_v,
+                     "viirs_ci_lo": lo_v, "viirs_ci_hi": hi_v, "viirs_p": p_v,
                      "peat_share": float(sub.peat.mean()), "mean_depth_cm": float(sub.thick.mean()),
                      "palm_share": float(sub.lc.isin([0, 1, 2, 3]).mean()),
                      "forest_share": float((sub.lc == 4).mean()),
@@ -184,6 +198,21 @@ def main():
         P = P.merge(lin[["uid", "own", "ignitions"]].rename(columns={"uid": "lineage_uid", "own": "own_ignition_share"}),
                     on="lineage_uid", how="left")
     P["class"] = np.where(P.ci_lo > 1, "excess", np.where(P.ci_hi < 1, "deficit", "no difference"))
+    # FDR: two-sided percentile-bootstrap p (share of draws on the far side of ratio 1),
+    # Benjamini-Hochberg at Q_FDR within each concession type. (A normal approximation on
+    # the log ratio was tried and rejected: draws with ratio 0, common for units in few
+    # blocks, have no log, so its s.e. came out too small and it called more units than
+    # the uncorrected 95% intervals.)
+    P["q_bh"] = np.nan
+    for kind in P.kind.unique():
+        k = (P.kind == kind).to_numpy()
+        pk = P.p.to_numpy()[k]
+        o = np.argsort(pk)
+        adj = np.minimum.accumulate((pk[o] * len(pk) / np.arange(1, len(pk) + 1))[::-1])[::-1]
+        qv = np.empty_like(pk)
+        qv[o] = np.minimum(adj, 1)
+        P.loc[k, "q_bh"] = qv
+    P["class_fdr"] = np.where(P.q_bh <= Q_FDR, np.where(P.ratio > 1, "excess", "deficit"), "no difference")
     P = P.sort_values("burned_km2", ascending=False)
     os.makedirs(OUT, exist_ok=True)
     P.to_csv(os.path.join(OUT, "per_concession_matched.csv"), index=False)
@@ -192,7 +221,11 @@ def main():
     for kind in ("oil palm", "pulpwood"):
         q = P[P.kind == kind]
         cl = q["class"].value_counts()
+        cf = q["class_fdr"].value_counts()
         summ[kind] = {"units": int(len(q)), **{k: int(cl.get(k, 0)) for k in ("excess", "no difference", "deficit")},
+                      "fdr": {**{k: int(cf.get(k, 0)) for k in ("excess", "no difference", "deficit")},
+                              "burned_km2_in_excess_units":
+                                  float(q.burned_km2[q["class_fdr"] == "excess"].sum())},
                       "burned_km2_total": float(q.burned_km2.sum()),
                       "burned_km2_in_excess_units": float(q.burned_km2[q["class"] == "excess"].sum()),
                       "median_ratio": float(q.ratio.median())}
@@ -201,7 +234,7 @@ def main():
             k: float(spearmanr(lr, q[k], nan_policy="omit").statistic)
             for k in ("peat_share", "mean_depth_cm", "palm_share", "forest_share", "area_km2",
                       "own_ignition_share") if k in q}
-        ex, rest = q[q["class"] == "excess"], q[q["class"] != "excess"]
+        ex, rest = q[q["class_fdr"] == "excess"], q[q["class_fdr"] != "excess"]
         summ[kind]["excess_vs_rest_medians"] = {
             k: [float(ex[k].median()), float(rest[k].median())]
             for k in ("peat_share", "mean_depth_cm", "palm_share", "forest_share", "area_km2",
@@ -210,7 +243,7 @@ def main():
     out["per_concession"] = summ
     from ketapang_fire_origin import FOUR
     k4 = P[P.label.fillna("").str.contains("|".join(FOUR.values()), case=False)]
-    out["ketapang_four"] = k4[["label", "ratio", "ci_lo", "ci_hi", "burned_km2"]].to_dict("records")
+    out["ketapang_four"] = k4[["label", "ratio", "ci_lo", "ci_hi", "q_bh", "burned_km2"]].to_dict("records")
     json.dump(out, open(os.path.join(OUT, "concession_checks.json"), "w"), indent=1, default=float)
     print(json.dumps(summ, indent=1, default=float))
     pd.set_option("display.width", 250)
