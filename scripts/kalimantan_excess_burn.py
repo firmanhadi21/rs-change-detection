@@ -209,13 +209,82 @@ def stage_stack(_a):
     print(f"export started: {task.id} -> {ASSET}")
 
 
+DIRECT_PX = 300          # 600 px tiles of the computed stack fail (400); 300 px take ~3 min
+DIRECT_WORKERS = 12
+
+
+def direct_download(img, tdir):
+    """Compute the stack tile by tile (no asset), in parallel, skipping tiles off Borneo land."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import geopandas as gpd
+    import numpy as np
+    import rasterio
+    import requests
+    import ee
+    from rasterio.merge import merge
+    from shapely.geometry import box
+    os.makedirs(tdir, exist_ok=True)
+    ne = gpd.read_file(os.path.join(DATA, "ne_countries", "ne_10m_admin_0_countries.zip"))
+    land = ne[ne.ADM0_A3 == "IDN"].clip(box(*KAL)).union_all()
+    x0, y0, x1, y1 = KAL
+    c0, c1 = int(np.floor(x0 / STEP)), int(np.ceil(x1 / STEP))
+    r0, r1 = int(np.floor(-y1 / STEP)), int(np.ceil(-y0 / STEP))
+    jobs = []
+    for r in range(r0, r1, DIRECT_PX):
+        for c in range(c0, c1, DIRECT_PX):
+            e = [c * STEP, -min(r + DIRECT_PX, r1) * STEP, min(c + DIRECT_PX, c1) * STEP, -r * STEP]
+            if box(*e).buffer(0.05).intersects(land):
+                jobs.append((os.path.join(tdir, f"stack_r{r}_c{c}.tif"), e))
+    todo = [j for j in jobs if not os.path.exists(j[0])]
+    print(f"{len(jobs)} land tiles, {len(todo)} to fetch")
+
+    def fetch(job):
+        path, e = job
+        for attempt in range(4):
+            try:
+                url = img.getDownloadURL({"region": ee.Geometry.Rectangle(e, None, False), "crs": "EPSG:4326",
+                                          "crs_transform": [STEP, 0, 0, 0, -STEP, 0], "format": "GEO_TIFF"})
+                rq = requests.get(url, timeout=900)
+                if rq.status_code == 200:
+                    with open(path + ".part", "wb") as f:
+                        f.write(rq.content)
+                    os.replace(path + ".part", path)
+                    return path, None
+                err = f"HTTP {rq.status_code}"
+            except Exception as ex:                       # noqa: BLE001
+                err = str(ex)[:120]
+            time.sleep(20 * (attempt + 1))
+        return path, err
+
+    t0 = time.time()
+    with ThreadPoolExecutor(DIRECT_WORKERS) as ex:
+        for k, f in enumerate(as_completed([ex.submit(fetch, j) for j in todo]), 1):
+            p, err = f.result()
+            print(f"  {k}/{len(todo)} {os.path.basename(p)} {err or 'ok'}  [{(time.time() - t0) / 60:.0f} min]",
+                  flush=True)
+    missing = [j[0] for j in jobs if not os.path.exists(j[0])]
+    if missing:
+        raise SystemExit(f"{len(missing)} tiles failed; rerun to retry them")
+    srcs = [rasterio.open(j[0]) for j in jobs]
+    arr, tr = merge(srcs, bounds=(c0 * STEP, -r1 * STEP, c1 * STEP, -r0 * STEP), method="first", nodata=0)
+    for s in srcs:
+        s.close()
+    return arr, tr
+
+
 def stage_download(_a):
     import ee
     import rasterio
     from earthchange.gee_utils import initialize_ee
     from ketapang_landprep_tests import ee_download
     initialize_ee()
-    arr, tr = ee_download(ee.Image(ASSET), KAL, os.path.join(DATA, "stack_tiles"), "stack", STEP, 6)
+    try:                                   # the exported asset if this account can read it,
+        ee.data.getAsset(ASSET)
+        arr, tr = ee_download(ee.Image(ASSET), KAL, os.path.join(DATA, "stack_tiles"), "stack", STEP, 6)
+    except ee.EEException:                 # else compute small tiles on the fly
+        print(f"cannot read {ASSET}; computing the stack directly in {DIRECT_PX} px tiles")
+        arr, tr = direct_download(stack_image(), os.path.join(DATA, "stack_tiles_direct"))
     prof = dict(driver="GTiff", height=arr.shape[1], width=arr.shape[2], count=arr.shape[0],
                 dtype="int16", crs="EPSG:4326", transform=tr, compress="deflate", tiled=True)
     with rasterio.open(STACK, "w", **prof) as ds:
