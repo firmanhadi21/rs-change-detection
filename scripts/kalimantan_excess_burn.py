@@ -215,8 +215,9 @@ DIRECT_WORKERS = 12
 MIN_PX = 75              # smallest tile after splitting on HTTP 400
 
 
-def direct_download(img, tdir):
-    """Compute the stack tile by tile (no asset), in parallel, skipping tiles off Borneo land."""
+def direct_download(img, tdir, countries=("IDN",)):
+    """Compute the stack tile by tile (no asset), in parallel, skipping tiles off `countries`' land
+    (Natural Earth ADM0_A3, clipped to KAL)."""
     import time
     from concurrent.futures import ThreadPoolExecutor, as_completed
     import geopandas as gpd
@@ -228,7 +229,7 @@ def direct_download(img, tdir):
     from shapely.geometry import box
     os.makedirs(tdir, exist_ok=True)
     ne = gpd.read_file(os.path.join(DATA, "ne_countries", "ne_10m_admin_0_countries.zip"))
-    land = ne[ne.ADM0_A3 == "IDN"].clip(box(*KAL)).union_all()
+    land = ne[ne.ADM0_A3.isin(list(countries))].clip(box(*KAL)).union_all()
     x0, y0, x1, y1 = KAL
     c0, c1 = int(np.floor(x0 / STEP)), int(np.ceil(x1 / STEP))
     r0, r1 = int(np.floor(-y1 / STEP)), int(np.ceil(-y0 / STEP))

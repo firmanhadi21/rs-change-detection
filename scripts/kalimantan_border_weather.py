@@ -23,6 +23,8 @@ run day by day on the ERA5-Land 0.1 deg grid from 2 m temperature at 05 UTC (loc
     python scripts/kalimantan_border_weather.py --stage myconc   # GFW data API
     python scripts/kalimantan_border_weather.py --stage dem      # Earth Engine: SRTM elevation, slope
     python scripts/kalimantan_border_weather.py --stage border
+    python scripts/kalimantan_border_weather.py --stage mydata   # Earth Engine: stack, GPM, DEM over Malaysian Borneo
+    python scripts/kalimantan_border_weather.py --stage national # after era5 + dc
     python scripts/kalimantan_border_weather.py --stage era5     # Earth Engine, ~30 MB
     python scripts/kalimantan_border_weather.py --stage weather
 """
@@ -36,6 +38,8 @@ sys.path.insert(0, _REPO_ROOT)
 sys.path.insert(0, os.path.join(_REPO_ROOT, "scripts"))
 from kalimantan_excess_burn import (BANDS, BLOCK_KM, CONC, DATA, HTI, KAL, NBOOT, NEAR_BURN_M,  # noqa: E402
                                     OUT, SEQ, STACK, STEP, matched)
+
+from kalimantan_robustness import GPM  # noqa: E402  (Greifswald GPM 2.0 asset)
 
 MYCONC = os.path.join(DATA, "gfw_oil_palm_2025_malaysia_borneo.gpkg")
 EXTRA = os.path.join(DATA, "robust_200m.tif")          # kalimantan_robustness.py: b2023, b2026, gpm
@@ -54,6 +58,10 @@ TERRAIN = ["elev_bin", "slope_bin"]
 ELEV_BINS = (50, 100, 200, 400, 700)                   # m
 SLOPE_BINS = (2, 5, 10, 20)                            # deg
 DEM = os.path.join(DATA, "dem_200m.tif")
+MY_STACK = os.path.join(DATA, "stack_my_200m.tif")
+MY_GPM = os.path.join(DATA, "gpm_my_200m.tif")
+MY_DEM = os.path.join(DATA, "dem_my_200m.tif")
+RES_N = os.path.join(OUT, "national.json")
 
 
 def boot(blocks):
@@ -101,25 +109,54 @@ def stage_myconc():
         print(g[c].value_counts().head(6).to_string())
 
 
-def stage_dem():
-    """Elevation (m) and slope (0.1 deg) on the 200 m grid; the border follows the watershed."""
+def dem_image():
     import ee
-    import rasterio
-    from earthchange.gee_utils import initialize_ee
-    from kalimantan_excess_burn import direct_download
-    initialize_ee()
     grid = ee.Projection("EPSG:4326", [STEP, 0, 0, 0, -STEP, 0])
     dem = ee.Image("USGS/SRTMGL1_003")
     slope = ee.Terrain.slope(dem).multiply(10)
-    img = (dem.rename("elev").addBands(slope.rename("slope")).setDefaultProjection(dem.projection())
-           .reduceResolution(ee.Reducer.mean(), maxPixels=1024).reproject(grid).round().toInt16())
-    arr, tr = direct_download(img, os.path.join(DATA, "dem_tiles"))
-    prof = dict(driver="GTiff", height=arr.shape[1], width=arr.shape[2], count=2, dtype="int16",
+    return (dem.rename("elev").addBands(slope.rename("slope")).setDefaultProjection(dem.projection())
+            .reduceResolution(ee.Reducer.mean(), maxPixels=1024).reproject(grid).round().toInt16())
+
+
+def gpm_image():
+    import ee
+    grid = ee.Projection("EPSG:4326", [STEP, 0, 0, 0, -STEP, 0])
+    return ee.Image(GPM).gte(1).unmask(0).reproject(grid).rename("gpm").toInt16()
+
+
+def _write(arr, tr, path, names):
+    import rasterio
+    prof = dict(driver="GTiff", height=arr.shape[1], width=arr.shape[2], count=arr.shape[0], dtype="int16",
                 crs="EPSG:4326", transform=tr, compress="deflate", tiled=True)
-    with rasterio.open(DEM, "w", **prof) as ds:
+    with rasterio.open(path, "w", **prof) as ds:
         ds.write(arr.astype("int16"))
-        ds.descriptions = ("elev", "slope")
-    print(f"Saved: {DEM} {arr.shape}")
+        ds.descriptions = tuple(names)
+    print(f"Saved: {path} {arr.shape}")
+
+
+def stage_dem():
+    """Elevation (m) and slope (0.1 deg) on the 200 m grid; the border follows the watershed."""
+    from earthchange.gee_utils import initialize_ee
+    from kalimantan_excess_burn import direct_download
+    initialize_ee()
+    arr, tr = direct_download(dem_image(), os.path.join(DATA, "dem_tiles"))
+    _write(arr, tr, DEM, ("elev", "slope"))
+
+
+def stage_mydata():
+    """The stack, GPM peat and terrain over Malaysian Borneo (the IDN-only download skipped most of it).
+    Separate files: re-merging the main stack's tiles would undo its land-cover fix (lcfix)."""
+    from earthchange.gee_utils import initialize_ee
+    from kalimantan_excess_burn import direct_download, stack_image
+    initialize_ee()
+    for img, tdir, path, names in ((stack_image(), "stack_tiles_my", MY_STACK, BANDS),
+                                   (gpm_image(), "gpm_tiles_my", MY_GPM, ("gpm",)),
+                                   (dem_image(), "dem_tiles_my", MY_DEM, ("elev", "slope"))):
+        if os.path.exists(path):
+            print(f"exists: {path}")
+            continue
+        arr, tr = direct_download(img, os.path.join(DATA, tdir), countries=("MYS",))
+        _write(arr, tr, path, names)
 
 
 def grid_table():
@@ -221,6 +258,98 @@ def stage_border():
     curve.to_csv(os.path.join(OUT, "border_curve.csv"))
     json.dump(rows, open(RES_B, "w"), indent=1, default=float)
     print(f"Saved: {RES_B}, border_curve.csv")
+
+
+def stage_national():
+    """Indonesian Kalimantan vs Malaysian Borneo, all land on the grid, matched on peat (GPM), depth,
+    land cover, burn history, access, terrain AND peak Jul-Oct Drought Code band."""
+    import geopandas as gpd
+    import numpy as np
+    import pandas as pd
+    import rasterio
+    from rasterio import features
+    from scipy import ndimage
+    rd = lambda p: rasterio.open(p).read()                                    # noqa: E731
+    with rasterio.open(STACK) as ds:
+        tr, shape = ds.transform, (ds.height, ds.width)
+    S, SM = rd(STACK), rd(MY_STACK)
+    have = S[BANDS.index("land")] > 0                                         # IDN-tile coverage
+    C = {b: np.where(have, S[i], SM[i]) for i, b in enumerate(BANDS)}
+    del S, SM
+    gpm = np.where(have, rd(EXTRA)[2], rd(MY_GPM)[0]) > 0
+    dI, dM = rd(DEM), rd(MY_DEM)
+    elev, slope = np.where(have, dI[0], dM[0]), np.where(have, dI[1], dM[1]) / 10.0
+    del dI, dM
+    ne = gpd.read_file(os.path.join(DATA, "ne_countries", "ne_10m_admin_0_countries.zip"))
+    ras = lambda gs: features.rasterize([(g, 1) for g in gs if g is not None], out_shape=shape,  # noqa: E731
+                                        transform=tr, dtype="uint8") > 0
+    my, idn = ras(ne[ne.ADM0_A3 == "MYS"].geometry), ras(ne[ne.ADM0_A3 == "IDN"].geometry)
+    land = (C["land"] >= 50) & (C["lc"] != 255)
+    keep = land & ((idn & (C["kal"] == 1)) | my)
+
+    v = pd.read_parquet(os.path.join(DATA, "viirs_2026.parquet"), columns=["lon", "lat"])
+    rr, cc = (np.asarray(a) for a in rasterio.transform.rowcol(tr, v.lon.to_numpy(), v.lat.to_numpy()))
+    ok = (rr >= 0) & (rr < shape[0]) & (cc >= 0) & (cc < shape[1])
+    seen = np.zeros(shape, bool)
+    seen[rr[ok], cc[ok]] = True
+    near = ndimage.binary_dilation(seen, np.ones((3, 3), bool), iterations=int(np.ceil(NEAR_BURN_M / 200)) - 1)
+    valid = C["okfrac"] >= 50
+    burned = valid & (C["bfrac"] * 2 >= C["okfrac"]) & near
+    d_water = ndimage.distance_transform_edt(C["land"] >= 50) * PX_KM
+    d_settle = ndimage.distance_transform_edt(C["built"] < 5) * PX_KM
+    op = gpd.read_file(CONC).to_crs(4326).cx[KAL[0]:KAL[2], KAL[1]:KAL[3]]
+    conc = (ras(op.geometry.make_valid()) | ras(gpd.read_file(HTI).to_crs(4326).geometry.make_valid())) & idn
+    conc |= ras(gpd.read_file(MYCONC).geometry.make_valid()) & my
+
+    z = np.load(DC_NPY, allow_pickle=True)
+    dc, dates = z["dc"], pd.to_datetime(z["dates"])
+    x0, yt, st = z["grid"]
+    peak = dc[(dates >= "2026-07-01") & (dates < "2026-11-01")].max(axis=0)
+    yy, xx = np.nonzero(keep & valid)
+    lon, lat = tr.c + (xx + 0.5) * STEP, tr.f - (yy + 0.5) * STEP
+    ey = np.clip(((yt - lat) / st).astype(int), 0, peak.shape[0] - 1)
+    ex = np.clip(((lon - x0) / st).astype(int), 0, peak.shape[1] - 1)
+    df = pd.DataFrame({
+        "idn": idn[yy, xx], "conc": conc[yy, xx], "burned": burned[yy, xx], "gpm": gpm[yy, xx],
+        "thick": C["depth"][yy, xx], "lc": C["lc"][yy, xx].astype(np.uint8), "hist": C["hist"][yy, xx].astype(np.uint8),
+        "water_bin": np.digitize(d_water[yy, xx], [1, 3, 10]).astype(np.uint8),
+        "settle_bin": np.digitize(d_settle[yy, xx], [1, 3, 10]).astype(np.uint8),
+        "elev_bin": np.digitize(elev[yy, xx], ELEV_BINS).astype(np.uint8),
+        "slope_bin": np.digitize(slope[yy, xx], SLOPE_BINS).astype(np.uint8),
+        "dc_peak": peak[ey, ex].astype(np.float32),
+        "block": ((yy * PX_KM // BLOCK_KM).astype(np.int32) * 10000 + (xx * PX_KM // BLOCK_KM).astype(np.int32)),
+    })
+    del C
+    df["depth_bin_gpm"] = np.where(df.gpm, np.digitize(df.thick, [1, 100, 200, 300]), 9).astype(np.uint8)
+    df["dc_bin"] = np.digitize(df.dc_peak, DC_BANDS[1:-1]).astype(np.uint8)
+    keys = GPM_KEYS + TERRAIN + ["dc_bin"]
+    rows = []
+    print(f"valid land cells: IDN {int(df.idn.sum()):,}, MYS {int((~df.idn).sum()):,} "
+          f"(MYS peat {int((~df.idn & df.gpm).sum()):,})")
+    print("burned share by side, peat and peak-DC band (raw):")
+    t = df.groupby(["idn", "gpm", "dc_bin"]).burned.agg(["size", "mean"]).unstack("idn")
+    t.columns = [f"{a}_{'IDN' if b else 'MYS'}" for a, b in t.columns]
+    t = t.rename(index={k: f"{lo}-{hi}" for k, (lo, hi) in enumerate(zip(DC_BANDS[:-1], DC_BANDS[1:]))}, level="dc_bin")
+    for c in t.columns:
+        if c.startswith("mean"):
+            t[c] = (100 * t[c]).round(3)
+    print(t.to_string())
+    print("N national comparison, Indonesia vs Malaysia (treated = Indonesian cells)")
+    w = df.burned.to_numpy(float)
+    est(df, df.idn.to_numpy(), [], w, "all land, raw", rows, check="N")
+    est(df, df.idn.to_numpy(), keys, w, "all land, all strata + terrain + DC band", rows, check="N")
+    for name, m in (("unpermitted land", ~df.conc), ("concessions", df.conc), ("peat (GPM)", df.gpm),
+                    ("peat, unpermitted", df.gpm & ~df.conc), ("not peat", ~df.gpm)):
+        d = df[m.to_numpy()].reset_index(drop=True)
+        est(d, d.idn.to_numpy(), keys, d.burned.to_numpy(float), f"{name}, all strata", rows, check="N", subset=name)
+    for k, (lo, hi) in enumerate(zip(DC_BANDS[:-1], DC_BANDS[1:])):
+        d = df[df.dc_bin == k].reset_index(drop=True)
+        if (~d.idn).sum() >= 5000 and d.idn.sum() >= 5000:
+            est(d, d.idn.to_numpy(), keys, d.burned.to_numpy(float), f"peak DC {lo}-{hi}", rows, check="N", dc_band=[lo, hi])
+        else:
+            print(f"  peak DC {lo}-{hi}: too few cells (IDN {int(d.idn.sum()):,}, MYS {int((~d.idn).sum()):,})")
+    json.dump(rows, open(RES_N, "w"), indent=1, default=float)
+    print(f"Saved: {RES_N}")
 
 
 # ------------------------------------------------------------- fire weather
@@ -409,6 +538,8 @@ def stage_weather():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stage", choices=["myconc", "dem", "border", "era5", "dc", "weather"], required=True)
-    {"myconc": stage_myconc, "dem": stage_dem, "border": stage_border, "era5": stage_era5, "dc": stage_dc,
+    ap.add_argument("--stage", choices=["myconc", "dem", "border", "mydata", "national", "era5", "dc", "weather"],
+                    required=True)
+    {"myconc": stage_myconc, "dem": stage_dem, "border": stage_border, "mydata": stage_mydata,
+     "national": stage_national, "era5": stage_era5, "dc": stage_dc,
      "weather": stage_weather}[ap.parse_args().stage]()
