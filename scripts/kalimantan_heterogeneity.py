@@ -51,6 +51,26 @@ def status_of(s):
     return next((v for k, v in STATUS if s.startswith(k)), "unknown")
 
 
+def polygonal(g):
+    """2D, valid, polygon parts only (GFW oil palm is 3D; Earth Engine rejects Z and collections)."""
+    import shapely
+    from shapely.geometry import MultiPolygon
+    g = shapely.force_2d(g)
+    parts = [p for p in shapely.get_parts(shapely.make_valid(g)) if p.geom_type in ("Polygon", "MultiPolygon")]
+    polys = [q for p in parts for q in (p.geoms if p.geom_type == "MultiPolygon" else [p])]
+    return MultiPolygon(polys) if polys else None
+
+
+def ee_features(P):
+    """Simplified unit geometries as Earth Engine features, property k = row index."""
+    import ee
+    import shapely
+    simp = [g.simplify(0.0005).buffer(0) if g is not None else None for g in P.geometry]
+    simp = [s if s is not None and not s.is_empty else g for s, g in zip(simp, P.geometry)]
+    return [ee.Feature(ee.Geometry(json.loads(shapely.to_geojson(g))), {"k": k})
+            for k, g in enumerate(simp) if g is not None]
+
+
 def load_units():
     import geopandas as gpd
     import pandas as pd
@@ -70,15 +90,6 @@ def stage_covariates():
     import geopandas as gpd
     import pandas as pd
     from earthchange.gee_utils import initialize_ee
-
-    import shapely
-    from shapely.geometry import MultiPolygon
-
-    def polygonal(g):
-        g = shapely.force_2d(g)                 # GFW oil palm is 3D; Earth Engine rejects Z
-        parts = [p for p in shapely.get_parts(shapely.make_valid(g)) if p.geom_type in ("Polygon", "MultiPolygon")]
-        polys = [q for p in parts for q in (p.geoms if p.geom_type == "MultiPolygon" else [p])]
-        return MultiPolygon(polys) if polys else None
 
     P, op, hti = load_units()
     P["geometry"] = P.geometry.map(polygonal)
@@ -116,7 +127,6 @@ def descals(P, cov):
     """Descals planting shares per unit (Earth Engine)."""
     import ee
     import pandas as pd
-    import shapely
     from earthchange.gee_utils import initialize_ee
     initialize_ee()
     ic = ee.ImageCollection("BIOPAMA/GlobalOilPalm/v1_2")
@@ -127,12 +137,10 @@ def descals(P, cov):
            .addBands(cls.gte(1).And(py.gte(2016)).rename("recent"))
            .addBands(cls.gte(1).And(py.gt(0)).And(py.lte(2005)).rename("old"))
            .addBands(ee.Image.constant(1).rename("all")))
-    simp = [g.simplify(0.0005).buffer(0) if g is not None else None for g in P.geometry]
-    simp = [s if s is not None and not s.is_empty else g for s, g in zip(simp, P.geometry)]
+    feats_all = ee_features(P)
     rows = []
-    for s in range(0, len(P), BATCH):
-        feats = [ee.Feature(ee.Geometry(json.loads(shapely.to_geojson(g))), {"k": int(s + j)})
-                 for j, g in enumerate(simp[s:s + BATCH]) if g is not None]
+    for s in range(0, len(feats_all), BATCH):
+        feats = feats_all[s:s + BATCH]
         res = img.reduceRegions(ee.FeatureCollection(feats), ee.Reducer.sum(), scale=30, tileScale=8).getInfo()
         for f in res["features"]:
             pr = f["properties"]
