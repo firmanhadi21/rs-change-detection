@@ -31,11 +31,13 @@ _ap.add_argument("--bahasa", choices=["id", "en"], default="id")
 # src/jadwalTelusur.json, public/audio/telusur[-en]/
 # --film radar: Part 3 ("Menembus asap") -- src/narasiRadar.json, src/jadwalRadar.json,
 # public/audio/radar[-en]/
-_ap.add_argument("--film", choices=["konsesi", "telusur", "radar"], default="konsesi")
+# --film pulau: Part 4 ("Benarkah Sawit Membakar Kalimantan?") -- src/narasiPulau.json,
+# src/jadwalPulau.json, public/audio/pulau[-en]/
+_ap.add_argument("--film", choices=["konsesi", "telusur", "radar", "pulau"], default="konsesi")
 _A = _ap.parse_args()
 _B = _A.bahasa
 _SUF = "" if _B == "id" else "EN"
-_NAMA = {"konsesi": "Konsesi", "telusur": "Telusur", "radar": "Radar"}[_A.film]
+_NAMA = {"konsesi": "Konsesi", "telusur": "Telusur", "radar": "Radar", "pulau": "Pulau"}[_A.film]
 N = json.loads((AKAR / f"src/narasi{_NAMA}{_SUF}.json").read_text())
 JP = AKAR / f"src/jadwal{_NAMA}{_SUF}.json"
 J = json.loads(JP.read_text())

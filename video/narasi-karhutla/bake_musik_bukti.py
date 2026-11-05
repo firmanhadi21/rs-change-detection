@@ -23,6 +23,11 @@ import argparse
 _ap = argparse.ArgumentParser()
 _ap.add_argument("--jadwal", default="src/jadwalBukti.json")
 _ap.add_argument("--keluar", default="public/audio/bukti/musik-bukti.mp3")
+# --sambung S: for a film much longer than the score (Part 4, ~205 s), join a second
+# pass of the score from S seconds (past the intro) with an XF-second crossfade, so
+# atempo stays near 1 instead of slowing the bed to ~60% and smearing it.
+_ap.add_argument("--sambung", type=float, default=None)
+_ap.add_argument("--silang", type=float, default=8.0)
 _a = _ap.parse_args()
 J = json.loads((AKAR / _a.jadwal).read_text())
 MASUK = AKAR / "public/audio/musik.mp3"          # already -30 LUFS
@@ -39,7 +44,10 @@ akhir_narasi_f = kursor
 total_f = akhir_narasi_f + round(J["tutup_detik"] * FPS)
 film, akhir_narasi, judul = total_f / FPS, akhir_narasi_f / FPS, judul_f / FPS
 
-tempo = M["isi_berakhir_detik"] / film
+isi = M["isi_berakhir_detik"]
+if _a.sambung is not None:
+    isi = 2 * isi - _a.sambung - _a.silang
+tempo = isi / film
 if not 0.5 <= tempo <= 2.0:
     sys.exit(f"atempo {tempo:.3f} di luar jangkauan satu tahap")
 
@@ -52,13 +60,21 @@ vol = (f"if(lt(t,{t1:.3f}),{A},"
        f"if(lt(t,{t4:.3f}),{B}+({A}-{B})*(t-{t3:.3f})/{t4-t3:.3f},{A}))))")
 
 print(f"film   {total_f} frame / {film:.3f} s")
-print(f"atempo {tempo:.5f}  ({M['isi_berakhir_detik']} s -> {film:.1f} s)")
+print(f"atempo {tempo:.5f}  ({isi:.1f} s -> {film:.1f} s)")
 
+rantai = (f"atempo={tempo:.5f},volume='{vol}':eval=frame,"
+          f"afade=t=in:st=0:d=1.2,afade=t=out:st={film-1.6:.3f}:d=1.6")
+if _a.sambung is None:
+    saring = ["-af", rantai]
+else:
+    e = M["isi_berakhir_detik"]
+    saring = ["-filter_complex",
+              f"[0:a]atrim=0:{e},asetpts=PTS-STARTPTS[a];"
+              f"[0:a]atrim={_a.sambung}:{e},asetpts=PTS-STARTPTS[b];"
+              f"[a][b]acrossfade=d={_a.silang}:c1=tri:c2=tri,{rantai}[o]", "-map", "[o]"]
 subprocess.run(
     ["ffmpeg", "-nostdin", "-hide_banner", "-v", "error", "-y",
-     "-i", str(MASUK), "-af",
-     f"atempo={tempo:.5f},volume='{vol}':eval=frame,"
-     f"afade=t=in:st=0:d=1.2,afade=t=out:st={film-1.6:.3f}:d=1.6",
+     "-i", str(MASUK), *saring,
      "-t", f"{film:.3f}", "-c:a", "libmp3lame", "-q:a", "2", "-ar", "44100",
      str(KELUAR)], check=True)
 

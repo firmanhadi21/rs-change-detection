@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Bian's words for Part 4 of the concessions film, 'Benarkah Sawit Membakar Kalimantan?',",
+    "one entry per segment of jadwalPulau.json's urutan. tts_konsesi.py",
+    "--film pulau generates each clip from here; the mp3s are gitignored.",
+    "",
+    "Every figure is from the Kalimantan-wide runs (output/fire/kalimantan_excess/,",
+    "kalimantan_lineage/), via src/pulauData.json:",
+    "  matched.json (x0.85 oil palm, x0.94 pulpwood), robustness.json (seasons,",
+    "  GPM peat, buffers), per_concession_matched.csv (54/908, 16/187, BH q<=0.05),",
+    "  heterogeneity.json + peat_depth_checks.json (peat extent, not group / permit /",
+    "  RSPO), landprep/landprep_tests.json (2.4% vs 1.9%; 1.5% vs 1.3%),",
+    "  fire_weather.json (DC -21; ignitions 2.7x at DC<300, 0.7x at >=700),",
+    "  national.json + kalimantan_two_seasons.py (the drought follows latitude: Jul-Sep",
+    "  CHIRPS rain 14% of normal in the south, ~75% in the north incl. Malaysia; at",
+    "  matched drought Indonesian land x3.9-14, said as 'about four times').",
+    "",
+    "The wording keeps to what the analysis carries: 'no evidence' of land",
+    "preparation, not 'no land preparation'; drainage as the best fit, not",
+    "measured; 2012 boundaries; not yet peer reviewed. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-kilas": "Benarkah sawit membakar Kalimantan? Di tiga bagian sebelumnya, empat konsesi di pesisir Ketapang terbakar lebih parah daripada lahan di sekitarnya. Kali ini kita uji di seluruh pulau.",
+    "02-banding": "Kami membandingkan lebih dari seribu konsesi, kebun sawit dan hutan tanaman industri, dengan lahan tanpa izin yang serupa: gambut yang sama dalamnya, tutupan lahan yang sama, riwayat kebakaran yang sama, dan jarak yang sama ke sungai dan permukiman. Totalnya tiga belas juta petak berukuran dua ratus meter.",
+    "03-pulau": "Jawabannya mengejutkan. Di seluruh Kalimantan, kebun sawit terbakar lima belas persen lebih sedikit daripada lahan serupa tanpa izin. Hutan tanaman industri tidak berbeda. Pola ini sama pada musim kebakaran dua ribu lima belas, dua ribu sembilan belas, dan dua ribu dua puluh tiga, dan tetap sama dengan peta gambut yang lain.",
+    "04-sedikit": "Tetapi rata-rata menyembunyikan ketimpangan. Dari sembilan ratus delapan kebun sawit, lima puluh empat terbakar jauh lebih luas daripada lahan serupa. Hanya enam persen, tetapi mereka menyumbang hampir separuh luas bekas bakar di semua kebun sawit. Di hutan tanaman industri, enam belas konsesi menyumbang lebih dari separuh. Keempat konsesi Ketapang termasuk di dalamnya.",
+    "05-gambut": "Apa yang membedakan mereka? Bukan grup perusahaan, bukan status izin, dan bukan sertifikat ér-és-pé-o. Yang membedakan adalah gambut. Makin luas gambut di dalam konsesi, makin besar peluangnya terbakar berlebih. Hasil ini sama pada dua peta gambut yang dibuat secara terpisah.",
+    "06-bersih": "Apakah api dipakai untuk membuka lahan? Kalau ya, lahan yang terbakar akan segera ditanami. Dari lahan yang terbakar pada dua ribu lima belas, hanya dua koma empat persen menjadi kebun sawit dalam enam tahun, hampir sama dengan lahan yang tidak terbakar. Dan hampir tidak ada lahan yang dibersihkan sebelum api datang. Kami tidak menemukan bukti pembukaan lahan dengan api.",
+    "07-kering": "Yang kami temukan adalah soal waktu. Lahan kebun sawit mulai terbakar saat kekeringan belum separah di lahan serupa. Di awal kemarau, titik api baru di dalam konsesi hampir tiga kali lebih sering daripada di lahan terbuka. Pada puncak kekeringan, semuanya terbakar, dan lahan terbuka menyusul.",
+    "08-batas": "Lalu mengapa Kalimantan terbakar hebat, sementara Sabah dan Sarawak hampir tidak? Sebagian besar karena hujan. Kemarau datang dari selatan. Kalimantan bagian selatan hanya menerima sepertujuh hujan normalnya, sementara utara pulau, termasuk Malaysia, tetap basah. Tetapi di tempat yang cuacanya sama, lahan di sisi Indonesia tetap terbakar sekitar empat kali lebih banyak.",
+    "09-tutup": "Jadi, benarkah sawit membakar Kalimantan? Tidak secara umum. Masalahnya sekelompok kecil konsesi di atas gambut, yang mengering dan menyala lebih awal. Gambut yang dikeringkan adalah penjelasan yang paling cocok, tetapi belum terukur langsung. Batas konsesi yang tersedia untuk publik berasal dari tahun dua ribu dua belas, dan hasil ini belum melalui telaah sejawat."
+  }
+}

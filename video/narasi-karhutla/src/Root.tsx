@@ -15,6 +15,8 @@ import { Telusur } from "./Telusur";
 import { JADWAL_TELUSUR } from "./jadwalTelusur";
 import { RadarFilm } from "./Radar";
 import { JADWAL_RADAR } from "./jadwalRadar";
+import { PulauFilm } from "./Pulau";
+import { JADWAL_PULAU } from "./jadwalPulau";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -95,6 +97,16 @@ export const RemotionRoot: React.FC = () => (
       fps={JADWAL_RADAR.en.FPS}
       width={JADWAL_RADAR.en.LEBAR}
       height={JADWAL_RADAR.en.TINGGI}
+    />
+    {/* Sixth piece: Part 4 -- "Benarkah Sawit Membakar Kalimantan?", the
+        Kalimantan-wide results. Indonesian only so far. */}
+    <Composition
+      id="Pulau"
+      component={PulauFilm}
+      durationInFrames={JADWAL_PULAU.id!.TOTAL_FRAME}
+      fps={JADWAL_PULAU.id!.FPS}
+      width={JADWAL_PULAU.id!.LEBAR}
+      height={JADWAL_PULAU.id!.TINGGI}
     />
   </>
 );

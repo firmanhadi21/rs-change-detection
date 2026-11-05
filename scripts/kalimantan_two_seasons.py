@@ -1,4 +1,9 @@
-"""Why did Malaysian Borneo miss the 2026 drought? Latitude vs border, and an independent rain check."""
+"""Why did Malaysian Borneo miss the 2026 drought? Latitude vs border, and an independent rain check.
+
+Writes output/fire/kalimantan_excess/two_seasons.json (the film reads it).
+    python scripts/kalimantan_two_seasons.py
+"""
+import json
 import ee
 import numpy as np
 import pandas as pd
@@ -21,6 +26,7 @@ jo = (dates >= "2026-07-01") & (dates < "2026-11-01")
 yr = (dates >= "2026-01-01")
 pk_jo, pk_yr = dc[jo].max(axis=0), dc[yr].max(axis=0)
 when = np.array(dates[yr])[dc[yr].argmax(axis=0)]
+OUTJ = {"dc_by_latitude": [], "chirps": []}
 print("1. Peak Drought Code by latitude band (ERA5-Land cells on Borneo)")
 print(f"   {'band':<14}{'IDN Jul-Oct':>12}{'MYS Jul-Oct':>12}{'MYS Jan-Oct':>12}   MYS peak month")
 for lo, hi in ((-4.5, -3), (-3, -2), (-2, -1), (-1, 0), (0, 1), (1, 2), (2, 3), (3, 4.5)):
@@ -30,6 +36,9 @@ for lo, hi in ((-4.5, -3), (-3, -2), (-2, -1), (-1, 0), (0, 1), (1, 2), (2, 3), 
     fm = f"{np.median(pk_jo[m]):12.0f}{np.median(pk_yr[m]):12.0f}" if m.sum() > 20 else f"{'-':>12}{'-':>12}"
     mon = pd.Series(pd.to_datetime(when[m]).month).mode().iloc[0] if m.sum() > 20 else "-"
     print(f"   {lo:+.1f} to {hi:+.1f}{fi}{fm}   {mon}")
+    OUTJ["dc_by_latitude"].append({"lat": [lo, hi],
+                                   "idn_peak": float(np.median(pk_jo[i])) if i.sum() > 20 else None,
+                                   "mys_peak": float(np.median(pk_jo[m])) if m.sum() > 20 else None})
 
 print("\n2. CHIRPS rain Jul-Oct 2026 vs 2001-2025 mean (independent, gauge-blended)")
 initialize_ee()
@@ -52,3 +61,7 @@ for iso in ("IDN", "MYS"):
         a = y26.reduceRegion(ee.Reducer.mean(), geom, 5566, maxPixels=1e9).getInfo()["precipitation"]
         c = clim.reduceRegion(ee.Reducer.mean(), geom, 5566, maxPixels=1e9).getInfo()["precipitation"]
         print(f"   {iso} {lo:+.1f} to {hi:+.1f}: 2026 {a:5.0f} mm, normal {c:5.0f} mm  ({100 * a / c:4.0f}% of normal)")
+        OUTJ["chirps"].append({"iso": iso, "lat": [lo, hi], "mm_2026": a, "mm_normal": c, "pct": 100 * a / c,
+                               "window": [f"2026-{w0}", f"{end - pd.Timedelta(days=1):%Y-%m-%d}"]})
+json.dump(OUTJ, open("output/fire/kalimantan_excess/two_seasons.json", "w"), indent=1)
+print("Saved: output/fire/kalimantan_excess/two_seasons.json")

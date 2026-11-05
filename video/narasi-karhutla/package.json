@@ -12,7 +12,8 @@
     "build:telusur": "remotion render Telusur out/telusur-karhutla.mp4",
     "build:telusur-en": "remotion render TelusurEN out/telusur-karhutla-en.mp4",
     "build:radar": "remotion render Radar out/radar-karhutla.mp4",
-    "build:radar-en": "remotion render RadarEN out/radar-karhutla-en.mp4"
+    "build:radar-en": "remotion render RadarEN out/radar-karhutla-en.mp4",
+    "build:pulau": "remotion render Pulau out/pulau-karhutla.mp4"
   },
   "dependencies": {
     "@remotion/cli": "4.0.410",
