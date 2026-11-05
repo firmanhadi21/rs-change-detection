@@ -23,6 +23,7 @@ Permit age is not modelled: only 175 of 1,845 GFW permit numbers carry a year.
 The own-ignition share (lineage) is reported, not modelled: it is downstream of the
 behaviour being explained.
 
+    python scripts/kalimantan_heterogeneity.py --stage rspo         # GFW data API (key in ~/.secrets/gfw.env)
     python scripts/kalimantan_heterogeneity.py --stage covariates   # Earth Engine, cached
     python scripts/kalimantan_heterogeneity.py --stage model
 """
@@ -69,6 +70,45 @@ def ee_features(P):
     simp = [s if s is not None and not s.is_empty else g for s, g in zip(simp, P.geometry)]
     return [ee.Feature(ee.Geometry(json.loads(shapely.to_geojson(g))), {"k": k})
             for k, g in enumerate(simp) if g is not None]
+
+
+def gfw_key():
+    """GFW data-API key from $GFW_DATA_API_KEY or ~/.secrets/gfw.env (never printed)."""
+    key = os.environ.get("GFW_DATA_API_KEY")
+    if not key:
+        p = os.path.expanduser("~/.secrets/gfw.env")
+        kv = dict(l.split("=", 1) for l in open(p).read().split() if "=" in l) if os.path.exists(p) else {}
+        key = kv.get("GFW_DATA_API_KEY")
+    if not key:
+        sys.exit("No GFW data-API key: set GFW_DATA_API_KEY or add it to ~/.secrets/gfw.env")
+    return key
+
+
+def stage_rspo():
+    """RSPO-member concessions in Kalimantan from GFW rspo_oil_palm v20200401.
+
+    v2025 holds no Indonesian records. In v20200401 the stored geometry was projected twice: source
+    degrees were read as EPSG:3857 metres and converted to degrees (Riau lands at 0.0009 deg E).
+    Projecting 4326 -> 3857 returns the original numbers, which are the true degrees.
+    """
+    import geopandas as gpd
+    import requests
+    from shapely.geometry import shape
+    url = "https://data-api.globalforestwatch.org/dataset/rspo_oil_palm/v20200401/query/json"
+    sql = ("SELECT group_, company, plantation, rspocert, memberyear, province, gfw_area__ha, "
+           "ST_AsGeoJSON(geom) AS gj FROM data WHERE country = 'Indonesia'")
+    r = requests.get(url, headers={"x-api-key": gfw_key()}, params={"sql": sql}, timeout=600)
+    r.raise_for_status()
+    rows = r.json()["data"]
+    for x in rows:
+        x["geometry"] = shape(json.loads(x.pop("gj")))
+    g = gpd.GeoDataFrame(rows, crs=4326).to_crs(3857).set_crs(4326, allow_override=True)
+    lon0, lat0, lon1, lat1 = g.total_bounds
+    assert 94 < lon0 and lon1 < 142 and -12 < lat0 and lat1 < 7, f"RSPO bounds off Indonesia: {g.total_bounds}"
+    g = g.cx[KAL[0]:KAL[2], KAL[1]:KAL[3]].reset_index(drop=True)
+    g.to_file(RSPO)
+    print(f"Saved: {RSPO} ({len(rows)} Indonesian -> {len(g)} in Kalimantan; "
+          f"certified {int((g.rspocert.astype(str).str.lower() == 'true').sum())})")
 
 
 def load_units():
@@ -248,6 +288,6 @@ def stage_model():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stage", choices=["covariates", "model"], required=True)
+    ap.add_argument("--stage", choices=["rspo", "covariates", "model"], required=True)
     a = ap.parse_args()
-    {"covariates": stage_covariates, "model": stage_model}[a.stage]()
+    {"rspo": stage_rspo, "covariates": stage_covariates, "model": stage_model}[a.stage]()
