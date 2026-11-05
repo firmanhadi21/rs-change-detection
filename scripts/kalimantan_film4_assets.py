@@ -7,7 +7,7 @@ Reads the Kalimantan runs in output/fire/kalimantan_excess/ and writes into vide
   public/pulau/peta_semua.jpg     every analysed concession, oil palm and wood fibre, on Borneo
   public/pulau/peta_berlebih.jpg  the same, with the BH-FDR "excess" units in ember and the
                                   Ketapang four marked
-  public/pulau/peta_kemarau.jpg   peak Jul-Oct 2026 Drought Code (ERA5-Land), Borneo, with the
+  public/pulau/peta_kemarau[_en].jpg  peak Jul-Oct 2026 Drought Code (ERA5-Land), Borneo, with the
                                   Indonesia-Malaysia border
   src/pulauData.json              every figure the film shows or speaks
 
@@ -180,6 +180,15 @@ def maps():
     land = pd.concat([idn, nbr]).union_all()
     sea = gpd.GeoSeries([bb.difference(land)], crs=4326)
     cmap = mc.LinearSegmentedColormap.from_list("kemarau", ["#1B2A3A", "#3A424D", "#9A6530", BARA, NYALA])
+    for berkas, nodata, judul_cb in (("peta_kemarau.jpg", f"tanpa data (> {yt:.1f}° LU)", "Drought Code, puncak Jul–Okt 2026"),
+                                     ("peta_kemarau_en.jpg", f"no data (> {yt:.1f}° N)", "Drought Code, peak Jul–Oct 2026")):
+        kemarau(ax_args=(peak, x0, yt, st, land, sea, nbr, cmap, mc), berkas=berkas, nodata=nodata, judul_cb=judul_cb)
+
+
+def kemarau(ax_args, berkas, nodata, judul_cb):
+    import geopandas as gpd
+    import matplotlib
+    peak, x0, yt, st, land, sea, nbr, cmap, mc = ax_args
     fig, ax = frame()
     gpd.GeoSeries([land], crs=4326).plot(ax=ax, color=DARAT, zorder=0)       # north of the grid: no data
     # stage_dc fills sea cells with the nearest land value, so bilinear smoothing does not
@@ -189,16 +198,16 @@ def maps():
     sea.plot(ax=ax, color=JELAGA, zorder=2)
     nbr.boundary.plot(ax=ax, color=KAPUR, linewidth=1.4, zorder=3)
     label(ax, 114.0, 5.6, "MALAYSIA", 18, KAPUR)
-    label(ax, 117.3, 5.5, f"tanpa data (> {yt:.1f}° LU)", 13, ABU)
+    label(ax, 117.3, 5.5, nodata, 13, ABU)
     label(ax, 113.3, -2.2, "KALIMANTAN", 22, KAPUR)
     cax = fig.add_axes([0.43, 0.70, 0.12, 0.018])          # open sea west of Sarawak, clear of the source line
-    cb = fig.colorbar(__import__("matplotlib").cm.ScalarMappable(norm=mc.Normalize(100, 950), cmap=cmap), cax=cax,
+    cb = fig.colorbar(matplotlib.cm.ScalarMappable(norm=mc.Normalize(100, 950), cmap=cmap), cax=cax,
                       orientation="horizontal")
     cb.outline.set_visible(False)
     cb.ax.tick_params(colors=ABU, labelsize=14)
     cb.set_ticks([100, 300, 500, 700, 900])
-    cax.set_title("Drought Code, puncak Jul–Okt 2026", color=ABU, fontsize=15, loc="left")
-    save(fig, "peta_kemarau.jpg")
+    cax.set_title(judul_cb, color=ABU, fontsize=15, loc="left")
+    save(fig, berkas)
 
 
 if __name__ == "__main__":

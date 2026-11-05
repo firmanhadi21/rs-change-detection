@@ -2,11 +2,11 @@
  * Part 4's cut, built exactly as jadwalRadar.ts builds Part 3's: durations are
  * ffprobe measurements written by tts_konsesi.py --film pulau, and
  * bake_musik_bukti.py --jadwal src/jadwalPulau.json reads the same JSON.
- * Indonesian only for now; an English edition adds jadwalPulauEN.json on the
- * same scene ids.
+ * The English edition (jadwalPulauEN.json) shares the scene ids.
  */
 
 import id from "./jadwalPulau.json";
+import en from "./jadwalPulauEN.json";
 import type { Bahasa, Jadwal } from "./jadwalKonsesi";
 
 type Data = typeof id;
@@ -40,6 +40,7 @@ const buat = (data: Data): Jadwal => {
   };
 };
 
-export const JADWAL_PULAU: Partial<Record<Bahasa, Jadwal>> = {
+export const JADWAL_PULAU: Record<Bahasa, Jadwal> = {
   id: buat(id),
+  en: buat(en as unknown as Data),
 };

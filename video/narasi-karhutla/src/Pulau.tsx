@@ -17,18 +17,23 @@
  * figure comes from pulauData.json (scripts/kalimantan_film4_assets.py).
  */
 
-import React from "react";
+import React, { createContext, useContext } from "react";
 import { AbsoluteFill, Audio, Img, interpolate, Sequence, staticFile, useCurrentFrame } from "remotion";
 import { JADWAL_PULAU } from "./jadwalPulau";
+import type { Bahasa } from "./jadwalKonsesi";
 import { Bingkai, Judul, Keterangan, Kolom, LatarDiam, Lembut, masuk } from "./komponen";
-import { angkaGaya, judulFont, koma, ribuan, tubuhFont, warna } from "./teema";
+import { angkaGaya, judulFont, koma as komaL, ribuan as ribuanL, tubuhFont, warna } from "./teema";
 import D from "./pulauData.json";
 
 const ABU_GELAP = "#3A424D";
 
-const T = {
+const TEKS_ID = {
+  lokal: "id-ID",
   audio: "audio/pulau",
   musik: "musik-pulau.mp3",
+  labelSumber: "Sumber",
+  petaKemarau: "peta_kemarau.jpg",
+  juta: "juta",
   kiri: "Karhutla Kalimantan · Bagian 4",
   waktu: "November 2026",
   alisJudul: "Di dalam konsesi · Bagian 4",
@@ -115,11 +120,121 @@ const T = {
     "Rasio membandingkan lahan dengan ciri yang sama, bukan bukti siapa yang menyalakan api. Batas konsesi publik berasal dari sekitar 2012. Hasil ini belum melalui telaah sejawat dan dapat berubah.",
 };
 
+type Teks = typeof TEKS_ID;
+
+const P_ = D.per_concession;
+const TEKS_EN: Teks = {
+  lokal: "en-GB",
+  audio: "audio/pulau-en",
+  musik: "musik-pulau-en.mp3",
+  labelSumber: "Source",
+  petaKemarau: "peta_kemarau_en.jpg",
+  juta: "million",
+  kiri: "Kalimantan fires · Part 4",
+  waktu: "November 2026",
+  alisJudul: "Inside the concessions · Part 4",
+  judul: ["IS OIL PALM", "REALLY BURNING", "KALIMANTAN?"],
+  subJudul: "More than a thousand concessions across Kalimantan, compared with similar land without a permit, 2026 fire season.",
+  kilas1: "Four concessions in Ketapang burned worse.",
+  kilas2: "Is that true across Kalimantan?",
+  sumberPeta: "Concessions: Global Forest Watch (oil palm, c. 2012; pulpwood, KLHK 2010) · borders: Natural Earth",
+  alisBanding: "Like-for-like comparison",
+  konsesi: "concessions analysed",
+  rincianKonsesi: `${P_["oil palm"].units} oil palm · ${P_.pulpwood.units} pulpwood`,
+  petak: "200 m cells",
+  disamakan: "Matched with unpermitted land on:",
+  strata: ["peat or not", "peat depth", "land cover", "fire history", "distance to rivers", "distance to settlements"],
+  sumberPulau:
+    "2026: Sentinel-2 dNBR, burned when ≥ half the cell and a VIIRS detection nearby · 2015–2023: MODIS MCD64A1 · coarsened exact matching, 95% intervals from a 5 km block bootstrap",
+  judulPulau: "Burned, compared with similar land without a permit",
+  baris: [
+    ["Oil palm, 2026", "s", "oil palm"],
+    ["Pulpwood, 2026", "s", "pulpwood"],
+    ["Oil palm, 2015", "2015", "oil palm"],
+    ["Oil palm, 2019", "2019", "oil palm"],
+    ["Oil palm, 2023", "2023", "oil palm"],
+    ["Oil palm, another peat map", "g", "oil palm"],
+  ] as [string, string, "oil palm" | "pulpwood"][],
+  lebihSedikit: "← less",
+  lebihBanyak: "more →",
+  sama: "same",
+  sumberSedikit:
+    "Each concession against similar land; excess = 95% interval above 1 after multiple-testing correction (Benjamini–Hochberg, q ≤ 0.05)",
+  alisSedikit: "Burned in excess",
+  dariSawit: `of ${P_["oil palm"].units} oil palm concessions`,
+  jumlah: "share of the concessions",
+  luas: "share of oil palm burned area",
+  hti: (n: number, dari: number, pct: string) => `Pulpwood: ${n} of ${dari} concessions, ${pct} of their burned area.`,
+  empat: "All four Ketapang concessions are among them.",
+  sumberGambut:
+    "Peat: BBSDLP (Ministry of Agriculture) and Greifswald Global Peatland Map 2.0 · group, permit status: Global Forest Watch · RSPO: GFW 2020",
+  judulGambut: "Oil palm concessions burning in excess, by how much of them is peat",
+  sumbuGambut: "share of the concession on peat",
+  bukan: "Makes no difference:",
+  bukanDaftar: ["company group", "permit status", "RSPO certificate"],
+  sumberBersih:
+    "Planting: Descals et al. 2024 (oil palm planting year, to 2021) · 2015 burns: MODIS MCD64A1 · clearing: Sentinel-2 NDVI Dec–Mar vs May–Jul 2026",
+  judulBersih: "Was fire used to clear land?",
+  tanam: "Became oil palm, 2016–2021",
+  tanamK: ["burned 2015", "not burned"],
+  bersih: "Cleared before the 2026 fire",
+  bersihK: ["oil palm", "similar land"],
+  bersihKet: "No evidence of fire used to clear land.",
+  sumberKering:
+    "Drought Code (Van Wagner 1987) computed daily from ERA5-Land · new fires: roots of the VIIRS detection lineage, Jul–Oct 2026, per 1,000 km² per day",
+  judulKering: "New fires, oil palm compared with open land",
+  sumbuKering: "Drought Code that day",
+  kaliLipat: "times",
+  dcPertama: "Drought Code when oil palm land first burned, compared with similar land",
+  lebihAwal: "It ignites earlier, while the drought is milder.",
+  sumberBatas:
+    "Rain: CHIRPS, 1 Jul – 30 Sep 2026 against the 2001–2025 mean · Drought Code: ERA5-Land · Malaysia: GFW / RimbaWatch 2025 · also matched on elevation, slope and drought",
+  alisBatas: "Rain July–September 2026, against normal",
+  wilayah: {
+    "IDN|-4.5": "Southern Kalimantan",
+    "IDN|-2.0": "Central Kalimantan",
+    "IDN|2.0": "Northern Kalimantan",
+    "MYS|2.0": "Sabah and Sarawak",
+  } as Record<string, string>,
+  samaCuaca: "more land burned on the Indonesian side, where the weather was the same",
+  tutup1: "Is oil palm really burning Kalimantan?",
+  tutup2: "Not in general.",
+  tutupKet: "A small group of concessions on peat, which dry out and ignite earlier.",
+  tutup3:
+    "Drained peat is the best explanation, but it has not been measured directly. Public concession boundaries date from 2012. These results have not yet been peer reviewed.",
+  sumberData: "Data sources",
+  barisSumber: [
+    ["Burned area", "Sentinel-2 L2A dNBR 2026 (Copernicus); MODIS MCD64A1 2015–2026 (NASA)"],
+    ["Heat detections", "VIIRS 375 m, S-NPP and NOAA-20 (NASA LANCE / FIRMS)"],
+    ["Concessions", "Global Forest Watch: oil palm (c. 2012), pulpwood (KLHK 2010), RSPO (2020), Malaysia (RimbaWatch 2025)"],
+    ["Peat", "BBSDLP, Ministry of Agriculture; Greifswald Global Peatland Map 2.0; PEATGRIDS"],
+    ["Planting", "Descals et al. 2024, Global Oil Palm Extent and Planting Year"],
+    ["Weather", "ERA5-Land (ECMWF/Copernicus); CHIRPS (UCSB)"],
+    ["Terrain", "SRTM; Hansen et al. Global Forest Change; GHSL"],
+  ],
+  peringatan:
+    "Ratios compare land with the same characteristics; they are not proof of who lit the fires. Public concession boundaries date from around 2012. These results have not yet been peer reviewed and may change.",
+};
+
+const Ctx = createContext<Bahasa>("id");
+
+const useT = () => {
+  const T = useContext(Ctx) === "en" ? TEKS_EN : TEKS_ID;
+  const koma = (n: number, d = 1) => komaL(n, d, T.lokal);
+  return {
+    T,
+    koma,
+    ribuan: (n: number) => ribuanL(n, T.lokal),
+    kali: (x: number, d = 2) => `×${koma(x, d)}`,
+  };
+};
+
 /* ------------------------------ furniture ----------------------------- */
 
-const Bkg: React.FC<{ sumber?: string; tampil?: number }> = ({ sumber, tampil }) => (
-  <Bingkai kiri={T.kiri} waktu={T.waktu} labelSumber="Sumber" sumber={sumber} tampil={tampil} />
-);
+const Bkg: React.FC<{ sumber?: string; tampil?: number }> = ({ sumber, tampil }) => {
+  const { T } = useT();
+  return <Bingkai kiri={T.kiri} waktu={T.waktu} labelSumber={T.labelSumber} sumber={sumber} tampil={tampil} />;
+};
 
 const Gambar: React.FC<{ berkas: string; panjang?: number; zoom?: number; redup?: number }> = ({
   berkas,
@@ -127,6 +242,7 @@ const Gambar: React.FC<{ berkas: string; panjang?: number; zoom?: number; redup?
   zoom = 1,
   redup = 0,
 }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const s = interpolate(f, [0, panjang], [1, zoom], { extrapolateRight: "clamp" });
   return (
@@ -169,11 +285,11 @@ const Garis: React.FC<{ anak: string; tampil: number; lebar?: number }> = ({ ana
   </div>
 );
 
-const kali = (x: number, d = 2) => `×${koma(x, d)}`;
 
 /* ---------------------------------- scenes --------------------------- */
 
 const KartuJudul: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 24);
   return (
@@ -202,6 +318,7 @@ const KartuJudul: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Kilas: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 22);
   const b = masuk(f, Math.round(panjang * 0.45), 22);
@@ -218,6 +335,7 @@ const Kilas: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Banding: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const b = masuk(f, Math.round(panjang * 0.18), 20);
@@ -235,7 +353,7 @@ const Banding: React.FC<{ panjang: number }> = ({ panjang }) => {
             </div>
             <div style={{ opacity: b }}>
               <div style={{ whiteSpace: "nowrap" }}>
-                <Angka anak={`${koma(D.cells_millions, 1)} juta`} ukuran={62} warnaA={warna.kapur} />
+                <Angka anak={`${koma(D.cells_millions, 1)} ${T.juta}`} ukuran={62} warnaA={warna.kapur} />
               </div>
               <div style={{ fontFamily: tubuhFont, fontSize: 22, color: warna.abu, marginTop: 6 }}>{T.petak}</div>
             </div>
@@ -259,6 +377,7 @@ const Banding: React.FC<{ panjang: number }> = ({ panjang }) => {
 
 /** Ratio forest plot, log x from 0.4 to 1.6, line at 1. */
 const Hutan: React.FC<{ tampil: number; f: number; mulai: number }> = ({ tampil, f, mulai }) => {
+  const { T, koma, ribuan, kali } = useT();
   const W = 1500;
   const L = 520;
   const R = 200;
@@ -311,6 +430,7 @@ const Hutan: React.FC<{ tampil: number; f: number; mulai: number }> = ({ tampil,
 };
 
 const Pulau: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   return (
@@ -348,6 +468,7 @@ const Batang: React.FC<{ label: string; nilai: number; maks: number; warnaB: str
 );
 
 const Sedikit: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const b = masuk(f, Math.round(panjang * 0.3), 30);
@@ -381,6 +502,7 @@ const Sedikit: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Gambut: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const c = masuk(f, Math.round(panjang * 0.05), 20);
@@ -443,6 +565,7 @@ const Gambut: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Pasangan: React.FC<{ judul: string; nilai: [number, number]; label: [string, string]; tampil: number }> = ({ judul, nilai, label, tampil }) => {
+  const { T, koma, ribuan, kali } = useT();
   const maks = 4;
   const H = 300;
   return (
@@ -470,6 +593,7 @@ const Pasangan: React.FC<{ judul: string; nilai: [number, number]; label: [strin
 };
 
 const Bersih: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const b = masuk(f, Math.round(panjang * 0.25), 30);
@@ -495,6 +619,7 @@ const Bersih: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Kering: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const b = masuk(f, Math.round(panjang * 0.3), Math.round(panjang * 0.4));
@@ -558,6 +683,7 @@ const Kering: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Batas: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const c = masuk(f, Math.round(panjang * 0.7), 24);
@@ -570,7 +696,7 @@ const Batas: React.FC<{ panjang: number }> = ({ panjang }) => {
   const N = D.national.same_drought_lt300;
   return (
     <Lembut panjang={panjang}>
-      <Gambar berkas="peta_kemarau.jpg" panjang={panjang} zoom={1.04} />
+      <Gambar berkas={T.petaKemarau} panjang={panjang} zoom={1.04} />
       <Bkg sumber={T.sumberBatas} tampil={a} />
       <Kolom jarak={0}>
         <div style={{ width: 700, opacity: a }}>
@@ -598,6 +724,7 @@ const Batas: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Tutup: React.FC<{ panjang: number }> = ({ panjang }) => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 22);
   const b = masuk(f, Math.round(panjang * 0.12), 24);
@@ -644,6 +771,7 @@ const Tutup: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const KartuSumber: React.FC<{ panjang: number }> = () => {
+  const { T, koma, ribuan, kali } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 4, 20);
   return (
@@ -691,9 +819,11 @@ const ADEGAN: Record<string, React.FC<{ panjang: number }>> = {
   "09-tutup": Tutup,
 };
 
-export const PulauFilm: React.FC = () => {
-  const J = JADWAL_PULAU.id!;
+export const PulauFilm: React.FC<{ bahasa?: Bahasa }> = ({ bahasa = "id" }) => {
+  const J = JADWAL_PULAU[bahasa]!;
+  const T = bahasa === "en" ? TEKS_EN : TEKS_ID;
   return (
+    <Ctx.Provider value={bahasa}>
     <AbsoluteFill style={{ backgroundColor: warna.jelaga }}>
       <Audio src={staticFile(`${T.audio}/${T.musik}`)} />
       <Sequence durationInFrames={J.JUDUL_FRAME}>
@@ -712,5 +842,6 @@ export const PulauFilm: React.FC = () => {
         <KartuSumber panjang={J.TUTUP_FRAME} />
       </Sequence>
     </AbsoluteFill>
+    </Ctx.Provider>
   );
 };

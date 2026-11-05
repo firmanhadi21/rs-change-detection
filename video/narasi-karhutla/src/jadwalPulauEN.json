@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "Schedule for the English edition of Part 4. durasi is written by",
+    "tts_konsesi.py --film pulau --bahasa en from ffprobe of the normalised mp3s;",
+    "bake_musik_bukti.py --jadwal src/jadwalPulauEN.json reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 4.0,
+  "tutup_detik": 7.0,
+  "urutan": [
+    "01-kilas",
+    "02-banding",
+    "03-pulau",
+    "04-sedikit",
+    "05-gambut",
+    "06-bersih",
+    "07-kering",
+    "08-batas",
+    "09-tutup"
+  ],
+  "durasi": {
+    "01-kilas": 12.0,
+    "02-banding": 19.2,
+    "03-pulau": 20.0,
+    "04-sedikit": 22.96,
+    "05-gambut": 18.32,
+    "06-bersih": 21.68,
+    "07-kering": 18.64,
+    "08-batas": 23.28,
+    "09-tutup": 20.32
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

@@ -99,14 +99,24 @@ export const RemotionRoot: React.FC = () => (
       height={JADWAL_RADAR.en.TINGGI}
     />
     {/* Sixth piece: Part 4 -- "Benarkah Sawit Membakar Kalimantan?", the
-        Kalimantan-wide results. Indonesian only so far. */}
+        Kalimantan-wide results. */}
     <Composition
       id="Pulau"
       component={PulauFilm}
-      durationInFrames={JADWAL_PULAU.id!.TOTAL_FRAME}
-      fps={JADWAL_PULAU.id!.FPS}
-      width={JADWAL_PULAU.id!.LEBAR}
-      height={JADWAL_PULAU.id!.TINGGI}
+      defaultProps={{ bahasa: "id" as const }}
+      durationInFrames={JADWAL_PULAU.id.TOTAL_FRAME}
+      fps={JADWAL_PULAU.id.FPS}
+      width={JADWAL_PULAU.id.LEBAR}
+      height={JADWAL_PULAU.id.TINGGI}
+    />
+    <Composition
+      id="PulauEN"
+      component={PulauFilm}
+      defaultProps={{ bahasa: "en" as const }}
+      durationInFrames={JADWAL_PULAU.en.TOTAL_FRAME}
+      fps={JADWAL_PULAU.en.FPS}
+      width={JADWAL_PULAU.en.LEBAR}
+      height={JADWAL_PULAU.en.TINGGI}
     />
   </>
 );

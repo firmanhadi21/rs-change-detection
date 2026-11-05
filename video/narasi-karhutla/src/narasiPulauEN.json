@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Bian's words for the English edition of Part 4, 'Is Oil Palm Really Burning",
+    "Kalimantan?', one entry per segment of jadwalPulauEN.json's urutan, the same",
+    "scene ids as the Indonesian. tts_konsesi.py --film pulau --bahasa en generates",
+    "each clip from here; the mp3s are gitignored.",
+    "",
+    "A translation of src/narasiPulau.json; every figure and caveat is the same",
+    "(see its _comment for where each comes from). No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-kilas": "Is oil palm really burning Kalimantan? In the three earlier parts, four concessions on the Ketapang coast burned worse than the land around them. This time we test it across the whole island.",
+    "02-banding": "We compared more than a thousand concessions, oil palm and pulpwood plantations, with similar land that has no permit: the same peat depth, the same land cover, the same fire history, and the same distance to rivers and settlements. In all, thirteen million cells, each two hundred metres across.",
+    "03-pulau": "The answer is surprising. Across Kalimantan, oil palm concessions burned fifteen percent less than similar land without a permit. Pulpwood plantations were no different. The pattern is the same in the fire seasons of twenty fifteen, twenty nineteen and twenty twenty-three, and it holds with a different peat map.",
+    "04-sedikit": "But the average hides an imbalance. Of nine hundred and eight oil palm concessions, fifty-four burned far more than similar land. Only six percent, yet they account for almost half of all the burned area in oil palm concessions. Among pulpwood plantations, sixteen concessions account for more than half. All four Ketapang concessions are among them.",
+    "05-gambut": "What sets them apart? Not the company group, not the permit status, and not an R-S-P-O certificate. What sets them apart is peat. The more peat inside a concession, the more likely it is to burn in excess. The result is the same on two peat maps made independently.",
+    "06-bersih": "Was fire used to clear land? If it was, burned land would soon be planted. Of the land that burned in twenty fifteen, only two point four percent became oil palm within six years, almost the same as land that did not burn. And almost no land was cleared before the fire came. We found no evidence of fire being used to clear land.",
+    "07-kering": "What we did find is a matter of timing. Oil palm land starts burning while the drought is still milder than on similar land. Early in the dry season, new fires inside concessions are almost three times as frequent as on open land. At the peak of the drought, everything burns, and open land catches up.",
+    "08-batas": "So why did Kalimantan burn so badly, while Sabah and Sarawak barely did? Mostly because of rain. The drought came from the south. Southern Kalimantan received only a seventh of its normal rain, while the north of the island, including Malaysia, stayed wet. But where the weather was the same, land on the Indonesian side still burned about four times as much.",
+    "09-tutup": "So, is oil palm really burning Kalimantan? Not in general. The problem is a small group of concessions on peat, which dry out and ignite earlier. Drained peat is the best explanation, but it has not been measured directly. The public concession boundaries date from twenty twelve, and these results have not yet been peer reviewed."
+  }
+}
