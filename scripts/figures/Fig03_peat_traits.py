@@ -67,10 +67,11 @@ def main():
     axa.legend(frameon=False, loc="upper right", fontsize=6.5, title="n units above bars", title_fontsize=6)
     panel(axa, "a")
 
-    M = run("dc_units_summary.json")["model"]          # drought-matched classes (primary)
-    het = M["main (depth)"]["logit"]
-    rows = [("Peat share alone, BBSDLP (per 10 pp)", M["BBSDLP share"]["logit"]["peat_share_10pp"]),
-            ("Peat share alone, Greifswald (per 10 pp)", M["GPM share"]["logit"]["gpm_share_10pp"])]
+    # Firth penalised logit, profile intervals, drought-matched classes (kalimantan_firth.py, review round 3)
+    M = run("firth.json")["models"]
+    het = M["main (depth)"]
+    rows = [("Peat share alone, BBSDLP (per 10 pp)", M["BBSDLP share"]["peat_share_10pp"]),
+            ("Peat share alone, Greifswald (per 10 pp)", M["GPM share"]["gpm_share_10pp"])]
     rows += [(LABELS[k], het[k]) for k in LABELS]
     y = np.arange(len(rows))[::-1]
     for yi, (lab, r) in zip(y, rows):
@@ -85,7 +86,7 @@ def main():
     axb.set_yticks(y, [lab for lab, _ in rows], fontsize=6)
     axb.tick_params(axis="y", length=0)
     axb.spines["left"].set_visible(False)
-    axb.set_xlabel("Odds ratio of excess status (95% CI)")
+    axb.set_xlabel("Odds ratio of excess status, Firth logit (95% CI)")
     axb.text(0.99, 0.01, "filled: p < 0.05", transform=axb.transAxes, ha="right", fontsize=6, color=CTL)
     panel(axb, "b")
     fig.subplots_adjust(wspace=1.15)
