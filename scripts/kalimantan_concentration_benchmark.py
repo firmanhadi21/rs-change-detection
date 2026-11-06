@@ -29,6 +29,7 @@ from kalimantan_dc_stratum import peak_dc_bin  # noqa: E402
 from kalimantan_excess_burn import DATA, HTI, OUT, SEQ, stratum  # noqa: E402
 
 RES = os.path.join(OUT, "concentration_benchmark.json")
+PATCHES = os.path.join(OUT, "concentration_benchmark_patches.csv")
 MIN_CELLS, Q_FDR, NBOOT_UNIT, REPS = 250, 0.05, 2000, 5
 
 
@@ -117,6 +118,8 @@ def main():
     bands = dv.dc_bin.to_numpy()
     uid = np.where(dv.zone == 3, dv.op.to_numpy(), np.where(dv.zone == 2, -hid, 0))
     dom = pd.DataFrame({"u": uid, "b": bands})[uid != 0].groupby("u").b.agg(lambda x: int(np.bincount(x).argmax()))
+    peat = dv.peat.to_numpy().astype(float)
+    allrows = []
     for rep in range(REPS):
         for kind in ("oil palm", "pulpwood"):
             g = P[P.kind == kind]
@@ -133,9 +136,12 @@ def main():
                 q, p = unit(m)
                 rows.append({"cells": int(m.sum()), "ratio": float(q), "p": float(p), "band": band,
                              "spread_km": 0.2 * float(np.atleast_1d(dist).ravel()[-1]),
-                             "burned_km2": 0.04 * float(val[m].sum())})
+                             "burned_km2": 0.04 * float(val[m].sum()),
+                             "peat_share": float(peat[m].mean())})
             T = pd.DataFrame(rows)
             T["q_bh"] = bh(T.p.to_numpy())
+            T["excess"] = (T.q_bh <= Q_FDR) & (T.ratio > 1)
+            allrows.append(T.assign(replicate=rep, kind_sizes=kind))
             exc = (T.q_bh <= Q_FDR) & (T.ratio > 1)
             burning = T.burned_km2 > 0
             res = {"replicate": rep, "kind_sizes": kind, "units": int(len(T)), "excess": int(exc.sum()),
@@ -153,6 +159,8 @@ def main():
     for kind, cc in out["concessions"].items():
         print(f"  concessions {kind}: {cc['excess_pct']:.1f}% excess holding {cc['excess_share_pct']:.0f}%")
     json.dump(out, open(RES, "w"), indent=1)
+    pd.concat(allrows).to_csv(PATCHES, index=False)      # per patch, for the calibration and peat checks
+    print(f"Saved: {PATCHES}")
     print(f"Saved: {RES}")
 
 

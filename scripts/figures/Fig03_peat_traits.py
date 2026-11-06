@@ -70,8 +70,8 @@ def main():
     # Firth penalised logit, profile intervals, drought-matched classes (kalimantan_firth.py, review round 3)
     M = run("firth.json")["models"]
     het = M["main (depth)"]
-    rows = [("Peat share alone, BBSDLP (per 10 pp)", M["BBSDLP share"]["peat_share_10pp"]),
-            ("Peat share alone, Greifswald (per 10 pp)", M["GPM share"]["gpm_share_10pp"])]
+    rows = [("Peat share, BBSDLP (per 10 pp; all traits)", M["BBSDLP share"]["peat_share_10pp"]),
+            ("Peat share, Greifswald (per 10 pp; all traits)", M["GPM share"]["gpm_share_10pp"])]
     rows += [(LABELS[k], het[k]) for k in LABELS]
     y = np.arange(len(rows))[::-1]
     for yi, (lab, r) in zip(y, rows):
