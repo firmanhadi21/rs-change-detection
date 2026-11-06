@@ -1,10 +1,10 @@
-"""Supplementary figures S1-S3 for the ERL paper.
+"""Supplementary figures S1-S3 for the ERL paper (numbered in order of citation in the SI).
 
-S1 two dry seasons: season-peak Drought Code by latitude band (Indonesia, Malaysia) and Jul-Sep 2026 CHIRPS
+S3 two dry seasons: season-peak Drought Code by latitude band (Indonesia, Malaysia) and Jul-Sep 2026 CHIRPS
    rain as a share of the 2001-2025 mean (two_seasons.json).
-S2 calibration of the per-concession flag: ECDF of matched ratios, concessions against unpermitted patches of
+S1 calibration of the per-concession flag: ECDF of matched ratios, concessions against unpermitted patches of
    the same analysable size and drought band (per_concession_matched_dc.csv, concentration_benchmark_patches.csv).
-S3 new fires (lineage roots) per 1,000 km2 per day by same-day Drought Code, by tenure; unmatched
+S2 new fires (lineage roots) per 1,000 km2 per day by same-day Drought Code, by tenure; unmatched
    (fire_weather.json W3).
 
     python scripts/figures/SI_figures.py
@@ -34,7 +34,7 @@ def s1():
         a.axvline(v, color=CTL, ls=":", lw=0.8)
     a.set_xlabel("Season-peak Drought Code, Jul–Oct 2026")
     a.set_ylabel("Latitude (°)")
-    a.legend(frameon=False, loc="lower right")
+    a.legend(frameon=False, loc="upper right")
     panel(a, "a")
     c = s["chirps"]
     y = np.arange(len(c))
@@ -44,7 +44,7 @@ def s1():
     b.set_yticks(y, [f"{x['iso']} {x['lat'][0]}° to {x['lat'][1]}°" for x in c], fontsize=7)
     b.set_xlabel("Rain 1 Jul–30 Sep 2026, % of 2001–2025 mean")
     panel(b, "b")
-    save(fig, "FigS1_two_seasons")
+    save(fig, "FigS3_two_seasons")
 
 
 def s2():
@@ -52,7 +52,7 @@ def s2():
     T = pd.read_csv(os.path.join(RUN, "concentration_benchmark_patches.csv"))
     fig, axes = plt.subplots(1, 2, figsize=(W_DOUBLE, 2.8), sharey=True, gridspec_kw={"wspace": 0.12})
     for ax, (k, col), letter in zip(axes, KIND_COL.items(), "ab"):
-        for vals, lab, c, ls in ((T[T.kind_sizes == k].ratio, "unpermitted patches (5 draws)", CTL, "--"),
+        for vals, lab, c, ls in ((T[T.kind_sizes == k].ratio, "unpermitted patches (5 replicates)", CTL, "--"),
                                  (P[P.kind == k].ratio, "concessions", col, "-")):
             v = np.sort(np.clip(vals.to_numpy(), 0.01, None))
             ax.step(v, np.arange(1, len(v) + 1) / len(v), where="post", color=c, ls=ls, lw=1.4, label=lab)
@@ -67,8 +67,8 @@ def s2():
         ax.set_title(k.capitalize(), color=col, fontweight="bold", loc="left")
         panel(ax, letter)
     axes[0].set_ylabel("Cumulative share of units")
-    axes[0].legend(frameon=False, loc="upper left", fontsize=6.5)
-    save(fig, "FigS2_flag_calibration")
+    axes[0].legend(frameon=False, loc="lower right", fontsize=6.5)
+    save(fig, "FigS1_flag_calibration")
 
 
 def s3():
@@ -82,7 +82,7 @@ def s3():
     ax.set_xlabel("Same-day Drought Code")
     ax.set_ylabel("New fires per 1,000 km² per day")
     ax.legend(frameon=False)
-    save(fig, "FigS3_ignitions_by_dc")
+    save(fig, "FigS2_ignitions_by_dc")
 
 
 if __name__ == "__main__":

@@ -26,6 +26,15 @@ def ci(c, d=2):
     return f"{f2(c[0], d)}–{f2(c[1], d)}"
 
 
+def pv(p):
+    return "< 0.001" if p < 0.001 else f"{p:.3f}"
+
+
+TERM = {"depth_m_z": "peat depth, unit mean (per SD)", "peat_share_10pp": "peat share, BBSDLP (per 10 pp)",
+        "gpm_share_10pp": "peat share, Greifswald (per 10 pp)", "depth_on_peat_cm_z": "depth on peat (per SD)",
+        "edge_on_peat_km_z": "distance to peat edge on peat (per SD)"}
+
+
 def table(head, rows):
     out = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     out += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
@@ -112,7 +121,10 @@ def t_outcomes():
             d = prim[k] if o == "burned" else dc[(k, dkey)]        # main outcome: the paper's primary run
             rows.append([k, lab, f2(raw["ratio"], 3), f"{f2(ls['ratio'], 3)} ({ci(ls['ci95'], 3)})",
                          f"{f2(d['ratio'], 3)} ({ci(d['ci'], 3)})"])
-    return table(["Type", "Outcome", "Raw", "Land strata", "+ drought band"], rows)
+    return table(["Type", "Outcome", "Raw", "Land strata", "+ drought band"], rows) + \
+        "\n\n*Land-strata column: outcome-check run (concession_checks); its main-outcome interval differs slightly " \
+        "from the primary land-strata run in tables S2 and S5 (0.798–0.920 for oil palm) because the bootstrap draws " \
+        "differ. + drought band: main outcome from the primary run (table S5.1), other outcomes from the robustness run.*"
 
 
 def t_robust():
@@ -132,8 +144,9 @@ def t_robust():
 
 def t_canopy():
     c = J(EX, "concession_checks.json")["canopy"]
-    lc = {0: "oil palm, planted ≤ 2005", 1: "oil palm, 2006–2010", 2: "oil palm, 2011–2015", 3: "oil palm, 2016–2021",
-          4: "intact forest", 5: "forest lost 2001–2015", 6: "forest lost since 2016", 7: "non-forest"}
+    lc = {0: "oil palm, planted ≤ 2001", 1: "oil palm, 2002–2011", 2: "oil palm, 2012–2018 (incl. no year)",
+          3: "oil palm, 2019 or later", 4: "forest standing since 2000", 5: "forest lost 2001–2015",
+          6: "forest lost since 2016", 7: "non-forest"}
     rows = []
     for i, lab in lc.items():
         row = [lab]
@@ -209,7 +222,8 @@ def t_calibration():
             rows.append([k, f"{q}th", f"×{thr:.2f}", int((g.ratio > thr).sum()), f"{len(g) * (100 - q) / 100:.1f}"])
         rows.append([k, "maximum", f"×{null.max():.2f}", int((g.ratio > null.max()).sum()), "—"])
     cf = J(EX, "flag_calibration.json")["calibrated_flag"]
-    foot = "; ".join(f"{k}: highest concession ratio ×{P[P.kind == k].ratio.max():.2f}, flagged after BH against patches {cf[k]['flag_bh']}"
+    foot = "; ".join(f"{k}: highest concession ratio ×{P[P.kind == k].ratio.max():.2f}, flagged after BH against patches "
+                     f"{cf[k]['flag_bh']}, empirical p ≤ 0.05 for {cf[k]['above_patch_p95']} (ties at the threshold count as not above)"
                      for k in KINDS)
     return table(["Type", "Patch-ratio percentile", "Threshold", "Concessions above", "Expected if like patches"], rows) + \
         f"\n\n*{foot}. Null: {', '.join(str(cf[k]['null_patches']) for k in KINDS)} patch ratios (5 replicates).*"
@@ -232,8 +246,10 @@ def t_firth():
     rows = []
     for model, terms in F.items():
         for t, r in terms.items():
+            if model != "main (depth)" and t not in ("peat_share_10pp", "gpm_share_10pp", "depth_on_peat_cm_z"):
+                continue                      # control terms repeat the main model; shown once
             ml = M.get(mlmap.get(model, ""), {}).get("logit", {}).get(t)
-            rows.append([model, lab.get(t, t), f"{f2(r['or'])} ({ci([r['lo'], r['hi']])})", f2(r["p"], 3),
+            rows.append([model, lab.get(t, t), f"{f2(r['or'])} ({ci([r['lo'], r['hi']])})", pv(r["p"]),
                          f"{f2(ml['or'])} ({ci([ml['lo'], ml['hi']])})" if ml else "—"])
     return table(["Model", "Term", "Firth OR (95% profile interval)", "p (penalised LR)", "ML logit OR, HC1 (95%)"], rows)
 
@@ -245,9 +261,10 @@ def t_peatdecomp():
         for v, terms in P[k].items():
             for t, r in terms.items():
                 lg, w = r.get("logit"), r.get("wls")
-                rows.append([k, v, t, f"{f2(lg['or'])} ({ci([lg['lo'], lg['hi']])}), p {f2(lg['p'], 3)}" if lg else "failed",
-                             f"{f2(w['x'])} ({ci([w['lo'], w['hi']])}), p {f2(w['p'], 3)}" if w else "—"])
-    return table(["Type", "Variant", "Term", "Logit OR (95%), p", "WLS ratio (95%), p"], rows)
+                rows.append([k + (" (14 events; unstable)" if k == "pulpwood" else ""), v, TERM.get(t, t),
+                             f"{f2(lg['or'])} ({ci([lg['lo'], lg['hi']])}), p {pv(lg['p'])}" if lg else "failed",
+                             f"{f2(w['x'])} ({ci([w['lo'], w['hi']])}), p {pv(w['p'])}" if w else "—"])
+    return table(["Type", "Variant", "Term", "ML logit OR, HC1 (95%), p", "WLS ratio (95%), p"], rows)
 
 
 def t_peat_tenure():
@@ -277,14 +294,15 @@ def t_lineage():
     L = J(LIN, "summary.json")
     s = L["sensitivity"]
     rows = [[k, f"{v['ignitions_season']:,}", f"{100 * v['share_inside_from_same_concession']:.0f}%",
-             ", ".join(f"{a} {100 * b:.0f}%" for a, b in v["four"].items())] for k, v in s.items()]
-    t1 = table(["Parent rule", "Ignitions (season)", "Inside detections from the same concession", "Ketapang four"], rows)
+             ", ".join(f"K{i + 1} {100 * b:.0f}%" for i, b in enumerate(v["four"].values()))] for k, v in s.items()]
+    t1 = table(["Parent rule", "Ignitions (season)", "Concession detections from the same concession (both types, edge roots included)",
+                "Ketapang four (K1–K4)"], rows)
     e = L["entry"]
     rows = [[k, f"{v['detections']:,}", f"{100 * v['same_concession']:.1f}%", f"{100 * v['same_concession_edge_root']:.1f}%",
              f"{100 * v['other_concession']:.1f}%", f"{100 * v['open_land']:.1f}%", f"{100 * v['my_bn']:.2f}%",
-             f"{100 * v['off_land']:.1f}%"] for k, v in e.items()]
-    t2 = table(["Inside", "Detections", "Same concession", "… of which edge roots", "Other concession", "Open land",
-                "Malaysia/Brunei", "Off land"], rows)
+             f"{100 * v['off_land']:.2f}%"] for k, v in e.items()]
+    t2 = table(["Detections inside", "Detections", "Same concession, interior root", "Same concession, edge root",
+                "Other concession", "Open land", "Malaysia/Brunei", "Off land"], rows)
     x = L["escape"]
     rows = [[k, f"{v['detections']:,}", f"{100 * v['from_oil_palm']:.1f}%", f"{100 * v['from_pulpwood']:.1f}%",
              f"{100 * v['from_edge_roots']:.1f}%"] for k, v in x.items()]
@@ -309,7 +327,7 @@ def t_landprep():
         for z in KINDS:
             r = src["T2"][z]
             rows.append([name, z, f"{100 * r['treated']:.2f}%", f"{100 * r['control']:.2f}%", f"{f2(r['ratio'])} ({ci(r['ci'])})",
-                         f"n {src['T2']['burned_cells_used']:,}"])
+                         f"{src['T2']['burned_cells_used']:,} burned cells, all zones"])
     t1 = table(["Test", "Zone", "Treated", "Matched control", "Ratio (95%)", "Base"], rows)
     rows = []
     for name, src in (("land-strata classes", a), ("drought-matched classes", b)):
@@ -336,7 +354,7 @@ def t_w1():
 
 def t_timing():
     t = J(EX, "dc_stratum.json")["timing"]
-    rows = [[r["treated"], r["matched_on"], "first-fire day" if r["variable"] == "day" else "Drought Code at first fire",
+    rows = [[r["treated"], r["matched_on"], "first-fire day (day of year)" if r["variable"] == "day" else "Drought Code at first fire (index units)",
              f"{r['treated_mean']:.1f}", f"{r['control_mean']:.1f}", f"{r['gap']:+.2f} ({r['ci'][0]:+.2f} to {r['ci'][1]:+.2f})"]
             for r in t]
     return table(["Type", "Strata", "Variable", "Concession", "Matched unpermitted", "Gap (95%)"], rows)
@@ -371,11 +389,13 @@ def t_national():
         for r in J(EX, f):
             rows.append([f.replace(".json", ""), r["label"].strip(), f"{r['treated_pct']:.3f}%", f"{r['control_pct']:.3f}%",
                          f"{f2(r['ratio'])} ({ci(r['ci'])})", f"{100 * r['coverage']:.0f}%"])
-    return table(["Set", "Comparison", "Indonesia burned", "Malaysia burned", "Ratio (95%)", "Coverage"], rows)
+    return table(["Set", "Comparison", "Treated burned", "Control burned", "Ratio (95%)", "Coverage"], rows) + \
+        "\n\n*Treated is Indonesian land and control Malaysian land, except the last three border rows, which compare " \
+        "concession with unpermitted land within one country.*"
 
 
 # ---------------------------------------------------------------- S12 peat maps
-def t_peatmaps():
+def t_peatmaps():          # helper: returns (field-point table, CV table)
     import pandas as pd
     S = pd.read_csv(os.path.join(PRF, "old_maps_field_scores.csv"))
     rows = [[r["map"], int(r["n_field"]), f"{r['peat_called_%']:.0f}%", f2(r["accuracy"]), f2(r["kappa"]),
@@ -389,10 +409,56 @@ def t_peatmaps():
                      f"{100 * a['recall_peat']:.0f}%", f"{100 * a['false_peat_on_mineral']:.0f}%"])
     t2 = table(["Field-point weight", "AUC (spatial CV)", "AUC 95% (block bootstrap)", "Kappa at 0.61", "Peat found",
                 "Mineral called peat"], rows)
+    return t1, t2
+
+
+def t_peatfield():
+    t1 = t_peatmaps()[0]
+    for a, b in (("old RF (Kalimantan_3857)", "2019 RF + MaxEnt map"), ("MaxEnt max_90ci", "MaxEnt, 90% CI threshold"),
+                 ("MaxEnt max_95ci", "MaxEnt, 95% CI threshold"), ("MaxEnt mean_95ci", "MaxEnt, mean 95% CI threshold"),
+                 ("MaxEnt mean_mean+stdv", "MaxEnt, mean + 1 SD threshold")):
+        t1 = t1.replace(a, b)
+    return t1
+
+
+def t_peatcv():
+    return t_peatmaps()[1]
+
+
+def t_detadj():
+    d = J(EX, "detection_adjust.json")
+    rows = [[r["treated"], r["outcome"], f"{f2(r['ratio'], 3)} ({ci(r['ci'], 3)})"] for r in d["ratios"]]
+    return table(["Type", "Outcome", "Drought-matched ratio (95%)"], rows)
+
+
+def t_reconcile():
+    import pandas as pd
+    P = pd.read_csv(os.path.join(EX, "per_concession_matched_dc.csv"))
+    rows = []
+    for k in KINDS:
+        g = P[P.kind == k]
+        w = g.cells * g.coverage
+        rows.append([k, f"{g.ratio.median():.2f}", int((g.burned_km2 == 0).sum()),
+                     f"{(g.burned_pct * w).sum() / (g.matched_ctl_pct * w).sum():.3f}"])
+    return table(["Type", "Median concession ratio", "Concessions with no burned area",
+                  "Summed burned / summed expected (cf. pooled)"], rows)
+
+
+def t_ketapang():
+    m = [r for r in J(EX, "matched.json") if r.get("treated") == "Ketapang 4" and r.get("test") == "burn"]
+    rows = [[r["matched_on"], f"{r['treated_pct']:.2f}%", f"{r['control_pct']:.2f}%", f"{f2(r['ratio'], 3)} ({ci(r['ratio_ci95'], 3)})",
+             f"{100 * r.get('coverage', 1):.1f}%"] for r in m]
+    t1 = table(["Strata", "Ketapang four burned", "Matched unpermitted", "Ratio (95%)", "Coverage"], rows)
+    rows = []
+    for name, f in (("land strata", "concession_checks.json"), ("+ drought band", "concession_checks_dc.json")):
+        for i, u in enumerate(J(EX, f)["ketapang_four"]):
+            rows.append([f"K{i + 1}", name, f"{f2(u['ratio'])} ({ci([u['ci_lo'], u['ci_hi']])})", f"{u['q_bh']:.3f}",
+                         f"{u['burned_km2']:.0f}"])
+    t2 = table(["Concession", "Strata", "Ratio (95%)", "BH q", "Burned 2026 (km²)"], rows)
     return t1 + "\n\n" + t2
 
 
-TABLES = {k[2:]: v for k, v in globals().items() if k.startswith("t_") and callable(v)}
+TABLES = {k[2:]: v for k, v in globals().items() if k.startswith("t_") and callable(v) and k != "t_peatmaps"}
 
 
 def main():
