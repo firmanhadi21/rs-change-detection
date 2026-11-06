@@ -2,18 +2,20 @@
 """Review round 2, M2: is the concentration of concession burned area more than fire clustering
 would give any partition of the land?
 
-Pseudo-units are square tiles of unpermitted land (zone 1) whose sizes follow the concessions':
-each concession's analysable cell count is mapped to a tile of the same number of cells (side
-round(sqrt(n)), on a lattice with a random offset), and one tile is drawn per concession from the
-tiles of that side with >= MIN_CELLS unpermitted analysable cells. Each tile then gets exactly the
-per-concession treatment of kalimantan_concession_checks.py --dc-stratum: drought-matched ratio
-(SEQ[-1] + peak-DC band) against unpermitted controls across Kalimantan, with the tile's own cells
-removed from the control pool, 2,000 block-bootstrap draws, percentile p, Benjamini-Hochberg at
-q <= 0.05 within each replicate. Reported per replicate: share of pseudo-units in excess and the
-share of pseudo-unit burned area they hold, against the concessions (51/908 -> 40%; 14/187 -> 52%).
+Pseudo-units (v2, review round 3): for each concession, a patch of unpermitted land (zone 1) with exactly
+as many analysable cells as the concession, grown as the n nearest unpermitted analysable cells around a
+random seed cell; the seed is drawn from unpermitted analysable cells in the concession's dominant
+season-peak Drought Code band, so patches match concessions on size and drought. (v1 used square tiles
+sized round(sqrt(n)) on all cells, which made them ~60% of concession analysable size; its output is kept
+as concentration_benchmark_v1_tiles.json.) Each patch gets exactly the per-concession treatment of
+kalimantan_concession_checks.py --dc-stratum: drought-matched ratio (SEQ[-1] + peak-DC band) against
+unpermitted controls across Kalimantan, with the patch's own cells removed from the control pool, 2,000
+block-bootstrap draws, percentile p, Benjamini-Hochberg at q <= 0.05 within each replicate. Patches may
+overlap one another. Reported per replicate: share in excess, share of patch burned area they hold, zero-burn
+patches, excess share among patches that burned, and patch spread (distance to the n-th cell).
 
-Tiles are compact and unpermitted land is not managed, so this is a benchmark for "a few units
-hold much of the burned area", not a matched counterfactual for any concession.
+Patches are unmanaged land and shaped by where unpermitted land lies, so this is a benchmark for "a few
+units hold much of the burned area", not a matched counterfactual for any concession.
 
     python scripts/kalimantan_concentration_benchmark.py
 """
@@ -24,10 +26,10 @@ import sys
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO_ROOT, "scripts"))
 from kalimantan_dc_stratum import peak_dc_bin  # noqa: E402
-from kalimantan_excess_burn import DATA, OUT, SEQ, stratum  # noqa: E402
+from kalimantan_excess_burn import DATA, HTI, OUT, SEQ, stratum  # noqa: E402
 
 RES = os.path.join(OUT, "concentration_benchmark.json")
-MIN_CELLS, Q_FDR, NBOOT_UNIT, REPS = 250, 0.05, 2000, 3
+MIN_CELLS, Q_FDR, NBOOT_UNIT, REPS = 250, 0.05, 2000, 5
 
 
 def bh(p):
@@ -45,7 +47,7 @@ def main():
     from scipy import sparse
 
     df = pd.read_parquet(os.path.join(DATA, "sample_200m.parquet"),
-                         columns=sorted(set(["r", "c", "zone", "valid", "burned", "block"] + SEQ[-1])))
+                         columns=sorted(set(["r", "c", "zone", "op", "valid", "burned", "block"] + SEQ[-1])))
     dv = df[df.valid].reset_index(drop=True)
     dv["dc_bin"] = peak_dc_bin(dv)
     code = stratum(dv, SEQ[-1] + ["dc_bin"])
@@ -95,41 +97,59 @@ def main():
         g = P[P.kind == kind]
         ex = g.class_fdr == "excess"
         out["concessions"][kind] = {"units": int(len(g)), "excess_pct": 100 * float(ex.mean()),
+                                    "zero_burn_units": int((g.burned_km2 == 0).sum()),
+                                    "excess_pct_of_burning": 100 * float(ex.sum() / (g.burned_km2 > 0).sum()),
+                                    "median_cells": float(g.cells.median()),
                                     "excess_share_pct": 100 * float(g.burned_km2[ex].sum() / g.burned_km2.sum())}
+    from scipy.spatial import cKDTree
+    cidx = np.flatnonzero(ctl)
+    tree = cKDTree(np.c_[r[cidx], c[cidx]])
+    cband = dv.dc_bin.to_numpy()[cidx]
+    # dominant drought band of each concession (pulpwood ids rasterised as in kalimantan_concession_checks)
+    import geopandas as gpd
+    import rasterio
+    from rasterio import features
+    grid = json.load(open(os.path.join(DATA, "sample_grid.json")))
+    hti = gpd.read_file(HTI).to_crs(4326).reset_index(drop=True)
+    hid = features.rasterize([(gg, i + 1) for i, gg in enumerate(hti.geometry.make_valid())],
+                             out_shape=tuple(grid["shape"]), transform=rasterio.Affine(*grid["transform"]),
+                             dtype="int32")[r, c]
+    bands = dv.dc_bin.to_numpy()
+    uid = np.where(dv.zone == 3, dv.op.to_numpy(), np.where(dv.zone == 2, -hid, 0))
+    dom = pd.DataFrame({"u": uid, "b": bands})[uid != 0].groupby("u").b.agg(lambda x: int(np.bincount(x).argmax()))
     for rep in range(REPS):
-        tiles = {}                                            # side -> (tile id per control cell)
         for kind in ("oil palm", "pulpwood"):
-            sizes = P[P.kind == kind].cells.to_numpy()
+            g = P[P.kind == kind]
             rows = []
-            for side in np.unique(np.round(np.sqrt(sizes)).astype(int)):
-                if side not in tiles:
-                    oy, ox = rng.integers(0, side, 2)
-                    tid = ((r + oy) // side) * 100000 + (c + ox) // side
-                    t = pd.Series(np.where(ctl, tid, -1))
-                    cnt = t[t >= 0].value_counts()
-                    tiles[side] = (t.to_numpy(), cnt[cnt >= MIN_CELLS].index.to_numpy())
-                tid, eligible = tiles[side]
-                need = int((np.round(np.sqrt(sizes)).astype(int) == side).sum())
-                if len(eligible) == 0:
-                    continue
-                for k in rng.choice(eligible, size=need, replace=len(eligible) < need):
-                    m = tid == k
-                    q, p = unit(m)
-                    rows.append({"side": int(side), "cells": int(m.sum()), "ratio": float(q), "p": float(p),
-                                 "burned_km2": 0.04 * float(val[m].sum())})
+            for _, u in g.iterrows():
+                key = int(u.id) if kind == "oil palm" else -int(u.id)
+                band = int(dom[key]) if key in dom.index else None
+                pool = np.flatnonzero(cband == band) if band is not None else np.arange(len(cidx))
+                seed = pool[rng.integers(len(pool))]
+                n = int(u.cells)
+                dist, nb = tree.query(np.c_[r[cidx[seed]], c[cidx[seed]]], k=n)
+                m = np.zeros(len(dv), bool)
+                m[cidx[np.atleast_1d(nb).ravel()]] = True
+                q, p = unit(m)
+                rows.append({"cells": int(m.sum()), "ratio": float(q), "p": float(p), "band": band,
+                             "spread_km": 0.2 * float(np.atleast_1d(dist).ravel()[-1]),
+                             "burned_km2": 0.04 * float(val[m].sum())})
             T = pd.DataFrame(rows)
             T["q_bh"] = bh(T.p.to_numpy())
             exc = (T.q_bh <= Q_FDR) & (T.ratio > 1)
+            burning = T.burned_km2 > 0
             res = {"replicate": rep, "kind_sizes": kind, "units": int(len(T)), "excess": int(exc.sum()),
                    "excess_pct": 100 * float(exc.mean()),
                    "excess_share_pct": 100 * float(T.burned_km2[exc].sum() / T.burned_km2.sum()),
                    "deficit": int(((T.q_bh <= Q_FDR) & (T.ratio < 1)).sum()),
-                   "zero_burn_units": int((T.burned_km2 == 0).sum()),
-                   "median_cells": float(T.cells.median())}
+                   "zero_burn_units": int((~burning).sum()),
+                   "excess_pct_of_burning": 100 * float(exc.sum() / burning.sum()),
+                   "median_cells": float(T.cells.median()), "median_spread_km": float(T.spread_km.median())}
             out["replicates"].append(res)
-            print(f"  rep {rep} {kind:<9} sizes: {res['excess']}/{res['units']} pseudo-units excess "
-                  f"({res['excess_pct']:.1f}%), holding {res['excess_share_pct']:.0f}% of their burned area; "
-                  f"deficit {res['deficit']}, zero-burn {res['zero_burn_units']}", flush=True)
+            print(f"  rep {rep} {kind:<9}: {res['excess']}/{res['units']} patches excess ({res['excess_pct']:.1f}%), "
+                  f"holding {res['excess_share_pct']:.0f}%; zero-burn {res['zero_burn_units']}, "
+                  f"excess among burning {res['excess_pct_of_burning']:.1f}%, median cells {res['median_cells']:.0f}, "
+                  f"spread {res['median_spread_km']:.1f} km", flush=True)
     for kind, cc in out["concessions"].items():
         print(f"  concessions {kind}: {cc['excess_pct']:.1f}% excess holding {cc['excess_share_pct']:.0f}%")
     json.dump(out, open(RES, "w"), indent=1)
