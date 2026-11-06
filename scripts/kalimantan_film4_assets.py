@@ -93,7 +93,8 @@ def data():
     timing = {r["matched_on"]: r for r in dcs["timing"] if r["treated"] == "oil palm" and r["variable"] == "dc_first"}
     lp = J("landprep/landprep_tests.json")
     nat = {x["label"]: x for x in J("national.json")}
-    bench = J("concentration_benchmark.json")["replicates"]     # equally sized unpermitted tiles (round 2)
+    bench = J("concentration_benchmark.json")["replicates"]
+    calib = J("flag_calibration.json")["peat_interaction"]       # unpermitted patches, per replicate (round 4)     # equally sized unpermitted tiles (round 2)
     two = J("two_seasons.json")
     D = {
         "units_total": per["oil palm"]["units"] + per["pulpwood"]["units"],
@@ -124,6 +125,10 @@ def data():
                           "share_pct": [min(r["excess_share_pct"] for r in bench if r["kind_sizes"] == k),
                                         max(r["excess_share_pct"] for r in bench if r["kind_sizes"] == k)]}
                       for k in ("oil palm", "pulpwood")},
+        "peat_patches": {"with_peat": [min(v["patch_excess_pct_peat_vs_not"][0] for v in calib.values()),
+                                       max(v["patch_excess_pct_peat_vs_not"][0] for v in calib.values())],
+                         "without_peat": [min(v["patch_excess_pct_peat_vs_not"][1] for v in calib.values()),
+                                          max(v["patch_excess_pct_peat_vs_not"][1] for v in calib.values())]},
         "national": {"raw": nat["all land, raw"]["ratio"],
                      "same_drought_lt300": {"ratio": nat["peak DC 0-300"]["ratio"], "ci": nat["peak DC 0-300"]["ci"]},
                      "same_drought_300_400": {"ratio": nat["peak DC 300-400"]["ratio"], "ci": nat["peak DC 300-400"]["ci"]}},

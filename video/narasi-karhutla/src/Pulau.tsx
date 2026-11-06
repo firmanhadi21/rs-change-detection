@@ -84,9 +84,10 @@ const TEKS_ID = {
     "Gambut: BBSDLP (Kementan) dan Greifswald Global Peatland Map 2.0 · grup, status izin: Global Forest Watch · RSPO: GFW 2020",
   judulGambut: "Kebun sawit yang terbakar berlebih, menurut luas gambut di dalamnya",
   sumbuGambut: "bagian konsesi yang bergambut",
-  bukan: "Tidak membedakan:",
+  bukan: "Tidak terlihat bedanya:",
   bukanDaftar: ["grup perusahaan", "status izin", "sertifikat RSPO"],
   gambutKet: (pct: string) => `Tetapi hanya ${pct} kebun sawit yang terbakar berlebih punya gambut.`,
+  gambutPetak: (a: string, b: string) => `Lahan tanpa izin, petak seluas konsesi: ${a} berlebih bila bergambut, ${b} bila tidak. Soal gambut, bukan izin.`,
   sumberBersih:
     "Penanaman: Descals dkk. 2024 (tahun tanam sawit, sampai 2021) · bekas bakar 2015: MODIS MCD64A1 · pembersihan: Sentinel-2 NDVI Des–Mar vs Mei–Jul 2026",
   judulBersih: "Apakah api dipakai untuk membuka lahan?",
@@ -183,9 +184,10 @@ const TEKS_EN: Teks = {
     "Peat: BBSDLP (Ministry of Agriculture) and Greifswald Global Peatland Map 2.0 · group, permit status: Global Forest Watch · RSPO: GFW 2020",
   judulGambut: "Oil palm concessions burning in excess, by how much of them is peat",
   sumbuGambut: "share of the concession on peat",
-  bukan: "Makes no difference:",
+  bukan: "No clear difference:",
   bukanDaftar: ["company group", "permit status", "RSPO certificate"],
   gambutKet: (pct: string) => `But only ${pct} of the oil palm concessions burning in excess have any peat.`,
+  gambutPetak: (a: string, b: string) => `Unpermitted land, concession-sized patches: ${a} in excess with peat, ${b} without. About peat, not permits.`,
   sumberBersih:
     "Planting: Descals et al. 2024 (oil palm planting year, to 2021) · 2015 burns: MODIS MCD64A1 · clearing: Sentinel-2 NDVI Dec–Mar vs May–Jul 2026",
   judulBersih: "Was fire used to clear land?",
@@ -562,7 +564,13 @@ const Gambut: React.FC<{ panjang: number }> = ({ panjang }) => {
             </div>
             <div style={{ fontFamily: tubuhFont, fontSize: 22, color: warna.abu, marginTop: 10 }}>{T.sumbuGambut}</div>
             <div style={{ marginTop: 34 }}>
-              <Garis anak={T.gambutKet(`${koma(D.excess_with_peat_pct, 0)}%`)} tampil={masuk(f, Math.round(panjang * 0.72), 22)} lebar={900} />
+              <Garis anak={T.gambutPetak(
+                `${koma(D.peat_patches.with_peat[0], 0)}–${koma(D.peat_patches.with_peat[1], 0)}%`,
+                `${koma(D.peat_patches.without_peat[0], 0)}–${koma(D.peat_patches.without_peat[1], 0)}%`,
+              )} tampil={masuk(f, Math.round(panjang * 0.55), 22)} lebar={900} />
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <Garis anak={T.gambutKet(`${koma(D.excess_with_peat_pct, 0)}%`)} tampil={masuk(f, Math.round(panjang * 0.78), 22)} lebar={900} />
             </div>
           </div>
           <div style={{ opacity: c, marginBottom: 60 }}>
