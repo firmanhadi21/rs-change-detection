@@ -24,13 +24,13 @@
   "durasi": {
     "01-kilas": 13.52,
     "02-banding": 21.92,
-    "03-pulau": 24.72,
+    "03-pulau": 34.08,
     "04-sedikit": 36.32,
     "05-gambut": 31.52,
     "06-bersih": 30.16,
     "07-kering": 18.96,
     "08-batas": 24.4,
-    "09-tutup": 29.44
+    "09-tutup": 31.68
   },
   "musik": {
     "panjang_detik": 135.0,

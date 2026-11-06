@@ -100,6 +100,8 @@ def data():
         "units_total": per["oil palm"]["units"] + per["pulpwood"]["units"],
         "cells_millions": 13.3,
         "drought": {k: {"ratio": drought[k]["ratio"], "ci": drought[k]["ci"]} for k in ("oil palm", "pulpwood")},
+        "detection": {r["treated"]: {"ratio": r["ratio"], "ci": r["ci"]} for r in J("detection_adjust.json")["ratios"]
+                      if r["outcome"] == "detection-adjusted (cover x tenure x DC band)"},
         "matched": {k: {"ratio": m[(k, "+ distance to settlement")]["ratio"],
                         "ci": m[(k, "+ distance to settlement")]["ratio_ci95"],
                         "raw": m[(k, "raw")]["ratio"]} for k in ("oil palm", "pulpwood")},

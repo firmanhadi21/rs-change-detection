@@ -58,10 +58,12 @@ const TEKS_ID = {
   sumberPulau:
     "2026: Sentinel-2 dNBR, terbakar bila ≥ separuh petak dan ada titik panas VIIRS · 2015–2023: MODIS MCD64A1, kekeringan tidak disamakan · kekeringan: puncak Drought Code Jul–Okt 2026 (ERA5-Land) · pencocokan setara (CEM), selang 95% dari bootstrap blok 5 km",
   judulPulau: "Terbakar dibanding lahan serupa tanpa izin",
-  catatanPulau: "Baris abu-abu: kekeringan tidak disamakan",
+  catatanPulau: "Baris abu-abu: koreksi deteksi satelit (batas atas) dan perbandingan tanpa menyamakan kekeringan",
   baris: [
     ["Kebun sawit, 2026", "d", "oil palm"],
     ["Hutan tanaman industri, 2026", "d", "pulpwood"],
+    ["Kebun sawit, koreksi deteksi satelit", "a", "oil palm"],
+    ["Hutan tanaman industri, koreksi deteksi", "a", "pulpwood"],
     ["Kebun sawit, kekeringan tidak disamakan", "s", "oil palm"],
     ["Kebun sawit, 2015", "2015", "oil palm"],
     ["Kebun sawit, 2019", "2019", "oil palm"],
@@ -114,7 +116,7 @@ const TEKS_ID = {
   samaCuaca: "lebih banyak lahan terbakar di sisi Indonesia, di tempat yang cuacanya sama",
   tutup1: "Benarkah sawit membakar Kalimantan?",
   tutup2: "Tidak secara umum.",
-  tutupKet: "Dengan kekeringan yang sama, konsesi tidak terbakar lebih banyak. Api menumpuk di tempat tertentu, di dalam maupun di luar izin.",
+  tutupKet: "Dengan kekeringan yang sama, konsesi tidak terbakar lebih banyak, atau hanya sedikit lebih banyak. Api menumpuk di tempat tertentu, di dalam maupun di luar izin.",
   tutup3:
     "Segelintir konsesi terbakar jauh lebih luas, begitu pula segelintir lahan tanpa izin. Batas konsesi publik berasal dari 2012. Hasil ini belum melalui telaah sejawat.",
   sumberData: "Sumber data",
@@ -158,10 +160,12 @@ const TEKS_EN: Teks = {
   sumberPulau:
     "2026: Sentinel-2 dNBR, burned when ≥ half the cell and a VIIRS detection nearby · 2015–2023: MODIS MCD64A1, drought not matched · drought: peak Jul–Oct 2026 Drought Code (ERA5-Land) · coarsened exact matching, 95% intervals from a 5 km block bootstrap",
   judulPulau: "Burned, compared with similar land without a permit",
-  catatanPulau: "Grey rows: drought not matched",
+  catatanPulau: "Grey rows: satellite detection corrected (upper bound) and comparisons without matching drought",
   baris: [
     ["Oil palm, 2026", "d", "oil palm"],
     ["Pulpwood, 2026", "d", "pulpwood"],
+    ["Oil palm, satellite detection corrected", "a", "oil palm"],
+    ["Pulpwood, detection corrected", "a", "pulpwood"],
     ["Oil palm, drought not matched", "s", "oil palm"],
     ["Oil palm, 2015", "2015", "oil palm"],
     ["Oil palm, 2019", "2019", "oil palm"],
@@ -214,7 +218,7 @@ const TEKS_EN: Teks = {
   samaCuaca: "more land burned on the Indonesian side, where the weather was the same",
   tutup1: "Is oil palm really burning Kalimantan?",
   tutup2: "Not in general.",
-  tutupKet: "At the same drought, concessions did not burn more. Fire piles up in particular places, inside and outside permits.",
+  tutupKet: "At the same drought, concessions burned no more, or only slightly more. Fire piles up in particular places, inside and outside permits.",
   tutup3:
     "A few concessions burned far more, and so did a few patches of unpermitted land. Public concession boundaries date from 2012. These results have not yet been peer reviewed.",
   sumberData: "Data sources",
@@ -399,9 +403,10 @@ const Hutan: React.FC<{ tampil: number; f: number; mulai: number }> = ({ tampil,
   const lo = Math.log(0.4);
   const hi = Math.log(1.6);
   const x = (v: number) => L + ((Math.log(v) - lo) / (hi - lo)) * (W - L - R);
-  const tinggiBaris = 74;
+  const tinggiBaris = 56;
   const nilai = (kode: string, jenis: "oil palm" | "pulpwood") => {
     if (kode === "d") return D.drought[jenis];
+    if (kode === "a") return D.detection[jenis];
     if (kode === "s") return D.matched[jenis];
     if (kode === "g") return D.gpm[jenis];
     return D.seasons[kode as "2015" | "2019" | "2023"][jenis];
