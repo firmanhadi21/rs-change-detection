@@ -98,7 +98,7 @@ export const RemotionRoot: React.FC = () => (
       width={JADWAL_RADAR.en.LEBAR}
       height={JADWAL_RADAR.en.TINGGI}
     />
-    {/* Sixth piece: Part 4 -- "Benarkah Sawit Membakar Kalimantan?", the
+    {/* Sixth piece: a standalone film -- "Benarkah Sawit Membakar Kalimantan?", the
         Kalimantan-wide results. */}
     <Composition
       id="Pulau"

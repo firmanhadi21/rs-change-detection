@@ -1,15 +1,21 @@
 /**
- * "Benarkah Sawit Membakar Kalimantan?" — Part 4 of the concessions film.
+ * "Benarkah Sawit Membakar Kalimantan?" — a standalone film, separate from the Ketapang concessions series.
  *
- * Parts 1–3 followed four Ketapang concessions that burned worse than the
- * land around them. Part 4 tests the question across Kalimantan:
+ * It opens on four Ketapang concessions that burned worse than the land around
+ * them, then tests the question across Kalimantan:
  *
- *   compare        1,095 concessions vs similar unpermitted land, 200 m cells
- *   island-wide    oil palm x0.85, wood fibre x0.94; same in 2015/2019/2023
- *   the few        54 of 908 oil-palm units: 6% of units, 46% of burned area
- *   peat           excess follows peat share, not group / permit / RSPO
- *   clearing       no evidence: 2015 burns planted no more than unburned land
- *   timing         concession land starts burning at milder drought
+ *   compare        1,095 concessions vs similar unpermitted land, 200 m cells,
+ *                  matched also on the season-peak Drought Code band
+ *   island-wide    at the same drought, oil palm x0.96, pulpwood x0.99 (x0.85
+ *                  for oil palm when drought is not matched)
+ *   the few        51 of 908 oil-palm units: 6% of units, 40% of burned area;
+ *                  unpermitted patches of the same size and drought are
+ *                  comparably concentrated (4.4-9.0% holding 33-55%)
+ *   peat           raises the odds, but only 41% of excess units have peat;
+ *                  not group / permit / RSPO
+ *   clearing       no evidence in oil palm; burned pulpwood land later
+ *                  converted to oil palm more often
+ *   timing         no clear earlier start once drought is matched
  *   two seasons    the drought came from the south; where weather matched,
  *                  Indonesian land still burned ~4x more than Malaysian
  *
@@ -35,9 +41,9 @@ const TEKS_ID = {
   labelSumber: "Sumber",
   petaKemarau: "peta_kemarau.jpg",
   juta: "juta",
-  kiri: "Karhutla Kalimantan · Bagian 4",
+  kiri: "Karhutla Kalimantan",
   waktu: "November 2026",
-  alisJudul: "Di dalam konsesi · Bagian 4",
+  alisJudul: "Analisis seluruh pulau",
   judul: ["BENARKAH SAWIT", "MEMBAKAR", "KALIMANTAN?"],
   subJudul: "Lebih dari seribu konsesi di seluruh Kalimantan, dibandingkan dengan lahan serupa tanpa izin, musim kebakaran 2026.",
   kilas1: "Empat konsesi di Ketapang terbakar lebih parah.",
@@ -134,9 +140,9 @@ const TEKS_EN: Teks = {
   labelSumber: "Source",
   petaKemarau: "peta_kemarau_en.jpg",
   juta: "million",
-  kiri: "Kalimantan fires · Part 4",
+  kiri: "Kalimantan fires",
   waktu: "November 2026",
-  alisJudul: "Inside the concessions · Part 4",
+  alisJudul: "An island-wide analysis",
   judul: ["IS OIL PALM", "REALLY BURNING", "KALIMANTAN?"],
   subJudul: "More than a thousand concessions across Kalimantan, compared with similar land without a permit, 2026 fire season.",
   kilas1: "Four concessions in Ketapang burned worse.",

@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Bian's words for the English edition of Part 4, 'Is Oil Palm Really Burning",
+    "Bian's words for the English edition of the standalone film 'Is Oil Palm Really Burning",
     "Kalimantan?', one entry per segment of jadwalPulauEN.json's urutan, the same",
     "scene ids as the Indonesian. tts_konsesi.py --film pulau --bahasa en generates",
     "each clip from here; the mp3s are gitignored.",
@@ -11,7 +11,7 @@
   "model": "eleven_v4",
   "suara": "1k39YpzqXZn52BgyLyGO",
   "teks": {
-    "01-kilas": "Is oil palm really burning Kalimantan? In the three earlier parts, four concessions on the Ketapang coast burned worse than the land around them. This time we test it across the whole island.",
+    "01-kilas": "Is oil palm really burning Kalimantan? On the Ketapang coast, four concessions burned worse than the land around them this fire season. Is that true across the whole island? We put it to the test.",
     "02-banding": "We compared more than a thousand concessions, oil palm and pulpwood plantations, with similar land that has no permit: the same peat depth, the same land cover, the same fire history, the same distance to rivers and settlements, and the same severity of drought. In all, thirteen million cells, each two hundred metres across.",
     "03-pulau": "The answer is surprising. At the same drought, concessions across Kalimantan did not burn more than similar land without a permit, whether oil palm or pulpwood. If drought is not matched, oil palm even seems to burn less. Part of that gap appears because many oil palm concessions lie where the dry season was milder.",
     "04-sedikit": "But fire is uneven. Of nine hundred and eight oil palm concessions, fifty-one burned far more than similar land. Only six percent, yet they account for two fifths of all the burned area in oil palm concessions. Among pulpwood plantations, fourteen concessions account for about half. All four Ketapang concessions are among them. Yet this is not peculiar to concessions. Patches of land without a permit, with the same size and drought, show a similar pattern: a handful of patches hold a third to more than half of the burned area.",

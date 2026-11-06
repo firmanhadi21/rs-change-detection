@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Schedule for the English edition of Part 4. durasi is written by",
+    "Schedule for the English edition of 'Is Oil Palm Really Burning Kalimantan?'. durasi is written by",
     "tts_konsesi.py --film pulau --bahasa en from ffprobe of the normalised mp3s;",
     "bake_musik_bukti.py --jadwal src/jadwalPulauEN.json reads it too."
   ],
@@ -22,7 +22,7 @@
     "09-tutup"
   ],
   "durasi": {
-    "01-kilas": 12.0,
+    "01-kilas": 12.16,
     "02-banding": 21.04,
     "03-pulau": 20.88,
     "04-sedikit": 34.24,

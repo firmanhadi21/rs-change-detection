@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Schedule for Part 4 of the concessions film. durasi is written by",
+    "Schedule for the standalone film 'Benarkah Sawit Membakar Kalimantan?'. durasi is written by",
     "tts_konsesi.py --film pulau from ffprobe of the normalised mp3s;",
     "bake_musik_bukti.py --jadwal src/jadwalPulau.json reads it too."
   ],
@@ -22,7 +22,7 @@
     "09-tutup"
   ],
   "durasi": {
-    "01-kilas": 12.88,
+    "01-kilas": 13.52,
     "02-banding": 21.92,
     "03-pulau": 24.72,
     "04-sedikit": 36.32,

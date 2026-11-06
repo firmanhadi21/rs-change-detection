@@ -1,7 +1,7 @@
 {
   "_comment": [
-    "Bian's words for Part 4 of the concessions film, 'Benarkah Sawit Membakar Kalimantan?',",
-    "one entry per segment of jadwalPulau.json's urutan. tts_konsesi.py",
+    "Bian's words for the standalone film 'Benarkah Sawit Membakar Kalimantan?' (not part of the",
+    "Ketapang concessions series), one entry per segment of jadwalPulau.json's urutan. tts_konsesi.py",
     "--film pulau generates each clip from here; the mp3s are gitignored.",
     "",
     "Revised 2026-11-06 (paper review round 1): the primary specification now also matches",
@@ -26,7 +26,7 @@
   "model": "eleven_v4",
   "suara": "1k39YpzqXZn52BgyLyGO",
   "teks": {
-    "01-kilas": "Benarkah sawit membakar Kalimantan? Di tiga bagian sebelumnya, empat konsesi di pesisir Ketapang terbakar lebih parah daripada lahan di sekitarnya. Kali ini kita uji di seluruh pulau.",
+    "01-kilas": "Benarkah sawit membakar Kalimantan? Di pesisir Ketapang, empat konsesi terbakar lebih parah daripada lahan di sekitarnya pada musim kebakaran ini. Apakah itu terjadi di seluruh pulau? Kami mengujinya.",
     "02-banding": "Kami membandingkan lebih dari seribu konsesi, kebun sawit dan hutan tanaman industri, dengan lahan tanpa izin yang serupa: gambut yang sama dalamnya, tutupan lahan yang sama, riwayat kebakaran yang sama, jarak yang sama ke sungai dan permukiman, dan kekeringan yang sama parahnya. Totalnya tiga belas juta petak berukuran dua ratus meter.",
     "03-pulau": "Jawabannya mengejutkan. Dengan kekeringan yang sama, konsesi di seluruh Kalimantan tidak terbakar lebih banyak daripada lahan serupa tanpa izin, baik kebun sawit maupun hutan tanaman industri. Kalau kekeringan tidak disamakan, kebun sawit bahkan tampak terbakar lebih sedikit. Sebagian dari selisih itu muncul karena banyak kebun sawit berada di tempat yang kemaraunya lebih ringan.",
     "04-sedikit": "Tetapi api tidak merata. Dari sembilan ratus delapan kebun sawit, lima puluh satu terbakar jauh lebih luas daripada lahan serupa. Hanya enam persen, tetapi mereka menyumbang dua perlima luas bekas bakar di semua kebun sawit. Di hutan tanaman industri, empat belas konsesi menyumbang sekitar separuh. Keempat konsesi Ketapang termasuk di dalamnya. Namun ini bukan kekhasan konsesi. Petak lahan tanpa izin dengan luas dan kekeringan yang sama menunjukkan pola serupa: segelintir petak menyumbang sepertiga sampai lebih dari separuh luas bekas bakar.",
