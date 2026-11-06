@@ -1,6 +1,8 @@
 """Fig02: robustness of the matched concession effect (oil palm, pulpwood), log ratio axis.
 
-Rows (all vs comparable unpermitted land, 95% block-bootstrap CI):
+Since review round 2 the upper block is matched on all strata + the season-peak Drought Code band
+(dc_stratum.json, dc_robustness.json); the lower block keeps checks matched on land strata only.
+Earlier row list (land strata, kept for reference):
   main (S2 burned >= half cell, all strata)            matched.json
   outcomes: S2 >= quarter cell, VIIRS presence, counts  concession_checks.json
   peat map: Greifswald GPM 2.0                         robustness.json R2
@@ -21,29 +23,29 @@ from _style import CTL, INK, KIND_COL, W_DOUBLE, panel, run, save, setup  # noqa
 
 
 def rows(kind):
-    m = next(r for r in run("matched.json") if r["test"] == "burn" and r["treated"] == kind
-             and r["matched_on"] == "+ distance to settlement")
+    """Drought-matched block first (dc_robustness.json, review round 2), then land-strata-only checks
+    that have no drought-matched counterpart (earlier seasons, early 2026 MODIS, GFW v2025)."""
+    D = {(r["check"], r["variant"]): r for r in run("dc_robustness.json") if r["treated"] == kind}
     dc = next(r for r in run("dc_stratum.json")["burned_share"] if r["treated"] == kind
               and r["matched_on"] == "all strata + peak-DC band")
-    out = [("Primary: + same peak-drought band", dc["ratio"], dc["ci"], "main"),
-           ("Land strata only (S2 burned ≥ ½ cell)", m["ratio"], m["ratio_ci95"], "outcome")]
-    oc = {(r["outcome"], r["treated"]): r for r in run("concession_checks.json")["outcomes"]
-          if r["matched_on"] == "+ distance to settlement"}
-    for key, lab in (("burned25", "S2 burned ≥ ¼ cell"), ("viirs_cell", "VIIRS fire within ~300 m"),
-                     ("viirs_count", "VIIRS detections per cell")):
-        r = oc[(key, kind)]
-        out.append((lab, r["ratio"], r["ci95"], "outcome"))
+    out = [("Primary: all strata + same drought", dc["ratio"], dc["ci"], "main")]
+    for key, lab in ((("outcome", "S2 burned >= 1/4 of the cell"), "S2 burned ≥ ¼ cell"),
+                     (("outcome", "any VIIRS fire within ~300 m, Jun-Oct"), "VIIRS fire within ~300 m"),
+                     (("outcome", "VIIRS detections per cell, Jun-Oct"), "VIIRS detections per cell"),
+                     (("peat map", "Greifswald GPM 2.0 peat + depth bins"), "Greifswald peat map"),
+                     (("interior", "controls >= 5 km out, treated >= 5 km in"), "Away from edges (5 km, both sides)"),
+                     (("leave-out", "without distance to settlement"), "Without distance to settlement"),
+                     (("leave-out", "without land cover"), "Without land cover"),
+                     (("leave-out", "without burn history"), "Without burn history")):
+        out.append((lab, *_rc(D[key]), "dc"))
+    m = next(r for r in run("matched.json") if r["test"] == "burn" and r["treated"] == kind
+             and r["matched_on"] == "+ distance to settlement")
+    out.append(("Land strata only, 2026 S2", m["ratio"], m["ratio_ci95"], "land"))
     R = {(r.get("check"), r.get("variant"), r.get("treated")): r for r in run("robustness.json") if "ratio" in r}
-    out.append(("Greifswald peat map", *_rc(R[("R2", "GPM peat + depth bins", kind)]), "peat"))
-    out.append(("Away from edges (5 km, both sides)", *_rc(R[("R1", "+ treated >= 5 km inside edge", kind)]), "edge"))
-    loo = {r["dropped"]: r for r in run("balance_sensitivity.json")["leave_one_out"][kind]}
-    out.append(("Without distance to settlement", loo["distance to settlement"]["ratio"], loo["distance to settlement"]["ci"], "cov"))
-    out.append(("Without land cover", loo["land cover"]["ratio"], loo["land cover"]["ci"], "cov"))
-    out.append(("Without burn history", loo["burn history"]["ratio"], loo["burn history"]["ci"], "cov"))
-    out.append(("Boundaries: GFW v2025", *_rc(R[("R4", "GFW v2025 oil palm", kind)]), "bound"))
     for y in ("2015", "2019", "2023"):
-        out.append((f"Season {y} (MODIS MCD64A1)", *_rc(R[("R3", f"{y} MCD64", kind)]), "season"))
-    out.append(("2026 MODIS, Jan–Aug only", *_rc(R[("R3", "2026 MCD64", kind)]), "season"))
+        out.append((f"Season {y} (MODIS MCD64A1)", *_rc(R[("R3", f"{y} MCD64", kind)]), "land"))
+    out.append(("2026 MODIS, Jan–Aug only", *_rc(R[("R3", "2026 MCD64", kind)]), "land"))
+    out.append(("Boundaries: GFW v2025", *_rc(R[("R4", "GFW v2025 oil palm", kind)]), "land"))
     return out
 
 
@@ -53,17 +55,19 @@ def _rc(r):
 
 def main():
     setup()
-    fig, axes = plt.subplots(1, 2, figsize=(W_DOUBLE, 4.3), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(W_DOUBLE, 4.6), sharey=True)
     for ax, (kind, col), letter in zip(axes, KIND_COL.items(), "ab"):
         R = rows(kind)
         y = np.arange(len(R))[::-1]
         for yi, (lab, r, ci, grp) in zip(y, R):
-            main_ = grp == "main"
-            ax.plot(ci, [yi, yi], color=col, lw=2.2 if main_ else 1.3, solid_capstyle="butt")
-            ax.plot([r], [yi], "D" if main_ else "o", color=col if main_ else "white", mec=col, ms=5 if main_ else 4, mew=1.2)
+            main_, land = grp == "main", grp == "land"
+            ax.plot(ci, [yi, yi], color=col, lw=2.2 if main_ else 1.3, solid_capstyle="butt", alpha=0.55 if land else 1)
+            ax.plot([r], [yi], "D" if main_ else "o", color="white" if land else col, mec=col, ms=5 if main_ else 4, mew=1.2)
             ax.text(2.25, yi, f"{r:.2f} [{ci[0]:.2f}, {ci[1]:.2f}]", va="center", fontsize=6.5, color=INK)
-        for yb in (len(R) - 1.5, len(R) - 5.5, len(R) - 10.5, len(R) - 11.5):
-            ax.axhline(yb, color="#E5E5E5", lw=0.6)
+        nd = sum(1 for g in R if g[3] != "land")
+        ax.axhline(len(R) - 1.5, color="#E5E5E5", lw=0.6)
+        ax.axhline(len(R) - nd - 0.5, color="#9A9A9A", lw=0.8)
+        ax.text(0.31, len(R) - nd - 0.42, "below: land strata only (no 2026 drought band)", fontsize=6, color=CTL, va="bottom")
         ax.axvline(1, color=CTL, ls="--", lw=0.8)
         ax.set_xscale("log")
         ax.set_xlim(0.3, 2.2)

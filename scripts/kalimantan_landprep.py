@@ -41,6 +41,8 @@ FATE_BANDS = ["b2015", "b2019", "pre2015", "new2015", "pre2019", "new2019"]
 CLEAR_BANDS = ["clr", "okc"]
 LINEAGE = os.path.join(os.path.dirname(OUT), "kalimantan_lineage", "lineage.parquet")
 UNITS = os.path.join(OUT, "heterogeneity_units.csv")
+UNITS_DC = os.path.join(OUT, "per_concession_matched_dc.csv")
+DCS = "--dc-stratum" in sys.argv   # review round 2: drought-matched classes; T2 strata + peak-DC band
 RES = os.path.join(OUT, "landprep")
 GREEN, OPEN, DROP = 0.60, 0.45, 0.20
 EARLY, LATE = ("2025-12-01", "2026-04-01"), ("2026-05-15", "2026-07-11")
@@ -177,7 +179,10 @@ def t1_fate(df, out):
                   f"[{r['ci'][0]:.2f}, {r['ci'][1]:.2f}]   {r['burned_km2']:9,.0f}")
     # per oil-palm concession: 2015-burned share planted, excess units vs the rest
     if os.path.exists(UNITS):
-        U = pd.read_csv(UNITS)
+        if DCS:
+            U = pd.read_csv(UNITS_DC).assign(excess=lambda d: d.class_fdr.eq("excess"))
+        else:
+            U = pd.read_csv(UNITS)
         U = U[U.kind == "oil palm"][["id", "excess"]]
         el = (F["pre2015"] < NONPALM_MAX) & (F["b2015"] > 0) & (df.zone.to_numpy() == 3)
         s = pd.DataFrame({"id": df.op.to_numpy()[el], "new": F["new2015"][el] / 100.0})
@@ -223,7 +228,8 @@ def t2_clearing(df, out):
     for z in (3, 2):
         m = d.zone.isin([z, 1]).to_numpy()
         dd = d[m]
-        pt, pc, cov, bs = matched(dd, (dd.zone == z).to_numpy(), SEQ[-1], dd.cleared.to_numpy(), w, bidx)
+        keys = SEQ[-1] + (["dc_bin"] if DCS else [])
+        pt, pc, cov, bs = matched(dd, (dd.zone == z).to_numpy(), keys, dd.cleared.to_numpy(), w, bidx)
         res = ratio_ci(pt, pc, bs)
         res["coverage"] = float(cov)
         out["T2"][ZONES[z]] = res
@@ -271,8 +277,12 @@ def stage_tests():
     import pandas as pd
     os.makedirs(RES, exist_ok=True)
     df = pd.read_parquet(os.path.join(DATA, "sample_200m.parquet"))
-    out = {}
-    t3_ignitions(df, out)
+    out = {"strata_note": "T2 adds the peak-DC band; T1 per-unit uses drought-matched classes" if DCS else None}
+    if DCS:
+        from kalimantan_dc_stratum import peak_dc_bin
+        df["dc_bin"] = peak_dc_bin(df)
+    else:
+        t3_ignitions(df, out)                 # unchanged by the drought stratum
     if os.path.exists(FATE):
         t1_fate(df, out)
     else:
@@ -281,11 +291,13 @@ def stage_tests():
         t2_clearing(df, out)
     else:
         print(f"(T2 skipped: run --stage clear first; {CLEAR} missing)")
-    json.dump(out, open(os.path.join(RES, "landprep_tests.json"), "w"), indent=1, default=float)
-    print(f"\nSaved: {RES}/landprep_tests.json")
+    name = "landprep_tests_dc.json" if DCS else "landprep_tests.json"
+    json.dump(out, open(os.path.join(RES, name), "w"), indent=1, default=float)
+    print(f"\nSaved: {RES}/{name}")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", choices=["fate", "clear", "tests"], required=True)
+    ap.add_argument("--dc-stratum", action="store_true")
     {"fate": stage_fate, "clear": stage_clear, "tests": stage_tests}[ap.parse_args().stage]()

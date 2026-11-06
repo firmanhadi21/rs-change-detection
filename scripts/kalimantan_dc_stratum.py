@@ -20,6 +20,23 @@ from kalimantan_border_weather import DC_BANDS, DC_NPY  # noqa: E402
 RES = os.path.join(OUT, "dc_stratum.json")
 
 
+def peak_dc_bin(df):
+    """Season-peak (Jul-Oct 2026) Drought Code band of each sample cell (df needs r, c): the stratum
+    the drought-matched specification adds to SEQ[-1]. Reused by the review-round-2 reruns."""
+    import numpy as np
+    import pandas as pd
+    grid = json.load(open(os.path.join(DATA, "sample_grid.json")))
+    z = np.load(DC_NPY, allow_pickle=True)
+    dc, dates = z["dc"], pd.to_datetime(z["dates"])
+    x0, yt, st = z["grid"]
+    peak = dc[(dates >= "2026-07-01") & (dates < "2026-11-01")].max(axis=0)
+    lon = grid["transform"][2] + (df.c.to_numpy() + 0.5) * STEP
+    lat = grid["transform"][5] - (df.r.to_numpy() + 0.5) * STEP
+    ey = np.clip(((yt - lat) / st).astype(int), 0, peak.shape[0] - 1)
+    ex = np.clip(((lon - x0) / st).astype(int), 0, peak.shape[1] - 1)
+    return np.digitize(peak[ey, ex], DC_BANDS[1:-1]).astype(np.uint8)
+
+
 def main():
     import numpy as np
     import pandas as pd

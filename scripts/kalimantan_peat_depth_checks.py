@@ -112,7 +112,13 @@ def stage_features():
 def stage_model():
     import numpy as np
     import pandas as pd
-    D = pd.read_csv(UNITS).merge(pd.read_csv(FEAT).rename(columns={"peat_share": "peat_share_chk"}),
+    D = pd.read_csv(UNITS)
+    DCS = "--dc-stratum" in sys.argv     # review round 2: refit on the drought-matched classes
+    if DCS:
+        B = pd.read_csv(os.path.join(OUT, "per_concession_matched_dc.csv"))[["kind", "id", "class_fdr", "ratio", "ci_lo", "ci_hi"]]
+        D = D.drop(columns=["excess", "ratio", "ci_lo", "ci_hi", "class_fdr"], errors="ignore").merge(B, on=["kind", "id"]) \
+             .assign(excess=lambda d: d.class_fdr.eq("excess")).drop(columns=["class_fdr"])
+    D = D.merge(pd.read_csv(FEAT).rename(columns={"peat_share": "peat_share_chk"}),
                                  on=["kind", "id"], how="left")
     z = lambda x: (x - x.mean()) / x.std()      # noqa: E731
     out = {}
@@ -157,11 +163,13 @@ def stage_model():
                 print(f"    {t:<48}{ls:>33}  {w['x']:5.2f} [{w['lo']:4.2f}, {w['hi']:4.2f}]{w['p']:7.3f}")
         print("  per-SD scaling:", {c: round(float(K[c].std()), 3) for c in
                                     ("depth_m", "depth_on_peat_cm", "edge_on_peat_km")})
-    json.dump(out, open(os.path.join(OUT, "peat_depth_checks.json"), "w"), indent=1, default=float)
-    print(f"\nSaved: {OUT}/peat_depth_checks.json")
+    name = "peat_depth_checks_dc.json" if DCS else "peat_depth_checks.json"
+    json.dump(out, open(os.path.join(OUT, name), "w"), indent=1, default=float)
+    print(f"\nSaved: {OUT}/{name}")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", choices=["features", "model"], required=True)
+    ap.add_argument("--dc-stratum", action="store_true")
     {"features": stage_features, "model": stage_model}[ap.parse_args().stage]()
