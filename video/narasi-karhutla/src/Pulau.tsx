@@ -73,6 +73,7 @@ const TEKS_ID = {
   luas: "bagian dari luas bekas bakar di kebun sawit",
   hti: (n: number, dari: number, pct: string) => `Hutan tanaman industri: ${n} dari ${dari} konsesi, ${pct} luas bekas bakarnya.`,
   empat: "Keempat konsesi Ketapang termasuk di dalamnya.",
+  pembanding: (a: string, b: string) => `Petak lahan tanpa izin seluas konsesi: ${a} berlebih, menyumbang ${b} luas bekas bakar. Bukan kekhasan konsesi.`,
   sumberGambut:
     "Gambut: BBSDLP (Kementan) dan Greifswald Global Peatland Map 2.0 · grup, status izin: Global Forest Watch · RSPO: GFW 2020",
   judulGambut: "Kebun sawit yang terbakar berlebih, menurut luas gambut di dalamnya",
@@ -106,9 +107,9 @@ const TEKS_ID = {
   samaCuaca: "lebih banyak lahan terbakar di sisi Indonesia, di tempat yang cuacanya sama",
   tutup1: "Benarkah sawit membakar Kalimantan?",
   tutup2: "Tidak secara umum.",
-  tutupKet: "Dengan kekeringan yang sama, konsesi tidak terbakar lebih banyak. Masalahnya sekelompok kecil konsesi.",
+  tutupKet: "Dengan kekeringan yang sama, konsesi tidak terbakar lebih banyak. Api menumpuk di tempat tertentu, di dalam maupun di luar izin.",
   tutup3:
-    "Gambut menaikkan peluangnya, tetapi sebagian besar konsesi itu tidak bergambut; penyebabnya belum terukur. Batas konsesi publik berasal dari 2012. Hasil ini belum melalui telaah sejawat.",
+    "Segelintir konsesi terbakar jauh lebih luas, begitu pula segelintir lahan tanpa izin. Batas konsesi publik berasal dari 2012. Hasil ini belum melalui telaah sejawat.",
   sumberData: "Sumber data",
   barisSumber: [
     ["Bekas bakar", "Sentinel-2 L2A dNBR 2026 (Copernicus); MODIS MCD64A1 2015–2026 (NASA)"],
@@ -171,6 +172,7 @@ const TEKS_EN: Teks = {
   luas: "share of oil palm burned area",
   hti: (n: number, dari: number, pct: string) => `Pulpwood: ${n} of ${dari} concessions, ${pct} of their burned area.`,
   empat: "All four Ketapang concessions are among them.",
+  pembanding: (a: string, b: string) => `Patches of unpermitted land, concession-sized: ${a} in excess, holding ${b} of their burned area. Not peculiar to concessions.`,
   sumberGambut:
     "Peat: BBSDLP (Ministry of Agriculture) and Greifswald Global Peatland Map 2.0 · group, permit status: Global Forest Watch · RSPO: GFW 2020",
   judulGambut: "Oil palm concessions burning in excess, by how much of them is peat",
@@ -204,9 +206,9 @@ const TEKS_EN: Teks = {
   samaCuaca: "more land burned on the Indonesian side, where the weather was the same",
   tutup1: "Is oil palm really burning Kalimantan?",
   tutup2: "Not in general.",
-  tutupKet: "At the same drought, concessions did not burn more. The problem is a small group of them.",
+  tutupKet: "At the same drought, concessions did not burn more. Fire piles up in particular places, inside and outside permits.",
   tutup3:
-    "Peat raises the odds, but most of those concessions have no peat; the cause has not been measured. Public concession boundaries date from 2012. These results have not yet been peer reviewed.",
+    "A few concessions burned far more, and so did a few patches of unpermitted land. Public concession boundaries date from 2012. These results have not yet been peer reviewed.",
   sumberData: "Data sources",
   barisSumber: [
     ["Burned area", "Sentinel-2 L2A dNBR 2026 (Copernicus); MODIS MCD64A1 2015–2026 (NASA)"],
@@ -479,8 +481,9 @@ const Sedikit: React.FC<{ panjang: number }> = ({ panjang }) => {
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
   const b = masuk(f, Math.round(panjang * 0.3), 30);
-  const c = masuk(f, Math.round(panjang * 0.62), 22);
-  const d = masuk(f, Math.round(panjang * 0.82), 22);
+  const c = masuk(f, Math.round(panjang * 0.45), 22);
+  const d = masuk(f, Math.round(panjang * 0.55), 22);
+  const e = masuk(f, Math.round(panjang * 0.66), 22);
   const P = D.per_concession;
   return (
     <Lembut panjang={panjang}>
@@ -502,6 +505,15 @@ const Sedikit: React.FC<{ panjang: number }> = ({ panjang }) => {
             />
           </div>
           <div style={{ fontFamily: tubuhFont, fontSize: 25, color: warna.nyala, marginTop: 22, opacity: d }}>{T.empat}</div>
+          <div style={{ marginTop: 26 }}>
+            <Garis
+              anak={T.pembanding(
+                `${koma(D.benchmark["oil palm"].excess_pct[0], 1)}–${koma(D.benchmark["oil palm"].excess_pct[1], 1)}%`,
+                `${koma(D.benchmark["oil palm"].share_pct[0], 0)}–${koma(D.benchmark["oil palm"].share_pct[1], 0)}%`,
+              )}
+              tampil={e}
+            />
+          </div>
         </div>
       </Kolom>
     </Lembut>

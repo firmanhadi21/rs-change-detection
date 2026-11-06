@@ -93,6 +93,7 @@ def data():
     timing = {r["matched_on"]: r for r in dcs["timing"] if r["treated"] == "oil palm" and r["variable"] == "dc_first"}
     lp = J("landprep/landprep_tests.json")
     nat = {x["label"]: x for x in J("national.json")}
+    bench = J("concentration_benchmark.json")["replicates"]     # equally sized unpermitted tiles (round 2)
     two = J("two_seasons.json")
     D = {
         "units_total": per["oil palm"]["units"] + per["pulpwood"]["units"],
@@ -118,6 +119,11 @@ def data():
         "timing": {"land": {"gap": timing["all strata"]["gap"], "ci": timing["all strata"]["ci"]},
                    "drought": {"gap": timing["all strata + peak-DC band"]["gap"],
                                "ci": timing["all strata + peak-DC band"]["ci"]}},
+        "benchmark": {k: {"excess_pct": [min(r["excess_pct"] for r in bench if r["kind_sizes"] == k),
+                                         max(r["excess_pct"] for r in bench if r["kind_sizes"] == k)],
+                          "share_pct": [min(r["excess_share_pct"] for r in bench if r["kind_sizes"] == k),
+                                        max(r["excess_share_pct"] for r in bench if r["kind_sizes"] == k)]}
+                      for k in ("oil palm", "pulpwood")},
         "national": {"raw": nat["all land, raw"]["ratio"],
                      "same_drought_lt300": {"ratio": nat["peak DC 0-300"]["ratio"], "ci": nat["peak DC 0-300"]["ci"]},
                      "same_drought_300_400": {"ratio": nat["peak DC 300-400"]["ratio"], "ci": nat["peak DC 300-400"]["ci"]}},
