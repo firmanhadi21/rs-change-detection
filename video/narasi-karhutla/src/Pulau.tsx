@@ -66,14 +66,14 @@ const TEKS_ID = {
   lebihBanyak: "lebih banyak →",
   sama: "sama",
   sumberSedikit:
-    "Rasio tiap konsesi dengan lahan serupa; berlebih = selang 95% di atas 1 setelah koreksi uji berganda (Benjamini–Hochberg, q ≤ 0,05)",
+    "Rasio tiap konsesi dengan lahan serupa; berlebih = rasio di atas 1 dengan p terkoreksi uji berganda ≤ 0,05 (Benjamini–Hochberg); pembanding: petak lahan tanpa izin dengan luas dan kekeringan sama",
   alisSedikit: "Terbakar berlebih",
   dariSawit: `dari ${D.per_concession["oil palm"].units} kebun sawit`,
   jumlah: "bagian dari jumlah konsesi",
   luas: "bagian dari luas bekas bakar di kebun sawit",
   hti: (n: number, dari: number, pct: string) => `Hutan tanaman industri: ${n} dari ${dari} konsesi, ${pct} luas bekas bakarnya.`,
   empat: "Keempat konsesi Ketapang termasuk di dalamnya.",
-  pembanding: (a: string, b: string) => `Petak lahan tanpa izin seluas konsesi: ${a} berlebih, menyumbang ${b} luas bekas bakar. Bukan kekhasan konsesi.`,
+  pembanding: (a: string, b: string) => `Petak lahan tanpa izin, luas dan kekeringan sama: ${a} berlebih, menyumbang ${b} luas bekas bakar. Konsentrasi yang sebanding.`,
   sumberGambut:
     "Gambut: BBSDLP (Kementan) dan Greifswald Global Peatland Map 2.0 · grup, status izin: Global Forest Watch · RSPO: GFW 2020",
   judulGambut: "Kebun sawit yang terbakar berlebih, menurut luas gambut di dalamnya",
@@ -165,14 +165,14 @@ const TEKS_EN: Teks = {
   lebihBanyak: "more →",
   sama: "same",
   sumberSedikit:
-    "Each concession against similar land; excess = 95% interval above 1 after multiple-testing correction (Benjamini–Hochberg, q ≤ 0.05)",
+    "Each concession against similar land; excess = ratio above 1 with multiple-testing-adjusted p ≤ 0.05 (Benjamini–Hochberg); benchmark: unpermitted patches of the same size and drought",
   alisSedikit: "Burned in excess",
   dariSawit: `of ${P_["oil palm"].units} oil palm concessions`,
   jumlah: "share of the concessions",
   luas: "share of oil palm burned area",
   hti: (n: number, dari: number, pct: string) => `Pulpwood: ${n} of ${dari} concessions, ${pct} of their burned area.`,
   empat: "All four Ketapang concessions are among them.",
-  pembanding: (a: string, b: string) => `Patches of unpermitted land, concession-sized: ${a} in excess, holding ${b} of their burned area. Not peculiar to concessions.`,
+  pembanding: (a: string, b: string) => `Patches of unpermitted land, same size and drought: ${a} in excess, holding ${b} of their burned area. Comparably concentrated.`,
   sumberGambut:
     "Peat: BBSDLP (Ministry of Agriculture) and Greifswald Global Peatland Map 2.0 · group, permit status: Global Forest Watch · RSPO: GFW 2020",
   judulGambut: "Oil palm concessions burning in excess, by how much of them is peat",
