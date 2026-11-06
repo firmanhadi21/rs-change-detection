@@ -39,6 +39,7 @@ def main():
     fig, (axa, axb) = plt.subplots(1, 2, figsize=(W_DOUBLE, 3.6), gridspec_kw={"width_ratios": [1, 1.1]})
 
     x = np.arange(len(BINS))
+    tops = []
     for j, (col, lab, hatch) in enumerate((("ps", "BBSDLP peat map", None), ("gpm_share", "Greifswald GPM 2.0", "///"))):
         v = O[col].fillna(0)
         sh, n = [], []
@@ -48,8 +49,12 @@ def main():
             n.append(int(m.sum()))
         bars = axa.bar(x + (j - 0.5) * 0.38, sh, 0.36, color=OIL if j == 0 else "white", edgecolor=OIL, hatch=hatch,
                        lw=1.0, label=lab)
-        for b, nn in zip(bars, n):
-            axa.text(b.get_x() + b.get_width() / 2, b.get_height() + 0.5, f"{nn}", ha="center", fontsize=6, color=INK)
+        for k, (b, nn) in enumerate(zip(bars, n)):
+            # stagger the two maps' counts where their bars are about the same height
+            other = tops[k] if j == 1 and tops else None
+            dy = 1.6 if other is not None and abs(other - b.get_height()) < 1.6 else 0.0
+            axa.text(b.get_x() + b.get_width() / 2, b.get_height() + 0.5 + dy, f"{nn}", ha="center", fontsize=6, color=INK)
+        tops = [b.get_height() for b in bars]
     base = 100 * O.excess.mean()
     axa.axhline(base, color=CTL, ls="--", lw=0.8, label=f"all oil-palm units ({base:.1f}%)")
     axa.set_ylim(0, 27)

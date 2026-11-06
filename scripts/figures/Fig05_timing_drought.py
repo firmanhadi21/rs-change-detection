@@ -17,14 +17,24 @@ import matplotlib.pyplot as plt  # noqa: E402
 from _style import CTL, KIND_COL, W_DOUBLE, panel, run, save, setup  # noqa: E402
 
 
+def sg(v):
+    """Signed one-decimal label without a "-0.0"."""
+    t = f"{v:+.1f}"
+    return "0.0" if t in ("+0.0", "-0.0") else t
+
+
 def gap(ax, rows, xlab, letter, labels=True):
     """rows: list of (label, kind, primary?, gap, ci); primary (drought-matched) filled, land strata only open."""
     for i, (lab, kind, prim, g, ci) in enumerate(rows):
         col = KIND_COL[kind]
         ax.plot(ci, [i, i], color=col, lw=1.6 if prim else 1.0)
         ax.plot([g], [i], "D" if prim else "o", color=col if prim else "white", mec=col, ms=5 if prim else 4, mew=1.1)
-        ax.text(g, i + 0.26, f"{g:+.1f} [{ci[0]:+.1f}, {ci[1]:+.1f}]", ha="center", fontsize=6, color=col)
+        ax.text(g, i + 0.26, f"{sg(g)} [{sg(ci[0])}, {sg(ci[1])}]", ha="center", fontsize=6, color=col)
     ax.axvline(0, color=CTL, ls="--", lw=0.8)
+    lo = min(r[4][0] for r in rows)
+    hi = max(r[4][1] for r in rows)
+    pad = 0.45 * (hi - lo)                        # room for the centred interval labels
+    ax.set_xlim(lo - pad, hi + pad)
     ax.set_yticks(range(len(rows)), [r[0] for r in rows] if labels else [""] * len(rows), fontsize=6.5)
     ax.set_ylim(-0.6, len(rows) - 0.3)
     ax.tick_params(axis="y", length=0)
@@ -46,7 +56,7 @@ def timing_rows(var):
 def main():
     setup()
     fig = plt.figure(figsize=(W_DOUBLE, 2.9))
-    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.5], wspace=0.3)
+    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.5], wspace=0.42)
     gap(fig.add_subplot(gs[0]), timing_rows("day"), "First fire, concession − matched (days)", "a")
     gap(fig.add_subplot(gs[1]), timing_rows("dc_first"), "Drought Code at first fire,\nconcession − matched", "b", labels=False)
     fw = run("fire_weather.json")
