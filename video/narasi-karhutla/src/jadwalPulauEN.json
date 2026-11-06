@@ -23,14 +23,14 @@
   ],
   "durasi": {
     "01-kilas": 12.0,
-    "02-banding": 19.2,
-    "03-pulau": 20.0,
-    "04-sedikit": 22.96,
-    "05-gambut": 18.32,
-    "06-bersih": 21.68,
-    "07-kering": 18.64,
+    "02-banding": 21.04,
+    "03-pulau": 20.88,
+    "04-sedikit": 22.24,
+    "05-gambut": 25.44,
+    "06-bersih": 28.0,
+    "07-kering": 16.32,
     "08-batas": 23.28,
-    "09-tutup": 20.32
+    "09-tutup": 25.2
   },
   "musik": {
     "panjang_detik": 135.0,

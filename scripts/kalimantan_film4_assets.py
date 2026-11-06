@@ -2,7 +2,12 @@
 """Maps and figures for Part 4 of the concessions film, "Benarkah Sawit Membakar Kalimantan?"
 (Is oil palm really burning Kalimantan?): the Kalimantan-wide results.
 
-Reads the Kalimantan runs in output/fire/kalimantan_excess/ and writes into video/narasi-karhutla:
+Reads the Kalimantan runs in output/fire/kalimantan_excess/ and writes into video/narasi-karhutla.
+Since review round 1 (2026-11-06) the primary specification also matches on the cell's peak
+Jul-Oct 2026 Drought Code band: dc_stratum.json, per_concession_matched_dc.csv and
+dc_units_summary.json (scripts/kalimantan_dc_stratum.py, kalimantan_concession_checks.py
+--dc-stratum, kalimantan_dc_units_summary.py). The land-strata-only ratios are kept as a
+secondary row.
 
   public/pulau/peta_semua.jpg     every analysed concession, oil palm and wood fibre, on Borneo
   public/pulau/peta_berlebih.jpg  the same, with the BH-FDR "excess" units in ember and the
@@ -72,32 +77,27 @@ def data():
     rob = J("robustness.json")
     seasons = {f"{x['variant'][:4]}|{x['treated']}": x for x in rob if x.get("check") == "R3" and "MCD64" in x["variant"]}
     gpm = {x["treated"]: x for x in rob if x.get("check") == "R2"}
-    P = pd.read_csv(os.path.join(OUT, "per_concession_matched.csv"))
+    P = pd.read_csv(os.path.join(OUT, "per_concession_matched_dc.csv"))
     per = {}
     for kind, g in P.groupby("kind"):
         ex = g[g.class_fdr == "excess"]
         per[kind] = {"units": int(len(g)), "excess": int(len(ex)), "excess_pct": 100 * len(ex) / len(g),
                      "burned_km2": float(g.burned_km2.sum()), "excess_km2": float(ex.burned_km2.sum()),
                      "excess_share_pct": 100 * ex.burned_km2.sum() / g.burned_km2.sum()}
-    H = pd.read_csv(os.path.join(OUT, "heterogeneity_units.csv")).merge(
-        pd.read_csv(os.path.join(DATA, "peat_check_covariates.csv"))[["kind", "id", "peat_share"]]
-        .rename(columns={"peat_share": "ps"}), on=["kind", "id"])
-    O = H[H.kind == "oil palm"]
-    bins = [(-0.01, 0.01, "<1"), (0.01, 0.25, "1–25"), (0.25, 0.5, "25–50"), (0.5, 0.75, "50–75"), (0.75, 1.01, "75–100")]
-    peat_bins = [{"label": lab, "units": int(((O.ps > lo) & (O.ps <= hi)).sum()),
-                  "excess_pct": 100 * float(O[(O.ps > lo) & (O.ps <= hi)].excess.mean())} for lo, hi, lab in bins]
-    het = J("heterogeneity.json")["models"]["oil palm"]["logit"]
-    pk = J("peat_depth_checks.json")["oil palm"]
+    U = J("dc_units_summary.json")
+    peat_bins = [{"label": x["bin"].replace("-", "–"), "units": x["units"], "excess_pct": x["excess_pct"]}
+                 for x in U["peat_bins"]["ps"]]
+    het = U["model"]["main (depth)"]["logit"]
+    dcs = J("dc_stratum.json")
+    drought = {r["treated"]: r for r in dcs["burned_share"] if r["matched_on"] == "all strata + peak-DC band"}
+    timing = {r["matched_on"]: r for r in dcs["timing"] if r["treated"] == "oil palm" and r["variable"] == "dc_first"}
     lp = J("landprep/landprep_tests.json")
-    fw = J("fire_weather.json")
-    w3 = pd.DataFrame(fw["W3"]).pivot(index="dc_band", columns="tenure", values="per_1000km2_day")
-    order = ["0-300", "300-400", "400-500", "500-600", "600-700", "700-2000"]
-    w3 = w3.reindex(order)
     nat = {x["label"]: x for x in J("national.json")}
     two = J("two_seasons.json")
     D = {
         "units_total": per["oil palm"]["units"] + per["pulpwood"]["units"],
         "cells_millions": 13.3,
+        "drought": {k: {"ratio": drought[k]["ratio"], "ci": drought[k]["ci"]} for k in ("oil palm", "pulpwood")},
         "matched": {k: {"ratio": m[(k, "+ distance to settlement")]["ratio"],
                         "ci": m[(k, "+ distance to settlement")]["ratio_ci95"],
                         "raw": m[(k, "raw")]["ratio"]} for k in ("oil palm", "pulpwood")},
@@ -106,18 +106,18 @@ def data():
         "gpm": {k: {"ratio": gpm[k]["ratio"], "ci": gpm[k]["ci"]} for k in gpm},
         "per_concession": per,
         "peat_bins": peat_bins,
+        "excess_with_peat_pct": U["classes"]["oil palm|same drought"]["excess_with_peat_pct"],
         "null_traits": {k: het[k] for k in ("grouped", "st_location_permit", "rspo_cert_share_10pp")},
-        "peat_share_effect": {"bbsdlp": pk["V3 BBSDLP peat share only"]["peat_share_10pp"]["logit"],
-                              "gpm": pk["V4 Greifswald peat share only"]["gpm_share_10pp"]["logit"]},
+        "peat_share_effect": {"bbsdlp": U["model"]["BBSDLP share"]["logit"]["peat_share_10pp"],
+                              "gpm": U["model"]["GPM share"]["logit"]["gpm_share_10pp"]},
         "landprep": {"planted_burned_pct": 100 * lp["T1"]["2015"]["oil palm"]["treated"],
                      "planted_unburned_pct": 100 * lp["T1"]["2015"]["oil palm"]["control"],
                      "planted_ratio_ci": lp["T1"]["2015"]["oil palm"]["ci"],
                      "cleared_pct": 100 * lp["T2"]["oil palm"]["treated"],
                      "cleared_ctl_pct": 100 * lp["T2"]["oil palm"]["control"]},
-        "drought_first_fire": next(x for x in fw["W2"] if x["treated"] == "oil palm" and x["matched_on"] == "all strata"),
-        "ignitions_by_dc": {"bands": order, "oil palm": w3["oil palm"].tolist(), "pulpwood": w3["pulpwood"].tolist(),
-                            "open": w3["open"].tolist(),
-                            "ratio_oil_palm": (w3["oil palm"] / w3["open"]).tolist()},
+        "timing": {"land": {"gap": timing["all strata"]["gap"], "ci": timing["all strata"]["ci"]},
+                   "drought": {"gap": timing["all strata + peak-DC band"]["gap"],
+                               "ci": timing["all strata + peak-DC band"]["ci"]}},
         "national": {"raw": nat["all land, raw"]["ratio"],
                      "same_drought_lt300": {"ratio": nat["peak DC 0-300"]["ratio"], "ci": nat["peak DC 0-300"]["ci"]},
                      "same_drought_300_400": {"ratio": nat["peak DC 300-400"]["ratio"], "ci": nat["peak DC 300-400"]["ci"]}},
@@ -143,7 +143,7 @@ def maps():
     nbr = ne[ne.ADM0_A3.isin(["MYS", "BRN"])].clip(bb)
     op = gpd.read_file(CONC).to_crs(4326).cx[KAL[0]:KAL[2], KAL[1]:KAL[3]].reset_index(drop=True)
     hti = gpd.read_file(HTI).to_crs(4326).reset_index(drop=True)
-    P = pd.read_csv(os.path.join(OUT, "per_concession_matched.csv"))
+    P = pd.read_csv(os.path.join(OUT, "per_concession_matched_dc.csv"))
     geo = lambda k, i: (op if k == "oil palm" else hti).geometry.iloc[i - 1]      # noqa: E731
     P["geometry"] = [geo(k, i) for k, i in zip(P.kind, P.id)]
     U = gpd.GeoDataFrame(P, crs=4326)

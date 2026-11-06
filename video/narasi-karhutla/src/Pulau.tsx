@@ -26,6 +26,7 @@ import { angkaGaya, judulFont, koma as komaL, ribuan as ribuanL, tubuhFont, warn
 import D from "./pulauData.json";
 
 const ABU_GELAP = "#3A424D";
+const ABU_GELAP_TEKS = "#7A8390";
 
 const TEKS_ID = {
   lokal: "id-ID",
@@ -47,13 +48,15 @@ const TEKS_ID = {
   rincianKonsesi: `${D.per_concession["oil palm"].units} kebun sawit · ${D.per_concession.pulpwood.units} hutan tanaman industri`,
   petak: "petak 200 m",
   disamakan: "Disamakan dengan lahan tanpa izin:",
-  strata: ["ada gambut atau tidak", "kedalaman gambut", "tutupan lahan", "riwayat kebakaran", "jarak ke sungai", "jarak ke permukiman"],
+  strata: ["ada gambut atau tidak", "kedalaman gambut", "tutupan lahan", "riwayat kebakaran", "jarak ke sungai", "jarak ke permukiman", "kekeringan (Drought Code)"],
   sumberPulau:
-    "2026: Sentinel-2 dNBR, terbakar bila ≥ separuh petak dan ada titik panas VIIRS · 2015–2023: MODIS MCD64A1 · pencocokan setara (CEM), selang 95% dari bootstrap blok 5 km",
+    "2026: Sentinel-2 dNBR, terbakar bila ≥ separuh petak dan ada titik panas VIIRS · 2015–2023: MODIS MCD64A1, kekeringan tidak disamakan · kekeringan: puncak Drought Code Jul–Okt 2026 (ERA5-Land) · pencocokan setara (CEM), selang 95% dari bootstrap blok 5 km",
   judulPulau: "Terbakar dibanding lahan serupa tanpa izin",
+  catatanPulau: "Baris abu-abu: kekeringan tidak disamakan",
   baris: [
-    ["Kebun sawit, 2026", "s", "oil palm"],
-    ["Hutan tanaman industri, 2026", "s", "pulpwood"],
+    ["Kebun sawit, 2026", "d", "oil palm"],
+    ["Hutan tanaman industri, 2026", "d", "pulpwood"],
+    ["Kebun sawit, kekeringan tidak disamakan", "s", "oil palm"],
     ["Kebun sawit, 2015", "2015", "oil palm"],
     ["Kebun sawit, 2019", "2019", "oil palm"],
     ["Kebun sawit, 2023", "2023", "oil palm"],
@@ -76,6 +79,7 @@ const TEKS_ID = {
   sumbuGambut: "bagian konsesi yang bergambut",
   bukan: "Tidak membedakan:",
   bukanDaftar: ["grup perusahaan", "status izin", "sertifikat RSPO"],
+  gambutKet: (pct: string) => `Tetapi hanya ${pct} kebun sawit yang terbakar berlebih punya gambut.`,
   sumberBersih:
     "Penanaman: Descals dkk. 2024 (tahun tanam sawit, sampai 2021) · bekas bakar 2015: MODIS MCD64A1 · pembersihan: Sentinel-2 NDVI Des–Mar vs Mei–Jul 2026",
   judulBersih: "Apakah api dipakai untuk membuka lahan?",
@@ -83,14 +87,13 @@ const TEKS_ID = {
   tanamK: ["terbakar 2015", "tidak terbakar"],
   bersih: "Dibersihkan sebelum api 2026",
   bersihK: ["di kebun sawit", "lahan serupa"],
-  bersihKet: "Tidak ada bukti pembukaan lahan dengan api.",
+  bersihKet: "Di kebun sawit, tidak ada bukti pembukaan lahan dengan api. Di HTI, lahan bekas bakar lebih sering ditanami, dari jumlah yang kecil.",
   sumberKering:
-    "Drought Code (Van Wagner 1987) dihitung harian dari ERA5-Land · titik api baru: akar silsilah deteksi VIIRS, Jul–Okt 2026, per 1.000 km² per hari",
-  judulKering: "Titik api baru, kebun sawit dibanding lahan terbuka",
-  sumbuKering: "Drought Code hari itu",
-  kaliLipat: "kali lipat",
-  dcPertama: "Drought Code saat lahan sawit pertama terbakar, dibanding lahan serupa",
-  lebihAwal: "Menyala lebih awal, saat kekeringan belum separah.",
+    "Drought Code (Van Wagner 1987) dihitung harian dari ERA5-Land · hari pertama terbakar: Sentinel-2 dan VIIRS, 2026 · garis: selang 95% dari bootstrap blok 5 km",
+  judulKering: "Drought Code saat lahan sawit pertama terbakar, dibanding lahan serupa",
+  timingBaris: ["Kekeringan tidak disamakan", "Kekeringan disamakan"],
+  sumbuKering: "← menyala saat lebih basah · selisih Drought Code · saat lebih kering →",
+  lebihAwal: "Setelah kekeringan disamakan, selisihnya kecil dan tidak pasti.",
   sumberBatas:
     "Hujan: CHIRPS, 1 Jul – 30 Sep 2026 dibanding rata-rata 2001–2025 · Drought Code: ERA5-Land · Malaysia: GFW / RimbaWatch 2025 · disamakan juga dengan tinggi, lereng, dan kekeringan",
   alisBatas: "Hujan Juli–September 2026, dibanding normal",
@@ -103,9 +106,9 @@ const TEKS_ID = {
   samaCuaca: "lebih banyak lahan terbakar di sisi Indonesia, di tempat yang cuacanya sama",
   tutup1: "Benarkah sawit membakar Kalimantan?",
   tutup2: "Tidak secara umum.",
-  tutupKet: "Sekelompok kecil konsesi di atas gambut, yang mengering dan menyala lebih awal.",
+  tutupKet: "Dengan kekeringan yang sama, konsesi tidak terbakar lebih banyak. Masalahnya sekelompok kecil konsesi.",
   tutup3:
-    "Gambut yang dikeringkan adalah penjelasan yang paling cocok, tetapi belum terukur langsung. Batas konsesi publik berasal dari 2012. Hasil ini belum melalui telaah sejawat.",
+    "Gambut menaikkan peluangnya, tetapi sebagian besar konsesi itu tidak bergambut; penyebabnya belum terukur. Batas konsesi publik berasal dari 2012. Hasil ini belum melalui telaah sejawat.",
   sumberData: "Sumber data",
   barisSumber: [
     ["Bekas bakar", "Sentinel-2 L2A dNBR 2026 (Copernicus); MODIS MCD64A1 2015–2026 (NASA)"],
@@ -143,13 +146,15 @@ const TEKS_EN: Teks = {
   rincianKonsesi: `${P_["oil palm"].units} oil palm · ${P_.pulpwood.units} pulpwood`,
   petak: "200 m cells",
   disamakan: "Matched with unpermitted land on:",
-  strata: ["peat or not", "peat depth", "land cover", "fire history", "distance to rivers", "distance to settlements"],
+  strata: ["peat or not", "peat depth", "land cover", "fire history", "distance to rivers", "distance to settlements", "drought (Drought Code)"],
   sumberPulau:
-    "2026: Sentinel-2 dNBR, burned when ≥ half the cell and a VIIRS detection nearby · 2015–2023: MODIS MCD64A1 · coarsened exact matching, 95% intervals from a 5 km block bootstrap",
+    "2026: Sentinel-2 dNBR, burned when ≥ half the cell and a VIIRS detection nearby · 2015–2023: MODIS MCD64A1, drought not matched · drought: peak Jul–Oct 2026 Drought Code (ERA5-Land) · coarsened exact matching, 95% intervals from a 5 km block bootstrap",
   judulPulau: "Burned, compared with similar land without a permit",
+  catatanPulau: "Grey rows: drought not matched",
   baris: [
-    ["Oil palm, 2026", "s", "oil palm"],
-    ["Pulpwood, 2026", "s", "pulpwood"],
+    ["Oil palm, 2026", "d", "oil palm"],
+    ["Pulpwood, 2026", "d", "pulpwood"],
+    ["Oil palm, drought not matched", "s", "oil palm"],
     ["Oil palm, 2015", "2015", "oil palm"],
     ["Oil palm, 2019", "2019", "oil palm"],
     ["Oil palm, 2023", "2023", "oil palm"],
@@ -172,6 +177,7 @@ const TEKS_EN: Teks = {
   sumbuGambut: "share of the concession on peat",
   bukan: "Makes no difference:",
   bukanDaftar: ["company group", "permit status", "RSPO certificate"],
+  gambutKet: (pct: string) => `But only ${pct} of the oil palm concessions burning in excess have any peat.`,
   sumberBersih:
     "Planting: Descals et al. 2024 (oil palm planting year, to 2021) · 2015 burns: MODIS MCD64A1 · clearing: Sentinel-2 NDVI Dec–Mar vs May–Jul 2026",
   judulBersih: "Was fire used to clear land?",
@@ -179,14 +185,13 @@ const TEKS_EN: Teks = {
   tanamK: ["burned 2015", "not burned"],
   bersih: "Cleared before the 2026 fire",
   bersihK: ["oil palm", "similar land"],
-  bersihKet: "No evidence of fire used to clear land.",
+  bersihKet: "In oil palm, no evidence of fire used to clear land. In pulpwood, burned land was planted more often, from a small base.",
   sumberKering:
-    "Drought Code (Van Wagner 1987) computed daily from ERA5-Land · new fires: roots of the VIIRS detection lineage, Jul–Oct 2026, per 1,000 km² per day",
-  judulKering: "New fires, oil palm compared with open land",
-  sumbuKering: "Drought Code that day",
-  kaliLipat: "times",
-  dcPertama: "Drought Code when oil palm land first burned, compared with similar land",
-  lebihAwal: "It ignites earlier, while the drought is milder.",
+    "Drought Code (Van Wagner 1987) computed daily from ERA5-Land · first burn day: Sentinel-2 and VIIRS, 2026 · lines: 95% intervals from a 5 km block bootstrap",
+  judulKering: "Drought Code when oil palm land first burned, compared with similar land",
+  timingBaris: ["Drought not matched", "Drought matched"],
+  sumbuKering: "← ignites when wetter · Drought Code difference · when drier →",
+  lebihAwal: "Once drought is matched, the gap is small and uncertain.",
   sumberBatas:
     "Rain: CHIRPS, 1 Jul – 30 Sep 2026 against the 2001–2025 mean · Drought Code: ERA5-Land · Malaysia: GFW / RimbaWatch 2025 · also matched on elevation, slope and drought",
   alisBatas: "Rain July–September 2026, against normal",
@@ -199,9 +204,9 @@ const TEKS_EN: Teks = {
   samaCuaca: "more land burned on the Indonesian side, where the weather was the same",
   tutup1: "Is oil palm really burning Kalimantan?",
   tutup2: "Not in general.",
-  tutupKet: "A small group of concessions on peat, which dry out and ignite earlier.",
+  tutupKet: "At the same drought, concessions did not burn more. The problem is a small group of them.",
   tutup3:
-    "Drained peat is the best explanation, but it has not been measured directly. Public concession boundaries date from 2012. These results have not yet been peer reviewed.",
+    "Peat raises the odds, but most of those concessions have no peat; the cause has not been measured. Public concession boundaries date from 2012. These results have not yet been peer reviewed.",
   sumberData: "Data sources",
   barisSumber: [
     ["Burned area", "Sentinel-2 L2A dNBR 2026 (Copernicus); MODIS MCD64A1 2015–2026 (NASA)"],
@@ -386,6 +391,7 @@ const Hutan: React.FC<{ tampil: number; f: number; mulai: number }> = ({ tampil,
   const x = (v: number) => L + ((Math.log(v) - lo) / (hi - lo)) * (W - L - R);
   const tinggiBaris = 74;
   const nilai = (kode: string, jenis: "oil palm" | "pulpwood") => {
+    if (kode === "d") return D.drought[jenis];
     if (kode === "s") return D.matched[jenis];
     if (kode === "g") return D.gpm[jenis];
     return D.seasons[kode as "2015" | "2019" | "2023"][jenis];
@@ -410,8 +416,8 @@ const Hutan: React.FC<{ tampil: number; f: number; mulai: number }> = ({ tampil,
         const r = nilai(kode, jenis);
         const o = masuk(f, mulai + i * 10, 16);
         const y = 30 + i * tinggiBaris;
-        const utama = kode === "s";
-        const w = jenis === "pulpwood" ? warna.abu : warna.nyala;
+        const utama = kode === "d";
+        const w = !utama ? ABU_GELAP_TEKS : jenis === "pulpwood" ? warna.abu : warna.nyala;
         return (
           <g key={lab} opacity={o}>
             <text x={0} y={y + 8} fill={utama ? warna.kapur : warna.abu} fontSize={utama ? 28 : 25} fontFamily={tubuhFont} fontWeight={utama ? 600 : 400}>
@@ -440,6 +446,7 @@ const Pulau: React.FC<{ panjang: number }> = ({ panjang }) => {
       <Kolom jarak={34}>
         <div style={{ opacity: a }}>
           <Judul anak={T.judulPulau} ukuran={58} />
+          <div style={{ fontFamily: tubuhFont, fontSize: 22, color: warna.abu, marginTop: 10 }}>{T.catatanPulau}</div>
         </div>
         <Hutan tampil={a} f={f} mulai={Math.round(panjang * 0.12)} />
       </Kolom>
@@ -523,7 +530,7 @@ const Gambut: React.FC<{ panjang: number }> = ({ panjang }) => {
               {B.map((b, i) => {
                 const o = masuk(f, Math.round(panjang * 0.35) + i * 9, 22);
                 const h = (H * b.excess_pct * o) / maks;
-                const w = b.excess_pct > 15 ? warna.bara : warna.abu;
+                const w = i >= 2 ? warna.bara : warna.abu;      // 25% peat and up
                 return (
                   <div key={b.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 140 }}>
                     <div style={{ ...angkaGaya, fontSize: 34, fontWeight: 600, color: w, opacity: o, marginBottom: 8 }}>
@@ -536,6 +543,9 @@ const Gambut: React.FC<{ panjang: number }> = ({ panjang }) => {
               })}
             </div>
             <div style={{ fontFamily: tubuhFont, fontSize: 22, color: warna.abu, marginTop: 10 }}>{T.sumbuGambut}</div>
+            <div style={{ marginTop: 34 }}>
+              <Garis anak={T.gambutKet(`${koma(D.excess_with_peat_pct, 0)}%`)} tampil={masuk(f, Math.round(panjang * 0.72), 22)} lebar={900} />
+            </div>
           </div>
           <div style={{ opacity: c, marginBottom: 60 }}>
             <div style={{ fontFamily: tubuhFont, fontSize: 24, color: warna.abu, marginBottom: 14 }}>{T.bukan}</div>
@@ -619,64 +629,59 @@ const Bersih: React.FC<{ panjang: number }> = ({ panjang }) => {
 };
 
 const Kering: React.FC<{ panjang: number }> = ({ panjang }) => {
-  const { T, koma, ribuan, kali } = useT();
+  const { T, koma } = useT();
   const f = useCurrentFrame();
   const a = masuk(f, 6, 20);
-  const b = masuk(f, Math.round(panjang * 0.3), Math.round(panjang * 0.4));
-  const c = masuk(f, Math.round(panjang * 0.05), 22);
-  const I = D.ignitions_by_dc;
-  const r = I.ratio_oil_palm;
-  const W = 960;
-  const H = 440;
-  const L = 70;
-  const x = (i: number) => L + (i / (r.length - 1)) * (W - L - 30);
-  const y = (v: number) => H - 50 - (v / 3.4) * (H - 80);     // headroom over x3 for the 2.7 label
-  const n = Math.max(1, Math.round(b * (r.length - 1)) + 1);
-  const jalur = r.slice(0, n).map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-  const pita = I.bands.map((s) => s.replace("-2000", "+").replace("-", "–"));
-  const W2 = D.drought_first_fire;
+  const c = masuk(f, Math.round(panjang * 0.62), 22);
+  const rows = [D.timing.land, D.timing.drought];
+  const W = 1300;
+  const L = 470;
+  const R = 160;
+  const lo = -40;
+  const hi = 15;
+  const x = (v: number) => L + ((v - lo) / (hi - lo)) * (W - L - R);
+  const tinggi = 130;
+  const H = rows.length * tinggi + 90;
+  const tanda = (v: number) => `${v > 0 ? "+" : "−"}${koma(Math.abs(v), 0)}`;
   return (
     <Lembut panjang={panjang}>
       <LatarDiam />
       <Bkg sumber={T.sumberKering} tampil={a} />
-      <Kolom jarak={26}>
+      <Kolom jarak={34}>
         <div style={{ opacity: a }}>
           <Judul anak={T.judulKering} ukuran={54} />
         </div>
-        <div style={{ display: "flex", gap: 90, alignItems: "flex-start" }}>
-          <svg width={W} height={H} style={{ opacity: a }}>
-            {[1, 2, 3].map((v) => (
-              <g key={v}>
-                <line x1={L} x2={W - 30} y1={y(v)} y2={y(v)} stroke={v === 1 ? warna.abu : warna.garis} strokeWidth={v === 1 ? 2 : 1} strokeDasharray={v === 1 ? "6 6" : undefined} />
-                <text x={L - 12} y={y(v) + 8} fill={warna.samar} fontSize={22} textAnchor="end" fontFamily={tubuhFont}>
-                  ×{v}
-                </text>
-              </g>
-            ))}
-            {pita.map((p, i) => (
-              <text key={p} x={x(i)} y={H - 14} fill={warna.abu} fontSize={22} textAnchor="middle" fontFamily={tubuhFont}>
-                {p}
+        <svg width={W} height={H} style={{ opacity: a }}>
+          <line x1={x(0)} x2={x(0)} y1={0} y2={H - 60} stroke={warna.abu} strokeWidth={2} strokeDasharray="6 6" />
+          {[-40, -30, -20, -10, 10].map((v) => (
+            <g key={v}>
+              <line x1={x(v)} x2={x(v)} y1={0} y2={H - 60} stroke={warna.garis} strokeWidth={1} />
+              <text x={x(v)} y={H - 30} fill={warna.samar} fontSize={22} textAnchor="middle" fontFamily={tubuhFont}>
+                {tanda(v)}
               </text>
-            ))}
-            <path d={jalur} fill="none" stroke={warna.bara} strokeWidth={6} strokeLinejoin="round" />
-            {r.slice(0, n).map((v, i) => (
-              <g key={i}>
-                <circle cx={x(i)} cy={y(v)} r={9} fill={warna.bara} />
-                <text x={x(i)} y={y(v) - 20} fill={warna.kapur} fontSize={24} textAnchor="middle" fontFamily={angkaGaya.fontFamily as string}>
-                  {koma(v, 1)}
+            </g>
+          ))}
+          <text x={x(0)} y={H - 30} fill={warna.abu} fontSize={22} textAnchor="middle" fontFamily={tubuhFont}>0</text>
+          {rows.map((r, i) => {
+            const o = masuk(f, Math.round(panjang * (0.08 + i * 0.3)), 20);
+            const y = 50 + i * tinggi;
+            const w = i ? warna.nyala : ABU_GELAP_TEKS;
+            return (
+              <g key={i} opacity={o}>
+                <text x={0} y={y + 9} fill={i ? warna.kapur : warna.abu} fontSize={28} fontFamily={tubuhFont} fontWeight={i ? 600 : 400}>
+                  {T.timingBaris[i]}
+                </text>
+                <line x1={x(r.ci[0])} x2={x(r.ci[1])} y1={y} y2={y} stroke={w} strokeWidth={5} />
+                <circle cx={x(r.gap)} cy={y} r={14} fill={w} />
+                <text x={W - R + 40} y={y + 11} fill={w} fontSize={34} fontFamily={angkaGaya.fontFamily as string} fontWeight={600}>
+                  {tanda(r.gap)}
                 </text>
               </g>
-            ))}
-          </svg>
-          <div style={{ width: 520, opacity: c, marginTop: 30 }}>
-            <Angka anak={`${W2.gap > 0 ? "+" : "−"}${koma(Math.abs(W2.gap), 0)}`} ukuran={120} warnaA={warna.nyala} />
-            <div style={{ fontFamily: tubuhFont, fontSize: 24, color: warna.abu, marginTop: 10, lineHeight: 1.4 }}>{T.dcPertama}</div>
-            <div style={{ marginTop: 30 }}>
-              <Garis anak={T.lebihAwal} tampil={c} lebar={500} />
-            </div>
-          </div>
-        </div>
-        <div style={{ fontFamily: tubuhFont, fontSize: 22, color: warna.abu, opacity: a }}>{T.sumbuKering}</div>
+            );
+          })}
+        </svg>
+        <div style={{ fontFamily: tubuhFont, fontSize: 22, color: warna.abu, opacity: a, marginTop: -16 }}>{T.sumbuKering}</div>
+        <Garis anak={T.lebihAwal} tampil={c} lebar={1100} />
       </Kolom>
     </Lembut>
   );
