@@ -99,7 +99,7 @@ const TEKS_ID = {
     "Drought Code (Van Wagner 1987) dihitung harian dari ERA5-Land · hari pertama terbakar: Sentinel-2 dan VIIRS, 2026 · garis: selang 95% dari bootstrap blok 5 km",
   judulKering: "Drought Code saat lahan sawit pertama terbakar, dibanding lahan serupa",
   timingBaris: ["Kekeringan tidak disamakan", "Kekeringan disamakan"],
-  sumbuKering: "← menyala saat lebih basah · selisih Drought Code · saat lebih kering →",
+  sumbuKering: "← terbakar saat lebih basah · selisih Drought Code · saat lebih kering →",
   lebihAwal: "Setelah kekeringan disamakan, selisihnya kecil dan tidak pasti.",
   sumberBatas:
     "Hujan: CHIRPS, 1 Jul – 30 Sep 2026 dibanding rata-rata 2001–2025 · Drought Code: ERA5-Land · Malaysia: GFW / RimbaWatch 2025 · disamakan juga dengan tinggi, lereng, dan kekeringan",
