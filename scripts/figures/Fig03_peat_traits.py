@@ -52,7 +52,10 @@ def main():
         for k, (b, nn) in enumerate(zip(bars, n)):
             # stagger the two maps' counts where their bars are about the same height
             other = tops[k] if j == 1 and tops else None
-            dy = 1.6 if other is not None and abs(other - b.get_height()) < 1.6 else 0.0
+            dy = 0.0                     # adjacent bars: nudge the label sideways instead of up
+            if other is not None and abs(other - b.get_height()) < 1.6:
+                axa.text(b.get_x() + b.get_width() * 0.95, b.get_height() + 0.5, f"{nn}", ha="left", fontsize=6, color=INK)
+                continue
             axa.text(b.get_x() + b.get_width() / 2, b.get_height() + 0.5 + dy, f"{nn}", ha="center", fontsize=6, color=INK)
         tops = [b.get_height() for b in bars]
     base = 100 * O.excess.mean()

@@ -20,7 +20,7 @@ from _style import CTL, KIND_COL, W_DOUBLE, panel, run, save, setup  # noqa: E40
 def sg(v):
     """Signed one-decimal label without a "-0.0"."""
     t = f"{v:+.1f}"
-    return "0.0" if t in ("+0.0", "-0.0") else t
+    return f"{v:+.2f}" if t in ("+0.0", "-0.0") else t     # keep the sign of a bound near zero
 
 
 def gap(ax, rows, xlab, letter, labels=True):
