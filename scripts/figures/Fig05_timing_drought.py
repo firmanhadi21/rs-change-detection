@@ -17,32 +17,39 @@ import matplotlib.pyplot as plt  # noqa: E402
 from _style import CTL, KIND_COL, W_DOUBLE, panel, run, save, setup  # noqa: E402
 
 
-def gap(ax, vals, xlab, letter):
-    for i, (kind, (g, ci)) in enumerate(vals.items()):
-        ax.plot(ci, [i, i], color=KIND_COL[kind], lw=1.5)
-        ax.plot([g], [i], "o", color=KIND_COL[kind], ms=5)
-        ax.text(g, i + 0.22, f"{g:+.1f} [{ci[0]:+.1f}, {ci[1]:+.1f}]", ha="center", fontsize=6.5, color=KIND_COL[kind])
+def gap(ax, rows, xlab, letter, labels=True):
+    """rows: list of (label, kind, primary?, gap, ci); primary (drought-matched) filled, land strata only open."""
+    for i, (lab, kind, prim, g, ci) in enumerate(rows):
+        col = KIND_COL[kind]
+        ax.plot(ci, [i, i], color=col, lw=1.6 if prim else 1.0)
+        ax.plot([g], [i], "D" if prim else "o", color=col if prim else "white", mec=col, ms=5 if prim else 4, mew=1.1)
+        ax.text(g, i + 0.26, f"{g:+.1f} [{ci[0]:+.1f}, {ci[1]:+.1f}]", ha="center", fontsize=6, color=col)
     ax.axvline(0, color=CTL, ls="--", lw=0.8)
-    ax.set_yticks(range(len(vals)), list(vals))
-    ax.set_ylim(-0.6, len(vals) - 0.3)
+    ax.set_yticks(range(len(rows)), [r[0] for r in rows] if labels else [""] * len(rows), fontsize=6.5)
+    ax.set_ylim(-0.6, len(rows) - 0.3)
     ax.tick_params(axis="y", length=0)
     ax.spines["left"].set_visible(False)
     ax.set_xlabel(xlab)
     panel(ax, letter)
 
 
+def timing_rows(var):
+    T = run("dc_stratum.json")["timing"]
+    rows = []
+    for kind in ("pulpwood", "oil palm"):
+        for name, lab, prim in (("all strata", "land strata", False), ("all strata + peak-DC band", "+ same drought", True)):
+            r = next(x for x in T if x["treated"] == kind and x["matched_on"] == name and x["variable"] == var)
+            rows.append((f"{kind}, {lab}", kind, prim, r["gap"], r["ci"]))
+    return rows
+
+
 def main():
     setup()
-    fig = plt.figure(figsize=(W_DOUBLE, 2.7))
-    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.7], wspace=0.45)
-    m = {r["treated"]: r for r in run("matched.json") if r["test"] == "first-fire day"
-         and r["matched_on"] == "+ distance to settlement"}
-    gap(fig.add_subplot(gs[0]), {k: (m[k]["gap_days"], m[k]["gap_ci95"]) for k in KIND_COL},
-        "First fire, concession − matched (days)", "a")
+    fig = plt.figure(figsize=(W_DOUBLE, 2.9))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.5], wspace=0.3)
+    gap(fig.add_subplot(gs[0]), timing_rows("day"), "First fire, concession − matched (days)", "a")
+    gap(fig.add_subplot(gs[1]), timing_rows("dc_first"), "Drought Code at first fire,\nconcession − matched", "b", labels=False)
     fw = run("fire_weather.json")
-    w2 = {r["treated"]: r for r in fw["W2"] if r["matched_on"] == "all strata"}
-    gap(fig.add_subplot(gs[1]), {k: (w2[k]["gap"], w2[k]["ci"]) for k in KIND_COL},
-        "Drought Code at first fire,\nconcession − matched", "b")
     ax = fig.add_subplot(gs[2])
     for j, (kind, col) in enumerate(KIND_COL.items()):
         rows = [r for r in fw["W1"] if r["treated"] == kind]

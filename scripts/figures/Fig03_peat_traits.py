@@ -30,7 +30,9 @@ LABELS = {
 
 def main():
     setup()
-    U = pd.read_csv(os.path.join(RUN, "heterogeneity_units.csv"))
+    U = pd.read_csv(os.path.join(RUN, "heterogeneity_units.csv")).drop(columns=["excess"])
+    Bdc = pd.read_csv(os.path.join(RUN, "per_concession_matched_dc.csv"))[["kind", "id", "class_fdr"]]
+    U = U.merge(Bdc.rename(columns={"class_fdr": "cls_dc"}), on=["kind", "id"]).assign(excess=lambda d: d.cls_dc.eq("excess"))
     C = pd.read_csv(os.path.join(DATA, "peat_check_covariates.csv"))[["kind", "id", "peat_share", "gpm_share"]]
     O = U[U.kind == "oil palm"].merge(C.rename(columns={"peat_share": "ps"}), on=["kind", "id"])
     O["excess"] = O.excess.astype(bool)
@@ -57,10 +59,10 @@ def main():
     axa.legend(frameon=False, loc="upper right", fontsize=6.5, title="n units above bars", title_fontsize=6)
     panel(axa, "a")
 
-    het = run("heterogeneity.json")["models"]["oil palm"]["logit"]
-    pk = run("peat_depth_checks.json")["oil palm"]
-    rows = [("Peat share alone, BBSDLP (per 10 pp)", pk["V3 BBSDLP peat share only"]["peat_share_10pp"]["logit"]),
-            ("Peat share alone, Greifswald (per 10 pp)", pk["V4 Greifswald peat share only"]["gpm_share_10pp"]["logit"])]
+    M = run("dc_units_summary.json")["model"]          # drought-matched classes (primary)
+    het = M["main (depth)"]["logit"]
+    rows = [("Peat share alone, BBSDLP (per 10 pp)", M["BBSDLP share"]["logit"]["peat_share_10pp"]),
+            ("Peat share alone, Greifswald (per 10 pp)", M["GPM share"]["logit"]["gpm_share_10pp"])]
     rows += [(LABELS[k], het[k]) for k in LABELS]
     y = np.arange(len(rows))[::-1]
     for yi, (lab, r) in zip(y, rows):

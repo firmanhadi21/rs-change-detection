@@ -23,6 +23,11 @@ bootstrap.
    to descriptors (peat share, mean depth, planted-palm share, area, company group).
 
     conda run -n base python scripts/kalimantan_concession_checks.py
+    conda run -n base python scripts/kalimantan_concession_checks.py --dc-stratum
+
+--dc-stratum (review M1): adds the cell's season-peak Drought Code band (kalimantan_border_weather.py,
+dc_2026.npz) to the strata, so each concession is compared only with unpermitted land that had the same
+2026 drought; skips the pooled outcome checks and writes *_dc output files.
 """
 import json
 import os
@@ -48,7 +53,22 @@ def main():
     from scipy import ndimage
     from scipy.stats import spearmanr
 
+    DC = "--dc-stratum" in sys.argv
+    SUF = "_dc" if DC else ""
     df = pd.read_parquet(os.path.join(DATA, "sample_200m.parquet"))
+    if DC:
+        from kalimantan_border_weather import DC_BANDS, DC_NPY
+        from kalimantan_excess_burn import STEP
+        zz = np.load(DC_NPY, allow_pickle=True)
+        dcg, dts = zz["dc"], pd.to_datetime(zz["dates"])
+        x0_, yt_, st_ = zz["grid"]
+        pk = dcg[(dts >= "2026-07-01") & (dts < "2026-11-01")].max(axis=0)
+        g_ = json.load(open(os.path.join(DATA, "sample_grid.json")))
+        lon_ = g_["transform"][2] + (df.c.to_numpy() + 0.5) * STEP
+        lat_ = g_["transform"][5] - (df.r.to_numpy() + 0.5) * STEP
+        ey_ = np.clip(((yt_ - lat_) / st_).astype(int), 0, pk.shape[0] - 1)
+        ex_ = np.clip(((lon_ - x0_) / st_).astype(int), 0, pk.shape[1] - 1)
+        df["dc_bin"] = np.digitize(pk[ey_, ex_], DC_BANDS[1:-1]).astype(np.uint8)
     grid = json.load(open(os.path.join(DATA, "sample_grid.json")))
     tr, shape = rasterio.Affine(*grid["transform"]), tuple(grid["shape"])
     r, c = df.r.to_numpy(), df.c.to_numpy()
@@ -86,12 +106,12 @@ def main():
     rng = np.random.default_rng(42)
     boot_w = rng.multinomial(len(blocks_all), np.ones(len(blocks_all)) / len(blocks_all),
                              size=NBOOT).astype(float)
-    full = SEQ[-1]
-    out = {"outcomes": [], "canopy": None, "per_concession": None}
+    full = SEQ[-1] + (["dc_bin"] if DC else [])
+    out = {"outcomes": [], "canopy": None, "per_concession": None, "strata": full}
 
     # --- 1. outcome checks ---------------------------------------------------------
-    for outcome, base in (("burned", "valid"), ("burned25", "valid"), ("viirs_cell", None),
-                          ("viirs_count", None)):
+    for outcome, base in (() if DC else (("burned", "valid"), ("burned25", "valid"), ("viirs_cell", None),
+                                            ("viirs_count", None))):
         d0 = df[df[base]] if base else df
         for z, label in ((3, "oil palm"), (2, "pulpwood")):
             d = d0[d0.zone.isin([1, z])].reset_index(drop=True)
@@ -107,7 +127,7 @@ def main():
                       f"[{ci[0]:.2f}, {ci[1]:.2f}]")
 
     # canopy diagnostic: of VIIRS-seen valid cells, share S2 calls burned, by land cover
-    d = df[df.valid & df.viirs_cell]
+    d = df[df.valid & df.viirs_cell].iloc[: (0 if DC else None)]
     can = (d.assign(where=np.where(d.zone == 1, "unpermitted", np.where(d.zone == 3, "oil palm", "pulpwood")))
            .groupby(["lc", "where"]).agg(n=("burned", "size"), s2_burned=("burned", "mean"))
            .unstack("where"))
@@ -215,7 +235,7 @@ def main():
     P["class_fdr"] = np.where(P.q_bh <= Q_FDR, np.where(P.ratio > 1, "excess", "deficit"), "no difference")
     P = P.sort_values("burned_km2", ascending=False)
     os.makedirs(OUT, exist_ok=True)
-    P.to_csv(os.path.join(OUT, "per_concession_matched.csv"), index=False)
+    P.to_csv(os.path.join(OUT, f"per_concession_matched{SUF}.csv"), index=False)
 
     summ = {}
     for kind in ("oil palm", "pulpwood"):
@@ -244,13 +264,13 @@ def main():
     from ketapang_fire_origin import FOUR
     k4 = P[P.label.fillna("").str.contains("|".join(FOUR.values()), case=False)]
     out["ketapang_four"] = k4[["label", "ratio", "ci_lo", "ci_hi", "q_bh", "burned_km2"]].to_dict("records")
-    json.dump(out, open(os.path.join(OUT, "concession_checks.json"), "w"), indent=1, default=float)
+    json.dump(out, open(os.path.join(OUT, f"concession_checks{SUF}.json"), "w"), indent=1, default=float)
     print(json.dumps(summ, indent=1, default=float))
     pd.set_option("display.width", 250)
     print(P.head(20)[["kind", "label", "group", "area_km2", "burned_pct", "matched_ctl_pct", "ratio", "ci_lo",
                       "ci_hi", "viirs_ratio", "peat_share", "palm_share", "own_ignition_share"]].round(2).to_string())
     print("\nKetapang four:", json.dumps(out["ketapang_four"], default=float))
-    print(f"Saved: {OUT}/per_concession_matched.csv, concession_checks.json")
+    print(f"Saved: {OUT}/per_concession_matched{SUF}.csv, concession_checks{SUF}.json")
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ def units_gdf():
     from kalimantan_excess_burn import CONC, HTI, KAL
     op = gpd.read_file(CONC).to_crs(4326).cx[KAL[0]:KAL[2], KAL[1]:KAL[3]].reset_index(drop=True)
     hti = gpd.read_file(HTI).to_crs(4326).reset_index(drop=True)
-    P = pd.read_csv(os.path.join(RUN, "per_concession_matched.csv"))
+    P = pd.read_csv(os.path.join(RUN, "per_concession_matched_dc.csv"))   # primary: matched within peak-drought band
     P["geometry"] = [(op if k == "oil palm" else hti).geometry.iloc[i - 1] for k, i in zip(P.kind, P.id)]
     g = gpd.GeoDataFrame(P, crs=4326)
     g["geometry"] = g.geometry.make_valid()
@@ -96,10 +96,17 @@ def main():
         x = np.arange(len(rr))
         axb.fill_between(x, [r["ratio_ci95"][0] for r in rr], [r["ratio_ci95"][1] for r in rr], color=col, alpha=0.18, lw=0)
         axb.plot(x, [r["ratio"] for r in rr], "o-", color=col, ms=3, label=kind)
+        dc = next(r for r in run("dc_stratum.json")["burned_share"] if r["treated"] == kind
+                  and r["matched_on"] == "all strata + peak-DC band")
+        xd = len(rr)
+        axb.plot([x[-1], xd], [rr[-1]["ratio"], dc["ratio"]], "--", color=col, lw=1.0)
+        axb.errorbar([xd], [dc["ratio"]], yerr=[[dc["ratio"] - dc["ci"][0]], [dc["ci"][1] - dc["ratio"]]],
+                     fmt="D", color=col, ms=4.5, lw=1.2, capsize=0)
     axb.axhline(1, color=CTL, ls="--", lw=0.8)
     axb.set_yscale("log"), axb.set_yticks([0.8, 0.9, 1.0, 1.2, 1.4]), axb.set_yticklabels(["0.8", "0.9", "1.0", "1.2", "1.4"])
     axb.minorticks_off()
-    axb.set_xticks(range(len(steps)), ["raw", "peat", "depth", "land\ncover", "burn\nhistory", "water", "settle-\nment"])
+    axb.set_xticks(range(len(steps) + 1), ["raw", "peat", "depth", "land\ncover", "burn\nhist.", "water", "settle-\nment",
+                                            "+ same\ndrought"], fontsize=6)
     axb.set_ylabel("Burned-share ratio,\nconcession / matched")
     axb.set_xlabel("Covariate added (cumulative)")
     axb.legend(frameon=False, loc="upper right")
