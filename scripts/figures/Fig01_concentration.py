@@ -126,9 +126,9 @@ def main():
                      (k / len(u), share), xytext=(0.56, 0.12 if kind == "oil palm" else 0.30), fontsize=6.5, color=col,
                      arrowprops=dict(arrowstyle="-", lw=0.5, color=col))
     # benchmark: patches of unpermitted land, same analysable size and drought band (review round 3)
-    for i, r_ in enumerate(run("concentration_benchmark.json")["replicates"]):
+    for i, r_ in enumerate(run("concentration_benchmark_r50.json")["replicates"]):
         axc.plot([r_["excess_pct"] / 100], [r_["excess_share_pct"] / 100], "x", color=KIND_COL[r_["kind_sizes"]],
-                 ms=4, mew=0.9, alpha=0.8, zorder=4, label="unpermitted patches (5 draws)" if i == 0 else None)
+                 ms=3, mew=0.6, alpha=0.5, zorder=4, label="unpermitted patches (50 replicates)" if i == 0 else None)
     axc.plot([0, 1], [0, 1], color=CTL, ls=":", lw=0.8)
     axc.set_xlim(0, 1), axc.set_ylim(0, 1.02)
     axc.set_xlabel("Cumulative share of concessions\n(excess units first, then by matched ratio)")

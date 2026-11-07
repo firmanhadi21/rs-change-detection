@@ -3,7 +3,7 @@
 S3 two dry seasons: season-peak Drought Code by latitude band (Indonesia, Malaysia) and Jul-Sep 2026 CHIRPS
    rain as a share of the 2001-2025 mean (two_seasons.json).
 S1 calibration of the per-concession flag: ECDF of matched ratios, concessions against unpermitted patches of
-   the same analysable size and drought band (per_concession_matched_dc.csv, concentration_benchmark_patches.csv).
+   the same analysable size and drought band (per_concession_matched_dc.csv, concentration_benchmark_patches_r50.csv, 50 replicates).
 S2 new fires (lineage roots) per 1,000 km2 per day by same-day Drought Code, by tenure; unmatched
    (fire_weather.json W3).
 
@@ -49,10 +49,10 @@ def s1():
 
 def s2():
     P = pd.read_csv(os.path.join(RUN, "per_concession_matched_dc.csv"))
-    T = pd.read_csv(os.path.join(RUN, "concentration_benchmark_patches.csv"))
+    T = pd.read_csv(os.path.join(RUN, "concentration_benchmark_patches_r50.csv"))
     fig, axes = plt.subplots(1, 2, figsize=(W_DOUBLE, 2.8), sharey=True, gridspec_kw={"wspace": 0.12})
     for ax, (k, col), letter in zip(axes, KIND_COL.items(), "ab"):
-        for vals, lab, c, ls in ((T[T.kind_sizes == k].ratio, "unpermitted patches (5 replicates)", CTL, "--"),
+        for vals, lab, c, ls in ((T[T.kind_sizes == k].ratio, "unpermitted patches (50 replicates)", CTL, "--"),
                                  (P[P.kind == k].ratio, "concessions", col, "-")):
             v = np.sort(np.clip(vals.to_numpy(), 0.01, None))
             ax.step(v, np.arange(1, len(v) + 1) / len(v), where="post", color=c, ls=ls, lw=1.4, label=lab)

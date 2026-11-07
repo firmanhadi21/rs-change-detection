@@ -189,44 +189,53 @@ def t_classes():
 
 
 def t_benchmark():
-    v1 = J(EX, "concentration_benchmark_v1_tiles.json")
-    v2 = J(EX, "concentration_benchmark.json")
+    S = J(EX, "concentration_benchmark_r50_summary.json")["stats"]
+    lab = {"excess_pct": "units in excess (%)", "excess_share_pct": "their share of burned area (%)",
+           "excess_pct_of_burning": "in excess among units that burned (%)", "zero_burn_units": "units with no burned area"}
     rows = []
     for k in KINDS:
-        c = v2["concessions"][k]
-        rows.append([k, "concessions", "—", f"{c['excess_pct']:.1f}%", f"{c['excess_share_pct']:.0f}%",
-                     c.get("zero_burn_units", "—"), f"{c['excess_pct_of_burning']:.1f}%" if "excess_pct_of_burning" in c else "—",
-                     f"{c.get('median_cells', float('nan')):,.0f}"])
-        for name, src in (("v1 square tiles", v1), ("v2 patches (size + drought)", v2)):
-            for r in src["replicates"]:
-                if r["kind_sizes"] != k:
-                    continue
-                rows.append([k, name, r["replicate"], f"{r['excess_pct']:.1f}%", f"{r['excess_share_pct']:.0f}%",
-                             r["zero_burn_units"], f"{r['excess_pct_of_burning']:.1f}%" if "excess_pct_of_burning" in r else "—",
-                             f"{r['median_cells']:,.0f}"])
-    return table(["Sizes of", "Units", "Replicate", "In excess", "Their share of burned area", "Zero-burn units",
-                  "Excess among units that burned", "Median analysable cells"], rows)
+        for key, name in lab.items():
+            x = S[k][key]
+            rows.append([k, name, f"{x['concession']:.1f}", f"{x['median']:.1f}", f"{x['p2.5']:.1f}–{x['p97.5']:.1f}",
+                         f"{100 * x['share_of_replicates_below_concession']:.0f}%"])
+    return table(["Sizes of", "Statistic", "Concessions", "Patches, median", "Patches, 95% range",
+                  "Replicates below concessions"], rows)
 
 
 def t_calibration():
-    import numpy as np
-    import pandas as pd
-    P = pd.read_csv(os.path.join(EX, "per_concession_matched_dc.csv"))
-    T = pd.read_csv(os.path.join(EX, "concentration_benchmark_patches.csv"))
+    T = J(EX, "concentration_benchmark_r50_summary.json")["tails"]
     rows = []
     for k in KINDS:
-        g = P[P.kind == k]
-        null = T[T.kind_sizes == k].ratio.to_numpy()
-        for q in (90, 95, 99, 99.9):
-            thr = np.percentile(null, q)
-            rows.append([k, f"{q}th", f"×{thr:.2f}", int((g.ratio > thr).sum()), f"{len(g) * (100 - q) / 100:.1f}"])
-        rows.append([k, "maximum", f"×{null.max():.2f}", int((g.ratio > null.max()).sum()), "—"])
-    cf = J(EX, "flag_calibration.json")["calibrated_flag"]
-    foot = "; ".join(f"{k}: highest concession ratio ×{P[P.kind == k].ratio.max():.2f}, flagged after BH against patches "
-                     f"{cf[k]['flag_bh']}, empirical p ≤ 0.05 for {cf[k]['above_patch_p95']} (ties at the threshold count as not above)"
-                     for k in KINDS)
-    return table(["Type", "Patch-ratio percentile", "Threshold", "Concessions above", "Expected if like patches"], rows) + \
-        f"\n\n*{foot}. Null: {', '.join(str(cf[k]['null_patches']) for k in KINDS)} patch ratios (5 replicates).*"
+        for q in ("95", "99", "99.9"):
+            x = T[k][q]
+            rows.append([k, f"{q}th", f"×{x['threshold']:.2f}", x["concessions_above"], f"{x['expected']:.1f}",
+                         f"{x['patches_per_replicate_p2.5']:.0f}–{x['patches_per_replicate_p97.5']:.0f}"])
+        rows.append([k, "maximum", f"×{T[k]['max']['patch']:.1f}", 0, "—", f"highest concession ×{T[k]['max']['concession']:.1f}"])
+    return table(["Type", "Patch-ratio percentile (pooled)", "Threshold", "Concessions above", "Expected",
+                  "Patches above, per replicate (95% range)"], rows)
+
+
+def t_tipping():
+    t = J(EX, "tipping.json")
+    rows = []
+    for k, v in t["headline"].items():
+        rows.append([f"{k}, drought-matched burned share", f"{f2(v['observed'], 3)} ({ci(v['ci'], 3)})",
+                     f2(v["a_observed_detection_gap"], 3), f2(v["a_for_lower_bound_above_1"], 3),
+                     f2(v["a_for_point_1.25"], 3), f2(v["a_for_point_1.50"], 3)])
+    for k, v in t["landprep"].items():
+        rows.append([k, f"{f2(v['observed'])} ({ci(v['ci'])})", "—",
+                     f2(v["a_to_make_significant_excess"]) if v["a_to_make_significant_excess"] else "already above 1", "—", "—"])
+    return table(["Result", "Observed (95%)", "Measured detection gap a", "a for a significant excess",
+                  "a for ratio 1.25", "a for ratio 1.50"], rows)
+
+
+def t_prefire():
+    a = J(EX, "landprep", "landprep_tests.json")["T1"]["2015"]
+    b = J(EX, "landprep", "landprep_tests_prefire.json")["T1"]
+    b15 = b.get("2015") or b.get(2015)
+    rows = [[z, f"{f2(a[z]['ratio'])} ({ci(a[z]['ci'])})", f"{f2(b15[z]['ratio'])} ({ci(b15[z]['ci'])})",
+             f"{100 * b15[z]['coverage']:.1f}%"] for z in ("oil palm", "pulpwood", "unpermitted")]
+    return table(["Zone", "Peat, depth, distances", "+ forest 2014 and burn years 2001–2014", "Coverage"], rows)
 
 
 # ---------------------------------------------------------------- S7 heterogeneity
