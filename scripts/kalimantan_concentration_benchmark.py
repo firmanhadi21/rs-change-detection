@@ -28,9 +28,13 @@ sys.path.insert(0, os.path.join(_REPO_ROOT, "scripts"))
 from kalimantan_dc_stratum import peak_dc_bin  # noqa: E402
 from kalimantan_excess_burn import DATA, HTI, OUT, SEQ, stratum  # noqa: E402
 
-RES = os.path.join(OUT, "concentration_benchmark.json")
-PATCHES = os.path.join(OUT, "concentration_benchmark_patches.csv")
-MIN_CELLS, Q_FDR, NBOOT_UNIT, REPS = 250, 0.05, 2000, 5
+MIN_CELLS, Q_FDR, NBOOT_UNIT = 250, 0.05, 2000
+# --reps N writes concentration_benchmark_r{N}.json / _patches_r{N}.csv (review: more replicates); default 5
+# keeps the published files. The seed is the same, so the first five replicates match the default run.
+REPS = int(sys.argv[sys.argv.index("--reps") + 1]) if "--reps" in sys.argv else 5
+_TAG = "" if REPS == 5 else f"_r{REPS}"
+RES = os.path.join(OUT, f"concentration_benchmark{_TAG}.json")
+PATCHES = os.path.join(OUT, f"concentration_benchmark_patches{_TAG}.csv")
 
 
 def bh(p):

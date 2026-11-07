@@ -38,6 +38,9 @@ from kalimantan_excess_burn import (DATA, NBOOT, OUT, SEQ, STEP, direct_download
 FATE = os.path.join(DATA, "fate_200m.tif")
 CLEAR = os.path.join(DATA, "clear_200m.tif")
 FATE_BANDS = ["b2015", "b2019", "pre2015", "new2015", "pre2019", "new2019"]
+PREFIRE = os.path.join(DATA, "prefire_200m.tif")
+PREFIRE_BANDS = ["f2014", "burn0114"]   # % 30 m forest in 2014 (Hansen); years burned 2001-2014 (MCD64A1)
+PRE = "--prefire" in sys.argv          # review (Jenni AI): T1 also matched on pre-fire land cover and burn history
 CLEAR_BANDS = ["clr", "okc"]
 LINEAGE = os.path.join(os.path.dirname(OUT), "kalimantan_lineage", "lineage.parquet")
 UNITS = os.path.join(OUT, "heterogeneity_units.csv")
@@ -78,6 +81,22 @@ def fate_image():
     fr = (ee.Image.cat(frac).setDefaultProjection(proj)
           .reduceResolution(ee.Reducer.mean(), maxPixels=128).reproject(grid()).multiply(100))
     return ee.Image.cat(bands + [fr.select(["pre2015", "new2015", "pre2019", "new2019"])]).round().toInt16()
+
+
+def prefire_image():
+    """Pre-2015 state for T1: % of 30 m pixels forest in 2014 (treecover2000 >= 30, not lost before 2015) and
+    the number of years 2001-2014 with MCD64A1 burned area in the cell."""
+    import ee
+    from earthchange.fire_national import BURN_IC
+    gfc = ee.Image("UMD/hansen/global_forest_change_2024_v1_12")
+    loss = gfc.select("lossyear").unmask(0)
+    f14 = gfc.select("treecover2000").gte(30).And(loss.eq(0).Or(loss.gte(15)))
+    f14 = (f14.setDefaultProjection(gfc.projection()).reduceResolution(ee.Reducer.mean(), maxPixels=128)
+           .reproject(grid()).multiply(100).rename("f2014"))
+    yrs = [ee.ImageCollection(BURN_IC).filterDate(f"{y}-01-01", f"{y + 1}-01-01").select("BurnDate")
+           .map(lambda im: im.gt(0)).max().unmask(0).reproject(grid()) for y in range(2001, 2015)]
+    nb = ee.ImageCollection(yrs).sum().rename("burn0114")
+    return ee.Image.cat([f14, nb]).round().toInt16()
 
 
 def clear_image():
@@ -124,6 +143,13 @@ def stage_fate():
     _save(arr, tr, FATE, FATE_BANDS)
 
 
+def stage_prefire():
+    from earthchange.gee_utils import initialize_ee
+    initialize_ee()
+    arr, tr = direct_download(prefire_image(), os.path.join(DATA, "prefire_tiles"))
+    _save(arr, tr, PREFIRE, PREFIRE_BANDS)
+
+
 def stage_clear():
     from earthchange.gee_utils import initialize_ee
     initialize_ee()
@@ -158,6 +184,14 @@ def t1_fate(df, out):
     from scipy.stats import mannwhitneyu
     with rasterio.open(FATE) as ds:
         F = {b: ds.read(i + 1)[df.r.to_numpy(), df.c.to_numpy()] for i, b in enumerate(FATE_BANDS)}
+    keys = FATE_KEYS
+    if PRE:
+        with rasterio.open(PREFIRE) as ds:
+            P = {b: ds.read(i + 1)[df.r.to_numpy(), df.c.to_numpy()] for i, b in enumerate(PREFIRE_BANDS)}
+        df = df.assign(f14_bin=np.digitize(P["f2014"], [10, 50, 90]).astype(np.uint8),
+                       burnhist_bin=np.minimum(P["burn0114"], 2).astype(np.uint8))
+        keys = FATE_KEYS + ["f14_bin", "burnhist_bin"]
+        out["T1_keys"] = keys
     w, bidx = boot_setup(df)
     out["T1"] = {}
     print("\nT1 fate of earlier burns: share of non-palm land planted to palm afterwards (Descals, to 2021)")
@@ -170,7 +204,7 @@ def t1_fate(df, out):
         for z, name in ZONES.items():
             m = el & (df.zone.to_numpy() == z)
             d = df[m]
-            pt, pc, cov, bs = matched(d, burned[m], FATE_KEYS, new[m], w, bidx)
+            pt, pc, cov, bs = matched(d, burned[m], keys, new[m], w, bidx)
             r = ratio_ci(pt, pc, bs)
             r.update({"coverage": float(cov), "burned_km2": float(0.04 * burned[m].sum()),
                       "raw_unburned": float(new[m][~burned[m]].mean())})
@@ -278,6 +312,11 @@ def stage_tests():
     os.makedirs(RES, exist_ok=True)
     df = pd.read_parquet(os.path.join(DATA, "sample_200m.parquet"))
     out = {"strata_note": "T2 adds the peak-DC band; T1 per-unit uses drought-matched classes" if DCS else None}
+    if PRE:                                   # T1 only, with pre-fire covariates
+        t1_fate(df, out)
+        json.dump(out, open(os.path.join(RES, "landprep_tests_prefire.json"), "w"), indent=1, default=float)
+        print(f"\nSaved: {RES}/landprep_tests_prefire.json")
+        return
     if DCS:
         from kalimantan_dc_stratum import peak_dc_bin
         df["dc_bin"] = peak_dc_bin(df)
@@ -298,6 +337,7 @@ def stage_tests():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stage", choices=["fate", "clear", "tests"], required=True)
+    ap.add_argument("--stage", choices=["fate", "clear", "prefire", "tests"], required=True)
+    ap.add_argument("--prefire", action="store_true")
     ap.add_argument("--dc-stratum", action="store_true")
-    {"fate": stage_fate, "clear": stage_clear, "tests": stage_tests}[ap.parse_args().stage]()
+    {"fate": stage_fate, "clear": stage_clear, "prefire": stage_prefire, "tests": stage_tests}[ap.parse_args().stage]()
