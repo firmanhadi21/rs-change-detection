@@ -93,8 +93,8 @@ def data():
     timing = {r["matched_on"]: r for r in dcs["timing"] if r["treated"] == "oil palm" and r["variable"] == "dc_first"}
     lp = J("landprep/landprep_tests.json")
     nat = {x["label"]: x for x in J("national.json")}
-    bench = J("concentration_benchmark.json")["replicates"]
-    calib = J("flag_calibration.json")["peat_interaction"]       # unpermitted patches, per replicate (round 4)     # equally sized unpermitted tiles (round 2)
+    bench50 = J("concentration_benchmark_r50_summary.json")["stats"]   # unpermitted patches, 50 replicates
+    calib = J("flag_calibration.json")["peat_interaction"]       # unpermitted patches, per replicate (round 4)
     two = J("two_seasons.json")
     D = {
         "units_total": per["oil palm"]["units"] + per["pulpwood"]["units"],
@@ -122,10 +122,9 @@ def data():
         "timing": {"land": {"gap": timing["all strata"]["gap"], "ci": timing["all strata"]["ci"]},
                    "drought": {"gap": timing["all strata + peak-DC band"]["gap"],
                                "ci": timing["all strata + peak-DC band"]["ci"]}},
-        "benchmark": {k: {"excess_pct": [min(r["excess_pct"] for r in bench if r["kind_sizes"] == k),
-                                         max(r["excess_pct"] for r in bench if r["kind_sizes"] == k)],
-                          "share_pct": [min(r["excess_share_pct"] for r in bench if r["kind_sizes"] == k),
-                                        max(r["excess_share_pct"] for r in bench if r["kind_sizes"] == k)]}
+        # 50-replicate benchmark, 95% range across replicates (concentration_benchmark_r50_summary.json)
+        "benchmark": {k: {"excess_pct": [bench50[k]["excess_pct"]["p2.5"], bench50[k]["excess_pct"]["p97.5"]],
+                          "share_pct": [bench50[k]["excess_share_pct"]["p2.5"], bench50[k]["excess_share_pct"]["p97.5"]]}
                       for k in ("oil palm", "pulpwood")},
         "peat_patches": {"with_peat": [min(v["patch_excess_pct_peat_vs_not"][0] for v in calib.values()),
                                        max(v["patch_excess_pct_peat_vs_not"][0] for v in calib.values())],
