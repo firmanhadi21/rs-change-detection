@@ -86,3 +86,17 @@ def test_stable_threshold_is_a_high_percentile_and_ignores_nan():
     assert 0.1 <= em.stable_threshold(v) < 0.9
     with pytest.raises(ValueError):
         em.stable_threshold([np.nan])
+
+
+def test_binary_accuracy_ignores_confusion_within_each_side():
+    names = ["bare", "built", "forest", "other_veg", "water"]
+    cm = [[90, 10, 0, 0, 0],      # bare -> built is still open ground: correct here
+          [5, 95, 0, 0, 0],
+          [0, 0, 50, 50, 0],      # forest <-> other_veg: correct here
+          [0, 10, 40, 50, 0],     # 10 other_veg called built: a false positive
+          [0, 30, 0, 0, 70]]      # water excluded
+    b = em.binary_accuracy(cm, names)
+    assert b["excluded"] == ["water"] and b["n"] == 400
+    assert b["recall"] == 1.0
+    assert b["precision"] == round(200 / 210, 3)
+    assert b["accuracy"] == round(390 / 400, 3)

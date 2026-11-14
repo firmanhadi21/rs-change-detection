@@ -82,6 +82,28 @@ def folds_by_polygon(poly_ids, classes):
     return np.array([fold[p] for p in poly_ids])
 
 
+def binary_accuracy(cm, names, targets=("bare", "built"), exclude=("water",)):
+    """Target classes vs everything else, from a multi-class confusion matrix
+    (rows = true, columns = predicted). This is the accuracy the open-ground
+    numbers depend on: a forest pixel called "other vegetation" is an error in
+    the five-class score but not here. Classes in `exclude` (water: masked on
+    land anyway) are dropped from rows and columns."""
+    cm = np.asarray(cm, "f8")
+    keep = [i for i, n in enumerate(names) if n not in exclude]
+    cm = cm[np.ix_(keep, keep)]
+    kn = [names[i] for i in keep]
+    t = np.array([n in targets for n in kn])
+    tp, fn = cm[np.ix_(t, t)].sum(), cm[np.ix_(t, ~t)].sum()
+    fp, tn = cm[np.ix_(~t, t)].sum(), cm[np.ix_(~t, ~t)].sum()
+    tot = tp + fn + fp + tn
+    r = lambda x: round(float(x), 3)  # noqa: E731
+    return {"targets": [n for n in kn if n in targets], "excluded": [n for n in names if n in exclude],
+            "accuracy": r((tp + tn) / tot) if tot else None,
+            "recall": r(tp / (tp + fn)) if tp + fn else None,
+            "precision": r(tp / (tp + fp)) if tp + fp else None,
+            "n": int(tot)}
+
+
 def expansion_table(cls, first, targets, years, px_ha):
     """Area of the target classes (in the label year) by the first year the pixel's
     embedding departed from the start year. first == 0: never departed (already
@@ -414,6 +436,11 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None, admin
                         stride, run_dir, name, stats, land, targets)
     else:
         raise SystemExit("--source must be aef or tessera")
+    if stats.get("confusion"):
+        stats["binary_accuracy"] = binary_accuracy(stats["confusion"], names, targets)
+        b = stats["binary_accuracy"]
+        print(f"  open ground ({' + '.join(b['targets'])}) vs the rest, held out: accuracy "
+              f"{b['accuracy']}, recall {b['recall']}, precision {b['precision']}")
     if compare_dw and out:
         from .forest_account import open_ground
         from .gee_utils import initialize_ee
@@ -447,7 +474,7 @@ def run(backend, lat, lon, radius, name, run_dir, run_id, config_key=None, admin
                     ref=stats.get("dynamic_world_bare_built_ha"))
     with open(os.path.join(run_dir, "stats.json"), "w") as f:
         json.dump(stats, f, indent=1)
-    print(json.dumps({k_: stats[k_] for k_ in stats if k_ in ("accuracy", "recall", "area_ha",
+    print(json.dumps({k_: stats[k_] for k_ in stats if k_ in ("accuracy", "binary_accuracy", "recall", "area_ha",
                                                              "changed_pct", "similar_ha")},
                      indent=1))
     return stats
@@ -598,8 +625,10 @@ def _run_aef(bbox, years, mode, feats, names, train_year, like, k, thr, run_dir,
             areas[yr] = {n: areas[yr][i] for i, n in enumerate(names)}
             _thumb(cls.clip(geom), geom, os.path.join(run_dir, f"classes_{yr}.png"), vis)
             print(f"  {yr}: " + ", ".join(f"{n} {areas[yr][n]:.0f}" for n in names if n not in ("forest", "water")))
-        download_geotiff(aef_year(geom, years[-1]).classify(clf).toByte(), geom,
+        # Earth Engine writes masked pixels as 0, which is also class 0: store class + 1.
+        download_geotiff(aef_year(geom, years[-1]).classify(clf).add(1).unmask(0).toByte(), geom,
                          os.path.join(run_dir, f"classes_{years[-1]}.tif"), scale=10)
+        stats["classes_tif_encoding"] = "value = class index + 1 (order of 'classes'); 0 = no data / sea"
         stats["area_ha"] = {str(y): v for y, v in areas.items()}
         _panel_from_pngs(run_dir, years, names, name)
         return areas
