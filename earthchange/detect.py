@@ -500,6 +500,22 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
                       with_l7=args.with_l7, seconds_per_frame=args.frame_seconds)
         return True
 
+    if method == "embeddings":
+        from . import embeddings
+        bb = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        if bb is None and lat is None:
+            raise SystemExit("embeddings needs --bbox W,S,E,N or --lat/--lon (--radius).")
+        thr = args.change_thr
+        if args.emb_mode == "similar" and "--change-thr" not in sys.argv:
+            thr = 0.8                                  # similarity, not change
+        embeddings.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                       config_key=ee_key, bbox=bb, source=args.source, mode=args.emb_mode,
+                       start_year=args.start_year or 2017, end_year=args.end_year or 2025,
+                       labels=args.labels, like=args.like, k=args.k,
+                       train_year=args.train_year, change_thr=thr, stride=args.stride,
+                       compare_dw=args.compare_dw, land_only=not args.include_sea)
+        return True
+
     if method == "disturbance" and args.backend == "cdse":
         from . import s1_history
         s1_history.run_cdse(lat, lon, radius, name, run_dir, run_id,
@@ -1462,6 +1478,30 @@ def build_parser():
                          "pixel's own last N pairs on the same track (VV+VH z); "
                          "reports the control false-alarm level too. With "
                          "--backend cdse this is the whole method (default 20)")
+    ap.add_argument("--source", choices=["aef", "tessera"], default="aef",
+                    help="embeddings: aef = Google DeepMind AlphaEarth (Earth Engine, "
+                         "64-d), tessera = TESSERA via geotessera (local, 128-d)")
+    ap.add_argument("--emb-mode", choices=["change", "similar", "classify", "expansion", "clusters"],
+                    default="classify",
+                    help="embeddings: change between years, similarity to labelled "
+                         "examples, few-shot classes per year, or k-means clusters")
+    ap.add_argument("--labels", help="embeddings: GeoJSON polygons with a 'class' "
+                                     "property, drawn on the --train-year imagery")
+    ap.add_argument("--like", help="embeddings --emb-mode similar: the class in --labels "
+                                   "to look for (e.g. bare)")
+    ap.add_argument("--k", type=int, default=8, help="embeddings --emb-mode clusters: groups")
+    ap.add_argument("--train-year", type=int,
+                    help="embeddings: year the --labels describe (default --end-year)")
+    ap.add_argument("--change-thr", type=float, default=0.3,
+                    help="embeddings: 1 - cosine similarity above which a pixel has "
+                         "changed (change), or similarity above which it matches (similar)")
+    ap.add_argument("--stride", type=int, default=1,
+                    help="embeddings --source tessera: read every Nth pixel (2 = 20 m) "
+                         "to fit large areas in memory")
+    ap.add_argument("--include-sea", action="store_true",
+                    help="embeddings: count the sea too (default: land only, FAO GAUL)")
+    ap.add_argument("--compare-dw", action="store_true",
+                    help="embeddings: also report Dynamic World bare + built per year")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
     ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")

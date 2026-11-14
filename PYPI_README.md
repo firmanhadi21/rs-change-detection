@@ -62,6 +62,7 @@ GeoTIFF, statistics JSON, metadata, and any maps.
 | `forest-history` | Multi-epoch deforestation: year-of-loss map + forest-area trajectory | S2 / Landsat NDVI |
 | `forest-account` | Tree-cover loss by year, primary forest and driver, per regency; optional open ground | Hansen GFC + WRI/Google + Dynamic World |
 | `timelapse` | One cloud-free frame per year → PNGs + MP4 | Landsat (1984+) / Sentinel-2 |
+| `embeddings` | Foundation-model embeddings: change, similarity, few-shot classes, expansion timeline, clusters | AlphaEarth (GEE) / TESSERA |
 | `population-change` | Two-epoch population change: Miloš-style spike poster + map + optional true GPU 3D via forge3d | GHSL GHS_POP |
 | `haze` | Smoke & air quality during fires: PM2.5 (ISPU), aerosol index, hotspots | CAMS + Sentinel-5P + FIRMS |
 | `fire-history` | Multi-year fire record: burned area per year (peat vs mineral), recurrence map, fire season | MODIS MCD64A1 + FIRMS |

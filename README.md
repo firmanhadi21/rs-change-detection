@@ -159,6 +159,7 @@ gratis), atau `--site NAMA`.
 | `forest-history` | Deforestasi multi-periode: peta tahun-kehilangan + tren luas hutan | S2 / Landsat NDVI |
 | `forest-account` | **Neraca hutan**: tutupan pohon hilang per tahun, hutan primer, pemicu per km², per kabupaten; opsional lahan terbuka | Hansen GFC + WRI/Google + Dynamic World |
 | `timelapse` | Satu citra bebas awan per tahun → bingkai PNG + video MP4 | Landsat (sejak 1984) / Sentinel-2 |
+| `embeddings` | Embedding model fondasi: perubahan, kemiripan, kelas sedikit-contoh, ekspansi, klaster | AlphaEarth (GEE) / TESSERA |
 | `population-change` | Perubahan populasi 2 epoch: infografik siluet-pulau gaya Miloš + peta + ekspor forge3d | GHSL GHS_POP |
 | `haze` | Asap & kualitas udara karhutla: PM2.5 (ISPU), indeks aerosol, titik panas | CAMS + Sentinel-5P + FIRMS |
 | `fire-history` | Riwayat karhutla: luas terbakar/tahun (gambut vs mineral), peta frekuensi, musim | MODIS MCD64A1 + FIRMS |
@@ -555,6 +556,33 @@ Keluaran: `stats.json` (total, per tahun, per pemicu × tahun, laju pemicu awal 
 6 tahun terakhir, per kabupaten), `units.csv`, `loss_by_year.png`, `units.png`,
 `open_ground.png`. "Tutupan pohon" Hansen termasuk kebun; pemicu adalah satu kelas
 per sel 1 km, bukan bukti pelaku.
+
+### Embedding model fondasi — `embeddings`
+
+Vektor tahunan 10 m dari **AlphaEarth** (Google DeepMind, Earth Engine, 64-d) atau
+**TESSERA** (Cambridge, `geotessera`, lokal, 128-d). Mode: `change` (perubahan antar
+tahun), `similar` (mirip contoh), `classify` (kelas dari sedikit poligon contoh, akurasi
+diuji pada poligon yang tidak dipakai melatih), `expansion` (kelas tahun label × tahun
+pertama embedding berubah, ambang dikalibrasi pada kelas stabil), `clusters`.
+Luas dihitung di darat saja (garis pantai FAO GAUL) kecuali `--include-sea`.
+
+```bash
+earthchange -s embeddings --source aef --emb-mode expansion --start-year 2019 \
+    --labels seeds.geojson --bbox 127.88,0.46,128.04,0.68 --compare-dw
+earthchange -s embeddings --source tessera --emb-mode expansion --start-year 2019 \
+    --labels seeds.geojson --bbox 128.02,0.44,128.12,0.53
+```
+
+Dua jebakan yang ditemukan di Teluk Weda (Nov 2026):
+- **Embedding mengenali batuan dasar, bukan hanya tutupan.** Hutan di perbukitan
+  ultramafik (bijih nikel) diklasifikasi "tanah terbuka" bila semua contoh tanah
+  terbuka berada di batuan itu dan semua contoh hutan di luar. Beri contoh hutan di
+  batuan yang sama; mode `expansion` menyaring sisanya karena hutan yang tetap hutan
+  tidak berubah.
+- **Model per tahun tidak selalu bisa dipindah antartahun.** Melatih pada 2025 lalu
+  menerapkan ke 2017 membuat hutan/vegetasi lain berayun 2–6×. TESSERA 2017–2018 di
+  Halmahera juga terlalu berbeda dari tahun kemudian untuk dijadikan dasar
+  (hutan stabil berubah sebesar lubang tambang baru); pakai `--start-year 2019`.
 
 ### Timelapse — `timelapse`
 

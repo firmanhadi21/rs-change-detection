@@ -763,6 +763,16 @@ SCENARIOS = {
                            "tebang, api, tambang), dan per kabupaten bila --admin "
                            "provinsi. Pemicu adalah klasifikasi model, bukan bukti pelaku."),
     },
+    "embeddings": {
+        "label": "Embeddings — change, similarity, few-shot classes and clusters from "
+                 "AlphaEarth (Earth Engine) or TESSERA (geotessera) annual embeddings",
+        "method": "embeddings",
+        "radius": 10.0, "needs": "none",
+        "interpretation": ("Embedding tahunan 10 m dari model fondasi: perubahan antar "
+                           "tahun, kemiripan dengan contoh, kelas dari sedikit contoh "
+                           "(dengan akurasi pada poligon yang tidak dipakai melatih), "
+                           "atau kelompok tanpa label."),
+    },
     "timelapse": {
         "label": "Timelapse — one cloud-free true-colour frame per year, as PNGs + MP4 "
                  "(Landsat since 1984, or Sentinel-2)",
@@ -915,6 +925,9 @@ SCENARIO_FLAGS = {
     # forest-account reads --start-year/--end-year only for the open-ground years;
     # the loss years are whatever the Hansen asset holds.
     "forest-account": ("--canopy-thr", "--open-ground", "--start-year", "--end-year"),
+    "embeddings": ("--source", "--emb-mode", "--labels", "--like", "--k", "--train-year",
+                   "--change-thr", "--stride", "--compare-dw", "--include-sea",
+                   "--start-year", "--end-year"),
     "timelapse": ("--start-year", "--end-year", "--sensor", "--window-years",
                   "--video-width", "--with-l7", "--frame-seconds"),
     # detect.py passes fire-history neither --season nor --months; it is bounded

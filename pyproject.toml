@@ -52,6 +52,10 @@ video = ["forge3d>=1.34", "numpy", "scipy", "pandas", "pillow", "requests"]
 # Indicative smoke trajectories (smoke-track): air parcels on ERA5 100 m wind
 track = ["earthengine-api", "movingpandas", "geopandas", "pyogrio", "numpy",
          "rasterio", "matplotlib", "contextily", "shapely"]
+# Foundation-model embeddings (embeddings scenario). AlphaEarth needs only the
+# gee extra; TESSERA streams with geotessera and classifies locally.
+tessera = ["geotessera>=0.11", "scikit-learn", "numpy", "rasterio", "shapely", "pyproj",
+           "matplotlib"]
 # Test suite. Runs offline with `pytest -m "not network"`.
 dev = ["pytest"]
 # Everything
