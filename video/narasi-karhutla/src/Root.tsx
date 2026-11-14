@@ -1,5 +1,5 @@
 import React from "react";
-import { Composition } from "remotion";
+import { Composition, Still } from "remotion";
 import { FPS, LEBAR, TINGGI, TOTAL_FRAME } from "./jadwal";
 import {
   FPS as FPS_B,
@@ -17,6 +17,8 @@ import { RadarFilm } from "./Radar";
 import { JADWAL_RADAR } from "./jadwalRadar";
 import { PulauFilm } from "./Pulau";
 import { JADWAL_PULAU } from "./jadwalPulau";
+import { HutanFilm, Infografis } from "./Hutan";
+import { JADWAL_HUTAN } from "./jadwalHutan";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -118,5 +120,30 @@ export const RemotionRoot: React.FC = () => (
       width={JADWAL_PULAU.en.LEBAR}
       height={JADWAL_PULAU.en.TINGGI}
     />
+    {/* Seventh piece: a standalone film on North Maluku's forests and nickel mining,
+        plus its infographic still. */}
+    <Composition
+      id="Hutan"
+      component={HutanFilm}
+      defaultProps={{ bahasa: "id" as const }}
+      durationInFrames={JADWAL_HUTAN.id.TOTAL_FRAME}
+      fps={JADWAL_HUTAN.id.FPS}
+      width={JADWAL_HUTAN.id.LEBAR}
+      height={JADWAL_HUTAN.id.TINGGI}
+    />
+    <Composition
+      id="HutanEN"
+      component={HutanFilm}
+      defaultProps={{ bahasa: "en" as const }}
+      durationInFrames={JADWAL_HUTAN.en.TOTAL_FRAME}
+      fps={JADWAL_HUTAN.en.FPS}
+      width={JADWAL_HUTAN.en.LEBAR}
+      height={JADWAL_HUTAN.en.TINGGI}
+    />
+    {(["id", "en"] as const).flatMap((b) =>
+      ([1, 2] as const).map((h) => (
+        <Still key={`${b}${h}`} id={`Infografis${b === "en" ? "EN" : ""}${h}`} component={Infografis} defaultProps={{ bahasa: b, halaman: h }} width={1080} height={1350} />
+      )),
+    )}
   </>
 );

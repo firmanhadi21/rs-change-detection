@@ -28,6 +28,28 @@ mechanisms as the main film, with the bed reusing the main film's
 normalised score (sped up rather than slowed, since this film is shorter)
 so the two sound like one body of work.
 
+## Hutan — North Maluku's forests (standalone)
+
+`Hutan` / `HutanEN` ("Apa yang Menggerus Hutan Maluku Utara?" / "What Is
+Clearing North Maluku's Forests?", 2 min 57 s / 2 min 51 s) and the
+two-page infographic stills `Infografis1/2`, `InfografisEN1/2` (1080 × 1350).
+Indonesian is read by Bian, English by Max.
+
+```
+conda run -n base python ../../scripts/malut_film_assets.py   # public/hutan/, src/hutanData.json
+python3 tts_konsesi.py --film hutan [--bahasa en]               # narration + jadwalHutan[EN].json
+python3 bake_musik_bukti.py --jadwal src/jadwalHutan.json \
+    --keluar public/audio/hutan/musik-hutan.mp3 --sambung 70
+npm run build:hutan && npm run build:hutan-en && npm run build:infografis
+```
+
+Figures come from `output/malut_forest/` (Earth Engine runs: Hansen GFC
+v1.13, WRI/Google drivers, Dynamic World, Landsat and Sentinel-2 frames);
+the same province totals are reproducible with
+`earthchange -s forest-account --admin "Maluku Utara"`. No company is
+named; the Sagea river turbidity is attributed to residents (Mongabay
+Indonesia reporting).
+
 ---
 
 

@@ -1,0 +1,18 @@
+{
+  "_comment": [
+    "Max's words for the English edition, 'What Is Clearing North Maluku's Forests?', the same scene",
+    "ids as narasiHutan.json and the same figures (see its _comment). tts_konsesi.py --film hutan",
+    "--bahasa en generates each clip. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "Gfpl8Yo74Is0W6cPUWWT",
+  "teks": {
+    "01-buka": "In the year two thousand, almost all of North Maluku's land was under trees. Since then, satellites have recorded the loss of about three hundred thousand hectares of tree cover, nearly a tenth of it. Six of every ten hectares lost were primary forest.",
+    "02-tahun": "The worst year was twenty fifteen, an El Niño drought: forty-five thousand hectares in a single year, as fire and clearing peaked. The pace fell after that, but it has not stopped. Since twenty seventeen, between six and fourteen thousand hectares have been lost every year.",
+    "03-penyebab": "What drives it? A map of forest-loss drivers from WRI and Google marks the main driver in every square kilometre. In North Maluku, permanent farming and plantations come first, more than a third. Then shifting cultivation, logging, and fire. Mining is only four percent.",
+    "04-tambang": "But mining's share is growing fastest. Up to twenty eighteen, loss in mining areas averaged almost four hundred hectares a year. Since twenty nineteen, almost nine hundred, more than double, peaking at nearly two thousand hectares in twenty twenty-three. One in every ten hectares lost is now in a mining area, most of it in Central Halmahera.",
+    "05-weda": "This is Weda Bay, in Central Halmahera, from two thousand to today. Until twenty eighteen, clearings here were small, and many grew back. Then a nickel industrial area grew along the shore, and roads and mines crept into the hills. Open ground, bare earth and buildings, rose from about sixteen hundred hectares in twenty nineteen to eight thousand hectares this year. Five times as much.",
+    "06-sagea": "Four kilometres from Sagea village lies a lake of about a hundred and fifty hectares. For ten years, the open ground around it barely changed. This year, within one kilometre of its shore, it grew almost fourfold, to about sixty hectares. The nearest clearing is now around two hundred metres from the water. Residents reported the Sagea river running muddy for almost two months in twenty twenty-three, and link it to mining upstream.",
+    "07-tutup": "So what is clearing North Maluku's forests? Over twenty-five years, mostly farming, shifting cultivation, logging, and fire. But nickel mining is the fastest-growing driver, and its footprint is the most concentrated: at Weda Bay, and now at the edge of Sagea Lake."
+  }
+}

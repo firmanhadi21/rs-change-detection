@@ -14,7 +14,10 @@
     "build:radar": "remotion render Radar out/radar-karhutla.mp4",
     "build:radar-en": "remotion render RadarEN out/radar-karhutla-en.mp4",
     "build:pulau": "remotion render Pulau out/pulau-karhutla.mp4",
-    "build:pulau-en": "remotion render PulauEN out/pulau-karhutla-en.mp4"
+    "build:pulau-en": "remotion render PulauEN out/pulau-karhutla-en.mp4",
+    "build:hutan": "remotion render Hutan out/hutan-malut.mp4",
+    "build:hutan-en": "remotion render HutanEN out/hutan-malut-en.mp4",
+    "build:infografis": "remotion still Infografis1 out/Infografis1.png && remotion still Infografis2 out/Infografis2.png && remotion still InfografisEN1 out/InfografisEN1.png && remotion still InfografisEN2 out/InfografisEN2.png"
   },
   "dependencies": {
     "@remotion/cli": "4.0.410",

@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "Bian's words for the standalone film 'Apa yang Menggerus Hutan Maluku Utara?', one entry per",
+    "segment of jadwalHutan.json's urutan. tts_konsesi.py --film hutan generates each clip; the mp3s",
+    "are gitignored. Every figure is from src/hutanData.json (scripts/malut_film_assets.py, from",
+    "output/malut_forest/): Hansen GFC v1.13 loss 2001-2025, tree cover >=30% in 2000 (302,686 ha,",
+    "9.8%; primary 181,101 ha = 60%); peak 2015 45,444 ha; 2017-2025 range 6,062-14,162 ha/yr;",
+    "WRI/Google 1 km dominant-driver classes 2001-2024 (agriculture 37.5%, shifting 25.5%, logging",
+    "18.6%, wildfire 12.3%, mining 4.2%); mining-class loss 383 ha/yr 2001-18 vs 896 ha/yr 2019-24,",
+    "peak 2023 1,934 ha, share 2.9% -> 10.1%, most in Halmahera Tengah (4,752 ha); Dynamic World",
+    "bare+built in the Weda Bay box 1,575 ha (2019) -> 8,046 ha (2026, Jan-Nov); within 1 km of the",
+    "Sagea Lake shore 10-17 ha in 2016-2025 -> 61 ha in 2026, nearest edge 191 m; lake 152 ha",
+    "(S2 MNDWI). River turbidity Aug-Oct 2023: Mongabay Indonesia reporting, attributed by residents.",
+    "Numbers are spelled out so the voice does not read 302.686 as a decimal. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Pada tahun dua ribu, hampir seluruh daratan Maluku Utara tertutup pohon. Sejak itu, satelit mencatat sekitar tiga ratus ribu hektare tutupan pohon hilang, hampir sepersepuluhnya. Enam dari setiap sepuluh hektare yang hilang adalah hutan primer.",
+    "02-tahun": "Kehilangan terbesar terjadi pada dua ribu lima belas, tahun kemarau El Niño: empat puluh lima ribu hektare dalam setahun, ketika kebakaran dan pembukaan lahan memuncak. Sesudahnya lajunya turun, tetapi tidak berhenti. Sejak dua ribu tujuh belas, antara enam ribu dan empat belas ribu hektare hilang setiap tahun.",
+    "03-penyebab": "Apa pemicunya? Peta pemicu kehilangan hutan dari WRI dan Google menandai pemicu utama di setiap kilometer persegi. Di Maluku Utara, pertanian dan perkebunan menetap adalah yang terbesar, lebih dari sepertiga. Lalu ladang berpindah, penebangan kayu, dan kebakaran. Tambang hanya empat persen.",
+    "04-tambang": "Tetapi bagian tambang tumbuh paling cepat. Sampai dua ribu delapan belas, kehilangan di wilayah tambang rata-rata hampir empat ratus hektare per tahun. Sejak dua ribu sembilan belas, hampir sembilan ratus, lebih dari dua kali lipat, dengan puncak hampir dua ribu hektare pada dua ribu dua puluh tiga. Kini satu dari sepuluh hektare yang hilang ada di wilayah tambang, terbanyak di Halmahera Tengah.",
+    "05-weda": "Inilah Teluk Weda, Halmahera Tengah, dari tahun dua ribu sampai sekarang. Sampai dua ribu delapan belas, bukaan di sini kecil, dan banyak yang tumbuh kembali. Lalu kawasan industri nikel tumbuh di tepi teluk, dan jalan serta tambang merambat ke perbukitan. Lahan terbuka, tanah gundul dan bangunan, naik dari sekitar seribu enam ratus hektare pada dua ribu sembilan belas menjadi delapan ribu hektare tahun ini. Lima kali lipat.",
+    "06-sagea": "Empat kilometer dari Desa Sagea ada sebuah danau seluas sekitar seratus lima puluh hektare. Selama sepuluh tahun, lahan terbuka di sekitarnya hampir tidak berubah. Tahun ini, dalam satu kilometer dari tepi danau, luasnya naik hampir empat kali lipat, menjadi sekitar enam puluh hektare. Tepi bukaan terdekat kini sekitar dua ratus meter dari air. Warga melaporkan Sungai Sagea keruh hampir dua bulan pada dua ribu dua puluh tiga, dan mengaitkannya dengan tambang di hulu.",
+    "07-tutup": "Jadi, apa yang menggerus hutan Maluku Utara? Selama dua puluh lima tahun, terutama pertanian, ladang, penebangan, dan kebakaran. Tetapi tambang nikel adalah pemicu yang tumbuh paling cepat, dan bekasnya paling terpusat: di Teluk Weda, dan kini di tepi Danau Sagea."
+  }
+}
