@@ -12,6 +12,8 @@ detect.py downloads every product (PNG quick-look + GeoTIFF) and writes stats.
 Add a scenario by adding an entry to SCENARIOS (optionally a new run function).
 """
 
+import math
+
 try:
     import ee  # only needed for the GEE backend
 except ImportError:
@@ -392,6 +394,77 @@ def run_flood(aoi, p, water_thr=-16.0):
             "interpretation": "Biru = area tergenang saat kejadian (air permanen & laut di-mask)."}
 
 
+def _history_gee(aoi, orbit, rel, date_post, n_ctrl, z_thr=-2.5, drop_db=2.0,
+                 severe_z=-4.0, min_px=10):
+    """The event pair scored against the same pixel's earlier pairs on the same
+    track, VV and VH together (see s1_history.py for the method and why).
+
+    Also scores the last control pair against the remaining controls, so the
+    run carries its own false-alarm level.
+    """
+    import datetime as _dt
+    end = (_dt.date.fromisoformat(date_post) + _dt.timedelta(days=1)).isoformat()
+    start = (_dt.date.fromisoformat(date_post)
+             - _dt.timedelta(days=12 * (n_ctrl + 3))).isoformat()
+
+    def col(pol):
+        c = s1(aoi, start, end, orbit, pol)
+        return c.filter(ee.Filter.eq("relativeOrbitNumber_start", rel)) if rel is not None else c
+
+    vv, vh = col("VV"), col("VH")
+    fmt = lambda c: set(c.aggregate_array("system:time_start").map(  # noqa: E731
+        lambda t: ee.Date(t).format("YYYY-MM-dd")).getInfo())
+    dates = sorted(fmt(vv) & fmt(vh))
+    dates = [d for d in dates if d <= date_post][-(n_ctrl + 2):]
+    if len(dates) < 5:
+        raise SystemExit(f"--history: only {len(dates)} passes on this track before "
+                         f"{date_post}; need at least 5.")
+
+    def pas(c, d):
+        nxt = (_dt.date.fromisoformat(d) + _dt.timedelta(days=1)).isoformat()
+        return c.filterDate(d, nxt).mosaic().focal_median(50, "circle", "meters")
+
+    imgs = [pas(vv, d).rename("VV").addBands(pas(vh, d).rename("VH")) for d in dates]
+    diffs = [imgs[i + 1].subtract(imgs[i]) for i in range(len(imgs) - 1)]
+
+    def score(ctrl, ev):
+        c = ee.ImageCollection(ctrl)
+        mu, sd = c.mean(), c.reduce(ee.Reducer.stdDev()).rename(["VV", "VH"]).max(0.3)
+        z = ev.subtract(mu).divide(sd)
+        zc = z.select("VV").add(z.select("VH")).divide(math.sqrt(2))
+        m = zc.lt(z_thr).And(ev.select("VV").lt(-drop_db)).And(ev.select("VH").lt(-drop_db))
+        keep = m.selfMask().connectedPixelCount(100, True).unmask(0).gte(min_px)
+        m = m.And(keep)
+        return m, m.And(zc.lt(severe_z)), zc
+
+    m_ev, sev, zc = score(diffs[:-1], diffs[-1])
+    m_ct, _, _ = score(diffs[:-2], diffs[-2])
+    graded = m_ev.add(sev).selfMask().rename("history")
+    ev_pct, ct_pct = _pct(m_ev, aoi), _pct(m_ct, aoi)
+    # Valley floors vs hillsides, as in s1_history.valley_floor: a flash-flood
+    # signal is dense on the floor and sparse on the slopes; noise is not.
+    dem = (ee.ImageCollection("COPERNICUS/DEM/GLO30").select("DEM").mosaic()
+           .setDefaultProjection("EPSG:4326", None, 30))
+    valley = (ee.Terrain.slope(dem).lt(8)
+              .And(dem.subtract(dem.focal_min(250, "square", "meters")).lt(15))
+              .focal_max(50, "circle", "meters"))
+    terr = {}
+    for k, msk in (("valley_floor", valley), ("hillside", valley.Not())):
+        e, c = _pct(m_ev.updateMask(msk), aoi), _pct(m_ct.updateMask(msk), aoi)
+        terr[k] = {"event_pct": round(e, 3), "control_pct": round(c, 3),
+                   "ratio": round(e / c, 1) if c else None}
+    stats = {"method": f"per-pixel z vs {len(diffs) - 1} control pairs on the same track; "
+                       f"flag zc < {z_thr} and VV, VH both < -{drop_db} dB; >= {min_px} px",
+             "event_pair": dates[-2:], "control_dates": dates[:-1],
+             "pct_flagged": ev_pct, "pct_severe": _pct(sev, aoi),
+             "control_pair": dates[-3:-1], "control_pct_flagged": ct_pct,
+             "event_to_control_ratio": round(ev_pct / ct_pct, 1) if ct_pct else None,
+             "by_terrain": terr}
+    vis = {"palette": ["fd8d3c", "bd0026"], "min": 1, "max": 2}
+    return ({"key": "history", "thumb": graded, "thumb_vis": vis,
+             "tif": graded.toByte(), "scale": 10}, stats)
+
+
 def run_disturbance(aoi, p, drop_thr=-3.0, severe_thr=-6.0, steep_deg=15.0):
     """Disturbance / impact mapping via Sentinel-1 VH change (cloud-proof).
 
@@ -445,7 +518,12 @@ def run_disturbance(aoi, p, drop_thr=-3.0, severe_thr=-6.0, steep_deg=15.0):
     vis = {"palette": ["fdae61", "d7191c"], "min": 1, "max": 2}
     product = {"key": "disturbance", "thumb": graded, "thumb_vis": vis,
                "tif": graded.toByte(), "scale": 10}
-    return {"products": [product], "stats": stats,
+    products = [product]
+    if p.get("history"):
+        hprod, hstats = _history_gee(aoi, orbit, rel, date_post, int(p["history"]))
+        products.append(hprod)
+        stats["history"] = hstats
+    return {"products": products, "stats": stats,
             "interpretation": ("Oranye/merah = penurunan backscatter VH (vegetasi/"
                                "permukaan hilang). Di lereng curam ≈ longsor; di "
                                "dataran ≈ endapan/genangan.")}
@@ -675,6 +753,25 @@ SCENARIOS = {
         "interpretation": ("Kapan tiap piksel hutan hilang (peta) + tren luas hutan "
                            "antar-periode. Pakai --sensor landsat untuk sejak 1980-an."),
     },
+    "forest-account": {
+        "label": "Forest account — tree-cover loss by year, primary forest and driver "
+                 "(Hansen GFC, WRI/Google drivers), per regency; optional open ground (Dynamic World)",
+        "method": "forest-account",
+        "radius": 25.0, "needs": "none",
+        "interpretation": ("Neraca hutan: luas tutupan pohon hilang per tahun, bagian "
+                           "hutan primer, pemicu utama per km² (pertanian, ladang, "
+                           "tebang, api, tambang), dan per kabupaten bila --admin "
+                           "provinsi. Pemicu adalah klasifikasi model, bukan bukti pelaku."),
+    },
+    "timelapse": {
+        "label": "Timelapse — one cloud-free true-colour frame per year, as PNGs + MP4 "
+                 "(Landsat since 1984, or Sentinel-2)",
+        "method": "timelapse",
+        "radius": 10.0, "needs": "none",
+        "interpretation": ("Citra tahunan (median awan-tersaring) sebagai bingkai dan "
+                           "video, untuk melihat tambang, kawasan industri, atau "
+                           "pembukaan lahan tumbuh dari tahun ke tahun."),
+    },
     "haze": {
         "label": "Haze — smoke & air quality from fires: PM2.5 + aerosol index + hotspots (CAMS/S5P/FIRMS)",
         "method": "haze",
@@ -798,7 +895,7 @@ SCENARIO_FLAGS = {
                       "--hotspot-km", "--hotspot-from", "--hotspot-to")
                      + _PLANET,
     "flood": _MAP + ("--thr", "--no-water-mask", "--severe"),
-    "disturbance": _MAP + ("--drop-thr", "--severe"),
+    "disturbance": _MAP + ("--drop-thr", "--severe", "--history"),
     "burn": _OPTICAL + _MAP + ("--thr", "--severe", "--min-obs"),
     # --months is read only by urban-heat; water never sees it.
     "water": _MAP + ("--no-water-mask",),
@@ -815,6 +912,11 @@ SCENARIO_FLAGS = {
     "population-change": ("--epochs", "--cell-km", "--pop-years", "--forge3d",
                           "--forge3d-prep-only", "--country"),
     "forest-history": ("--start-year", "--end-year", "--forest-thr"),
+    # forest-account reads --start-year/--end-year only for the open-ground years;
+    # the loss years are whatever the Hansen asset holds.
+    "forest-account": ("--canopy-thr", "--open-ground", "--start-year", "--end-year"),
+    "timelapse": ("--start-year", "--end-year", "--sensor", "--window-years",
+                  "--video-width", "--with-l7", "--frame-seconds"),
     # detect.py passes fire-history neither --season nor --months; it is bounded
     # by --start-year/--end-year.
     "fire-history": ("--start-year", "--end-year", "--areas", "--regions",

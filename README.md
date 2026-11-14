@@ -157,6 +157,8 @@ gratis), atau `--site NAMA`.
 | `island-heat` | Tren SST + LST + wet-bulb (panas lembab) pulau kecil | OISST / Landsat / ERA5 |
 | `urban-heat` | Pulau panas perkotaan (SUHII) + peta titik panas + tren dekadal | GHSL + Landsat + MODIS |
 | `forest-history` | Deforestasi multi-periode: peta tahun-kehilangan + tren luas hutan | S2 / Landsat NDVI |
+| `forest-account` | **Neraca hutan**: tutupan pohon hilang per tahun, hutan primer, pemicu per km², per kabupaten; opsional lahan terbuka | Hansen GFC + WRI/Google + Dynamic World |
+| `timelapse` | Satu citra bebas awan per tahun → bingkai PNG + video MP4 | Landsat (sejak 1984) / Sentinel-2 |
 | `population-change` | Perubahan populasi 2 epoch: infografik siluet-pulau gaya Miloš + peta + ekspor forge3d | GHSL GHS_POP |
 | `haze` | Asap & kualitas udara karhutla: PM2.5 (ISPU), indeks aerosol, titik panas | CAMS + Sentinel-5P + FIRMS |
 | `fire-history` | Riwayat karhutla: luas terbakar/tahun (gambut vs mineral), peta frekuensi, musim | MODIS MCD64A1 + FIRMS |
@@ -535,6 +537,56 @@ kuning→merah tua = hilang lebih awal→lebih baru), `forest_trajectory.png` (l
 asli tersisa per periode), `forest_loss.tif`, dan `stats.json` (luas hutan & kehilangan
 per periode, total). Butuh `earthchange[maps]`. Atur ambang dengan
 `--forest-thr` (default 0.6) & `--drop-thr` (default 0.2).
+
+### Neraca hutan — `forest-account`
+
+Berapa tutupan pohon hilang, kapan, dan apa pemicunya, dihitung dari lapisan global
+yang terbit (Hansen GFC v1.13, hutan primer Turubanova 2018, pemicu WRI/Google 1 km)
+sehingga angkanya sebanding antarprovinsi. Bila `--admin` adalah provinsi, tiap
+kabupaten ikut dihitung. `--open-ground` menambah luas tanah gundul + bangunan per
+tahun (Dynamic World): jejak tambang, galian, kawasan industri, jalan.
+
+```bash
+earthchange -s forest-account --admin "Maluku Utara"
+earthchange -s forest-account --lat 0.48 --lon 128.05 --radius 25 --open-ground
+```
+
+Keluaran: `stats.json` (total, per tahun, per pemicu × tahun, laju pemicu awal vs
+6 tahun terakhir, per kabupaten), `units.csv`, `loss_by_year.png`, `units.png`,
+`open_ground.png`. "Tutupan pohon" Hansen termasuk kebun; pemicu adalah satu kelas
+per sel 1 km, bukan bukti pelaku.
+
+### Timelapse — `timelapse`
+
+Satu komposit median bebas awan per tahun, tahun tertera di bingkai, lalu video MP4
+(ffmpeg). `--window-years 2` (default) memakai median 2 tahun, yang paling bersih di
+tropis. Area besar diambil per ubin agar tidak melewati batas memori Earth Engine.
+
+```bash
+earthchange -s timelapse --lat 0.52 --lon 128.05 --radius 25 --start-year 2000
+earthchange -s timelapse --lat 0.4874 --lon 128.0684 --radius 4 --sensor s2 --start-year 2019 --window-years 1
+```
+
+### Banjir bandang/longsor dibanding riwayat piksel — `disturbance --history`
+
+Ambang dB tetap buta terhadap seberapa besar piksel biasa berayun (sawah, gosong
+sungai). `--history N` menguji pasangan kejadian terhadap N pasangan sebelumnya pada
+lintasan yang sama (z VV + VH), lalu menguji pasangan kontrol terakhir dengan cara
+yang sama sehingga tiap run membawa tingkat alarm palsunya sendiri, dipisah dasar
+lembah vs lereng.
+
+```bash
+# Earth Engine
+earthchange -s disturbance --lat 4.0971 --lon 97.5872 --radius 5 \
+    --pre 2026-10-25:2026-11-07 --post 2026-11-08:2026-11-14 --history 20
+# Copernicus Data Space, bila Earth Engine belum memuat lintasan terbaru
+earthchange -s disturbance --backend cdse --lat 4.0971 --lon 97.5872 --radius 5 \
+    --post 2026-11-08:2026-11-14 --history 20
+```
+
+`--backend cdse` butuh klien OAuth CDSE di `CDSE_CLIENT_ID` / `CDSE_CLIENT_SECRET`
+(lingkungan atau `./.env`). Pada banjir Pertik 8 Nov 2026: dasar lembah 3,2% ditandai
+vs 0,45% pada pasangan kontrol (×7,2); lereng ×0,6.
 
 > **Catatan:** ΔNDVI antar-dekade menangkap perubahan *neto* — lahan yang
 > ditebang lalu ditanami sawit dapat pulih NDVI-nya dan tak terhitung "hilang".

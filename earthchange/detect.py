@@ -65,10 +65,11 @@ from .scenarios import SCENARIOS, flags_for, run_optical_change
 from .indices import (
     INDEX_FN, BUILTUP_METHODS, THERMAL_METHODS, METHOD_DEFAULTS)
 
-# Outputs and credentials are resolved against the current working directory,
-# so an installed package writes results where the user runs it (not site-packages).
+# Outputs are resolved against the current working directory, so an installed
+# package writes results where the user runs it (not site-packages). The Earth
+# Engine key is NOT chosen here: gee_utils.initialize_ee resolves it, with the
+# repo-local scripts/config/ee-geodetic.json as the last resort, not the first.
 OUTPUT_ROOT = os.path.join(os.getcwd(), "output")
-CONFIG_KEY = os.path.join(os.getcwd(), "scripts", "config", "ee-geodetic.json")
 
 
 def new_run_dir(scenario, name, out_dir=None):
@@ -237,6 +238,12 @@ def build_params(scenario, args):
         p["sirad_periods" if needs == "sirad" else "epochs"] = windows
         return p
 
+    if getattr(args, "backend", "gee") == "cdse":
+        # The CDSE path finds its own track and dates: --post (optional) bounds
+        # where the event pass is looked for, --history how many controls.
+        return {"post": parse_period(args.post) if args.post else None,
+                "history": getattr(args, "history", 0) or 20}
+
     # pre/post windows (optical + flood)
     pre = parse_period(args.pre) if args.pre else cfg.get("pre")
     post = parse_period(args.post) if args.post else cfg.get("post")
@@ -247,6 +254,8 @@ def build_params(scenario, args):
     p["pre"], p["post"] = pre, post
     p["sensor"] = getattr(args, "sensor", "s2")
     p["mask_water"] = not getattr(args, "no_water_mask", False)
+    if getattr(args, "history", 0):
+        p["history"] = args.history
     return p
 
 
@@ -325,7 +334,7 @@ def run_gee(args, cfg, lat, lon, radius, name, params, run_dir, run_id, provider
     if getattr(args, "drive", False):
         initialize_ee(prefer_user=True)  # Drive export needs personal auth
     else:
-        initialize_ee(getattr(args, "ee_key", None) or CONFIG_KEY)
+        initialize_ee(getattr(args, "ee_key", None))
     aoi = square_aoi(lon, lat, radius)  # square clip (not a circle)
 
     # Carried in params so composite scenarios (e.g. mining, which folds an
@@ -425,7 +434,7 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
     Returns True if it handled the scenario, else False (caller runs the generic path).
     """
     method = cfg.get("method")
-    ee_key = args.ee_key or CONFIG_KEY
+    ee_key = args.ee_key
 
     if method == "urban-history":
         from . import urban_history
@@ -469,6 +478,32 @@ def dispatch_special(cfg, args, lat, lon, radius, name, run_dir, run_id, params)
         forest_history.run(args.backend, lat, lon, radius, name, run_dir, run_id,
                            config_key=ee_key, epochs=fh_epochs, sensor=args.sensor,
                            forest_thr=args.forest_thr, drop_thr=args.drop_thr)
+        return True
+
+    if method == "forest-account":
+        from . import forest_account
+        bb = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        forest_account.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                           config_key=ee_key, admin=args.admin, bbox=bb,
+                           canopy_thr=args.canopy_thr, with_open_ground=args.open_ground,
+                           start_year=args.start_year, end_year=args.end_year)
+        return True
+
+    if method == "timelapse":
+        from . import timelapse
+        bb = [float(x) for x in args.bbox.split(",")] if args.bbox else None
+        timelapse.run(args.backend, lat, lon, radius, name, run_dir, run_id,
+                      config_key=ee_key, admin=args.admin, bbox=bb,
+                      start_year=args.start_year, end_year=args.end_year,
+                      sensor=args.sensor if "--sensor" in sys.argv else "landsat",
+                      window_years=args.window_years, width=args.video_width,
+                      with_l7=args.with_l7, seconds_per_frame=args.frame_seconds)
+        return True
+
+    if method == "disturbance" and args.backend == "cdse":
+        from . import s1_history
+        s1_history.run_cdse(lat, lon, radius, name, run_dir, run_id,
+                            post=params.get("post"), history=params.get("history", 20))
         return True
 
     if method == "population-change":
@@ -1064,9 +1099,11 @@ def build_parser():
                          "quick-looks of the pre and post composites, and list "
                          "every scene that went into them (id, date, cloud %%) "
                          "under stats.images_used. --no-preview skips both")
-    ap.add_argument("--backend", choices=["gee", "mpc"], default="gee",
-                    help="data backend: gee (Earth Engine) or mpc "
-                         "(Microsoft Planetary Computer, no account needed)")
+    ap.add_argument("--backend", choices=["gee", "mpc", "cdse"], default="gee",
+                    help="data backend: gee (Earth Engine), mpc (Microsoft "
+                         "Planetary Computer, no account needed), or cdse "
+                         "(Copernicus Data Space: disturbance --history only, "
+                         "for passes Earth Engine has not ingested yet)")
     ap.add_argument("--ee-key", help="path to a GEE service-account key JSON "
                     "(overrides $EARTHCHANGE_EE_KEY and the default locations)")
     ap.add_argument("--drive", action="store_true",
@@ -1363,7 +1400,8 @@ def build_parser():
                     help="drought-paddy: how far the GFS forecast is fetched "
                          "(default 14). The reported outlook leads on 7 days: "
                          "tropical rainfall forecasts are thin beyond that")
-    ap.add_argument("--admin", help="fire-history/haze: admin-1 area name from FAO GAUL "
+    ap.add_argument("--admin", help="fire-history/haze/forest-account/timelapse: admin-1 "
+                         "(or admin-2) area name from FAO GAUL "
                     "(e.g. 'Riau', 'Kalimantan Tengah') — uses the real province "
                     "polygon instead of a square AOI, so figures are per-province")
     ap.add_argument("--areas", help="fire-history: comma-separated admin names to "
@@ -1403,6 +1441,27 @@ def build_parser():
     ap.add_argument("--forge3d-prep-only", action="store_true",
                     help="population-change: write only the forge3d inputs (height TIFF + "
                          "class overlay), skip the GPU render — to render later on a GPU box")
+    ap.add_argument("--canopy-thr", type=int, default=30,
+                    help="forest-account: Hansen tree cover in 2000 (percent) that "
+                         "counts as forest (default 30)")
+    ap.add_argument("--open-ground", action="store_true",
+                    help="forest-account: also report Dynamic World bare + built "
+                         "area per year (mines, pits, estates, roads)")
+    ap.add_argument("--window-years", type=int, default=2,
+                    help="timelapse: years in each frame's median, ending in the "
+                         "year shown (default 2; 1 = strict single year)")
+    ap.add_argument("--video-width", type=int, default=1600,
+                    help="timelapse: frame width in pixels (default 1600)")
+    ap.add_argument("--with-l7", action="store_true",
+                    help="timelapse: include Landsat 7 in every year (SLC-off "
+                         "stripes; by default only 2012 uses it)")
+    ap.add_argument("--frame-seconds", type=float, default=0.7,
+                    help="timelapse: seconds each year stays on screen (default 0.7)")
+    ap.add_argument("--history", type=int, default=0,
+                    help="disturbance: also score the event pair against the "
+                         "pixel's own last N pairs on the same track (VV+VH z); "
+                         "reports the control false-alarm level too. With "
+                         "--backend cdse this is the whole method (default 20)")
     ap.add_argument("--thr", type=float, help="override the 'affected' threshold")
     ap.add_argument("--severe", type=float, help="override the 'severe' threshold")
     ap.add_argument("--list", action="store_true", help="list scenarios and exit")

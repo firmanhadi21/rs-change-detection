@@ -266,15 +266,19 @@ def initialize_ee(config_key=None, prefer_user=False):
     """Initialise Earth Engine with a service-account key if one is present.
 
     Looks for a key JSON in priority order:
-      1. `config_key` (e.g. the CLI --ee-key, or <cwd>/scripts/config/…)
+      1. `config_key` (the CLI --ee-key)
       2. $EARTHCHANGE_EE_KEY  (works from any directory — best for pip installs)
       3. ~/.secrets/gee-sa.json           (current key)
       4. ~/.config/earthengine/ee-geodetic.json  (older global fallback)
+      5. <cwd>/scripts/config/ee-geodetic.json   (old repo-local key)
     Falls back to user credentials (`earthengine authenticate`) if none exist.
 
-    3 is tried before 4 because both may exist and hold DIFFERENT service
-    accounts; the one under ~/.secrets is the live one. Whichever is used is
-    printed, so a run can never be ambiguous about who it authenticated as.
+    3 is tried before 4 and 5 because they may all exist and hold DIFFERENT
+    service accounts; the one under ~/.secrets is the live one. The repo-local
+    key used to be passed in as `config_key` and so outranked everything, which
+    made every run fail once that key was revoked (Nov 2026). Whichever key is
+    used is printed, so a run can never be ambiguous about who it
+    authenticated as.
 
     `prefer_user=True` skips service-account keys and uses personal credentials —
     required for Drive exports (a service account writes to its OWN Drive, which
@@ -300,7 +304,9 @@ def initialize_ee(config_key=None, prefer_user=False):
                     os.environ.get("EARTHCHANGE_EE_KEY"),
                     os.environ.get("SATCHANGE_EE_KEY"),   # backward-compat (former name)
                     os.path.expanduser("~/.secrets/gee-sa.json"),
-                    os.path.expanduser("~/.config/earthengine/ee-geodetic.json"))
+                    os.path.expanduser("~/.config/earthengine/ee-geodetic.json"),
+                    os.path.join(os.getcwd(), "scripts", "config",
+                                 "ee-geodetic.json"))
         if p
     ]
     for key_path in candidates:
