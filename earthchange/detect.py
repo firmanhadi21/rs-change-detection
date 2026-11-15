@@ -1509,6 +1509,13 @@ def build_parser():
 
 
 def main():
+    # Short Indonesian commands (earthchange banjir "Pining, Gayo Lues" 2026-11-08)
+    # choose the dates, sensor and backend themselves; see mudah.py.
+    from .mudah import PERINTAH, BANTUAN, main as mudah_main
+    if len(sys.argv) > 1 and sys.argv[1] in PERINTAH:
+        sys.exit(mudah_main(sys.argv[1:]))
+    if len(sys.argv) == 1:
+        print(BANTUAN)
     ap = build_parser()
     scen = _wanted_scenario(sys.argv[1:])
     if scen in SCENARIOS:

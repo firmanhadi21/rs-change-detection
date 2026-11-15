@@ -44,6 +44,20 @@ earthchange --list
 Each run writes a self-contained `output/<run-id>/` folder containing the PNG,
 GeoTIFF, statistics JSON, metadata, and any maps.
 
+### Short commands (Indonesian, for routine tasks)
+
+Name a place and a date; earthchange picks the sensor, windows and thresholds,
+uses Planetary Computer (no account), counts hectares inside the place's
+OpenStreetMap boundary, and writes an Indonesian `RINGKASAN.md` with the limits.
+
+```bash
+earthchange banjir    "Pining, Gayo Lues"   2026-11-08   # flood after an event
+earthchange kebakaran "Ketapang"            2026-09-15   # burned area
+earthchange hutan     "Halmahera Tengah"    2019 2025    # vegetation loss
+earthchange kota      "Kota Bekasi"         2020 2025    # new built-up land
+earthchange air       "Kabupaten Demak"     2020 2025    # new surface water
+```
+
 ## Scenarios
 
 | Scenario | Method | Sensor |

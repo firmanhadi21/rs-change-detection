@@ -109,6 +109,25 @@ Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).
 > Contoh perintah di bawah memakai `python3 detect.py …`; setelah instal paket,
 > ganti dengan `earthchange …` (argumen identik).
 
+### Perintah singkat untuk tugas rutin
+
+Cukup sebut wilayah dan tanggal; earthchange memilih sendiri satelit, periode
+sebelum/sesudah, ambang, dan memakai Planetary Computer (tanpa akun). Luas dihitung
+di dalam batas wilayah (OpenStreetMap), dan hasilnya dilengkapi `RINGKASAN.md`
+berbahasa Indonesia beserta batasannya.
+
+```bash
+earthchange banjir    "Pining, Gayo Lues"   2026-11-08   # genangan setelah kejadian
+earthchange kebakaran "Ketapang"            2026-09-15   # area terbakar
+earthchange hutan     "Halmahera Tengah"    2019 2025    # kehilangan vegetasi
+earthchange kota      "Kota Bekasi"         2020 2025    # lahan terbangun baru
+earthchange air       "Kabupaten Demak"     2020 2025    # air permukaan baru
+earthchange                                              # bantuan singkat
+```
+
+Wilayah juga bisa berupa file batas (`.geojson`, `.gpkg`, `.shp`). Rencana dan cara
+kerjanya: [`docs/STAFF_CLI_PLAN.md`](docs/STAFF_CLI_PLAN.md).
+
 ---
 
 ## Deteksi Perubahan Multiguna — `detect.py`

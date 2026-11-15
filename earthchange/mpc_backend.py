@@ -436,6 +436,20 @@ def _s1_single_pair(bbox, pre_win, post_win, orbit):
     return _latest_pass(pre_items), _latest_pass(post_items), rel
 
 
+FLOOD_MAX_SLOPE = 5.0   # degrees
+
+
+def _median50(db):
+    """5x5 median (50 m at 10 m pixels), NaN-aware enough for speckle."""
+    try:
+        from scipy import ndimage
+    except ImportError:
+        return db
+    filled = np.where(np.isfinite(db), db, 0.0)
+    out = ndimage.median_filter(filled, size=5)
+    return np.where(np.isfinite(db), out, np.nan)
+
+
 def run_flood(bbox, params, water_thr=-16.0):
     periods = [params["pre"], params["post"]]
     orbit, covered, counts = _best_orbit(bbox, periods, "vv")
@@ -449,6 +463,8 @@ def run_flood(bbox, params, water_thr=-16.0):
     pre, gbox = _s1_item_db(pre_pass, "vv", bbox)
     post, _g = _s1_item_db(post_pass, "vv", bbox, geobox=gbox)
     finite = np.isfinite(post) & np.isfinite(pre)
+    # 50 m median against speckle before thresholding, as the GEE twin does.
+    pre, post = _median50(pre), _median50(post)
     pre_water = pre < water_thr
     post_water = post < water_thr
 
@@ -457,16 +473,26 @@ def run_flood(bbox, params, water_thr=-16.0):
     land = _worldcover_land(bbox, gbox)
     if land is None:
         land = np.ones_like(finite, dtype=bool)
-    flood = post_water & (~pre_water) & finite & land
+    # Steep ground: radar shadow and layover read as dark "water", and floods
+    # do not stand on slopes. Gayo Lues, Nov 2026: without this the mountain
+    # flanks came out as 2,100 ha of streaks. Standard practice masks > 5 deg.
+    slope = _slope_deg(bbox, gbox)
+    flat = (slope <= FLOOD_MAX_SLOPE) if (slope is not None and slope.shape == finite.shape) \
+        else np.ones_like(finite, dtype=bool)
+    flood = post_water & (~pre_water) & finite & land & flat
     flood = _despeckle(flood, min_size=8)
 
     land_area = max(int((land & finite).sum()), 1)
-    stats = {"method": "SAR water (VV, MPC), single-pass pre/post, ocean masked, ponds kept",
+    stats = {"method": "SAR water (VV, MPC), single-pass pre/post, 50 m median, "
+                       f"slopes > {FLOOD_MAX_SLOPE:g} deg masked, ocean masked, ponds kept",
              "orbit": orbit, "relative_orbit": rel if rel is not None else "mixed",
              "date_pre": date_pre, "date_post": date_post,
              "water_threshold_db": water_thr,
              "pct_flooded": 100.0 * int(flood.sum()) / land_area,
              "pct_water_masked": 100.0 * int((~land & finite).sum()) / max(int(finite.sum()), 1),
+             "pct_observed": 100.0 * int(finite.sum()) / max(finite.size, 1),
+             "pct_steep_masked": (100.0 * int((~flat & land & finite).sum()) / land_area
+                                  if slope is not None else None),
              "scenes_pre": counts[0], "scenes_post": counts[1]}
     arr = np.where(flood, 1.0, np.nan)
     product = {"key": "flood", "data": arr, "geobox": gbox,
