@@ -35,6 +35,9 @@ CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "earthchange", "wila
 MAX_RADIUS_KM = 50.0
 # Fallback radius when the name is a point (a village centre) with no boundary.
 POINT_RADIUS_KM = 5.0
+# Sentinel-2 composites use only the clearest acquisition days per window, so a
+# run fits an office laptop (see mpc_backend.S2_MAX_SCENES).
+S2_HARI_TERJERNIH = 12
 PERMUKIMAN = {"city", "town", "village", "hamlet", "suburb", "quarter",
               "neighbourhood", "isolated_dwelling", "municipality", "county", "state"}
 
@@ -432,6 +435,9 @@ def catatan_tambahan(scenario, hasil):
         if hasil.get("pct_observed") is not None and hasil["pct_observed"] < 95:
             out.append(f"Hanya {hasil['pct_observed']:.0f}% kotak analisis terekam radar; "
                        "sebagian wilayah tidak terpantau.")
+    else:
+        out.append(f"Komposit tiap periode memakai paling banyak {S2_HARI_TERJERNIH} hari "
+                   "citra yang paling sedikit awannya (menurut catatan awan per citra).")
     for k in ("scenes_pre", "scenes_post"):
         if hasil.get(k) == 0:
             out.append("Tidak ada citra pada salah satu periode; hasil tidak bisa dipakai.")
@@ -529,6 +535,8 @@ def jalankan(argv):
 
     from .detect import main as detect_main
     from .scenarios import SCENARIOS
+    from . import mpc_backend
+    mpc_backend.S2_MAX_SCENES = S2_HARI_TERJERNIH
     scen = p["scenario"]
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = os.path.abspath(a.keluar or os.path.join(

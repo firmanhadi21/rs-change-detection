@@ -116,6 +116,27 @@ def square_bbox(lon, lat, radius_km):
 
 
 # --------------------------- Sentinel-2 optical ---------------------------
+# Cap on Sentinel-2 acquisition days per composite window (None = all). The
+# short commands (mudah.py) set 12: a whole-year median of every scene under
+# 60 % cloud was ~50-100 days and 25+ min / 2.5 GB for Kota Bekasi, too heavy
+# for an office laptop; the 12 clearest days still make a sound median.
+S2_MAX_SCENES = None
+
+
+def clearest(items, n):
+    """The n clearest acquisition days (by scene cloud cover), keeping every
+    tile of a chosen day so the area is not left with holes."""
+    by_day = {}
+    for it in items:
+        day = it.datetime.date()
+        by_day.setdefault(day, []).append(it)
+    def day_cloud(tiles):
+        return sum(t.properties.get("eo:cloud_cover", 100.0) for t in tiles) / len(tiles)
+    best = sorted(by_day, key=lambda d: day_cloud(by_day[d]))[:n]
+    keep = set(best)
+    return [it for it in items if it.datetime.date() in keep]
+
+
 def _s2_median(bbox, start, end, bands, geobox=None):
     """Cloud-masked median Sentinel-2 composite. Returns (dataset, count, geobox)."""
     import odc.stac
@@ -126,6 +147,8 @@ def _s2_median(bbox, start, end, bands, geobox=None):
         query={"eo:cloud_cover": {"lt": CLOUD_MAX}}).items())
     if not items:
         return None, 0, geobox
+    if S2_MAX_SCENES:
+        items = clearest(items, S2_MAX_SCENES)
     load_kw = dict(bands=list(bands) + ["SCL"], groupby="solar_day",
                    chunks={"x": 2048, "y": 2048}, resampling="bilinear")
     if geobox is not None:
