@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "earthchange"
-version = "0.3.0"
+version = "0.3.1"
 description = "Multipurpose satellite environmental monitoring and change detection: fire danger, smoke exposure, drought, heat, flood and land change, via Google Earth Engine or Microsoft Planetary Computer."
 readme = "PYPI_README.md"
 requires-python = ">=3.11"
@@ -32,7 +32,8 @@ dependencies = ["requests"]
 # GEE backend (needs a free Earth Engine account)
 gee = ["earthengine-api"]
 # Planetary Computer backend (no account needed)
-mpc = ["numpy", "rasterio", "pystac-client", "planetary-computer", "odc-stac", "rioxarray"]
+mpc = ["numpy", "rasterio", "pystac-client", "planetary-computer", "odc-stac", "rioxarray",
+       "scipy"]
 # Value-added map rendering
 maps = ["numpy", "rasterio", "matplotlib", "contextily", "scipy", "scikit-image", "shapely"]
 # Transit accessibility (SDG 11.2.1): OSM walking network + WorldPop

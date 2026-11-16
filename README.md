@@ -40,7 +40,7 @@ mengerjakan seluruhnya?**
 ### Tujuan
 
 - **Satu perintah untuk satu pertanyaan.** `earthchange -s deforestation --city
-  "Ketapang" --map` seharusnya cukup. Tidak perlu menulis skrip Earth Engine, tidak
+  "Muara Pawan, Ketapang" --map` seharusnya cukup. Tidak perlu menulis skrip Earth Engine, tidak
   perlu memilih ambang, tidak perlu mengurus proyeksi.
 - **Dikalibrasi di tempat ia dipakai.** Ambang kelas bahaya kebakaran mengikuti
   BMKG, bukan Kanada. Faktor panjang hari memakai konvensi ekuatorial, karena tabel
@@ -117,11 +117,11 @@ di dalam batas wilayah (OpenStreetMap), dan hasilnya dilengkapi `RINGKASAN.md`
 berbahasa Indonesia beserta batasannya.
 
 ```bash
-earthchange banjir    "Pining, Gayo Lues"   2026-11-08   # genangan setelah kejadian
-earthchange kebakaran "Ketapang"            2026-09-15   # area terbakar
-earthchange hutan     "Halmahera Tengah"    2019 2025    # kehilangan vegetasi
-earthchange kota      "Kota Bekasi"         2020 2025    # lahan terbangun baru
-earthchange air       "Kabupaten Demak"     2020 2025    # air permukaan baru
+earthchange banjir    "Pining, Gayo Lues"       2026-11-08     # genangan setelah kejadian
+earthchange kebakaran "Muara Pawan, Ketapang"   2026-09-15     # area terbakar
+earthchange hutan     "Sungai Kakap, Kubu Raya" 2019 2025      # kehilangan vegetasi
+earthchange kota      "Kota Bekasi"             2020 2025      # lahan terbangun baru
+earthchange air       "Kabupaten Demak"         2020 2025      # air permukaan baru
 earthchange                                              # bantuan singkat
 ```
 

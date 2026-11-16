@@ -16,11 +16,11 @@ GeoLibre, RustGIS) give a workspace; earthchange gives the answer, and its GeoTI
 ## The commands
 
 ```bash
-earthchange banjir    "Pining, Gayo Lues"   2026-11-08   # flood after an event
-earthchange kebakaran "Ketapang"            2026-09-15   # burned area after an event
-earthchange hutan     "Halmahera Tengah"    2019 2025    # vegetation (forest) loss
-earthchange kota      "Kota Bekasi"         2020 2025    # new built-up land
-earthchange air       "Kabupaten Demak"     2020 2025    # new surface water
+earthchange banjir    "Pining, Gayo Lues"       2026-11-08     # flood after an event
+earthchange kebakaran "Muara Pawan, Ketapang"   2026-09-15     # burned area after an event
+earthchange hutan     "Sungai Kakap, Kubu Raya" 2019 2025      # vegetation (forest) loss
+earthchange kota      "Kota Bekasi"             2020 2025      # new built-up land
+earthchange air       "Kabupaten Demak"         2020 2025      # new surface water
 earthchange                                              # short help (Indonesian)
 ```
 

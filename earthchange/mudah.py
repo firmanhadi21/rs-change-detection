@@ -1,10 +1,10 @@
 """Perintah singkat berbahasa Indonesia untuk tugas rutin.
 
-    earthchange banjir    "Pining, Gayo Lues"   2026-11-08
-    earthchange kebakaran "Ketapang"            2026-09-15
-    earthchange hutan     "Halmahera Tengah"    2019 2025
-    earthchange kota      "Kota Bekasi"         2020 2025
-    earthchange air       "Kabupaten Demak"     2020 2025
+    earthchange banjir    "Pining, Gayo Lues"       2026-11-08
+    earthchange kebakaran "Muara Pawan, Ketapang"   2026-09-15
+    earthchange hutan     "Sungai Kakap, Kubu Raya" 2019 2025
+    earthchange kota      "Kota Bekasi"             2020 2025
+    earthchange air       "Kabupaten Demak"         2020 2025
 
 The user names a place and a date (or two years). Everything a remote-sensing
 specialist would otherwise choose is decided here: the before/after windows,
@@ -128,7 +128,7 @@ Pilihan:
 
 Contoh:
   earthchange banjir "Pining, Gayo Lues" 2026-11-08
-  earthchange hutan "Halmahera Tengah" 2019 2025
+  earthchange hutan "Sungai Kakap, Kubu Raya" 2019 2025
 
 Perintah lengkap untuk pengguna mahir: earthchange --list
 """
