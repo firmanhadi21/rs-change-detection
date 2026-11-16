@@ -39,7 +39,9 @@ jobs:
           pip install ".[maps]" pdoc
 
       - name: Generate API reference
-        run: pdoc earthchange -o docs/api
+        # The ALOS-2 InSAR modules raise at import without insardev_pygmtsar,
+        # which is not on PyPI, so they are left out of the reference.
+        run: pdoc earthchange '!earthchange.alos2_mission' '!earthchange.alos2_transform' -o docs/api
 
       - uses: actions/configure-pages@v5
 
