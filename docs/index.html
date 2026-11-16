@@ -96,6 +96,7 @@
   <a href="#science">2 · <span class="en">How it works</span><span class="id">Cara kerja</span></a>
   <a href="#setup">3 · <span class="en">Setup</span><span class="id">Persiapan</span></a>
   <a href="#first">4 · <span class="en">Your first run</span><span class="id">Run pertama</span></a>
+  <a href="#short">&nbsp;&nbsp;↳ <span class="en">Short commands</span><span class="id">Perintah singkat</span></a>
   <a href="#outputs">5 · <span class="en">Reading the outputs</span><span class="id">Membaca keluaran</span></a>
   <h2><span class="en">Go further</span><span class="id">Lanjutan</span></h2>
   <a href="#scenarios">6 · <span class="en">Every scenario</span><span class="id">Setiap skenario</span></a>
@@ -352,8 +353,8 @@ earthchange -s fire-danger --admin "Kalimantan Tengah" --date 2026-08-01</code><
       <span class="note id">Membuka browser untuk menautkan akun Google. Untuk memakai <b>kunci service account</b> dari <b>direktori mana pun</b>, arahkan earthchange dengan <code>--ee-key /path/ke/ee-geodetic.json</code>, atau <code>export EARTHCHANGE_EE_KEY=/path/ke/ee-geodetic.json</code>, atau salin ke <code>~/.config/earthengine/ee-geodetic.json</code>. (Kunci di <code>./scripts/config/ee-geodetic.json</code> hanya berlaku saat dijalankan dari root repo.) Lewati dengan <code>--backend mpc</code>.</span></li>
     <li><b><span class="en">Check it's working</span><span class="id">Cek berjalan</span></b>
       <pre><code>earthchange --list</code></pre>
-      <span class="note en">Should print the eighteen available scenarios.</span>
-      <span class="note id">Harusnya menampilkan delapan belas skenario.</span></li>
+      <span class="note en">Should print the thirty-five available scenarios (version 0.3.1). Typing <code>earthchange</code> alone shows the short commands of §4 first.</span>
+      <span class="note id">Harusnya menampilkan tiga puluh lima skenario (versi 0.3.1). Mengetik <code>earthchange</code> saja menampilkan perintah singkat §4 terlebih dahulu.</span></li>
   </ol>
   <div class="callout tip en"><b>No Google Earth Engine account?</b> Add <code>--backend mpc</code> to any command — <b>Microsoft Planetary Computer</b> streams Sentinel-1/2 &amp; Landsat Cloud-Optimized GeoTIFFs and processes them locally (comes with <code>earthchange[mpc]</code>). Outputs and maps are identical.</div>
 
@@ -377,6 +378,31 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
   <div class="callout id"><b>Tips lintang negatif.</b> Tanda <code>-</code> di depan bisa membingungkan shell bila memakai <code>-l</code>. Gunakan <code>--lat/--lon</code> (di atas) atau sambungkan nilai dengan <code>=</code>: <code>-l=-3.333,122.25</code>.</div>
   <div class="callout tip en"><b>Prefer a place name?</b> Use <code>--city "Jakarta, Indonesia"</code> instead of <code>--lat/--lon</code> — earthchange geocodes it with free OpenStreetMap Nominatim and prints the resolved coordinates. Add a country for accuracy (e.g. <code>--city "Bandung, Indonesia"</code>).</div>
   <div class="callout tip id"><b>Lebih suka nama tempat?</b> Pakai <code>--city "Jakarta, Indonesia"</code> alih-alih <code>--lat/--lon</code> — earthchange menggeokode dengan OpenStreetMap Nominatim gratis dan mencetak koordinat hasilnya. Tambahkan negara agar akurat (mis. <code>--city "Bandung, Indonesia"</code>).</div>
+
+  <h3 id="short"><span class="en">Shorter still: name a place and a date (Indonesia)</span><span class="id">Lebih singkat lagi: sebut wilayah dan tanggal (Indonesia)</span></h3>
+  <p class="en">For routine office work there are five short commands in Indonesian (new in 0.3.1). You give a place and a date, or two years; earthchange picks the satellite, the before/after windows and the thresholds, runs on Planetary Computer with <b>no account</b>, and counts hectares <b>inside the place's boundary</b>, not inside a square.</p>
+  <p class="id">Untuk pekerjaan rutin kantor ada lima perintah singkat berbahasa Indonesia (baru di 0.3.1). Anda cukup memberi wilayah dan tanggal, atau dua tahun; earthchange memilih satelit, periode sebelum/sesudah, dan ambangnya, berjalan di Planetary Computer <b>tanpa akun</b>, dan menghitung hektar <b>di dalam batas wilayah</b>, bukan di dalam kotak.</p>
+  <pre><code>earthchange banjir    "Pining, Gayo Lues"       2026-11-08     # flood after an event
+earthchange kebakaran "Muara Pawan, Ketapang"   2026-09-15     # burned area
+earthchange hutan     "Sungai Kakap, Kubu Raya" 2019 2025      # vegetation loss
+earthchange kota      "Kota Bekasi"             2020 2025      # new built-up land
+earthchange air       "Kabupaten Demak"         2020 2025      # new surface water
+earthchange hutan     batas_desa.geojson        2019 2025      # your own boundary (.gpkg, .shp too)</code></pre>
+  <table>
+    <tr><th><span class="en">Command</span><span class="id">Perintah</span></th>
+        <th><span class="en">Scenario · satellite</span><span class="id">Skenario · satelit</span></th>
+        <th><span class="en">Before</span><span class="id">Sebelum</span></th>
+        <th><span class="en">After</span><span class="id">Sesudah</span></th></tr>
+    <tr><td><code>banjir</code></td><td><code>flood</code> · Sentinel-1</td><td><span class="en">45 days before the event to the day before</span><span class="id">45 hari sebelum kejadian s.d. H-1</span></td><td><span class="en">event day to 12 days after</span><span class="id">hari H s.d. H+12</span></td></tr>
+    <tr><td><code>kebakaran</code></td><td><code>burn</code> · Sentinel-2</td><td><span class="en">90 days before to the day before</span><span class="id">90 hari sebelum s.d. H-1</span></td><td><span class="en">event day to 45 days after</span><span class="id">hari H s.d. H+45</span></td></tr>
+    <tr><td><code>hutan</code> · <code>kota</code> · <code>air</code></td><td><code>deforestation</code> · <code>urbanization</code> · <code>water</code> · Sentinel-2</td><td><span class="en">the whole first year (2017 or later)</span><span class="id">seluruh tahun pertama (2017 atau sesudahnya)</span></td><td><span class="en">the whole second year, up to today</span><span class="id">seluruh tahun kedua, sampai hari ini</span></td></tr>
+  </table>
+  <p class="en">Each run writes <code>RINGKASAN.md</code> and <code>ringkasan.json</code> (an Indonesian summary: hectares, the image dates used, and the limits of that command), <code>wilayah.geojson</code> (the boundary used and where it came from), and the usual GeoTIFF, map and <code>stats.json</code>. Install with <code>pip install 'earthchange[mpc,maps]'</code>.</p>
+  <p class="id">Tiap run menulis <code>RINGKASAN.md</code> dan <code>ringkasan.json</code> (ringkasan berbahasa Indonesia: luas, tanggal citra yang dipakai, dan batasan perintah itu), <code>wilayah.geojson</code> (batas wilayah yang dipakai beserta sumbernya), serta GeoTIFF, peta, dan <code>stats.json</code> seperti biasa. Pasang dengan <code>pip install 'earthchange[mpc,maps]'</code>.</p>
+  <div class="callout tip en"><b>What the short commands decide for you.</b> Sentinel-2 composites use only the <b>12 clearest days</b> in each window, ranked by whole-scene cloud cover, so a run fits an office laptop: Kota Bekasi 2020→2025 took 11 minutes instead of about 27, with new built-up land within 10% of the all-image run (1,638 vs 1,503 ha). Places are looked up on OpenStreetMap (Indonesia only) and cached. Add the regency to a sub-district name (<i>"Pining, Gayo Lues"</i>). Where OSM has only a settlement's centre point, the run warns and uses a 5 km circle. Areas wider than about 100 km (a whole province, or Kabupaten Ketapang) are refused unless you add <code>--paksa</code>.</div>
+  <div class="callout tip id"><b>Yang diputuskan perintah singkat untuk Anda.</b> Komposit Sentinel-2 hanya memakai <b>12 hari paling jernih</b> di tiap jendela, diurutkan menurut awan seluruh citra, sehingga run muat di laptop kantor: Kota Bekasi 2020→2025 selesai dalam 11 menit, bukan sekitar 27, dengan luas lahan terbangun baru berbeda kurang dari 10% dari run semua citra (1.638 vs 1.503 ha). Wilayah dicari di OpenStreetMap (hanya Indonesia) dan disimpan. Tambahkan nama kabupaten pada nama kecamatan (<i>"Pining, Gayo Lues"</i>). Bila OSM hanya punya titik pusat permukiman, run memberi peringatan dan memakai lingkaran 5 km. Wilayah lebih dari sekitar 100 km (satu provinsi, atau Kabupaten Ketapang) ditolak kecuali Anda menambahkan <code>--paksa</code>.</div>
+  <div class="callout en"><b>Floods in the mountains.</b> Slopes facing away from the radar look dark, like water. On Planetary Computer, <code>flood</code> now applies a 5×5 median and ignores slopes steeper than 5° (Copernicus DEM). For the Pining flash flood of 8 November 2026 the "flooded" area fell from 2,143 ha of streaks on hillsides to 12 ha, with 96% of the area masked as too steep, and <code>RINGKASAN.md</code> warns when more than half is masked. Flash floods in steep valleys are better read with <code>-s disturbance --history</code> (§6). The Earth Engine flood has no slope mask yet.</div>
+  <div class="callout id"><b>Banjir di daerah bergunung.</b> Lereng yang menghadap menjauh dari radar tampak gelap, mirip air. Di Planetary Computer, <code>flood</code> kini memakai median 5×5 dan mengabaikan lereng di atas 5° (DEM Copernicus). Pada banjir bandang Pining 8 November 2026, luas "tergenang" turun dari 2.143 ha coretan di lereng menjadi 12 ha, dengan 96% wilayah tertutup sebagai terlalu curam, dan <code>RINGKASAN.md</code> memberi peringatan bila lebih dari separuh wilayah tertutup. Banjir bandang di lembah curam lebih tepat dibaca dengan <code>-s disturbance --history</code> (§6). Banjir di Earth Engine belum memakai masker lereng.</div>
 
   <h2 id="outputs">5 · <span class="en">Reading the outputs</span><span class="id">Membaca keluaran</span></h2>
   <table>
@@ -415,30 +441,46 @@ Downloading dndvi GeoTIFF... Saved: data/deforestation_dndvi_m3p333_122p25.tif
         <th><span class="en">Scenarios</span><span class="id">Skenario</span></th>
         <th><span class="en">Why</span><span class="id">Alasan</span></th></tr>
     <tr>
-      <td><b><span class="en">No account at all</span><span class="id">Tanpa akun sama sekali</span></b><br>1</td>
-      <td><code>smoke-video</code></td>
-      <td><span class="en">Reads AWS terrain tiles, the NASA FIRMS live feed and Open-Meteo over plain HTTP. Needs <code>ffmpeg</code> and, ideally, a Vulkan device — though it now falls back to a CPU hillshade without one.</span><span class="id">Membaca ubin relief AWS, umpan langsung NASA FIRMS, dan Open-Meteo lewat HTTP biasa. Perlu <code>ffmpeg</code> dan, idealnya, perangkat Vulkan — meski kini tersedia hillshade CPU bila tidak ada.</span></td>
+      <td><b><span class="en">No account at all</span><span class="id">Tanpa akun sama sekali</span></b><br>3</td>
+      <td><code>smoke-video</code> · <code>smoke-dispersion</code> · <code>fire-zones</code></td>
+      <td><span class="en"><code>smoke-video</code> reads AWS terrain tiles, the NASA FIRMS live feed and Open-Meteo over plain HTTP; it needs <code>ffmpeg</code> and, ideally, a Vulkan device, though it falls back to a CPU hillshade without one. <code>smoke-dispersion</code> runs the free HYSPLIT binary on GDAS1 weather from public S3. <code>fire-zones</code> re-reads the rasters of a finished <code>fire-national</code> run, so the Earth Engine work has to have been done once, by anyone.</span><span class="id"><code>smoke-video</code> membaca ubin relief AWS, umpan langsung NASA FIRMS, dan Open-Meteo lewat HTTP biasa; perlu <code>ffmpeg</code> dan, idealnya, perangkat Vulkan, meski tersedia hillshade CPU bila tidak ada. <code>smoke-dispersion</code> menjalankan program HYSPLIT gratis pada cuaca GDAS1 dari S3 publik. <code>fire-zones</code> membaca ulang raster run <code>fire-national</code> yang sudah selesai, jadi pekerjaan Earth Engine-nya cukup dilakukan sekali, oleh siapa pun.</span></td>
+    </tr>
+    <tr>
+      <td><b><span class="en">Depends on the source</span><span class="id">Tergantung sumber</span></b><br>1</td>
+      <td><code>embeddings</code></td>
+      <td><span class="en"><code>--source aef</code> (AlphaEarth) runs on Earth Engine; <code>--source tessera</code> streams TESSERA embeddings and classifies on your machine, with no account (<code>pip install 'earthchange[tessera]'</code>).</span><span class="id"><code>--source aef</code> (AlphaEarth) berjalan di Earth Engine; <code>--source tessera</code> mengalirkan embedding TESSERA dan mengklasifikasi di komputer Anda, tanpa akun (<code>pip install 'earthchange[tessera]'</code>).</span></td>
+    </tr>
+    <tr>
+      <td><b><span class="en">Free NASA Earthdata login</span><span class="id">Login NASA Earthdata gratis</span></b><br>2</td>
+      <td><code>insar</code> · <code>insar-series</code></td>
+      <td><span class="en">Interferograms are processed by ASF HyP3 from Sentinel-1 SLC, which needs an Earthdata login (in <code>~/.netrc</code>), not Earth Engine.</span><span class="id">Interferogram diproses ASF HyP3 dari Sentinel-1 SLC, yang memerlukan login Earthdata (di <code>~/.netrc</code>), bukan Earth Engine.</span></td>
     </tr>
     <tr>
       <td><b><span class="en">Either backend</span><span class="id">Kedua backend</span></b><br>8</td>
       <td><code>deforestation</code> · <code>mining</code> · <code>urbanization</code> · <code>burn</code> · <code>water</code> · <code>flood</code> · <code>disturbance</code> · <code>urban-trend</code></td>
-      <td><span class="en">Optical and SAR change detection from Sentinel-1/2 and Landsat, which Microsoft Planetary Computer also carries. Add <code>--backend mpc</code> and <b>no account is needed</b>. Note the two backends are not identical: cloud masking and scene availability differ, so results will not match to the pixel.</span><span class="id">Deteksi perubahan optik dan SAR dari Sentinel-1/2 dan Landsat, yang juga tersedia di Microsoft Planetary Computer. Tambahkan <code>--backend mpc</code> dan <b>tidak perlu akun</b>. Perhatikan keduanya tidak identik: masking awan dan ketersediaan citra berbeda, jadi hasilnya tidak akan sama persis.</span></td>
+      <td><span class="en">Optical and SAR change detection from Sentinel-1/2 and Landsat, which Microsoft Planetary Computer also carries. Add <code>--backend mpc</code> and <b>no account is needed</b>. Note the two backends are not identical: cloud masking and scene availability differ, so results will not match to the pixel. <code>disturbance</code> also runs on <code>--backend cdse</code> (Copernicus Data Space, free OAuth client) for passes Earth Engine has not ingested yet.</span><span class="id">Deteksi perubahan optik dan SAR dari Sentinel-1/2 dan Landsat, yang juga tersedia di Microsoft Planetary Computer. Tambahkan <code>--backend mpc</code> dan <b>tidak perlu akun</b>. Perhatikan keduanya tidak identik: masking awan dan ketersediaan citra berbeda, jadi hasilnya tidak akan sama persis. <code>disturbance</code> juga bisa memakai <code>--backend cdse</code> (Copernicus Data Space, klien OAuth gratis) untuk lintasan yang belum dimuat Earth Engine.</span></td>
     </tr>
     <tr>
-      <td><b><span class="en">Earth Engine only</span><span class="id">Hanya Earth Engine</span></b><br>15</td>
-      <td><code>fire-danger</code> · <code>fire-record</code> · <code>fire-history</code> · <code>forest-history</code> · <code>drought</code> · <code>haze</code> · <code>smoke-exposure</code> · <code>smoke-track</code> · <code>island-heat</code> · <code>urban-heat</code> · <code>population-change</code> · <code>transit-access</code> · <code>coastline</code> · <code>imagery</code> · <code>urban-history</code></td>
-      <td><span class="en">These need archives Planetary Computer does not carry: <b>ERA5-Land</b> for the Fire Weather Index, <b>CAMS</b> for smoke, <b>FIRMS</b> hotspots, <b>MODIS</b> burned area and land-surface temperature, <b>WorldPop</b>, <b>CHIRPS</b>, and <b>GAUL</b> boundaries. Running them with <code>--backend mpc</code> stops with a message rather than substituting something else.</span><span class="id">Semuanya memerlukan arsip yang tidak ada di Planetary Computer: <b>ERA5-Land</b> untuk Fire Weather Index, <b>CAMS</b> untuk asap, titik panas <b>FIRMS</b>, luas terbakar dan suhu permukaan <b>MODIS</b>, <b>WorldPop</b>, <b>CHIRPS</b>, dan batas administrasi <b>GAUL</b>. Menjalankannya dengan <code>--backend mpc</code> akan berhenti dengan pesan, bukan mengganti dengan sumber lain.</span></td>
+      <td><b><span class="en">Earth Engine only</span><span class="id">Hanya Earth Engine</span></b><br>21</td>
+      <td><code>fire-danger</code> · <code>fire-record</code> · <code>fire-history</code> · <code>fire-national</code> · <code>fire-hotspot</code> · <code>forest-history</code> · <code>forest-account</code> · <code>timelapse</code> · <code>drought</code> · <code>drought-paddy</code> · <code>drought-paddy-island</code> · <code>haze</code> · <code>smoke-exposure</code> · <code>smoke-track</code> · <code>island-heat</code> · <code>urban-heat</code> · <code>population-change</code> · <code>transit-access</code> · <code>coastline</code> · <code>imagery</code> · <code>urban-history</code></td>
+      <td><span class="en">These need archives Planetary Computer does not carry: <b>ERA5-Land</b> for the Fire Weather Index, <b>CAMS</b> for smoke, <b>FIRMS</b> hotspots, <b>MODIS</b> burned area and land-surface temperature, <b>Hansen</b> forest change, <b>WorldPop</b>, <b>CHIRPS</b>, and <b>GAUL</b> boundaries. Running them with <code>--backend mpc</code> stops with a message rather than substituting something else.</span><span class="id">Semuanya memerlukan arsip yang tidak ada di Planetary Computer: <b>ERA5-Land</b> untuk Fire Weather Index, <b>CAMS</b> untuk asap, titik panas <b>FIRMS</b>, luas terbakar dan suhu permukaan <b>MODIS</b>, perubahan hutan <b>Hansen</b>, <b>WorldPop</b>, <b>CHIRPS</b>, dan batas administrasi <b>GAUL</b>. Menjalankannya dengan <code>--backend mpc</code> akan berhenti dengan pesan, bukan mengganti dengan sumber lain.</span></td>
     </tr>
   </table>
 
-  <p class="en"><b>If you have no Earth Engine account</b>, the eight in the middle
-  row plus <code>smoke-video</code> are available immediately — nine of the
-  twenty-four. Everything in the fire-and-smoke chain needs an account, because
-  the weather and air-quality archives it is built on live only there.</p>
-  <p class="id"><b>Bila Anda belum punya akun Earth Engine</b>, delapan skenario
-  di baris tengah ditambah <code>smoke-video</code> langsung bisa dipakai —
-  sembilan dari dua puluh empat. Seluruh rantai kebakaran-asap memerlukan akun,
-  sebab arsip cuaca dan kualitas udara yang menjadi dasarnya hanya ada di sana.</p>
+  <p class="en"><b>If you have no Earth Engine account</b>, twelve scenarios need
+  no account at all (the three in the first row, the eight that run on Planetary
+  Computer, and <code>embeddings</code> with TESSERA), and the two InSAR scenarios
+  need only a free Earthdata login: fourteen of the thirty-five. Almost all of the
+  fire-and-smoke chain needs an account, because the weather and air-quality
+  archives it is built on live only there. The short commands below
+  (<a href="#short">§4</a>) all run without one.</p>
+  <p class="id"><b>Bila Anda belum punya akun Earth Engine</b>, dua belas skenario
+  tidak memerlukan akun apa pun (tiga di baris pertama, delapan yang berjalan di
+  Planetary Computer, dan <code>embeddings</code> dengan TESSERA), dan dua skenario
+  InSAR hanya perlu login Earthdata gratis: empat belas dari tiga puluh lima.
+  Hampir seluruh rantai kebakaran-asap memerlukan akun, sebab arsip cuaca dan
+  kualitas udara yang menjadi dasarnya hanya ada di sana. Perintah singkat
+  (<a href="#short">§4</a>) semuanya berjalan tanpa akun.</p>
 
   <p class="en">List them any time with <code>earthchange --list</code>. Commands:</p>
   <p class="id">Lihat daftarnya kapan saja dengan <code>earthchange --list</code>. Perintah:</p>
@@ -464,6 +506,14 @@ earthchange -s flood --lat 27.2 --lon 68.3 \
 # Disturbance — flood/landslide impact in terrain, when flood shows nothing
 earthchange -s disturbance --lat 1.9983 --lon 99.4235 --radius 15 \
     --pre 2025-11-01:2025-11-11 --post 2025-11-26:2025-11-29 --map
+#   score the event against the pixel's own last 20 pairs; every run also
+#   scores a control pair, so it carries its own false-alarm rate
+earthchange -s disturbance --lat 4.0971 --lon 97.5872 --radius 5 \
+    --pre 2026-10-25:2026-11-07 --post 2026-11-08:2026-11-14 --history 20
+#   the same from Copernicus Data Space, when Earth Engine lacks the newest pass
+#   (needs CDSE_CLIENT_ID / CDSE_CLIENT_SECRET in the environment or ./.env)
+earthchange -s disturbance --backend cdse --lat 4.0971 --lon 97.5872 --radius 5 \
+    --post 2026-11-08:2026-11-14 --history 20
 
 # Burn severity — needs pre-fire and post-fire windows
 earthchange -s burn --lat -7.5 --lon 110.4 \
@@ -511,6 +561,25 @@ earthchange -s urban-heat --city "Surabaya" --radius 15 --months 6-9   # dry-sea
 earthchange -s forest-history --sensor landsat --lat -2.2 --lon 113.0 --radius 12 \
     --epochs 1990-01-01:1992-12-31,2000-01-01:2002-12-31,2010-01-01:2012-12-31,2017-01-01:2019-12-31,2023-01-01:2025-12-31
 
+# Forest account — tree-cover loss by year, primary forest and driver, per regency
+#   (Hansen GFC + Turubanova primary forest + WRI/Google drivers; comparable anywhere)
+earthchange -s forest-account --admin "Maluku Utara"
+#   plus bare ground + buildings per year (Dynamic World): mines, quarries, roads
+earthchange -s forest-account --lat 0.48 --lon 128.05 --radius 25 --open-ground
+
+# Foundation-model embeddings — AlphaEarth (Earth Engine) or TESSERA (local)
+#   expansion: classes in the label year x first year each pixel's embedding departed
+earthchange -s embeddings --source aef --emb-mode expansion --start-year 2019 \
+    --labels seeds.geojson --bbox 127.88,0.46,128.04,0.68 --compare-dw
+#   needs: pip install 'earthchange[tessera]'
+earthchange -s embeddings --source tessera --emb-mode expansion --start-year 2019 \
+    --labels seeds.geojson --bbox 128.02,0.44,128.12,0.53
+
+# Timelapse — one cloud-free frame per year, as PNGs + MP4 (needs ffmpeg)
+earthchange -s timelapse --lat 0.52 --lon 128.05 --radius 25 --start-year 2000
+earthchange -s timelapse --lat 0.4874 --lon 128.0684 --radius 4 --sensor s2 \
+    --start-year 2019 --window-years 1
+
 # Population change 1990→2020 — Miloš-style city-spike poster on shaded terrain
 earthchange -s population-change --bbox 105,-8.9,114.6,-5.8 --cell-km 1 -n Jawa
 #   whole country, per main island, assembled into one panel:
@@ -526,6 +595,15 @@ earthchange -s fire-history --admin Riau --peat-source peatgrids
 earthchange -s fire-history --admin Riau --peat-file TROP-SUBTROP_PeatV21_2016_CIFOR.tif
 #   compare several areas, and rank the current season against history
 earthchange -s fire-history --areas "Riau,Jambi,Sumatera Selatan" --vs-baseline
+
+# Fire recurrence for all 38 provinces — how often each 500 m pixel burned since
+#   2015, peat as a range of two definitions; rerun the same command to resume
+earthchange -s fire-national --out-dir output/fire_national
+#   ...then burned and repeat-burned area inside any polygon layer, without
+#   Earth Engine (peat hydrological units, concessions, watersheds)
+earthchange -s fire-zones --zones Kesatuan_Hidrologis_Gambut.shp \
+  --zone-field kode_khg --zone-label nama_khg \
+  --from-run output/fire_national --out-dir output/fire_khg
 
 # Smoke exposure — person-days by ISPU class, per district, split by age
 earthchange -s smoke-exposure --bbox 108.8,-4.3,119.0,2.2 -n Kalimantan \
