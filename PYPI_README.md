@@ -58,6 +58,23 @@ earthchange kota      "Kota Bekasi"             2020 2025      # new built-up la
 earthchange air       "Kabupaten Demak"         2020 2025      # new surface water
 ```
 
+### From Python
+
+Every scenario is one call. Keyword arguments are the command-line options with
+`-` written as `_`; the result holds the run folder and its statistics.
+
+```python
+import earthchange as ec
+
+run = ec.run("deforestation", out_dir="deforestasi", lat=-3.333, lon=122.25,
+             radius=5, map=True)
+run.stats["results"]["pct_affected"]   # 4.1
+run.tif()                              # path of the GeoTIFF
+run.command                            # the equivalent terminal command
+
+ec.short("banjir", "Pining, Gayo Lues", "2026-11-08")   # a short command
+```
+
 ## Scenarios
 
 | Scenario | Method | Sensor |

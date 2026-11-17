@@ -33,3 +33,8 @@ def identify_to_tile_servers(cx):
     and an older install would take the TypeError as "no basemap".
     """
     cx.tile.USER_AGENT = USER_AGENT
+
+
+# Python entry point: ec.run("deforestation", lat=..., lon=...). Defined after
+# USER_AGENT because the modules it reaches import it from here.
+from .api import Run, run, short  # noqa: E402,F401

@@ -125,17 +125,34 @@ def _area_ha(mask, aoi, scale=BURN_SCALE):
                           bestEffort=True).get("area"))
 
 
-def _annual_series(aoi, years, peat):
-    """Burned ha per year, split peat / mineral. One server round-trip."""
+BASELINE_BATCH = 5   # reductions per Earth Engine request (see _get_batched)
+
+
+def _get_batched(values, n=None):
+    """getInfo() a list of server values a few at a time, in order.
+
+    One getInfo over every year runs all the reductions at once; for a large
+    polygon or a long record Earth Engine refuses that with "Too many concurrent
+    aggregations". A few per request stays under the limit.
+    """
     import ee
+    n = n or BASELINE_BATCH
+    out = []
+    for i in range(0, len(values), n):
+        out += ee.List(values[i:i + n]).getInfo()
+    return out
+
+
+def _annual_series(aoi, years, peat):
+    """Burned ha per year, split peat / mineral."""
     tot, pt = [], []
     for y in years:
         b = _year_burn(y).clip(aoi)
         tot.append(_area_ha(b, aoi))
         pt.append(_area_ha(b.And(peat), aoi))
-    got = ee.List([ee.List(tot), ee.List(pt)]).getInfo()
+    got = _get_batched(tot + pt)
     ha = lambda xs: [round((v or 0) / 1e4, 1) for v in xs]      # noqa: E731
-    return ha(got[0]), ha(got[1])
+    return ha(got[:len(years)]), ha(got[len(years):])
 
 
 def _season_series(aoi, years, scale=BURN_SCALE):
@@ -149,7 +166,7 @@ def _season_series(aoi, years, scale=BURN_SCALE):
         im = (coll.filter(ee.Filter.calendarRange(m, m, "month"))
               .map(lambda i: i.gt(0)).sum().unmask(0).clip(aoi))
         out.append(_area_ha(im, aoi, scale))
-    got = ee.List(out).getInfo()
+    got = _get_batched(out)
     return [round((v or 0) / 1e4, 1) for v in got]
 
 
@@ -164,7 +181,7 @@ def _hotspots(aoi, years):
         out.append(cnt.reduceRegion(ee.Reducer.sum(), aoi, 1000,
                                     maxPixels=int(1e10), bestEffort=True).get("T21"))
     try:
-        return [int(v or 0) for v in ee.List(out).getInfo()]
+        return [int(v or 0) for v in _get_batched(out)]
     except Exception as e:  # noqa: BLE001 — hotspots are a bonus series
         print(f"  (hotspot counts skipped: {e.__class__.__name__})")
         return None
@@ -346,7 +363,7 @@ def _hotspots_to_date(aoi, years, md_end):
         cnt = ic.map(lambda i: i.gt(0)).sum().unmask(0)
         out.append(cnt.reduceRegion(ee.Reducer.sum(), aoi, 1000,
                                     maxPixels=int(1e10), bestEffort=True).get("T21"))
-    return [int(v or 0) for v in ee.List(out).getInfo()]
+    return [int(v or 0) for v in _get_batched(out)]
 
 
 def _baseline_stats(years, vals, current):

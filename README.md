@@ -128,6 +128,24 @@ earthchange                                              # bantuan singkat
 Wilayah juga bisa berupa file batas (`.geojson`, `.gpkg`, `.shp`). Rencana dan cara
 kerjanya: [`docs/STAFF_CLI_PLAN.md`](docs/STAFF_CLI_PLAN.md).
 
+### Dari Python
+
+Setiap skenario cukup satu pemanggilan. Argumennya sama dengan opsi baris perintah,
+dengan `-` ditulis `_`. Panduan lengkapnya ada di buku
+[*Deteksi Perubahan dengan Citra Satelit*](https://firmanhadi21.github.io/rs-change-detection/buku/).
+
+```python
+import earthchange as ec
+
+run = ec.run("deforestation", out_dir="deforestasi", lat=-3.333, lon=122.25,
+             radius=5, map=True)
+run.stats["results"]["pct_affected"]   # 4.1
+run.tif()                              # path GeoTIFF
+run.command                            # perintah terminal padanannya
+
+ec.short("banjir", "Pining, Gayo Lues", "2026-11-08")   # perintah singkat
+```
+
 ---
 
 ## Deteksi Perubahan Multiguna — `detect.py`
