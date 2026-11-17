@@ -1,0 +1,67 @@
+# Sumber data dan rujukan {#sec-referensi}
+
+Sitasi dataset yang Anda pakai, bukan hanya perangkat lunaknya.
+
+## Citra dan produk satelit
+
+| Dataset | ID Earth Engine | Rujukan |
+|---------|-----------------|---------|
+| Sentinel-2 SR | `COPERNICUS/S2_SR_HARMONIZED` | Copernicus / ESA |
+| Sentinel-1 GRD | `COPERNICUS/S1_GRD` | Copernicus / ESA |
+| Landsat C2-L2 | `LANDSAT/LC08|LC09/C02/T1_L2`, `LT05` | USGS / NASA |
+| MODIS luas terbakar | `MODIS/061/MCD64A1` | Giglio dkk. |
+| MODIS LST | `MODIS/061/MOD11A2` | NASA LP DAAC |
+| FIRMS titik api aktif | `FIRMS` | NASA FIRMS |
+| Sentinel-5P aerosol | `COPERNICUS/S5P/*/L3_AER_AI` | Copernicus / ESA |
+| SRTM | `CGIAR/SRTM90_V4` | Jarvis dkk. |
+
+## Populasi, permukiman, iklim
+
+| Dataset | ID / sumber | Rujukan |
+|---------|-------------|---------|
+| GHSL populasi | `JRC/GHSL/P2023A/GHS_POP` | EU JRC — Schiavina dkk. |
+| GHSL terbangun | `JRC/GHSL/P2023A/GHS_BUILT_S` | EU JRC |
+| WorldPop | via GEE | WorldPop, Univ. Southampton |
+| NOAA OISST | `NOAA/CDR/OISST/V2_1` | Huang dkk. |
+| ERA5 | `ECMWF/ERA5*` | Hersbach dkk., ECMWF |
+| CAMS (PM2.5) | `ECMWF/CAMS/NRT` | CAMS / ECMWF |
+| FAO GAUL | `FAO/GAUL/2015/level1`, `level2` | FAO |
+
+## Gambut dan tanah
+
+**Gumbricht, T., Román-Cuesta, R. M., Verchot, L. V., Herold, M., Wittmann, F.,
+Householder, E., Herold, N., & Murdiyarso, D.** (2017). An expert system model for
+mapping tropical wetlands and peatlands reveals South America as the largest
+contributor. *Global Change Biology*, 23(9), 3581–3599.
+Data: <https://doi.org/10.17528/CIFOR/DATA.00058>
+
+**Widyastuti, M. T., Minasny, B., Padarian, J., & Maggi, F.** (2024). PEATGRIDS:
+Mapping global peat thickness and carbon stock via digital soil mapping.
+Aset GEE: `projects/sat-io/open-datasets/PEATGRIDS/*`
+
+**OpenLandMap** karbon organik tanah:
+`OpenLandMap/SOL/SOL_ORGANIC-CARBON_USDA-6A1C_M/v02`
+
+## Metode
+
+**Stull, R.** (2011). Wet-bulb temperature from relative humidity and air
+temperature. *Journal of Applied Meteorology and Climatology*, 50(11), 2267–2269.
+— rumus wet-bulb yang dipakai `island-heat`.
+
+**Key, C. H., & Benson, N. C.** (2006). Landscape assessment (LA): sampling and
+analysis methods. USDA Forest Service. — dasar dNBR dan peringatan bahwa ambang
+severity idealnya dikalibrasi lapangan.
+
+## Perangkat lunak
+
+**forge3d** — render 3D GPU (Rust/WebGPU) oleh Miloš Popović:
+<https://github.com/milos-agathon/forge3d>
+
+Gaya poster paku populasi pada @sec-populasi terinspirasi peta populasi GHSL karya
+Miloš Popović (<https://milosgis.com>).
+
+## Perangkat lunak ini
+
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose
+> satellite change detection* [Perangkat lunak]. Universitas Diponegoro.
+> <https://doi.org/10.5281/zenodo.21370696>

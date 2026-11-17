@@ -1,0 +1,23 @@
+# Python environment used to RENDER this book locally (to regenerate _freeze/).
+# CI does NOT use this: GitHub Actions renders from the committed _freeze/ and
+# never executes code. To render locally:
+#   pip install -e '..[all]' jupyter -r requirements.txt
+#   earthengine authenticate
+#   quarto render            # EC_ULANG=1 quarto render  to redo every run
+#
+# Versions at last render:
+contextily==1.7.0
+earthengine-api==1.7.34
+geopandas==1.1.4
+ipykernel==7.4.0
+matplotlib==3.11.0
+numpy==2.5.2
+odc-stac==0.5.2
+pandas==3.0.5
+planetary-computer==1.0.0
+pystac-client==0.9.0
+rasterio==1.5.0
+requests==2.34.2
+rioxarray==0.22.0
+scipy==1.18.0
+shapely==2.1.2

@@ -1,4 +1,4 @@
-name: Deploy docs (tutorial + API) to Pages
+name: Deploy docs (tutorial + API + book) to Pages
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - "earthchange/**"
       - "docs/**"
+      - "buku/**"
       - "pyproject.toml"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
@@ -43,9 +44,20 @@ jobs:
         # which is not on PyPI, so they are left out of the reference.
         run: pdoc earthchange '!earthchange.alos2_mission' '!earthchange.alos2_transform' -o docs/api
 
+      - name: Set up Quarto (with TinyTeX for the PDF)
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          tinytex: true
+
+      # The book's Python cells are NOT executed here: buku/_freeze/ holds
+      # their computed outputs, committed after a local render with Earth
+      # Engine access. Output goes to docs/buku/ (HTML + linked PDF).
+      - name: Render the book (buku/ -> docs/buku/)
+        run: quarto render buku
+
       - uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact (whole docs/ = tutorial + api)
+      - name: Upload Pages artifact (whole docs/ = tutorial + api + book)
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs

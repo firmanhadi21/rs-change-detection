@@ -1,0 +1,37 @@
+# Common words in Indonesian academic writing (skripsi) for the thesis templates' hyphenation list (buat.py --templat).
+# One or more words per line; lines starting with # are ignored. Base and di-/me- forms, with -kan and -an.
+berdasarkan sedangkan bahkan bukan melainkan maupun hingga
+dilakukan melakukan lakukan dilaksanakan melaksanakan laksanakan
+digunakan menggunakan gunakan dimanfaatkan memanfaatkan manfaatkan
+dihasilkan menghasilkan hasilkan didapatkan mendapatkan dapatkan diperoleh memperoleh
+ditunjukkan menunjukkan tunjukkan diperlihatkan memperlihatkan perlihatkan
+dijelaskan menjelaskan jelaskan diuraikan menguraikan uraikan dipaparkan memaparkan paparkan
+dinyatakan menyatakan nyatakan dikemukakan mengemukakan kemukakan dikatakan mengatakan
+disimpulkan menyimpulkan simpulkan dirumuskan merumuskan rumuskan
+disarankan menyarankan sarankan direkomendasikan merekomendasikan rekomendasikan
+diharapkan mengharapkan harapkan diusulkan mengusulkan usulkan diajukan mengajukan ajukan
+ditetapkan menetapkan tetapkan ditentukan menentukan tentukan
+dibandingkan membandingkan bandingkan dibedakan membedakan bedakan
+digabungkan menggabungkan gabungkan dikelompokkan mengelompokkan kelompokkan
+diklasifikasikan mengklasifikasikan klasifikasikan dikategorikan mengategorikan kategorikan
+diidentifikasikan mengidentifikasikan diinterpretasikan menginterpretasikan interpretasikan
+dideskripsikan mendeskripsikan deskripsikan digambarkan menggambarkan gambarkan
+diasumsikan mengasumsikan asumsikan dipertimbangkan mempertimbangkan pertimbangkan
+diperhitungkan memperhitungkan diterapkan menerapkan terapkan
+dikembangkan mengembangkan kembangkan ditingkatkan meningkatkan tingkatkan
+diturunkan menurunkan turunkan menaikkan dinaikkan
+disebabkan menyebabkan diakibatkan mengakibatkan mengindikasikan diindikasikan
+mencerminkan dicerminkan menekankan ditekankan menegaskan ditegaskan
+disajikan menyajikan sajikan ditampilkan menampilkan tampilkan
+dicantumkan mencantumkan cantumkan dilampirkan melampirkan lampirkan
+dikumpulkan mengumpulkan kumpulkan diolah dianalisis menganalisis
+disesuaikan menyesuaikan sesuaikan dibutuhkan membutuhkan dibuktikan membuktikan buktikan
+diberikan memberikan berikan didefinisikan mendefinisikan definisikan
+diintegrasikan mengintegrasikan dioptimalkan mengoptimalkan
+dikonfirmasikan mengonfirmasikan dikuantifikasikan
+disebutkan menyebutkan sebutkan ditambahkan menambahkan tambahkan
+dibatasi membatasi dirangkum merangkum diestimasi mengestimasi
+signifikan pendahuluan kesimpulan keterbatasan penelitian pembahasan tinjauan
+persamaan perbedaan pengaruh hubungan kemiskinan pertumbuhan pembangunan
+pengujian pengukuran pengumpulan pengolahan penarikan penyusunan penulisan
+keterangan kebijakan pendidikan kelembagaan kesejahteraan ketimpangan

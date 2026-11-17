@@ -1,0 +1,283 @@
+---
+jupyter: python3
+---
+
+# Vegetasi dan hutan {#sec-vegetasi}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+Enam skenario menangani tutupan vegetasi: `deforestation` (sepasang periode),
+`forest-history` (banyak periode), `mining` (radar + NDVI), `forest-account`
+(neraca dari lapisan global terbitan), `embeddings` (vektor model fondasi), dan
+`timelapse` (satu bingkai per tahun untuk dilihat mata). Semua contoh di bab ini
+memakai Earth Engine.
+
+```{python}
+import earthchange as ec
+from IPython.display import Image
+```
+
+## `deforestation` — kehilangan NDVI
+
+Membandingkan komposit median NDVI dua periode. Piksel yang NDVI-nya turun melewati
+ambang ditandai sebagai terdampak. Tanpa `pre` dan `post`, periodenya adalah tahun
+dasar dan tahun terkini bawaan skenario.
+
+```{python}
+#| output: false
+run = ec.run("deforestation", out_dir="deforestasi-contoh",
+             lat=-3.333, lon=122.25, radius=5, map=True)
+```
+
+```{python}
+r = run.stats["results"]
+print(f"{r['pct_affected']:.1f}% wilayah kehilangan vegetasi "
+      f"({r['scenes_pre']} citra sebelum, {r['scenes_post']} sesudah)")
+```
+
+Untuk *backend* tanpa akun, tambahkan `backend="mpc"`; hasilnya tidak akan sama
+persis karena penapisan awan dan ketersediaan citranya berbeda.
+
+Untuk baseline sebelum Sentinel-2 ada, pakai Landsat. Contoh ini membandingkan
+awal 1990-an dengan 2023–2025 di Kalimantan Tengah:
+
+```{python}
+#| output: false
+landsat = ec.run("deforestation", out_dir="deforestasi-kalteng-landsat",
+                 sensor="landsat", lat=-2.2, lon=113.0, radius=6, map=True,
+                 pre="1990-01-01:1992-12-31", post="2023-01-01:2025-12-31")
+```
+
+```{python}
+#| label: fig-deforestasi-landsat
+#| fig-cap: "Perubahan NDVI Landsat 1990–1992 ke 2023–2025 di Kalimantan Tengah. Merah = kehilangan vegetasi."
+r = landsat.stats["results"]
+print(f"{r['pct_affected']:.1f}% wilayah kehilangan vegetasi")
+Image(landsat.find("*_map.png"))
+```
+
+::: {.callout-warning}
+## ΔNDVI menangkap perubahan *neto*
+Lahan yang ditebang lalu ditanami sawit dapat pulih NDVI-nya dalam beberapa tahun.
+Dengan satu pasang pra/pasca, lahan seperti itu bisa terbaca "tidak berubah".
+Karena itulah `forest-history` ada.
+:::
+
+## `forest-history` — kapan tiap piksel hilang
+
+Beri 4–5 periode, dan alat memetakan **kapan** tiap piksel hutan hilang, bukan
+sekadar sebelum/sesudah. "Hilang" dinilai relatif terhadap baseline **tiap piksel
+sendiri**, sehingga tahan terhadap perbedaan jenis hutan, musim, dan sensor TM vs OLI.
+
+```{python}
+#| output: false
+periode = ["1990-01-01:1992-12-31", "2000-01-01:2002-12-31", "2010-01-01:2012-12-31",
+           "2017-01-01:2019-12-31", "2023-01-01:2025-12-31"]
+riwayat = ec.run("forest-history", out_dir="riwayat-hutan-kalteng",
+                 sensor="landsat", lat=-2.2, lon=113.0, radius=12, epochs=periode)
+```
+
+```{python}
+#| label: fig-forest-peta
+#| fig-cap: "Peta tahun-kehilangan hutan, Kalimantan Tengah. Hijau = masih hutan; kuning ke merah tua = hilang lebih awal ke lebih baru."
+Image(riwayat.find("forest_loss_map.png"))
+```
+
+```{python}
+s = riwayat.stats
+print("Hutan per periode (ha):")
+for tahun, ha in s["forest_ha_by_epoch"].items():
+    print(f"  {tahun}: {ha:>9,.0f}")
+print("Kehilangan per periode (ha):")
+for periode, ha in s["loss_per_period_ha"].items():
+    print(f"  {periode}: {ha:>7,.0f}")
+print(f"Total: {s['total_loss_ha']:,.0f} ha ({s['total_loss_pct']}%)")
+```
+
+```{python}
+#| label: fig-forest-tren
+#| fig-cap: "Luas hutan yang tersisa per periode."
+Image(riwayat.find("forest_trajectory.png"))
+```
+
+Perhatikan jumlah citra per periode di `riwayat.stats["scenes_per_epoch"]`:
+periode 2010–2012 hanya punya segelintir citra Landsat bebas awan, jadi petanya
+paling rentan bercak palsu.
+
+Setelan utama:
+
+| Argumen | Bawaan | Arti |
+|---------|--------|------|
+| `forest_thr` | 0,6 | NDVI baseline di atas ini dianggap "hutan" |
+| `drop_thr` | 0,2 | Penurunan NDVI dari baseline yang dihitung sebagai hilang |
+
+Untuk hutan kering atau terdegradasi, turunkan `forest_thr` (mis. 0,5). Bila
+banyak deteksi palsu (awan tipis, gugur daun musiman), naikkan `drop_thr`.
+
+## `mining` — SIRAD radar + NDVI
+
+Menyusun komposit R/G/B dari rerata backscatter VH tiga periode. **Biru berarti
+aktivitas hanya muncul di periode terbaru**, pola khas bukaan tambang baru. Radar
+dipilih karena tambang sering tertutup awan dan berubah cepat.
+
+```{python}
+#| output: false
+tambang = ec.run("mining", out_dir="tambang-konawe", site="konawe", map=True,
+                 epochs=["2024-01-01:2024-12-31", "2025-01-01:2025-12-31",
+                         "2026-01-01:2026-06-30"])
+```
+
+```{python}
+#| label: fig-sirad
+#| fig-cap: "Komposit SIRAD (VH 2024 / 2025 / semester I 2026 sebagai R / G / B). Biru = permukaan yang baru berubah pada periode terakhir."
+Image(tambang.find("mining_sirad_konawe_map.png"))
+```
+
+Skenario ini menghasilkan dua produk, komposit SIRAD dan peta kehilangan NDVI,
+sehingga bukti radar dan optik bisa saling menguatkan:
+
+```{python}
+tambang.files
+```
+
+## `forest-account` — neraca hutan dari lapisan terbitan
+
+Berapa tutupan pohon hilang, kapan, dan apa pemicunya, dihitung dari lapisan global
+yang sudah terbit: Hansen Global Forest Change v1.13, hutan primer Turubanova
+(2018), dan pemicu kehilangan WRI/Google (1 km). Karena lapisannya sama di mana
+pun, angkanya sebanding antarprovinsi. Bila `admin` adalah provinsi, tiap
+kabupaten ikut dihitung.
+
+```{python}
+#| output: false
+neraca = ec.run("forest-account", out_dir="neraca-malut", admin="Maluku Utara")
+```
+
+```{python}
+#| label: fig-neraca-tahun
+#| fig-cap: "Kehilangan tutupan pohon per tahun di Maluku Utara (Hansen GFC), menurut pemicunya."
+Image(neraca.find("loss_by_year.png"))
+```
+
+```{python}
+t = neraca.stats["total"]
+print(f"Tutupan pohon 2000      : {t['forest2000_ha']:>12,.0f} ha")
+print(f"Hutan primer 2001       : {t['primary2001_ha']:>12,.0f} ha")
+print(f"Hutan primer yang hilang: {t['loss_primary_ha']:>12,.0f} ha")
+```
+
+```{python}
+import pandas as pd
+unit = pd.read_csv(neraca.path("units.csv"))
+unit.head(10)
+```
+
+`open_ground=True` menambah luas tanah terbuka + bangunan per tahun dari Dynamic
+World: jejak tambang, galian, kawasan industri, jalan. Keluaran lainnya:
+`stats.json` (total, per tahun, per pemicu × tahun, laju awal vs enam tahun
+terakhir, per kabupaten) dan `units.png`.
+
+::: {.callout-warning}
+## "Tutupan pohon" bukan "hutan"
+Tutupan pohon Hansen termasuk kebun sawit dan hutan tanaman. Pemicu adalah satu
+kelas per sel 1 km, bukan bukti siapa pelakunya.
+:::
+
+## `embeddings` — vektor model fondasi
+
+Model fondasi citra satelit meringkas satu tahun pengamatan tiap piksel 10 m
+menjadi sebuah vektor. Dua sumber tersedia:
+
+| `source` | Model | Dimensi | Berjalan di |
+|----------|-------|---------|-------------|
+| `"aef"` | AlphaEarth (Google DeepMind) | 64 | Earth Engine |
+| `"tessera"` | TESSERA (Cambridge, `geotessera`) | 128 | Komputer Anda, `pip install 'earthchange[tessera]'` |
+
+Mode (`emb_mode`): `change` (perubahan antartahun), `similar` (mirip contoh),
+`classify` (kelas dari sedikit poligon contoh; akurasi diuji pada poligon yang
+tidak dipakai melatih), `expansion` (kelas pada tahun label × tahun pertama
+embedding piksel itu berubah, ambang dikalibrasi pada kelas yang stabil), dan
+`clusters`. Luas dihitung di darat saja kecuali `include_sea=True`.
+
+Mode `change` tidak memerlukan contoh apa pun: ia mengukur seberapa jauh vektor
+tiap piksel bergeser antara dua tahun.
+
+```{python}
+#| output: false
+emb = ec.run("embeddings", out_dir="embedding-weda", source="aef", emb_mode="change",
+             start_year=2019, end_year=2025, lat=0.48, lon=128.0, radius=8)
+```
+
+```{python}
+print("Porsi daratan yang sudah berubah dari 2019 (kumulatif):")
+for tahun, pct in emb.stats["changed_pct"].items():
+    print(f"  {tahun}: {pct:5.1f}%")
+```
+
+```{python}
+#| label: fig-embedding-change
+#| fig-cap: "Tahun pertama embedding AlphaEarth tiap piksel bergeser dari keadaan 2019 (1 − kemiripan kosinus > 0,3), Teluk Weda, Halmahera Tengah. Daratan saja."
+Image(emb.find("first_change_year.png"))
+```
+
+Mode ini hanya mengatakan *kapan* sebuah piksel berubah, bukan *menjadi apa*. Untuk
+itu dibutuhkan contoh berlabel.
+
+Mode `expansion` dan `classify` memerlukan poligon contoh berlabel (GeoJSON dengan
+properti `class`), misalnya:
+
+```python
+ec.run("embeddings", out_dir="ekspansi", source="aef", emb_mode="expansion",
+       start_year=2019, labels="contoh.geojson", bbox="127.88,0.46,128.04,0.68",
+       compare_dw=True)
+```
+
+::: {.callout-important}
+## Dua jebakan dari Teluk Weda
+**Embedding mengenali batuan dasar, bukan hanya tutupan.** Hutan di perbukitan
+ultramafik (bijih nikel) diklasifikasi "tanah terbuka" bila semua contoh tanah
+terbuka berada di batuan itu dan semua contoh hutan di luar. Beri juga contoh hutan
+di batuan yang sama; mode `expansion` menyaring sisanya, karena hutan yang tetap
+hutan tidak berubah.
+
+**Model satu tahun tidak selalu berlaku di tahun lain.** Melatih pada 2025 lalu
+menerapkan ke 2017 membuat luas hutan dan vegetasi lain berayun 2–6×. TESSERA
+2017–2018 di Halmahera juga terlalu berbeda dari tahun-tahun sesudahnya untuk
+dijadikan dasar; pakai `start_year=2019`.
+:::
+
+## `timelapse` — satu bingkai per tahun
+
+Satu komposit median bebas awan per tahun, dengan tahun tertera di bingkai, lalu
+disatukan menjadi MP4 (butuh `ffmpeg`). `window_years=2` (bawaan) memakai median
+dua tahun, yang paling bersih di daerah tropis. Area besar diambil per ubin agar
+tidak melewati batas memori Earth Engine.
+
+```{python}
+#| output: false
+tl = ec.run("timelapse", out_dir="timelapse-sagea", lat=0.4874, lon=128.0684,
+            radius=4, sensor="s2", start_year=2019, window_years=1)
+```
+
+```{python}
+#| label: fig-timelapse
+#| fig-cap: "Bingkai pertama dan terakhir timelapse Sentinel-2 di sekitar Danau Sagea."
+import glob, os
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+
+bingkai = sorted(glob.glob(os.path.join(tl.run_dir, "**", "*.png"), recursive=True))
+fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+for ax, f in zip(axes, [bingkai[0], bingkai[-1]]):
+    ax.imshow(mpimg.imread(f))
+    ax.set_title(os.path.basename(f), fontsize=9)
+    ax.axis("off")
+plt.tight_layout()
+```
+
+Timelapse tidak menghitung apa pun; gunanya untuk melihat apakah angka dari
+skenario lain masuk akal, dan untuk menunjukkannya kepada orang lain. Videonya ada
+di folder yang sama (`*.mp4`).

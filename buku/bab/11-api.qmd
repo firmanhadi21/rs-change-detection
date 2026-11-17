@@ -1,0 +1,250 @@
+---
+jupyter: python3
+---
+
+# Kebakaran dan asap {#sec-api}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+Lima skenario, lima pertanyaan berbeda. Memilih yang keliru adalah kesalahan paling
+umum di tema ini.
+
+| Skenario | Menjawab | Sumber |
+|----------|----------|--------|
+| `burn` | Seberapa parah **satu** kejadian? | Sentinel-2 dNBR |
+| `fire-history` | Di mana berulang, kapan musimnya, tren antar-tahun? | MODIS MCD64A1 + FIRMS |
+| `fire-national` | Keberulangan yang sama untuk **banyak provinsi**, pada kisi yang sama | MODIS MCD64A1 + FIRMS |
+| `fire-zones` | Berapa yang terbakar di dalam **poligon Anda** (KHG, konsesi, DAS)? | raster `fire-national` |
+| `haze` | Seberapa buruk udaranya **sekarang**? | CAMS + Sentinel-5P + FIRMS |
+
+```{python}
+import earthchange as ec
+from IPython.display import Image
+```
+
+## `burn` — severity satu kejadian
+
+dNBR sepasang periode. Wajib memakai `pre` dan `post`. Contoh: kebakaran lereng
+Merbabu, Agustus–September 2025.
+
+```{python}
+#| output: false
+bakar = ec.run("burn", out_dir="bakar-merbabu", lat=-7.5, lon=110.4, map=True,
+               pre="2025-08-01:2025-08-20", post="2025-09-10:2025-09-30")
+```
+
+```{python}
+#| label: fig-burn
+#| fig-cap: "dNBR Sentinel-2 di sekitar 7,5° LS, 110,4° BT antara Agustus dan September 2025."
+r = bakar.stats["results"]
+print(f"Terbakar (dNBR > ambang): {r['pct_affected']:.2f}% · parah: {r['pct_severe']:.2f}%")
+Image(bakar.find("*_map.png"))
+```
+
+## `fire-history` — rekaman panjang
+
+Membangun catatan bertahun-tahun: luas terbakar per tahun (dipisah gambut vs
+mineral), peta **berapa kali** tiap piksel terbakar, musim kebakaran, dan jumlah
+titik panas FIRMS per tahun.
+
+```{python}
+#| output: false
+riau = ec.run("fire-history", out_dir="riwayat-api-riau", admin="Riau")
+```
+
+```{python}
+riau.files
+```
+
+```{python}
+#| label: fig-riau-frek
+#| fig-cap: "Peta frekuensi: berapa tahun tiap piksel terbakar di Riau. Piksel yang berulang menandai koridor gambut terdrainase."
+Image(riau.find("*recurrence*.png") or riau.find("*frequency*.png"))
+```
+
+Peta frekuensi biasanya lebih berguna daripada peta satu tahun: ia memisahkan
+kebakaran sekali-jalan dari **frontier yang terbakar berulang**, yang hampir selalu
+gambut terdrainase di tepi perkebunan.
+
+### Musim kebakaran
+
+```{python}
+#| label: fig-riau-musim
+#| fig-cap: "Musim kebakaran Riau menurut bulan."
+Image(riau.find("*season*.png"))
+```
+
+Riau punya pola **bimodal** yang tidak dimiliki provinsi lain: kemarau pendek
+Februari–Maret ditambah puncak utama Agustus. Provinsi lain umumnya berpuncak
+tunggal pada Agustus–September.
+
+### Membandingkan wilayah
+
+```{python}
+#| output: false
+banding = ec.run("fire-history", out_dir="riwayat-api-banding",
+                 areas="Riau,Jambi,Sumatera Selatan")
+```
+
+```{python}
+#| label: fig-banding
+#| fig-cap: "Panel perbandingan antar-wilayah: deret tahunan, total, porsi gambut, dan kurva musim."
+Image(banding.find("*comparison*.png"))
+```
+
+### Membandingkan musim berjalan
+
+```{python}
+#| output: false
+kalbar = ec.run("fire-history", out_dir="riwayat-api-kalbar",
+                admin="Kalimantan Barat", vs_baseline=True)
+```
+
+```{python}
+#| label: fig-kalbar-baseline
+#| fig-cap: "Titik panas FIRMS musim berjalan di Kalimantan Barat dibanding jendela tanggal yang sama pada tahun-tahun sebelumnya."
+Image(kalbar.find("*vs_baseline*.png"))
+```
+
+`vs_baseline=True` menghitung titik panas FIRMS untuk **jendela tanggal yang sama**
+(1 Januari → hari ini) di setiap tahun, sehingga musim yang belum selesai
+dibandingkan secara adil. Ia memakai FIRMS, **bukan** MCD64A1, karena luas terbakar
+tertinggal beberapa bulan sehingga tidak bisa menggambarkan musim berjalan.
+
+::: {.callout-important}
+## Dua garis acuan, bukan satu
+Grafiknya menarik rata-rata **seluruh rekaman** dan rata-rata **dekade terakhir**.
+Ini bukan hiasan: rezim kebakaran bergeser. Setelah krisis 2015, kelima provinsi
+rawan turun 28–75%, sehingga rata-rata panjang **meremehkan** seberapa anomali
+musim berjalan. Lihat @sec-karhutla-provinsi untuk angkanya.
+:::
+
+## `fire-national` — keberulangan banyak provinsi
+
+`fire-history` menjawab untuk satu wilayah. `fire-national` menjawab pertanyaan yang
+sama untuk banyak provinsi sekaligus, pada kisi 500 m yang sama: **berapa kali tiap
+piksel terbakar** sejak 2015, dan berapa yang di gambut. Tanpa `areas`, ia memakai
+seluruh 38 provinsi; contoh di sini dibatasi dua provinsi agar cepat.
+
+```{python}
+#| output: false
+nasional = ec.run("fire-national", out_dir="api-nasional",
+                  areas="Riau,Kalimantan Tengah")
+```
+
+```{python}
+import pandas as pd
+prov = pd.read_csv(nasional.path("provinces.csv")).set_index("province")
+kolom = {"burned_ha": "terbakar (ha)", "repeat_ha": "terbakar ≥2× (ha)",
+         "peat_share_of_burned_pct_soc": "% di gambut (SOC)",
+         "peat_share_of_burned_pct_peatgrids": "% di gambut (PEATGRIDS)",
+         "hotspots_ratio": "titik panas musim ini ÷ rerata"}
+prov[list(kolom)].rename(columns=kolom).round(1)
+```
+
+```{python}
+#| label: fig-nasional
+#| fig-cap: "Berapa tahun tiap piksel 500 m terbakar sejak 2015, Riau dan Kalimantan Tengah (MODIS MCD64A1)."
+Image(nasional.find("fire_recurrence_national.png"))
+```
+
+Bila terhenti di tengah jalan, jalankan lagi pemanggilan yang sama: provinsi yang
+sudah selesai dilewati. Produk utamanya `provinces/<Provinsi>/recurrence.tif`;
+rekapnya `provinces.csv` dan `stats.json`.
+
+Tiga keputusan desainnya perlu diketahui sebelum mengutip angkanya:
+
+- **Hanya tahun yang lengkap.** MCD64A1 terbit bulanan dan tertinggal berbulan-bulan,
+  sehingga tahun berjalan tidak dimasukkan ke hitungan keberulangan. Musim berjalan
+  dilaporkan terpisah dari titik panas FIRMS.
+- **Gambut sebagai rentang dua definisi.** OpenLandMap SOC ≥ 30 nyaris tepat di Riau
+  tetapi dua kali berlebih di Kalimantan Tengah; PEATGRIDS sebaliknya. Keduanya
+  dibawa, dan kolomnya bernama `*_soc` dan `*_peatgrids` sehingga tidak ada satu
+  angka "gambut" yang bisa dikutip tanpa ketidakpastiannya.
+- **`burned_ha` adalah luas berbeda yang terbakar sekurangnya sekali**, bukan jumlah
+  angka tahunan. Piksel yang terbakar enam tahun dihitung satu hektar, bukan enam.
+
+## `fire-zones` — per poligon pilihan Anda
+
+Pertanyaan lanjutannya selalu berbentuk sama: berapa yang terbakar di dalam *KHG
+ini*, *konsesi ini*, *DAS ini*. `fire-zones` membaca ulang raster `fire-national`
+yang sudah ada, **tanpa Earth Engine**, dengan rumus luas yang sama. Lapisan
+poligonnya milik Anda. Contoh ini memakai batas kabupaten/kota geoBoundaries (BPS
+2020, CC BY 3.0 IGO):
+
+```{python}
+#| output: false
+import os, requests
+kab = "hasil/kabupaten-idn.geojson"
+if not os.path.exists(kab):
+    url = ("https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/"
+           "gbOpen/IDN/ADM2/geoBoundaries-IDN-ADM2_simplified.geojson")
+    with open(kab, "wb") as f:
+        f.write(requests.get(url, timeout=120).content)
+
+zona = ec.run("fire-zones", out_dir="api-per-kabupaten", zones=kab,
+              zone_field="shapeName", from_run=nasional.run_dir)
+```
+
+```{python}
+z = pd.read_csv(zona.path("zones.csv")).set_index("shapeName")
+(z.sort_values("repeat_ha", ascending=False)
+  [["burned_ha", "repeat_ha", "burned_pct_of_zone", "max_times"]]
+  .rename(columns={"burned_ha": "terbakar (ha)", "repeat_ha": "terbakar ≥2× (ha)",
+                   "burned_pct_of_zone": "% wilayah", "max_times": "maks. kali"})
+  .head(10).round(1))
+```
+
+```{python}
+#| label: fig-zones
+#| fig-cap: "Kabupaten/kota di Riau dan Kalimantan Tengah menurut luas terbakar berulang."
+Image(zona.find("fire_zones_ranking.png"))
+```
+
+Keluaran lainnya: `zones.gpkg` (poligon + statistik, langsung dibuka di QGIS) dan
+`stats.json`. Untuk Kesatuan Hidrologis Gambut, ganti `zones` dengan berkas KHG dan
+`zone_field` dengan kolom kodenya.
+
+::: {.callout-warning}
+## Lapisan penyaring, bukan bukti
+Bekas bakar di dalam konsesi bukan bukti bahwa pemegang konsesi yang membakar.
+Atribusi memerlukan geometri bekas bakar, waktu penyalaan, angin, penguasaan lahan
+sampai tingkat blok, dan pada akhirnya proses hukum. MCD64A1 500 m juga melewatkan
+api kecil, sehingga angkanya batas bawah. Metodologi lengkapnya ada di
+`docs/fire_national.md` di repositori.
+:::
+
+## `haze` — udara yang dihirup
+
+Kebakaran baru separuh cerita. `haze` menggabungkan tiga deret harian:
+
+- **PM2.5 permukaan** dari CAMS, dikategorikan dengan **ISPU** dan pedoman WHO 24 jam
+- **indeks aerosol** Sentinel-5P (pelacak plume asap)
+- **titik panas FIRMS**, sehingga api penyebabnya terlihat
+
+```{python}
+#| output: false
+asap = ec.run("haze", out_dir="asap-palangkaraya", lat=-2.21, lon=113.92, radius=30,
+              name="Palangka Raya", haze_start="2026-07-01", haze_end="2026-07-29")
+```
+
+```{python}
+#| label: fig-haze
+#| fig-cap: "PM2.5 CAMS, indeks aerosol Sentinel-5P, dan titik panas FIRMS di Palangka Raya, Juli 2026."
+Image(asap.find("haze_timeline.png"))
+```
+
+Kategori ISPU untuk PM2.5 (µg/m³):
+
+| Kategori | Rentang |
+|----------|---------|
+| Baik | 0 – 15,5 |
+| Sedang | 15,6 – 55,4 |
+| **Tidak Sehat** | 55,5 – 150,4 |
+| Sangat Tidak Sehat | 150,5 – 250,4 |
+| Berbahaya | > 250,5 |
+
+Studi kasusnya ada di @sec-asap.

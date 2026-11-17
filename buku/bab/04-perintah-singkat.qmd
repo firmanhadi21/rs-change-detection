@@ -1,0 +1,140 @@
+---
+jupyter: python3
+---
+
+# Perintah singkat untuk tugas rutin {#sec-singkat}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+Bab-bab berikutnya memakai bentuk lengkap `ec.run(...)`, yang menuntut Anda memilih
+koordinat, radius, dan jendela tanggal sendiri. Untuk pekerjaan rutin kantor
+(banjir kemarin, kebakaran bulan lalu, berapa hutan hilang sejak 2019) ada bentuk
+yang lebih pendek sejak versi 0.3.1: **sebut wilayah dan tanggal, sisanya
+diputuskan alat.** Bentuk ini sengaja dibuat untuk terminal, agar staf yang tidak
+memrogram pun bisa memakainya:
+
+```bash
+earthchange banjir    "Pining, Gayo Lues"       2026-11-08     # genangan setelah kejadian
+earthchange kebakaran "Muara Pawan, Ketapang"   2026-09-15     # area terbakar
+earthchange hutan     "Sungai Kakap, Kubu Raya" 2019 2025      # kehilangan vegetasi
+earthchange kota      "Kota Bekasi"             2020 2025      # lahan terbangun baru
+earthchange air       "Kabupaten Demak"         2020 2025      # air permukaan baru
+earthchange                                                    # bantuan singkat
+```
+
+Tidak perlu akun apa pun: semua perintah singkat memakai Planetary Computer.
+Cukup `pip install 'earthchange[mpc,maps]'`.
+
+Dari Python, perintah yang sama dipanggil dengan `ec.short`. Contoh berikut adalah
+banjir bandang di Kecamatan Pining, Gayo Lues, 8 November 2026. Karena harus
+mengunduh citra radar ke komputer, run ini butuh beberapa menit:
+
+```{python}
+#| output: false
+import earthchange as ec
+run = ec.short("banjir", "Pining, Gayo Lues", "2026-11-08", out_dir="banjir-pining")
+```
+
+```{python}
+s = run.summary
+print(f"Wilayah        : {s['sumber_batas']}")
+print(f"Sebelum        : {s['sebelum'][0]} s.d. {s['sebelum'][1]}")
+print(f"Sesudah        : {s['sesudah'][0]} s.d. {s['sesudah'][1]}")
+print(f"Luas wilayah   : {s['luas_wilayah_ha']:,.0f} ha")
+print(f"Tergenang      : {s['terdampak_ha']:,.0f} ha")
+```
+
+```{python}
+#| label: fig-singkat-pining
+#| fig-cap: "Genangan radar di Kecamatan Pining setelah banjir bandang 8 November 2026. Sebagian besar wilayah tertutup sebagai lereng terlalu curam untuk dinilai (lihat di bawah)."
+from IPython.display import Image
+Image(run.find("*_map.png"))
+```
+
+Angka tergenang sekecil ini **bukan** berarti banjirnya kecil. Bagian "Banjir di
+daerah bergunung" di akhir bab menjelaskan sebabnya.
+
+## Yang diputuskan alat
+
+| Perintah | Skenario | Satelit | Sebelum | Sesudah |
+|----------|----------|---------|---------|---------|
+| `banjir` | `flood` | Sentinel-1 radar | 45 hari sebelum kejadian s.d. H-1 | hari H s.d. H+12 |
+| `kebakaran` | `burn` | Sentinel-2 optik | 90 hari sebelum kejadian s.d. H-1 | hari H s.d. H+45 |
+| `hutan` | `deforestation` | Sentinel-2, median tahunan | seluruh tahun pertama | seluruh tahun kedua |
+| `kota` | `urbanization` | Sentinel-2, median tahunan | seluruh tahun pertama | seluruh tahun kedua |
+| `air` | `water` | Sentinel-2, median tahunan | seluruh tahun pertama | seluruh tahun kedua |
+
+Jendela sesudah tidak pernah melewati hari ini; untuk tahun berjalan, jendela
+berakhir hari ini. Tahun paling awal adalah 2017, karena sebelum itu Sentinel-2
+belum lengkap.
+
+Komposit Sentinel-2 pada perintah singkat hanya memakai **12 hari paling jernih**
+di tiap jendela (diurutkan menurut persentase awan seluruh citra). Pada Kota
+Bekasi 2020→2025 ini memangkas waktu dari sekitar 27 menjadi 11 menit, dan luas
+lahan terbangun baru berbeda kurang dari 10% dari run dengan semua citra
+(1.638 vs 1.503 ha). Skenario lengkap `-s` tetap memakai semua citra.
+
+## Menyebut wilayah
+
+Nama dicari di OpenStreetMap (hanya Indonesia) dan batasnya disimpan di
+`~/.cache/earthchange/wilayah/`, sehingga run berikutnya tidak mencari lagi.
+Luas **dihitung di dalam batas wilayah itu**, bukan di dalam kotak analisis.
+
+- **Tambahkan nama kabupaten.** "Pining" saja bisa cocok dengan tempat lain;
+  "Pining, Gayo Lues" tidak. Bila ada beberapa kecocokan dan Anda menjalankan
+  dari terminal, alat menanyakan mana yang dimaksud.
+- **Batas kecamatan di OpenStreetMap tidak lengkap.** Bila hanya titik pusat
+  permukiman yang ditemukan, alat memberi PERHATIAN dan memakai lingkaran 5 km di
+  sekitarnya (setelah Anda setujui). Untuk batas yang tepat, berikan file batas:
+
+```bash
+earthchange hutan batas_desa.geojson 2019 2025     # juga .gpkg atau .shp
+```
+
+- **Wilayah yang terlalu luas ditolak.** Kotak analisis lebih dari sekitar 100 km
+  (mis. Kabupaten Ketapang, ±309 km, atau Halmahera Tengah, ±245 km) bisa
+  berjam-jam di laptop kantor. Pilih kecamatan, pakai file batas bagian yang
+  diperlukan, atau tambahkan `--paksa`.
+
+## Keluaran
+
+Hasil masuk ke `output/<waktu>_<perintah>_<wilayah>/` (atau `--keluar FOLDER`):
+
+```
+RINGKASAN.md        # ringkasan berbahasa Indonesia: luas, tanggal citra, batasan
+ringkasan.json      # angka yang sama untuk diolah lagi
+wilayah.geojson     # batas wilayah yang dipakai, dengan sumbernya
+<skenario>_*.tif    # GeoTIFF, buka di QGIS
+<skenario>_*_map.pdf / .png
+stats.json          # statistik lengkap dari skenario di baliknya
+```
+
+`RINGKASAN.md` selalu memuat **batasan** perintah itu, misalnya bahwa radar tidak
+melihat genangan di bawah pohon rapat, atau bahwa panen kebun ikut terbaca sebagai
+kehilangan vegetasi. Sertakan batasan itu bila angkanya dikutip.
+
+## Banjir di daerah bergunung
+
+Radar melihat lereng yang menghadap menjauh dari satelit sebagai gelap, mirip air.
+Sejak 0.3.1, banjir di Planetary Computer memakai filter median 5×5 dan
+**mengabaikan lereng di atas 5°**. Pada banjir bandang Pining (8 November 2026)
+luas "tergenang" turun dari 2.143 ha coretan di lereng menjadi 12 ha, dan 96%
+wilayah tertutup sebagai terlalu curam. Bila lebih dari separuh wilayah tertutup,
+`RINGKASAN.md` memberi peringatan: angka genangan untuk wilayah seperti ini tidak
+mewakili dampak banjir bandang, yang lebih tepat dibaca dengan `disturbance`
+(@sec-air). Porsi yang tertutup tercatat di `stats.json` run di atas:
+
+```{python}
+r = run.stats["results"]
+print(f"Wilayah tertutup karena lereng > 5°: {r['pct_steep_masked']:.0f}%")
+```
+
+::: {.callout-note}
+## Kapan pindah ke bentuk lengkap
+Perintah singkat sengaja tidak punya banyak pilihan. Bila Anda perlu Landsat untuk
+tahun sebelum 2017, ambang lain, metode lain (`method`), atau Earth Engine,
+pakai `ec.run(...)` seperti di bab-bab berikutnya.
+:::

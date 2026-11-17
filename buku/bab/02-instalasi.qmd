@@ -1,0 +1,156 @@
+---
+jupyter: python3
+---
+
+# Instalasi dan akun {#sec-instalasi}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+## Memasang paket
+
+`earthchange` adalah paket Python. Dependensi beratnya bersifat opsional (*extras*),
+jadi pasang sesuai kebutuhan:
+
+```bash
+pip install 'earthchange[gee]'        # backend Earth Engine (butuh akun gratis)
+pip install 'earthchange[mpc,maps]'   # Planetary Computer + peta (tanpa akun)
+pip install 'earthchange[all]'        # semuanya
+```
+
+Untuk buku ini, `[all]` paling praktis, ditambah `jupyter` agar Anda bisa
+menjalankan kode bab demi bab di *notebook*:
+
+```bash
+pip install 'earthchange[all]' jupyter
+```
+
+Beberapa skenario butuh ekstra khusus:
+
+| Ekstra | Untuk |
+|--------|-------|
+| `gee` | Sebagian besar skenario (Earth Engine) |
+| `maps` | Semua grafik dan peta |
+| `mpc` | Backend Planetary Computer (tanpa akun) |
+| `transit` | Skenario `transit-access` (jaringan OSM) |
+| `tessera` | Embedding TESSERA pada `embeddings` (lokal, tanpa akun) |
+| `forge3d` | Render 3D GPU pada `population-change` |
+
+Perintah singkat (@sec-singkat) cukup dengan `earthchange[mpc,maps]`.
+
+## Python atau terminal
+
+Semua kode di buku ini adalah Python. Jalankan di Jupyter, VS Code, Positron,
+atau langsung di dalam dokumen Quarto seperti buku ini. Setiap analisis dipanggil
+dengan satu fungsi:
+
+```python
+import earthchange as ec
+run = ec.run("deforestation", out_dir="deforestasi-contoh", lat=-3.333, lon=122.25, radius=5)
+```
+
+Paket yang sama juga memasang perintah terminal **`earthchange`** dan **`earthmap`**
+(render ulang peta dari hasil yang sudah ada). Setiap hasil `ec.run` menyimpan
+perintah terminal padanannya di `run.command`, sehingga Anda bisa memindahkan
+analisis ke server atau penjadwal tanpa menulis ulang apa pun (@sec-konsep).
+
+Daftar semua skenario:
+
+```{python}
+from earthchange.scenarios import SCENARIOS
+print(len(SCENARIOS), "skenario")
+for nama, cfg in list(SCENARIOS.items())[:8]:
+    print(f"  {nama:<15} {cfg['label']}")
+print("  ...")
+```
+
+## Dua backend
+
+| `backend=` | Sumber data | Perlu akun? |
+|------------|-------------|-------------|
+| `"gee"` (bawaan) | Google Earth Engine | Ya, gratis |
+| `"mpc"` | Microsoft Planetary Computer | **Tidak** |
+| `"cdse"` | Copernicus Data Space (hanya `disturbance` dengan `history`) | Ya, klien OAuth gratis |
+
+Backend `mpc` mengunduh COG Sentinel-1/2 dan memprosesnya **di komputer Anda**.
+Keluarannya setara. Namun skenario yang memakai dataset khusus Earth Engine
+(GHSL, MODIS, ERA5, CAMS, FIRMS, Hansen, AlphaEarth) **hanya** jalan di `gee`,
+misalnya `population-change`, `fire-history`, `fire-national`, `forest-account`,
+`timelapse`, `haze`, `island-heat`, `urban-heat`, `urban-history`, dan
+`transit-access`. Dua pengecualian: `fire-zones` membaca ulang raster
+`fire-national` yang sudah ada tanpa Earth Engine, dan `embeddings` dengan
+`source="tessera"` berjalan lokal.
+
+`backend="cdse"` dipakai bila Earth Engine belum memuat lintasan Sentinel-1
+terbaru. Ia butuh klien OAuth Copernicus Data Space di `CDSE_CLIENT_ID` dan
+`CDSE_CLIENT_SECRET` (variabel lingkungan atau berkas `./.env`).
+
+## Menyiapkan Earth Engine
+
+Daftar gratis di <https://earthengine.google.com/> (akun perorangan untuk riset
+atau nonkomersial tidak dipungut biaya), lalu autentikasi sekali dari terminal:
+
+```bash
+earthengine authenticate
+```
+
+Untuk pemakaian otomatis (server, penjadwalan), pakai **service account** dan
+tunjuk kuncinya, lewat variabel lingkungan atau per pemanggilan:
+
+```python
+import os
+os.environ["EARTHCHANGE_EE_KEY"] = "/path/ke/kunci.json"
+# atau:
+ec.run("deforestation", out_dir="uji", lat=-3.333, lon=122.25, ee_key="/path/ke/kunci.json")
+```
+
+Tanpa keduanya, `earthchange` mencari kunci di `~/.secrets/gee-sa.json`, lalu memakai
+akun hasil `earthengine authenticate`.
+
+## Uji cepat
+
+Jalankan satu analisis kecil untuk memastikan semuanya bekerja. Area 10 × 10 km
+ini selesai dalam satu sampai dua menit:
+
+```{python}
+#| output: false
+import earthchange as ec
+run = ec.run("deforestation", out_dir="deforestasi-contoh",
+             lat=-3.333, lon=122.25, radius=5, map=True)
+```
+
+```{python}
+import os
+print(os.path.relpath(run.run_dir))
+for f in run.files:
+    print("  ", f)
+```
+
+Bila daftar di atas berisi PNG, GeoTIFF, dan `stats.json`, instalasi Anda beres.
+
+## Struktur keluaran
+
+Setiap run menulis ke foldernya sendiri. Tanpa `out_dir`, nama foldernya memuat
+waktu dan skenario, sehingga run tidak pernah saling menimpa:
+
+```
+output/<waktu>_<skenario>_<token>/
+├── <produk>.png          # pratinjau berwarna
+├── <produk>.tif          # GeoTIFF tergeoreferensi (buka di QGIS)
+├── <produk>_map.png/.pdf # peta siap cetak (map=True)
+├── <produk>.meta.json    # metadata untuk render ulang
+└── stats.json            # statistik + sumber data → run.stats
+```
+
+`stats.json` adalah berkas terpenting untuk pelaporan: di dalamnya tercatat
+angka-angka **dan** definisi/sumber yang dipakai. Kutip dari sana.
+
+::: {.callout-note}
+## Cara buku ini dirender
+Setiap angka, peta, dan grafik di bab-bab berikut keluar dari sel Python yang
+tercetak di sebelahnya, dijalankan saat buku dirender. Hasil tiap run disimpan di
+folder `out_dir`-nya, sehingga merender ulang bab yang hanya berubah teksnya tidak
+mengunduh citra yang sama dua kali. Tanggal render tercetak di sampul.
+:::

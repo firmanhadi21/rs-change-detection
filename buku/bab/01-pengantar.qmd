@@ -1,0 +1,153 @@
+# Pengantar: apa itu deteksi perubahan {#sec-pengantar}
+
+Waktu kecil saya sering diajak pulang kampung lewat jalan yang sama, tiap tahun.
+Jalannya membosankan, jaraknya jauh, dan tidak ada yang bisa dikerjakan di dalam
+mobil. Maka lahirlah permainan kecil di kepala: mana yang berubah sejak tahun lalu?
+
+Ternyata banyak. Sawah di kilometer sekian sudah jadi deretan ruko. Pohon asam
+besar di tikungan — yang dulu jadi penanda "sebentar lagi sampai" — hilang, dan
+saya tidak pernah tahu kapan persisnya. Warung yang dulu satu-satunya sekarang
+punya tiga tetangga. Anehnya, saya tidak pernah menghafal apa pun sebelumnya; otak
+saya menyimpan sendiri "citra" tahun lalu, lalu membandingkannya begitu saja.
+
+Belakangan saya sadar permainan itu punya nama akademik, dan orang menulis
+disertasi tentangnya.
+
+Deteksi perubahan pada dasarnya cuma itu — membandingkan kondisi permukaan bumi
+pada **dua waktu atau lebih**, lalu menyoroti apa yang berbeda. Bedanya dengan
+permainan di mobil tadi ada tiga, dan ketiganya penting: satelit melakukannya
+dengan **konsisten** (tidak tergantung apa yang kebetulan menarik perhatian),
+**berulang** (tiap lima hari, bukan tiap mudik), dan untuk **wilayah yang tidak
+mungkin kita lewati sendiri**.
+
+Yang tidak berubah adalah prinsipnya. Kalau Anda pernah bilang "lho, dulu di sini
+ada hutan", Anda sudah paham inti buku ini. Sisanya cuma soal cara membuktikannya.
+
+## Mengapa satelit
+
+Pertanyaan yang wajar: kenapa tidak ke lapangan saja? Untuk banyak hal, memang
+lapangan yang benar. Tidak ada satelit yang bisa menggantikan orang yang berjalan
+di bawah tegakan dan tahu itu hutan apa.
+
+Tapi coba ambil pertanyaan seperti "berapa hektar hutan hilang di kabupaten ini
+sejak 2015?", "apakah tambak di pesisir utara meluas?", atau "seberapa sering lahan
+ini terbakar dalam dua puluh tahun terakhir?". Untuk pertanyaan semacam itu, survei
+lapangan mahal, lambat, dan — ini yang sering dilupakan — **tidak bisa mundur ke
+masa lalu**. Anda tidak bisa mensurvei kondisi tahun 2003.
+
+Satelit memberi empat hal yang sulit didapat dengan cara lain:
+
+- **Konsistensi** — sensor yang sama, kalibrasi yang sama, sepanjang waktu. Kalau
+  angkanya naik, itu karena tutupan lahannya berubah, bukan karena tahun ini
+  surveyornya lebih rajin.
+- **Arsip** — Landsat sejak 1984, MODIS sejak 2000, Sentinel-2 sejak 2015. Ini
+  mesin waktu yang sudah dibayar orang lain. Empat puluh tahun rekaman, menunggu
+  ditanyai.
+- **Cakupan** — seluruh Indonesia, termasuk tempat yang sulit didatangi, dan tanpa
+  perlu izin masuk lahan siapa pun.
+- **Gratis** — semua data pokok di buku ini terbuka dan tanpa biaya. Ini bukan hal
+  kecil. Selisih antara "gratis" dan "murah" adalah selisih antara analisis yang
+  jadi dan analisis yang berhenti di proposal.
+
+Cara paling sehat memandangnya, menurut saya: satelit bagus untuk **pola dan
+kecenderungan**, lapangan bagus untuk **kebenaran di satu titik**. Analisis yang
+kuat memakai keduanya, dan tahu mana yang sedang dipakai untuk apa.
+
+## Sidik jari spektral
+
+Bagian ini yang biasanya bikin orang mundur, padahal idenya cantik dan sederhana.
+
+Mata kita cuma melihat tiga warna: merah, hijau, biru. Sensor satelit melihat jauh
+lebih banyak — termasuk panjang gelombang yang tidak punya nama warna karena tidak
+pernah kita alami. Dan ternyata, benda-benda di permukaan bumi punya "sidik jari"
+yang berbeda-beda di panjang gelombang itu.
+
+Contoh favorit saya: daun yang sehat memantulkan inframerah dekat dengan sangat
+kuat — jauh lebih kuat daripada warna hijau yang kita lihat. Kenapa? Karena struktur
+selnya. Daun yang mulai stres, kering, atau mati kehilangan sifat itu lebih dulu
+sebelum warnanya berubah di mata kita. Artinya satelit bisa melihat vegetasi
+memburuk **sebelum** kita melihatnya menguning.
+
+Dari sini logikanya jalan sendiri: tiap fenomena punya panjang gelombang yang paling
+peka terhadapnya, jadi tiap skenario memakai indeks yang sesuai.
+
+| Fenomena | Indeks / metode | Alasan |
+|----------|-----------------|--------|
+| Vegetasi hilang | **NDVI** turun | Daun sehat sangat memantulkan inframerah dekat |
+| Kebakaran | **NBR** / dNBR | Arang menyerap NIR, memantulkan SWIR |
+| Lahan terbangun | **NDBI**, UI, IBI | Beton & aspal terang di SWIR |
+| Air permukaan | **NDWI**, MNDWI | Air menyerap NIR/SWIR hampir total |
+| Banjir & longsor | **SAR** (Sentinel-1) | Radar menembus awan dan asap |
+| Panas permukaan | **LST** (termal) | Band termal Landsat/MODIS |
+
+Anda tidak perlu menghafal tabel ini. `earthchange` sudah memilihkan indeks yang
+tepat untuk tiap skenario. Tapi ada gunanya tahu alasannya — supaya waktu hasilnya
+aneh, Anda punya bayangan di mana letak persoalannya.
+
+::: {.callout-note}
+## Kenapa radar penting di Indonesia
+Untuk banjir, ada ironi yang menjengkelkan: justru pada hari kejadian, langit
+tertutup rapat. Cuaca yang membuat banjir adalah cuaca yang membuat satelit optik
+buta. Waktu awan menyingkir tiga hari kemudian, airnya sudah surut dan Anda
+memetakan lumpur, bukan genangan.
+
+Sentinel-1 memakai radar yang **menembus awan**. Ia tidak peduli langit sedang
+gelap atau terang, siang atau malam. Karena itu genangan di puncak banjir tetap
+bisa dipetakan. Prinsip yang sama membuat radar berguna saat asap karhutla pekat.
+:::
+
+## Komposit median: mengatasi awan
+
+Indonesia itu berawan. Ini bukan keluhan, ini fakta hidup yang harus dirancang
+sejak awal, bukan ditangani belakangan.
+
+Kalau Anda pernah mencoba mencari satu scene bersih di atas Riau bulan Oktober,
+Anda tahu persis maksud saya. Anda buka katalog, ada dua puluh citra untuk periode
+itu, dan kedua puluhnya berawan — sebagian 60%, sebagian 90%, dan yang paling
+bersih pun awannya kebetulan menutup persis wilayah yang Anda perlukan. Ada rasa
+putus asa tersendiri di situ.
+
+Karena itu skenario optik di `earthchange` **tidak** memakai satu citra. Untuk tiap
+periode ia mengambil semua citra yang ada, membuang piksel berawan satu per satu
+(memakai band SCL Sentinel-2 yang memang menandai awan dan bayangannya), lalu
+mengambil **nilai tengah** dari sisa piksel yang bersih di tiap lokasi. Ini yang
+disebut **komposit median**.
+
+Hasilnya hampir ajaib: dari dua puluh citra berawan bisa lahir satu citra yang
+praktis bebas awan. Awan di citra A ditambal piksel bersih dari citra F, begitu
+seterusnya, per piksel, otomatis.
+
+Tapi — dan ini yang sering terlewat — ada harga yang dibayar, dan harganya ada di
+penafsiran. Nilai yang Anda lihat bukan nilai satu tanggal, melainkan nilai
+**tengah periode**. Untuk pertanyaan seperti "berapa NDVI hutan ini pada musim
+kemarau 2024", itu justru lebih baik daripada satu tanggal sembarang.
+
+Untuk kejadian sesaat, cara itu keliru total. Genangan yang bertahan tiga hari akan
+tenggelam tanpa bekas di median tiga bulan — secara harfiah, mediannya adalah
+"kering", karena memang mayoritas harinya kering. Makanya skenario `flood` sengaja
+tidak memakai komposit, melainkan **satu scene** per periode. Alat yang sama,
+keputusan yang berlawanan, karena pertanyaannya berbeda.
+
+## Tiga pertanyaan sebelum menganalisis
+
+Sebelum menjalankan perintah apa pun, jawab dulu tiga hal ini. Kelihatannya sepele
+— dan memang sepele — tapi hampir semua kekacauan yang pernah saya temui, termasuk
+kekacauan buatan saya sendiri (susah payah saya menuliskannya di sini 😀), bisa
+dilacak ke salah satu dari ketiganya:
+
+1. **Perubahan apa yang dicari?** Ini menentukan skenario dan indeksnya. "Perubahan
+   lahan" terlalu kabur; "hutan jadi kebun sawit" bisa dikerjakan.
+2. **Antara kapan dan kapan?** Ini menentukan sensornya. Kalau Anda perlu kondisi
+   sebelum 2015, Sentinel-2 belum lahir — berarti Landsat, dengan segala
+   konsekuensi resolusinya.
+3. **Seberapa besar wilayahnya?** Ini menentukan resolusi dan waktu proses. Satu
+   provinsi dan satu desa bukan cuma beda ukuran; keduanya menuntut pendekatan
+   yang berbeda.
+
+Kelihatan remeh? Coba perhatikan bahwa ketiganya harus dijawab **sebelum** melihat
+data. Begitu Anda sudah melihat hasilnya, sulit sekali menjawab pertanyaan-pertanyaan
+ini tanpa dipengaruhi hasil tadi. Kita cenderung menyesuaikan pertanyaan dengan
+jawaban yang sudah telanjur muncul di layar.
+
+Sudah dijawab? Bagus. Bab @sec-konsep membahas cara kerja umum alat ini, dan
+Bagian II membahas tiap skenario satu per satu.

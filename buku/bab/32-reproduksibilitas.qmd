@@ -1,0 +1,188 @@
+# Reproduksibilitas {#sec-reproduksibilitas}
+
+Ada pengalaman yang saya duga cukup umum. Anda sedang mencari sesuatu, lalu
+menemukan sebuah grafik yang **persis** menjawab pertanyaan Anda. Rapi, jelas,
+angkanya masuk akal, dan wilayahnya kebetulan wilayah yang Anda kerjakan.
+
+Lalu Anda mulai membaca sekelilingnya, mencari keterangan.
+
+Datanya tahun berapa? Tidak disebut. Ambang batasnya berapa? Tidak ada. Wilayahnya
+dibatasi apa — administratif, DAS, atau kotak sembarang? Tidak jelas. Sensornya
+apa? Diam. Dan yang paling menyebalkan: siapa pun yang membuatnya jelas sudah
+mengerjakan pekerjaan yang serius, tapi tidak seorang pun bisa membangun apa pun di
+atasnya.
+
+Akhirnya grafik bagus itu tidak bisa dipakai untuk apa-apa selain dikagumi.
+Dilihat, disukai, dibagikan sekali, lalu selesai. Semua kerja di baliknya berhenti
+di situ.
+
+Saya tidak ingin buku ini jadi begitu. Semua gambar di sini berasal dari run
+sungguhan, dan tiap perintahnya ditulis apa adanya, bukan disederhanakan supaya
+enak dibaca. Bab ini menjelaskan cara menjalankannya ulang — dan yang menurut saya
+jauh lebih penting, cara menjaga agar hasil **Anda sendiri** bisa dilacak orang lain.
+
+Karena begini: reproduksibilitas itu bukan soal kejujuran pribadi. Saya percaya
+hampir semua orang jujur. Ia soal **daya guna**. Analisis yang tidak bisa diulang
+adalah analisis yang mati bersama laptop Anda.
+
+## Menjalankan ulang isi buku ini
+
+Bagian I dan II **dijalankan setiap kali buku dirender**: angka, tabel, dan peta
+di sana keluar dari sel Python yang tercetak di sebelahnya. Untuk merender ulang
+seluruh buku dengan run baru:
+
+```bash
+pip install 'earthchange[all]' jupyter
+earthengine authenticate
+git clone https://github.com/firmanhadi21/rs-change-detection
+cd rs-change-detection/buku
+EC_ULANG=1 quarto render
+```
+
+Tanpa `EC_ULANG=1`, run yang foldernya sudah ada di `buku/hasil/` dibaca ulang alih-alih
+dijalankan lagi, sehingga mengubah teks satu bab tidak mengunduh citra yang sama dua
+kali. Folder `_freeze/` menyimpan keluaran sel yang sudah dihitung; dari situlah
+situs web buku ini dibangun tanpa menjalankan kode apa pun.
+
+Bagian III memakai run yang lebih berat, dibuat pada Juli 2026. Pemanggilannya:
+
+```python
+import earthchange as ec
+
+# Bab 20 — karhutla lima provinsi
+ec.run("fire-history", out_dir="karhutla-5-provinsi",
+       areas="Riau,Jambi,Sumatera Selatan,Kalimantan Tengah,Kalimantan Barat",
+       start_year=2001, end_year=2024, vs_baseline=True,
+       peat_file="TROP-SUBTROP_PeatV21_2016_CIFOR.tif")
+
+# Bab 21 — asap Palangka Raya
+ec.run("haze", out_dir="haze-palangka-raya", lat=-2.21, lon=113.92, radius=30,
+       days=45, name="Palangka Raya")
+
+# Bab 22 — populasi
+ec.run("population-change", out_dir="population-change-jawa",
+       bbox="105,-8.9,114.6,-5.8", cell_km=1, name="Jawa")
+ec.run("population-change", out_dir="population-change-indonesia",
+       country="Indonesia", regions="indonesia", cell_km=1)
+
+# Bab 23 — pulau kecil
+ec.run("island-heat", out_dir="island-heat-raja-ampat", lat=-0.66, lon=130.23,
+       radius=40, name="Raja Ampat", lst_source="modis", infographic=True, lang="both")
+```
+
+Itu seluruh Bagian III, dalam enam pemanggilan. Tidak ada langkah tersembunyi, tidak
+ada berkas prapemrosesan yang harus Anda minta ke saya lewat surel.
+
+::: {.callout-warning}
+## Hasil Anda bisa berbeda — dan itu wajar
+Ini bagian yang perlu saya jelaskan sebelum ada yang mengira alatnya rusak.
+
+Kalau Anda menjalankan perintah di atas hari ini, sebagian angkanya **tidak akan
+sama persis** dengan yang tercetak di buku ini. Itu bukan kesalahan Anda, dan bukan
+pula bug. Ada tiga penyebab yang semuanya sah:
+
+- **Data bertambah.** FIRMS dan CAMS bekerja mendekati waktu nyata. `vs_baseline=True`
+  dan `haze` pada dasarnya bertanya "bagaimana keadaan sampai hari ini", jadi
+  jawabannya memang berubah tiap hari. Semua angka Bab 21 dihitung pada **29 Juli
+  2026**.
+- **Arsip diperbarui.** Koleksi seperti MCD64A1 sesekali diproses ulang oleh
+  penyedianya — algoritma diperbaiki, kalibrasi disesuaikan. Data "masa lalu" pun
+  bisa berubah.
+- **Pengasaran otomatis.** Wilayah besar dapat turun resolusi kalau melebihi batas
+  unduhan Earth Engine, dan batas itu sendiri bisa berbeda tergantung beban server.
+  Presisi luasnya ikut sedikit bergeser.
+
+Justru karena itu, **catat tanggal run**. Sudah tersimpan otomatis di nama folder
+keluaran dan di `run_id` dalam `stats.json` — jadi tidak perlu disiplin khusus,
+cukup jangan dibuang.
+
+Ini juga alasan kenapa "reproduksibel" untuk data mendekati waktu nyata tidak
+berarti "hasilnya identik". Yang harus reproduksibel adalah **jalannya**, bukan
+angkanya. Orang lain harus bisa sampai ke angka yang sama **kalau menjalankan pada
+tanggal yang sama** — dan tahu tanggal mana yang harus dipakai.
+:::
+
+## Yang harus dilaporkan
+
+Untuk tiap angka yang Anda publikasikan, sertakan minimal lima hal ini:
+
+| Unsur | Dari mana |
+|-------|-----------|
+| Versi `earthchange` | `pip show earthchange` |
+| Perintah lengkap | `run.command`, atau riwayat terminal Anda |
+| Tanggal run | `run_id` di `stats.json` |
+| Sumber data | `dataset` di `stats.json` |
+| Definisi khusus | mis. `peat_definition`, `sensor`, ambang |
+
+Perhatikan bahwa empat dari lima baris itu bisa Anda salin langsung dari
+`stats.json`. Ini disengaja. Berkas itu tidak menyimpan angka saja, melainkan
+**angka bersama definisinya** — supaya satu berkas itu sudah cukup untuk
+direproduksi orang lain, tanpa harus mengingat-ingat apa yang Anda kerjakan tiga
+bulan lalu.
+
+Dan pengalaman saya, "tiga bulan lalu" itu kunci persoalannya. Orang yang paling
+sering dirugikan oleh dokumentasi yang buruk bukan pembaca Anda — melainkan **Anda
+sendiri, beberapa bulan kemudian**, saat pembimbing atau reviewer bertanya "ini
+ambangnya berapa ya?" dan Anda tidak lagi ingat.
+
+## Contoh pelaporan yang baik
+
+Biar tidak abstrak, ini contoh bagaimana satu angka dari Bab 20 sebaiknya
+dilaporkan:
+
+> Luas terbakar Kalimantan Tengah 2001–2024 sebesar **4.702.074 ha**, dengan **41%**
+> berada di gambut. Sumber: MODIS MCD64A1 (luas terbakar) dengan pemisahan gambut
+> dari Gumbricht dkk. (2017), dihitung memakai `earthchange` v0.1.48 pada 29 Juli
+> 2026 atas poligon provinsi FAO GAUL. Wilayah ini diproses pada 1 km karena
+> pengasaran otomatis. MCD64A1 diketahui meremehkan kebakaran gambut yang membara
+> di bawah permukaan, sehingga angka ini adalah **batas bawah**.
+
+Panjang? Memang. Tiga kali lebih panjang daripada angkanya sendiri.
+
+Tapi coba perhatikan apa saja yang termuat di dalamnya: sumber datanya, lapisan
+gambut yang dipakai, versi perangkat lunaknya, tanggal perhitungannya, batas wilayah
+yang dipakai, resolusi pemrosesan, dan — ini yang paling sering hilang — **arah
+biasnya**.
+
+Kalimat terakhir itu yang ingin saya soroti. Menyebut sendiri bahwa angka kita
+adalah batas bawah terasa seperti melemahkan tulisan sendiri. Seperti mengakui
+kelemahan sebelum ditanya.
+
+Menurut pengalaman saya, yang terjadi justru sebaliknya. Pembaca yang serius akan
+mencari kelemahan itu; kalau Anda sudah menyebutkannya lebih dulu, yang tertangkap
+adalah kesan bahwa Anda sudah memikirkannya. Yang melemahkan kredibilitas bukan
+mengakui keterbatasan, melainkan ketahuan tidak menyadarinya.
+
+## Menyitasi perangkat lunaknya
+
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose
+> satellite change detection* [Perangkat lunak]. Universitas Diponegoro.
+> <https://doi.org/10.5281/zenodo.21370696>
+
+```bibtex
+@software{earthchange,
+  author    = {Hadi, Firman and Wahyuddin, Yasser and Sabri, L. M.},
+  title     = {earthchange: Multipurpose satellite change detection},
+  year      = {2026},
+  publisher = {Universitas Diponegoro},
+  doi       = {10.5281/zenodo.21370696},
+  url       = {https://github.com/firmanhadi21/rs-change-detection}
+}
+```
+
+Dan ini yang terakhir, tapi buat saya bukan yang paling ringan: **jangan lupa
+menyitasi dataset yang dipakai**. Gumbricht dkk. untuk gambut, GHSL untuk populasi,
+NOAA untuk suhu laut, dan seterusnya.
+
+Alat seperti `earthchange` sebetulnya cuma pipa. Ia menyusun perintah, mengunduh,
+menghitung, menggambar. Yang membuat seluruh buku ini mungkin adalah **datanya** —
+dan data itu dibangun orang lain, bertahun-tahun, sering dengan pendanaan yang
+tidak seberapa, dan hampir selalu tanpa banyak yang tahu. Ada orang yang menghabiskan
+bertahun-tahun memvalidasi 275 profil tanah supaya kita bisa memanggil satu berkas
+GeoTIFF dan mendapat jawaban dalam sepuluh detik.
+
+Sitasi adalah satu-satunya cara kerja semacam itu terlihat, dan satu-satunya alasan
+kenapa pendanaannya diteruskan.
+
+Daftar lengkapnya sudah saya kumpulkan di Bab @sec-referensi — tinggal salin, jadi
+tidak ada alasan untuk melewatkannya. Yuk mari kita biasakan.

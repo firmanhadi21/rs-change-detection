@@ -1,0 +1,63 @@
+/*-- scss:defaults --*/
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap');
+
+// Warna aksen (selaras dengan footer biru ala buku tesis)
+$primary:    #1a5e47 !default;
+$body-color: #1a1a1a !default;
+$link-color: #1a5e47 !default;
+
+$font-family-sans-serif: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif !default;
+$font-family-serif:      "IBM Plex Serif", Georgia, serif !default;
+$font-family-monospace:  "IBM Plex Mono", "SFMono-Regular", Menlo, monospace !default;
+
+/*-- scss:rules --*/
+p, li {
+  font-family: "IBM Plex Serif", serif;
+  white-space: inherit;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 500;
+}
+h1 { font-size: 24pt; }
+h2 { font-size: 18pt; }
+h3 { font-size: 16pt; }
+
+p.caption,
+figcaption,
+.figure-caption {
+  font-family: 'IBM Plex Sans', sans-serif;
+  color: #777;
+  margin-top: 10px;
+}
+
+p.sourceCode, code.sourceCode, code, pre {
+  font-family: "IBM Plex Mono", monospace;
+  word-break: normal;
+  word-wrap: normal;
+  white-space: inherit;
+}
+
+// Sampul buku diberi bayangan halus seperti buku tesis
+.cover,
+img.quarto-cover-image {
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+  margin: 10px 0;
+}
+
+// Item sidebar & daftar isi yang aktif dicetak tebal
+div.sidebar-item-container .active,
+.sidebar nav[role=doc-toc] ul > li > a.active,
+.sidebar nav[role=doc-toc] ul > li > ul > li > a.active {
+  font-weight: 600;
+}
+
+#header h4.author {
+  margin: 0;
+  color: #666;
+}
+#header h4.author em { font-style: normal; }
+
+// Tabel sedikit lebih rapat
+table { font-size: 0.95rem; }

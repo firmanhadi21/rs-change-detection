@@ -1,0 +1,229 @@
+# Memilih lapisan gambut {#sec-gambut}
+
+Kalau dari seluruh buku ini Anda hanya sempat membaca satu bab, bacalah yang ini.
+
+Bukan karena isinya paling sulit — justru sebaliknya, teknisnya sederhana sekali.
+Tapi karena bab ini memperlihatkan sesuatu yang mengubah cara saya bekerja sejak
+menemukannya.
+
+Ceritanya begini. Saya sedang menyiapkan analisis karhutla Riau, dan sampai pada
+langkah yang tampak sepele: memilih peta gambut mana yang dipakai untuk memisahkan
+"terbakar di gambut" dari "terbakar di tanah mineral". Ada beberapa pilihan, semuanya
+kelihatan masuk akal, dan saya memilih satu tanpa banyak berpikir. Mungkin tiga
+detik. Kalau sedang buru-buru, mungkin nol detik — tinggal pakai yang bawaan.
+
+Belakangan, karena penasaran, saya jalankan ulang dengan lapisan yang lain. Angkanya
+berubah dari 65% menjadi 16%.
+
+Data kebakarannya sama. Wilayahnya sama. Perintahnya sama. Tidak ada bug, tidak ada
+yang berbohong, tidak ada yang bisa disalahkan. Cuma satu keputusan tiga detik yang
+menggeser kesimpulan sampai **empat kali lipat**.
+
+Sejak itu saya jadi lebih hati-hati — bukan cuma soal gambut, tapi soal semua
+keputusan kecil yang terasa terlalu sepele untuk didokumentasikan.
+
+## Masalahnya
+
+Akar persoalannya sederhana dan agak mengejutkan: **Google Earth Engine tidak punya
+peta gambut baku.** Tidak ada. Untuk hampir semua hal lain — tutupan lahan, elevasi,
+curah hujan, suhu permukaan — ada dataset standar yang dipakai semua orang, sehingga
+hasil siapa pun bisa dibandingkan dengan hasil siapa pun. Untuk gambut, tidak.
+
+Padahal untuk karhutla Indonesia, justru angka inilah yang paling diperebutkan.
+Kebakaran gambut yang mendorong krisis asap. Kebakaran gambut yang menyumbang
+sebagian besar emisi karbon. Kebakaran gambut yang jadi dasar moratorium, restorasi,
+dan penegakan hukum. Kalimat "sekian persen kebakaran terjadi di lahan gambut"
+muncul di hampir setiap laporan, siaran pers, dan berita tentang karhutla.
+
+Dan karena tidak ada standar, setiap orang memilih sendiri lapisannya. Yang satu
+memakai peta A, yang lain peta B, dan pilihan itu — inilah bagian yang paling
+merisaukan — **hampir tidak pernah disebutkan**.
+
+Jadi kita punya situasi di mana angka yang sangat penting, yang dikutip di
+mana-mana, sebenarnya bergantung pada keputusan yang tidak terlihat siapa pun.
+
+`earthchange` menyediakan tiga pilihan. Dan setelah mengujinya, saya sengaja
+**tidak** menobatkan satu pun sebagai kebenaran — karena memang tidak ada yang
+pantas dinobatkan.
+
+## Tiga pilihan
+
+| Sumber | Cara pakai | Sifat |
+|--------|-----------|-------|
+| **Proxy SOC** (default) | `peat_source="soc"` | Karbon organik tanah OpenLandMap (10 cm) ≥ `peat_thr` (30). Tanpa unduhan. |
+| **PEATGRIDS** | `peat_source="peatgrids"` | Ketebalan gambut global 1 km (GPM 2.0 + digital soil mapping). Tanpa unduhan. |
+| **Gumbricht dkk. 2017** | `peat_file="<berkas>.tif"` | Peta gambut tropis 231 m, **terbit peer-review, bisa disitasi**. Unduh sekali. |
+
+Ketiganya mendefinisikan "gambut" dengan cara yang berbeda, dan perbedaan definisi
+itulah — bukan kualitas datanya — yang jadi sumber selisih.
+
+Proxy SOC bertanya: seberapa tinggi kandungan karbon organik di lapisan atas tanah?
+Kalau melewati ambang, sebut gambut. PEATGRIDS bertanya: seberapa tebal lapisan
+gambutnya menurut pemodelan tanah digital? Gumbricht bertanya: apakah tempat ini
+termasuk kelas lahan basah pembentuk gambut, menurut interpretasi yang divalidasi ke
+profil tanah lapangan?
+
+Tiga pertanyaan berbeda, tiga jawaban berbeda. Semuanya masuk akal di tempatnya
+masing-masing.
+
+### Mengunduh Gumbricht
+
+Gumbricht dkk. 2017, *Tropical and Subtropical Wetlands Distribution* (CIFOR),
+[DOI 10.17528/CIFOR/DATA.00058](https://doi.org/10.17528/CIFOR/DATA.00058):
+
+```bash
+curl -L -o peat.7z "https://data.cifor.org/api/access/datafile/1727"   # 40 MB
+7z x peat.7z        # -> TROP-SUBTROP_PeatV21_2016_CIFOR.tif (332 MB, 231 m)
+```
+
+```python
+import earthchange as ec
+riau = ec.run("fire-history", out_dir="riwayat-api-riau-cifor", admin="Riau",
+              peat_file="TROP-SUBTROP_PeatV21_2016_CIFOR.tif")
+```
+
+Yang membuat saya cukup nyaman merekomendasikan peta ini adalah definisinya yang
+tertulis jelas dan bisa diperiksa siapa pun: tanah dengan **≥30 cm** bahan organik
+terdekomposisi dan **≥50%** bahan organik, disusun dari kelas lahan basah pembentuk
+gambut — mangrove, rawa, fen, riverine, floodswamp — dengan kesesuaian **65%**
+terhadap 275 profil tanah sungguhan.
+
+Perhatikan angka terakhir itu. Kesesuaian 65%, disebutkan terus terang oleh
+penulisnya sendiri. Artinya sekitar sepertiga titik validasi tidak cocok. Itu bukan
+alasan menolak petanya — justru sebaliknya, peta yang mencantumkan tingkat
+kesalahannya sendiri lebih bisa dipercaya daripada peta yang diam soal itu. Tapi ia
+mengingatkan bahwa tidak ada peta gambut yang bebas galat, termasuk yang paling
+baik sekalipun.
+
+::: {.callout-note}
+Peta ini **tidak** tersedia di Earth Engine, jadi harus diunduh sekali (40 MB
+terkompresi, 332 MB setelah dibuka). `peat_file` menerima raster maupun GeoJSON —
+termasuk peta gambut resmi KLHK/BBSDLP kalau Anda punya aksesnya. Kalau ada peta
+resmi untuk wilayah Anda, itu yang paling baik, dan buku ini tidak akan
+memperdebatkannya.
+:::
+
+## Perbandingan jujur
+
+Ketiga pilihan itu tidak bisa dibiarkan berdiri tanpa diuji. Jadi saya bandingkan
+ketiganya dengan angka luas gambut provinsi yang lazim dikutip.
+
+Satu peringatan penting sebelum Anda membaca tabelnya, dan saya minta ini
+diperhatikan sungguh-sungguh. Kolom "lazim dikutip" berisi **angka bulat perkiraan**
+dari kisaran yang beredar di literatur BBSDLP/Wetlands International — bukan angka
+resmi yang saya salin dari satu dokumen tertentu dengan halamannya. Fungsinya di
+sini cuma satu: sebagai patokan kasar untuk melihat mana yang meleset jauh. Tolong
+jangan kutip kolom itu sebagai luas gambut resmi provinsi mana pun.
+
+| Provinsi | Lazim dikutip | Gumbricht | SOC ≥ 30 | PEATGRIDS |
+|----------|--------------:|----------:|---------:|----------:|
+| Riau | ±4,0 Mha | 2,14 | **3,88** ✓ | 5,74 |
+| Kalimantan Tengah | ±3,0 | **2,63** ✓ | 6,55 | 5,20 |
+| Jawa Barat | ±0 | 0,16 | **0,01** ✓ | **0,00** ✓ |
+| Papua | ±3,7 | 6,06 | **3,61** ✓ | 11,92 |
+| Sumatera Selatan | ±1,4 | **1,70** ✓ | 4,37 | 3,41 |
+
+Terus terang, waktu menyusun tabel ini saya berharap ada satu pemenang. Satu lapisan
+yang cukup unggul untuk saya jadikan bawaan, sehingga pembaca buku ini tidak perlu
+memikirkannya sama sekali dan seluruh bab ini bisa diringkas jadi satu paragraf.
+
+Ternyata tidak ada. **Tidak ada yang unggul di semua wilayah.**
+
+Gumbricht paling dekat di Kalteng dan Sumsel — dan meleset cukup jauh di Riau.
+Proxy SOC paling dekat di Riau, Papua, dan Jawa Barat — dan menggelembung dua kali
+lipat di Kalteng. PEATGRIDS melebih-lebihkan hampir di mana-mana, paling parah di
+Papua (11,92 lawan perkiraan 3,7), meskipun ia benar mendekati nol di Jawa Barat.
+
+Perhatikan juga baris Jawa Barat, karena itu semacam uji kewarasan. Jawa Barat
+praktis tidak punya gambut. Proxy SOC dan PEATGRIDS lulus dengan angka mendekati
+nol. Gumbricht memberi 0,16 Mha — kecil, tapi bukan nol. Sebuah pengingat bahwa
+"peta terbaik" pun bisa keliru di tempat yang jawabannya sudah kita ketahui.
+
+## Akibatnya pada kesimpulan
+
+Sekarang bagian yang membuat saya berhenti agak lama.
+
+Semua di atas masih terasa seperti perdebatan metodologi — penting bagi yang
+mengerjakan, membosankan bagi yang lain. Tapi mari lihat apa akibatnya pada angka
+yang benar-benar dikutip orang.
+
+Pada AOI yang **sama persis** di Riau, dengan data kebakaran yang **sama persis**,
+hanya lapisan gambutnya yang ditukar:
+
+| Lapisan gambut | Porsi luas terbakar di gambut |
+|----------------|------------------------------:|
+| Proxy SOC | **65%** |
+| Gumbricht | **16%** |
+
+Total luas terbakarnya nyaris identik — 122.286 ha lawan 123.262 ha, selisih kurang
+dari satu persen. Apinya sama. Petanya sama. Periodenya sama. Yang berbeda cuma
+**pembagi gambut/mineral**.
+
+Sekarang bayangkan dua laporan terbit pada minggu yang sama, disusun dua lembaga
+yang sama-sama serius dan sama-sama jujur.
+
+Yang pertama menulis: *"Dua pertiga kebakaran Riau terjadi di lahan gambut."*
+Kesimpulannya: krisis ini pada dasarnya krisis gambut, dan restorasi gambut adalah
+prioritas utama.
+
+Yang kedua menulis: *"Hanya seperenam kebakaran Riau terjadi di lahan gambut."*
+Kesimpulannya: fokus berlebihan pada gambut justru mengalihkan perhatian dari
+sebagian besar api yang terjadi di tanah mineral.
+
+Keduanya bisa menunjukkan kodenya. Keduanya bisa membuka datanya. Keduanya **benar**.
+
+Dan pembaca umum — termasuk wartawan yang meliputnya, termasuk pejabat yang
+membacanya, termasuk kita sendiri kalau kebetulan sedang tidak fokus — tidak punya
+cara apa pun untuk tahu mengapa keduanya berbeda. Yang terjadi di dunia nyata
+biasanya bukan pemeriksaan metodologi, melainkan tuduhan salah satu pihak sedang
+menutupi sesuatu.
+
+Kecuali kalau masing-masing menyebutkan lapisan yang dipakai. Satu kalimat. Itu
+saja.
+
+Karena itu, menyebut lapisan yang dipakai bukan formalitas akademik yang bisa
+dilewati kalau tulisannya untuk pembaca umum. Itu **syarat agar angkanya berarti
+apa-apa**.
+
+::: {.callout-important}
+## Aturan praktis
+1. Untuk publikasi dan advokasi: pakai **Gumbricht** (peer-review, bisa disitasi)
+   atau peta resmi **KLHK/BBSDLP** kalau Anda punya. Yang penting bukan mana yang
+   "paling benar", tapi bahwa pilihan Anda bisa ditelusuri orang lain.
+2. Untuk eksplorasi cepat: **proxy SOC** sudah cukup — asal Anda menyebutnya sebagai
+   proxy, bukan sebagai peta gambut.
+3. **Selalu** sebutkan lapisannya. `earthchange` sudah mencatatnya otomatis di
+   subjudul grafik dan di `peat_definition` dalam `stats.json`, jadi Anda tidak
+   perlu mengingat-ingat — tinggal salin.
+4. **Jangan** membandingkan porsi gambut antar-laporan yang memakai lapisan berbeda.
+   Ini yang paling sering terjadi dan paling jarang disadari: dua angka yang
+   sebetulnya tidak sebanding, ditaruh berdampingan dalam satu tabel, lalu
+   dibicarakan seolah-olah selisihnya bermakna.
+:::
+
+## Kalau begitu, kenapa proxy SOC masih ada?
+
+Pertanyaan yang wajar, dan pernah diajukan ke saya. Kalau Gumbricht lebih bisa
+dipertanggungjawabkan, kenapa bukan itu yang jadi bawaan? Bukankah menyetel bawaan
+ke pilihan yang lebih lemah itu justru mendorong orang berbuat keliru?
+
+Saya cukup lama memikirkannya, dan alasannya begini.
+
+Pertama, soal akses. Gumbricht harus diunduh — 40 MB terkompresi, 332 MB setelah
+dibuka, ditambah perlu `7z` terpasang. Di banyak tempat di Indonesia, termasuk
+sebagian kampus, itu bukan perkara sepele. Kalau bawaannya menuntut unduhan, sebagian
+orang tidak akan pernah sampai ke hasil pertamanya. Dan alat yang tidak pernah
+dijalankan tidak menolong siapa-siapa.
+
+Kedua, soal cakupan. Gumbricht meliputi wilayah tropis dan subtropis. Proxy SOC
+jalan **di mana saja di dunia**, tanpa persiapan apa pun.
+
+Ketiga — dan ini yang membuat saya cukup tenang — proxy SOC bukan tebakan asal. Ia
+terkalibrasi cukup wajar di Riau, dan benar mendekati nol di Jawa Barat. Ia lulus
+uji kewarasan. Yang tidak boleh dilakukan adalah menyebutnya "peta gambut", karena
+memang bukan.
+
+Ia dirancang sebagai **titik awal yang jujur**. Dan titik awal yang jujur, menurut
+saya, lebih baik daripada tidak pernah mulai sama sekali.
+
+Asal jangan berhenti di situ kalau hasilnya akan dikutip orang.

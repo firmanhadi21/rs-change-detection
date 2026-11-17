@@ -1,0 +1,149 @@
+# Sebelum mulai {.unnumbered}
+
+Buku ini lahir dari kebiasaan buruk saya: menunggu.
+
+Siapa pun yang pernah bekerja dengan citra satelit pasti kenal rasanya. Anda susun
+perintahnya, tekan enter, lalu… ya sudah. Sentinel-2 itu besar, jaringan kampus
+tidak selalu berpihak, dan progress bar punya kemampuan luar biasa untuk berhenti
+di 87% tepat ketika Anda mulai memperhatikannya. Kalau ditotal setahun, entah
+berapa jam saya habiskan menatap terminal yang sedang tidak melakukan apa-apa untuk
+saya.
+
+Daripada bengong, saya biasanya menulis. Kadang jadi tulisan blog, kadang jadi utas
+di X, kadang cuma catatan yang tidak pernah saya buka lagi. Buku ini awalnya
+termasuk jenis yang ketiga.
+
+Yang membuatnya naik pangkat jadi buku adalah pengulangan. Pertanyaan yang masuk ke
+saya — dari mahasiswa bimbingan, dari kawan di LSM, dari orang yang tidak saya
+kenal di kolom balasan — ternyata itu-itu saja bentuknya: *"Mas, itu datanya dari
+mana?"* *"Kok bisa dapat angka segitu?"* *"Bisa nggak saya bikin yang sama untuk
+kabupaten saya?"* Saya menjawab satu per satu, dengan jawaban yang kurang lebih
+sama, berkali-kali. Sampai akhirnya terpikir: mungkin lebih baik ditulis sekali,
+dengan benar.
+
+Jadi begini. **`earthchange`** adalah paket Python untuk mendeteksi perubahan
+permukaan bumi dari citra satelit gratis. Deforestasi, tambang, banjir, abrasi,
+karhutla, asap, perpindahan penduduk, pulau kecil yang memanas — tiga puluh lima
+skenario, semuanya berangkat dari pertanyaan nyata yang pernah diajukan ke saya.
+Satu baris Python, `ec.run(...)`, keluar PNG, GeoTIFF, dan statistiknya. Tidak perlu
+menulis kode Earth Engine dari nol, tidak perlu berlangganan apa pun.
+
+Ada satu hal yang ingin saya tekankan sejak halaman pertama, sebelum Anda membaca
+lebih jauh: **semua angka dan gambar di buku ini berasal dari run sungguhan**.
+Bukan ilustrasi. Bukan contoh yang saya karang supaya rapi. Di Bagian I dan II,
+setiap angka, tabel, dan peta keluar dari sel Python yang tercetak tepat di atasnya,
+dijalankan saat buku ini dirender.
+
+Ini terdengar sepele, tapi buat saya penting. Buku teknis gampang sekali jatuh ke
+kebiasaan memberi contoh yang "seharusnya begini" — yang tidak pernah benar-benar
+dijalankan penulisnya, dan karena itu diam-diam sudah tidak jalan sejak dua versi
+yang lalu. Saya ingin Anda bisa menyalin, menempel, dan melihatnya bekerja. Kalau
+hasil Anda berbeda sedikit dari yang tercetak di sini, ada penjelasannya di Bab
+@sec-reproduksibilitas — dan percayalah, itu belum tentu salah Anda.
+
+## Untuk siapa buku ini {.unnumbered}
+
+Sebetulnya untuk siapa saja yang penasaran. Tapi kalau harus menyebut, saya
+menulisnya sambil membayangkan tiga orang duduk di seberang meja.
+
+Yang pertama, **mahasiswa dan peneliti** yang butuh bukti spasial untuk skripsi,
+tesis, atau papernya, tapi belum sempat belajar Earth Engine — dan jujur saja,
+tidak punya satu semester untuk itu. Anda butuh angkanya sekarang, dan Anda butuh
+angka yang bisa dipertanggungjawabkan di sidang.
+
+Yang kedua, **jurnalis data dan kawan-kawan LSM**. Ada klaim beredar, ada bantahan,
+dan keduanya sama-sama percaya diri. Anda perlu cara mengecek sendiri — dengan data
+yang sumbernya bisa Anda tunjuk, bukan tangkapan layar dari peta yang entah siapa
+membuatnya.
+
+Yang ketiga, **aparat daerah** — BPBD, DLH, Bappeda. Kelompok ini yang paling sering
+saya pikirkan waktu merapikan bagian keluaran. Anda butuh angka saat kejadian
+sedang berlangsung, bukan tiga bulan kemudian ketika laporannya sudah tidak menolong
+siapa-siapa. Analisis yang selesai dalam sepuluh menit punya kegunaan yang berbeda
+sama sekali dari analisis yang selesai dalam sepuluh minggu.
+
+Anda **tidak perlu** mahir memrogram. Ini bukan basa-basi untuk menyemangati:
+sebagian besar analisis di buku ini benar-benar cuma satu baris `ec.run(...)`, dan
+sisanya membaca hasilnya dengan beberapa baris Python yang bisa Anda salin. Bagi
+yang sama sekali tidak memrogram, ada perintah singkat untuk terminal
+(@sec-singkat). Bab-bab lanjutan baru bicara soal menyetel parameter dan menafsirkan hasilnya —
+dan bagian menafsirkan itu, menurut saya, justru yang paling menuntut, sekaligus
+yang paling tidak bisa digantikan komputer.
+
+## Kenapa ada Bagian IV {.unnumbered}
+
+Ini bagian yang paling ingin saya tulis. Terus terang, dari seluruh buku, Bagian IV
+inilah yang membuat saya merasa buku ini layak ada.
+
+Alasannya begini. Alat penginderaan jauh gampang sekali menghasilkan angka yang
+**kelihatan** meyakinkan. Grafiknya rapi, petanya berwarna, persentasenya sampai
+satu angka di belakang koma. Dan begitu sebuah angka tampil serapi itu, ada sesuatu
+di kepala kita yang otomatis berhenti bertanya. Angka itu lalu masuk slide, masuk
+siaran pers, masuk berita, dan pada titik itu ia sudah terlalu jauh dari `stats.json`
+untuk bisa ditarik pulang.
+
+Padahal angka yang rapi bisa keliru. Atau — ini yang lebih sering dan lebih
+menjebak — benar, tapi tidak berarti seperti yang kita kira.
+
+Di Bab @sec-gambut nanti Anda akan lihat contoh yang membuat saya berhenti agak
+lama. Data kebakaran yang **sama persis**, di wilayah yang **sama persis**, dengan
+perintah yang **sama persis**, bisa menghasilkan "16% terbakar di gambut" atau "65%
+terbakar di gambut". Yang berbeda hanya satu: lapisan peta gambut mana yang dipakai
+sebagai pembagi. Sebuah pilihan yang biasanya diputuskan dalam tiga detik, dan
+hampir tidak pernah disebutkan di laporan mana pun.
+
+Dua-duanya "benar". Dua-duanya bisa dikutip media. Bedanya empat kali lipat.
+
+Pantaskah kita menyebut salah satunya sebagai "fakta" tanpa menyebut lapisannya?
+Menurut saya tidak. Dan karena godaan untuk melakukannya besar sekali — apalagi
+kalau salah satu angka kebetulan lebih mendukung argumen kita — saya rasa
+peringatan semacam ini tidak cukup diletakkan sebagai catatan kaki. Ia perlu satu
+bagian penuh, sepanjang bagian teknisnya.
+
+::: {.callout-important}
+## Pegangan buku ini
+Angka tanpa sumber dan tanpa batasan itu bukan bukti — ia cuma angka yang kebetulan
+terlihat rapi. Setiap keluaran `earthchange` mencatat sumber datanya di
+`stats.json` dan di subjudul grafik. Yuk mari kita biasakan mengutip dari sana.
+:::
+
+## Cara membaca {.unnumbered}
+
+Buku ini terbagi empat bagian, dan tidak harus dibaca urut.
+
+| Bagian | Isi |
+|--------|-----|
+| **I · Dasar** | Konsep, instalasi, pola pemanggilan, perintah singkat. Mulai dari sini kalau baru kenal. |
+| **II · Skenario** | Skenario per tema, masing-masing dengan run sungguhan. Ini bagian rujukan, tidak perlu urut. |
+| **III · Studi Kasus** | Investigasi nyata: karhutla, asap, populasi, pulau kecil. |
+| **IV · Kejujuran Data** | Keterbatasan, pilihan lapisan gambut, reproduksibilitas. |
+
+Bagian I dan II ditulis dengan nada yang berbeda dari Bagian III dan IV, dan itu
+disengaja. Dua bagian pertama untuk di-*scan* — Anda mencari satu perintah, satu
+parameter, satu tabel, lalu menutup lagi bukunya. Dua bagian terakhir untuk dibaca
+pelan-pelan, karena isinya penalaran, bukan sintaks.
+
+Kalau Anda tipe yang suka langsung praktik — dan saya termasuk yang begitu — lompat
+saja ke Bab @sec-instalasi, jalankan satu skenario apa pun sampai keluar gambarnya,
+baru kembali ke sini. Rasanya beda kalau sudah pernah melihat alatnya bekerja.
+Bagian I bisa dibaca belakangan sambil menunggu unduhan selesai. Persis seperti
+buku ini ditulis.
+
+Tersedia dalam format HTML dan PDF. Kode sumbernya terbuka di
+[GitHub](https://github.com/firmanhadi21/rs-change-detection).
+
+## Sitasi {.unnumbered}
+
+> Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose
+> satellite change detection* [Perangkat lunak]. Universitas Diponegoro.
+> <https://doi.org/10.5281/zenodo.21370696>
+
+Lisensi perangkat lunaknya MIT. Silakan pakai, ubah, sebarkan, bongkar isinya, ambil
+bagian yang berguna dan buang sisanya. Tidak perlu izin ke saya. Teks buku ini
+berlisensi [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.id);
+kode di dalamnya MIT, sama seperti paketnya.
+
+Cuma satu permintaan, dan ini bukan syarat lisensi, cuma permintaan pribadi: kalau
+ternyata bermanfaat, kabari saya. Perangkat lunak sumber terbuka itu aneh — Anda
+melepasnya ke dunia lalu tidak pernah tahu ke mana perginya. Senang rasanya sesekali
+tahu ada yang memakai.

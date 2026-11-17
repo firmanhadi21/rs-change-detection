@@ -1,0 +1,194 @@
+---
+jupyter: python3
+---
+
+# Air, banjir, dan pesisir {#sec-air}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+```{python}
+import earthchange as ec
+from IPython.display import Image
+```
+
+## `flood` — genangan SAR
+
+Radar Sentinel-1 menembus awan, sehingga banjir tetap terpetakan pada puncaknya,
+justru saat citra optik tak berguna. Contoh: banjir besar Sindh, Pakistan, 2022.
+
+```{python}
+#| output: false
+banjir = ec.run("flood", out_dir="banjir-sindh", lat=27.2, lon=68.3, map=True,
+                pre="2022-07-01:2022-07-25", post="2022-08-20:2022-09-10")
+```
+
+```{python}
+#| label: fig-flood-sindh
+#| fig-cap: "Genangan Sentinel-1 di Sindh, Pakistan: lintasan akhir Juli dibanding akhir Agustus–awal September 2022."
+r = banjir.stats["results"]
+print(f"Lintasan sebelum {r['date_pre']}, sesudah {r['date_post']} (orbit {r['relative_orbit']})")
+print(f"Tergenang baru: {r['pct_flooded']:.1f}% wilayah · air permanen: {r['pct_permanent_water']:.1f}%")
+Image(banjir.find("*_map.png"))
+```
+
+::: {.callout-important}
+## Untuk banjir, jendela = rentang pencarian, bukan komposit
+Berbeda dari skenario optik, `flood` memilih **satu lintasan** dari tiap jendela
+(lintasan terbaru, orbit relatif sama). Buat jendela sempit (±2–4 minggu) agar
+berisi satu lintasan namun tidak jauh dari kejadian, dan atur `post` berakhir pada
+atau setelah puncak banjir, karena yang diambil adalah lintasan terbaru dalam
+jendela itu.
+:::
+
+::: {.callout-note}
+## Lereng tidak dihitung sebagai air (`backend="mpc"`, sejak 0.3.1)
+Lereng yang menghadap menjauh dari satelit tampak gelap di radar, mirip air. Di
+Planetary Computer, `flood` kini memakai filter median 5×5 dan mengabaikan lereng
+di atas 5° (DEM Copernicus). Pada banjir bandang Pining, Gayo Lues (8 November
+2026), luas "tergenang" turun dari 2.143 ha coretan di lereng menjadi belasan
+hektar, dengan sebagian besar wilayah tertutup sebagai terlalu curam
+(@sec-singkat). `stats.json` mencatat porsi itu sebagai `pct_steep_masked`.
+Backend `gee` belum memakai masker lereng ini.
+:::
+
+## `disturbance` — dampak via perubahan VH
+
+Untuk longsor dan kerusakan bertopografi, perubahan backscatter VH lebih informatif
+daripada deteksi air.
+
+### Dibanding riwayat piksel sendiri — `history`
+
+Ambang dB yang tetap buta terhadap seberapa besar sebuah piksel biasa berayun:
+sawah dan gosong sungai berubah besar setiap bulan tanpa bencana apa pun.
+`history=N` menilai pasangan kejadian terhadap N pasangan sebelumnya pada lintasan
+yang sama (skor z VV + VH), lalu menilai pasangan kontrol terakhir dengan cara yang
+sama. Setiap run dengan begitu membawa **tingkat alarm palsunya sendiri**, dipisah
+antara dasar lembah dan lereng. Contoh: banjir bandang Kampung Pertik, Pining,
+8 November 2026.
+
+```{python}
+#| output: false
+pertik = ec.run("disturbance", out_dir="gangguan-pertik", lat=4.0971, lon=97.5872,
+                radius=5, pre="2026-10-25:2026-11-07", post="2026-11-08:2026-11-14",
+                history=20, map=True)
+```
+
+```{python}
+h = pertik.stats["results"]["history"]
+print(f"Pasangan kejadian : {h['event_pair'][0]} → {h['event_pair'][1]}")
+print(f"Pasangan kontrol  : {h['control_pair'][0]} → {h['control_pair'][1]}")
+print(f"{'':16}{'kejadian':>10}{'kontrol':>10}{'rasio':>8}")
+for medan, nama in [("valley_floor", "dasar lembah"), ("hillside", "lereng")]:
+    t = h["by_terrain"][medan]
+    print(f"{nama:<16}{t['event_pct']:>9.2f}%{t['control_pct']:>9.2f}%{t['ratio']:>7.1f}×")
+```
+
+```{python}
+#| label: fig-pertik
+#| fig-cap: "Piksel yang berubah melampaui riwayatnya sendiri di sekitar Kampung Pertik setelah banjir bandang 8 November 2026 (20 pasangan lintasan sebagai pembanding)."
+Image(pertik.find("disturbance_history_*_map.png"))
+```
+
+Bacalah tabel di atas baris demi baris. Di dasar lembah, pasangan kejadian
+menandai jauh lebih banyak piksel daripada pasangan kontrol: sinyal itu nyata. Di
+lereng, pasangan kejadian tidak menandai lebih banyak daripada ayunan biasa, jadi
+yang tampak di lereng tidak boleh dibaca sebagai longsor tanpa bukti lain.
+
+Bila Earth Engine belum memuat lintasan terbaru, jalankan yang sama dari Copernicus
+Data Space. Ia butuh klien OAuth (@sec-instalasi):
+
+```python
+ec.run("disturbance", out_dir="gangguan-pertik-cdse", backend="cdse",
+       lat=4.0971, lon=97.5872, radius=5, post="2026-11-08:2026-11-14", history=20)
+```
+
+## `water` — perubahan air permukaan
+
+NDWI dua periode: menyusutnya danau, meluasnya tambak, waduk baru. Contoh: pesisir
+Demak, tempat tambak dan permukiman tenggelam perlahan.
+
+```{python}
+#| output: false
+air = ec.run("water", out_dir="air-demak", lat=-6.85, lon=110.5, radius=8, map=True,
+             pre="2017-01-01:2017-12-31", post="2025-01-01:2025-12-31")
+```
+
+```{python}
+#| label: fig-water-demak
+#| fig-cap: "Perubahan NDWI 2017 → 2025 di pesisir Demak; arti warnanya tertera di legenda peta."
+r = air.stats["results"]
+print(f"Air permukaan baru: {r['pct_affected']:.1f}% wilayah")
+Image(air.find("*_map.png"))
+```
+
+## `coastline` — garis pantai dan abrasi
+
+Mengekstrak garis pantai dan, dengan beberapa periode, menghitung laju maju/mundur
+dalam **meter per tahun** melalui transek lintas-pantai. Contoh: pantai Semarang
+dari radar, 2016 dibanding 2025.
+
+```{python}
+#| output: false
+pantai = ec.run("coastline", out_dir="pantai-semarang", lat=-6.95, lon=110.45, radius=8,
+                pre="2016-01-01:2016-12-31", post="2025-01-01:2025-12-31")
+```
+
+```{python}
+s = pantai.stats
+print(f"Panjang garis pantai 2025 : {s['coastline_length_km_post']:.1f} km")
+print(f"Darat menjadi laut        : {s['erosion_ha']:,.0f} ha")
+print(f"Laut menjadi darat        : {s['accretion_ha']:,.0f} ha")
+```
+
+```{python}
+#| label: fig-coast
+#| fig-cap: "Perubahan garis pantai Semarang 2016 → 2025 dari Sentinel-1. Merah = darat menjadi laut, hijau = laut menjadi darat. Lihat catatan di bawah: sebagian besar warna merah di laut lepas adalah kesalahan."
+Image(pantai.find("coastline_map.png"))
+```
+
+::: {.callout-important}
+## Jangan kutip angka ini: contoh hasil yang keliru
+Lihat petanya sebelum angkanya. Sebagian besar wilayah merah ("darat menjadi
+laut") di barat laut adalah **laut lepas yang sudah laut sejak dulu**. Komposit
+radar 2016 salah membacanya sebagai darat; permukaan laut yang kasar bisa
+memantulkan radar seterang daratan. Ribuan hektar "abrasi" di atas sebagian besar
+adalah kesalahan klasifikasi itu, bukan pantai yang hilang. Mencoba metode optik
+(`coast_method="optical"`) di tempat yang sama tidak menolong: hasilnya malah lebih
+besar.
+
+Kami membiarkan contoh ini tercetak justru karena ia menunjukkan pegangan buku ini:
+angka yang rapi bisa salah, dan peta adalah tempat pertama untuk memeriksanya. Untuk
+garis pantai, periksa juga satu tanggal saja (tanpa `pre`/`post`) dan bandingkan
+dengan citra optik sebelum melaporkan abrasi. Perbaikan mode perubahan ini dicatat
+sebagai pekerjaan untuk versi `earthchange` berikutnya.
+:::
+
+Deret waktu Landsat dengan laju m/tahun, dan transek buatan sendiri untuk teluk yang
+rumit:
+
+```python
+ec.run("coastline", out_dir="pantai-landsat", coast_method="landsat",
+       lat=-6.95, lon=110.45, radius=10,
+       epochs=["1994-01-01:1996-12-31", "2014-01-01:2016-12-31", "2023-01-01:2025-12-31"],
+       transects_file="transek.geojson")
+```
+
+Pilih metode dengan `coast_method`:
+
+| Metode | Sensor | Cocok untuk |
+|--------|--------|-------------|
+| `"sar"` (bawaan) | Sentinel-1 | Tahan awan; andal sepanjang tahun |
+| `"optical"` | Sentinel-2 (MNDWI sub-piksel, 10 m) | Lebih detail bila langit cerah, sejak 2015 |
+| `"landsat"` | Landsat (MNDWI sub-piksel, 30 m) | Perubahan jangka panjang, arsip sejak 1984 |
+
+::: {.callout-warning}
+## Soal pasang surut
+Garis pantai di sini berasal dari **komposit median**, yang sudah ter-rata-rata
+terhadap pasang (garis air ≈ muka air rata-rata). Koreksi pasang per-scene hanya
+berlaku untuk citra per-tanggal, bukan komposit, jadi sengaja **tidak** dipalsukan.
+Di pantai bertambak (mis. Demak, Pekalongan), tambak yang jebol bisa terbaca
+sebagai "abrasi"; periksa peta sebelum menyimpulkan.
+:::

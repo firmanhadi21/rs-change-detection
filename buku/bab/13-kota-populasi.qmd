@@ -1,0 +1,155 @@
+---
+jupyter: python3
+---
+
+# Kota, penduduk, dan aksesibilitas {#sec-kota}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+```{python}
+import earthchange as ec
+from IPython.display import Image
+```
+
+## `urbanization` — kenaikan lahan terbangun
+
+NDBI dua periode. Contoh: Kota Bekasi, di timur Jakarta.
+
+```{python}
+#| output: false
+kota = ec.run("urbanization", out_dir="kota-bekasi", city="Bekasi, Indonesia",
+              radius=6, map=True)
+```
+
+```{python}
+#| label: fig-urban-bekasi
+#| fig-cap: "Kenaikan NDBI Sentinel-2 di Bekasi antara 2020 dan 2025."
+r = kota.stats["results"]
+print(f"Lahan terbangun baru: {r['pct_affected']:.1f}% wilayah")
+Image(kota.find("*_map.png"))
+```
+
+Indeksnya bisa diganti dengan `method`, misalnya `method="IBI"`:
+
+| Metode | Sensor | Catatan |
+|--------|--------|---------|
+| `NDBI` (bawaan), `UI`, `BU`, `IBI` | Sentinel-2 | IBI di-*clamp* ke [−1, 1] |
+| `NDISI`, `EBBI` | **Landsat 8/9** | Butuh band termal; otomatis beralih |
+
+## `urban-trend` dan `urban-history`
+
+`urban-trend` memetakan **kapan** lahan menjadi terbangun lewat komposit R/G/B tiga
+epoch (bawaan 2010/2015/2020, Landsat).
+
+```{python}
+#| output: false
+tren = ec.run("urban-trend", out_dir="tren-cikarang", lat=-6.30, lon=107.15,
+              radius=6, map=True)
+```
+
+```{python}
+#| label: fig-urban-trend
+#| fig-cap: "`urban-trend` di Cikarang/Bekasi. Putih = sudah terbangun sejak awal; biru/sian = pertumbuhan lebih baru."
+Image(tren.find("*_map.png") or tren.find("*.png"))
+```
+
+`urban-history` melangkah lebih jauh: memakai **GHSL** (1980–2025) plus Landsat
+untuk peta "dekade pertama terbangun", grafik tren, dan sebuah **poster
+infografik** satu halaman.
+
+```{python}
+#| output: false
+sejarah = ec.run("urban-history", out_dir="sejarah-semarang",
+                 city="Semarang, Indonesia", radius=25)
+```
+
+```{python}
+sejarah.files
+```
+
+```{python}
+#| label: fig-urban-history
+#| fig-cap: "Dekade pertama terbangun di Semarang dan sekitarnya (GHSL)."
+Image(sejarah.find("first_built_decade_map.png"))
+```
+
+::: {.callout-note}
+## Mengapa TM dan OLI dipisah
+Landsat TM (sampai 2011) dan OLI (sejak 2013) tidak sebanding langsung. Karena itu
+`urban-history` memakai epoch TM **1990/2000/2010** untuk peta kehilangan vegetasi,
+dan melaporkan epoch OLI **2015/2020/2025** secara terpisah.
+:::
+
+## `population-change` — perpindahan penduduk
+
+Membandingkan dua epoch GHSL GHS_POP (bawaan 1990 & 2020). Tiap **kota**, yaitu
+puncak populasi lokal, menjadi satu paku:
+
+- **tinggi** ∝ populasi kota (skala log), jadi kota terbesar tertinggi
+- **badan abu** sampai level 1990-nya sendiri
+- **ujung hijau** bila tumbuh, **merah** bila menyusut
+
+```{python}
+#| output: false
+jawa = ec.run("population-change", out_dir="populasi-jawa",
+              bbox="105,-8.9,114.6,-5.8", cell_km=5, name="Jawa")
+```
+
+```{python}
+jawa.files
+```
+
+```{python}
+#| label: fig-populasi-jawa
+#| fig-cap: "Perubahan penduduk per kota di Jawa, 1990–2020 (GHS_POP, sel 5 km), di atas relief SRTM."
+Image(jawa.find("pop_poster.png"))
+```
+
+Sel 1 km (`cell_km=1`) memberi detail kota yang lebih halus dengan waktu proses
+lebih lama. Untuk seluruh Indonesia per pulau:
+`ec.run("population-change", out_dir="populasi-idn", country="Indonesia", regions="indonesia", cell_km=5)`.
+
+::: {.callout-important}
+## Perubahan dinilai atas *catchment*, bukan sel puncak
+Inti metro yang sudah jenuh nyaris tak berubah, sehingga menilai dari sel puncak
+saja membuat Jakarta dan Bandung terbaca "stabil" padahal metronya meledak. Karena
+itu tiap sel berpenduduk ditugaskan ke kota terdekat dalam **25 km**, lalu kedua
+epoch dijumlahkan atas catchment itu.
+:::
+
+Render 3D GPU sungguhan tersedia lewat [forge3d](https://github.com/milos-agathon/forge3d)
+(`pip install 'earthchange[forge3d]'`, lalu tambahkan `forge3d=True`).
+
+::: {.callout-warning}
+## GHS_POP adalah model
+GHS_POP adalah **sensus yang didisagregasi ke grid terbangun**, bukan cacah
+langsung per sel. Bagus untuk **pola redistribusi** (kota tumbuh, desa menyusut),
+tidak untuk angka presisi per sel.
+:::
+
+## `transit-access` — SDG 11.2.1
+
+Menghitung persentase penduduk yang berada dalam jarak jalan kaki tertentu dari
+transportasi publik. Butuh `pip install 'earthchange[transit]'`.
+
+```python
+transit = ec.run("transit-access", out_dir="transit-semarang", city="Semarang, Indonesia",
+                 radius=8, walk_dist=[500, 1000])
+```
+
+::: {.callout-note}
+## Contoh ini tidak dijalankan saat buku dirender
+Skenario ini mengambil jaringan jalan dan halte dari server Overpass OpenStreetMap.
+Saat edisi ini dirender (17 November 2026), semua server Overpass menjawab dengan
+galat waktu habis (HTTP 504), sehingga contoh ini dicetak tanpa hasilnya. Bila Anda
+mengalami hal yang sama, tunggu beberapa jam lalu ulangi: `earthchange` sudah
+mencoba beberapa server cermin empat putaran sebelum menyerah.
+:::
+
+Halte diambil dari OSM secara bawaan; berikan `transit_file="halte.geojson"` (titik
+atau garis rute) untuk jaringan yang belum dipetakan OSM, karena rute angkot sering
+belum ada. Dengan `boundary="Kota Semarang"`, populasi **dihitung** di dalam batas
+administratif meski peta tetap menampilkan seluruh raster.

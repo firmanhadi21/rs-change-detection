@@ -1,0 +1,171 @@
+---
+jupyter: python3
+---
+
+# Cara kerja umum {#sec-konsep}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+Semua skenario dipanggil dengan pola yang sama. Menguasai pola ini berarti
+menguasai seluruh alat.
+
+## Anatomi sebuah pemanggilan
+
+```python
+import earthchange as ec
+run = ec.run("<skenario>", out_dir="<folder hasil>", <lokasi>, <periode>, <opsi>)
+```
+
+Argumen pertama memilih metode. Sisanya adalah opsi baris perintah yang ditulis
+sebagai argumen Python: tanda `-` menjadi `_`, `True` berarti opsi tanpa nilai, dan
+daftar digabung dengan koma. Jadi kedua baris di bawah ini persis sama:
+
+```python
+ec.run("flood", out_dir="banjir", lat=27.2, lon=68.3, pre="2022-07-01:2022-07-25",
+       post="2022-08-20:2022-09-10", map=True)
+```
+
+```bash
+earthchange -s flood --lat 27.2 --lon 68.3 --pre 2022-07-01:2022-07-25 \
+    --post 2022-08-20:2022-09-10 --map --out-dir banjir
+```
+
+Setiap `run` juga tahu perintah terminal padanannya, sehingga Anda bisa
+menyalinnya ke laporan atau menjalankannya di server tanpa Python:
+
+```{python}
+import earthchange as ec
+run = ec.run("deforestation", out_dir="deforestasi-contoh",
+             lat=-3.333, lon=122.25, radius=5, map=True)
+print(run.command)
+```
+
+**Lokasi** bisa diberikan dengan beberapa cara:
+
+| Argumen | Contoh | Arti |
+|---------|--------|------|
+| `lat`, `lon`, `radius` | `lat=-6.2, lon=106.8, radius=12` | titik + setengah sisi kotak (km) |
+| `bbox` | `bbox="105,-8.9,114.6,-5.8"` | kotak batas: barat, selatan, timur, utara |
+| `city` | `city="Surabaya, Indonesia"` | dicari di OpenStreetMap |
+| `admin` | `admin="Kalimantan Tengah"` | poligon administratif FAO GAUL 2025 |
+| `site` | `site="konawe"` | lokasi siap pakai dari `sites.py` |
+
+::: {.callout-note}
+## `admin` mencoba dua tingkat
+`admin` mencari nama di **GAUL level-1 (provinsi)** dulu, lalu **level-2
+(kabupaten/kota)**. Jadi `admin="Riau"` dan `admin="Ketapang"` sama-sama berhasil.
+GAUL 2025 memuat 38 provinsi Indonesia. Bila sebuah kabupaten hasil pemekaran
+tidak ditemukan, pakai `bbox` atau file batas wilayah.
+:::
+
+## Periode
+
+Sebagian skenario butuh periode eksplisit, sebagian punya bawaan:
+
+| Argumen | Contoh | Dipakai oleh |
+|---------|--------|--------------|
+| `pre`, `post` | `pre="2022-07-01:2022-07-25"` | `flood`, `burn`, `disturbance` |
+| `epochs` | `epochs=["2016-01-01:2016-12-31", "2025-01-01:2025-12-31"]` | `mining`, `urban-trend`, `forest-history` |
+| `start_year`, `end_year` | `start_year=2001` | `fire-history`, `timelapse` |
+| `pop_years` | `pop_years=[1990, 2020]` | `population-change` |
+
+`flood` dan `burn` **wajib** memakai `pre` dan `post` karena keduanya membandingkan
+satu *kejadian* dengan *baseline*.
+
+## Memilih sensor
+
+`sensor="s2"` (bawaan) memakai Sentinel-2, 10 m, sejak 2015. `sensor="landsat"`
+memakai Landsat SR, 30 m, dengan arsip sejak 1984. Untuk baseline sebelum 2015,
+misalnya deforestasi sejak 1990-an, Sentinel-2 belum ada, jadi harus Landsat.
+Landsat 7 dilewati karena cacat SLC-off.
+
+## Ambang batas
+
+Tiap skenario punya ambang bawaan yang wajar, tetapi bisa disetel dengan
+`thr=-0.15` (ambang "terdampak") dan `severe=-0.30` (ambang "parah").
+
+::: {.callout-warning}
+## Ambang adalah titik awal, bukan kebenaran
+Ambang bawaan (mis. ΔNDVI < −0,15) adalah nilai yang masuk akal secara umum.
+Idealnya dikalibrasi dengan data lapangan setempat. Perlakukan angka persentase
+sebagai **perbandingan antar-wilayah atau antar-waktu**, bukan sebagai nilai
+mutlak yang berdiri sendiri.
+:::
+
+## Masking air
+
+Sejak versi 0.1.32, skenario optik **secara bawaan membuang piksel air** (MNDWI)
+sebelum menghitung perubahan NDVI/NBR. Ini penting untuk pulau dan pesisir, karena
+tanpa masking riak air bisa terbaca sebagai "kehilangan vegetasi". Matikan dengan
+`no_water_mask=True` bila memang ingin menganalisis air.
+
+## Membaca hasil
+
+Setiap run menulis ke foldernya sendiri. `run.files` menampilkan isinya:
+
+```{python}
+run.files
+```
+
+`stats.json` sudah terbaca sebagai `run.stats`. Angka utamanya ada di bawah
+`results`:
+
+```{python}
+r = run.stats["results"]
+print(f"Sensor          : {r['sensor']}")
+print(f"Citra dipakai   : {r['scenes_pre']} sebelum, {r['scenes_post']} sesudah")
+print(f"Ambang          : ΔNDVI < {r['threshold']}")
+print(f"Area terdampak  : {r['pct_affected']:.1f}%")
+print(f"Di antaranya parah (ΔNDVI < {r['severe_threshold']}): {r['pct_severe']:.1f}%")
+```
+
+Peta siap cetak (`map=True`) memakai palet divergen: **merah = kehilangan**,
+pucat = nyaris tidak berubah, **hijau = pertambahan**.
+
+```{python}
+#| label: fig-konsep-peta
+#| fig-cap: "Peta perubahan NDVI di sekitar 3,333° LS, 122,25° BT, keluaran `map=True`."
+from IPython.display import Image
+Image(run.find("*_map.png"))
+```
+
+### Menghitung sendiri dari GeoTIFF
+
+Persentase di `stats.json` sudah cukup untuk kebanyakan laporan. Tetapi GeoTIFF-nya
+milik Anda: buka dengan `rasterio`, dan hitung apa pun yang Anda perlukan. Contoh
+di bawah menghitung **hektar** kehilangan vegetasi. Karena GeoTIFF memakai derajat
+(EPSG:4326), luas satu piksel bergantung pada lintangnya.
+
+```{python}
+import numpy as np
+import rasterio
+
+with rasterio.open(run.tif()) as src:
+    dndvi = src.read(1).astype(float)
+    if src.nodata is not None:
+        dndvi[dndvi == src.nodata] = np.nan
+    dx, dy = src.res                      # ukuran piksel dalam derajat
+    lat = src.xy(np.arange(src.height), 0)[1]   # lintang tiap baris
+
+# luas satu piksel (ha) per baris: 1° lintang ≈ 110,574 km, 1° bujur menyempit dengan cos(lintang)
+ha_per_piksel = (dy * 110_574) * (dx * 111_320 * np.cos(np.radians(lat))) / 10_000
+luas = np.broadcast_to(ha_per_piksel[:, None], dndvi.shape)
+
+terpantau = np.isfinite(dndvi)
+hilang = dndvi < r["threshold"]
+print(f"Wilayah terpantau : {luas[terpantau].sum():,.0f} ha")
+print(f"Kehilangan vegetasi: {luas[hilang].sum():,.0f} ha "
+      f"({100 * luas[hilang].sum() / luas[terpantau].sum():.1f}%)")
+```
+
+Persentasenya sama dengan `pct_affected`; bedanya, kini Anda punya angka dalam
+hektar, dan cara menghitungnya bisa Anda ubah sendiri (misalnya hanya di dalam batas
+desa, atau hanya untuk piksel yang parah).
+
+Selalu laporkan angka **bersama** definisinya: sensor, ambang, dan jumlah citra.
+Bab @sec-gambut menunjukkan mengapa: angka "persen terbakar di gambut" bisa berubah
+dari 16% menjadi 65% hanya karena memilih lapisan gambut yang berbeda, pada data
+kebakaran yang sama persis.

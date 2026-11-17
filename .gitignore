@@ -82,3 +82,6 @@ grok_understand.md
 
 # private research plan (kept local; output/RESEARCH_PLAN.md links to it)
 docs/RESEARCH_PLAN.md
+
+# The book site is rendered by CI from buku/ (see .github/workflows/docs.yml)
+docs/buku/

@@ -1,0 +1,205 @@
+# Keterbatasan yang harus dinyatakan {#sec-keterbatasan}
+
+Bab ini isinya hal-hal yang bisa membuat pekerjaan Anda salah.
+
+Termasuk, harus saya akui, hal-hal yang pernah membuat pekerjaan saya salah. Susah
+payah saya menuliskannya di sini, sebetulnya 😀 — tidak ada penulis buku teknis
+yang senang menyusun daftar kelemahan alat yang baru saja ia perkenalkan selama
+tiga belas bab.
+
+Tapi saya rasa memang harus begitu. Begini alasannya.
+
+Penginderaan jauh punya satu sifat yang tidak dimiliki banyak metode lain: ia
+**selalu memberi jawaban**. Anda jalankan perintahnya, dan sesuatu keluar. Grafik
+keluar. Persentase keluar, lengkap dengan satu angka di belakang koma. Tidak ada
+pesan kesalahan, tidak ada peringatan bahwa wilayah yang Anda pilih terlalu kecil
+untuk sensornya, tidak ada tanda bahwa yang baru saja Anda ukur bukan hal yang Anda
+kira.
+
+Bandingkan dengan survei lapangan. Kalau alat ukurnya rusak, biasanya kelihatan.
+Kalau respondennya tidak ada, kuesionernya kosong. Ada mekanisme gagal yang jelas.
+
+Di penginderaan jauh, kegagalan datang dalam bentuk angka yang rapi. Dan begitu
+sebuah angka muncul dengan rapi di layar, ada sesuatu di kepala kita yang otomatis
+berhenti bertanya. Saya sudah cukup sering mengalaminya sendiri untuk berhenti
+merasa kebal.
+
+Bab ini mengumpulkan semua peringatan yang tersebar di seluruh buku menjadi satu
+tempat, dan diakhiri dengan daftar periksa — supaya bertanyanya tidak perlu
+mengandalkan ingatan, karena ingatan justru yang paling tidak bisa diandalkan saat
+kita sedang bersemangat dengan hasil temuan sendiri.
+
+## Observasi vs model
+
+Mulai dari yang paling mendasar, dan yang paling sering rontok di perjalanan dari
+`stats.json` ke slide presentasi.
+
+Istilah "data satelit" terdengar seperti menyebut satu jenis barang. Padahal isinya
+bercampur. Sebagian benar-benar **dilihat** sensor: foton yang memantul dari
+permukaan bumi, tertangkap detektor, tercatat sebagai angka. Sebagian lagi
+**dihitung**: model atmosfer, disagregasi sensus, reanalisis yang menggabungkan
+observasi dengan simulasi fisika.
+
+Keduanya sah dipakai, dan buku ini memakai keduanya tanpa merasa bersalah. Model
+sering kali satu-satunya cara memperoleh besaran yang penting — tidak ada sensor
+yang bisa "melihat" PM2.5 di ketinggian napas manusia, dan tidak ada satelit yang
+bisa mencacah penduduk.
+
+Yang tidak sah adalah menyebut yang kedua seolah-olah yang pertama. Kalimat "menurut
+data satelit, PM2.5 di Palangka Raya mencapai 81 µg/m³" terdengar seperti hasil
+pengukuran, padahal itu keluaran model. Perbedaannya penting begitu ada orang yang
+mempertanyakannya — dan akan selalu ada.
+
+| Dataset | Sifat | Implikasi |
+|---------|-------|-----------|
+| Sentinel-1/2, Landsat, MODIS LST | **Observasi** | Yang benar-benar dilihat sensor |
+| NOAA OISST | Observasi (teranalisis) | Andal untuk tren |
+| MODIS MCD64A1, FIRMS | Observasi + algoritma | Bisa gagal deteksi (lihat bawah) |
+| **GHSL GHS_POP** | **Model** | Sensus di-disagregasi ke grid terbangun |
+| **CAMS PM2.5** | **Model** | Reanalisis/prakiraan, bukan stasiun darat |
+| **ERA5 wet-bulb** | **Reanalisis** | Model yang diasimilasi observasi |
+| **Proxy gambut SOC** | **Proxy** | Bukan peta gambut |
+
+Cara paling praktis memakai tabel ini: sebelum mengutip sebuah angka, cari barisnya
+di sini, lalu ikutkan keterangan kolom kedua ke dalam kalimat Anda. Cuma menambah
+beberapa kata, dan menyelamatkan kredibilitas Anda ketika ada yang mengecek.
+
+## Deteksi yang gagal
+
+Bagian ini agak berbeda dari yang di atas. Yang tadi soal salah menyebut sifat data;
+yang ini soal data yang memang **tidak melihat** apa yang kita kira ia lihat.
+
+**MCD64A1 meremehkan kebakaran gambut Indonesia.** Pada resolusi 500 m, api gambut
+yang membara di bawah permukaan tanah sering tidak meninggalkan jejak permukaan yang
+cukup jelas untuk terpetakan. Ditambah lagi, api semacam itu menghasilkan asap
+pekat yang menghalangi sensornya sendiri. Akibatnya paradoks: **justru pada musim
+terburuk, deteksinya paling lemah**.
+
+Inilah sebabnya 2015 — yang kita semua ingat sebagai krisis asap terparah — bukan
+tahun terluas dalam data ini (lihat Bab @sec-karhutla-provinsi). Pakai MCD64A1 untuk
+melihat **pola**: provinsi mana, musim kapan, tahun mana relatif terhadap tahun
+lain. Jangan pakai untuk audit luas yang presisi, dan selalu perlakukan angkanya
+sebagai **batas bawah**.
+
+**Indeks aerosol Sentinel-5P meremehkan asap dekat permukaan.** AAI dirancang peka
+terhadap aerosol penyerap di ketinggian. Asap karhutla yang terperangkap inversi —
+persis di ketinggian tempat orang bernapas — bisa luput sama sekali. Pada episode
+Palangka Raya (Bab @sec-asap), AAI tetap negatif sementara PM2.5 melonjak tiga kali
+lipat. Kalau Anda hanya melihat panel AAI, kesimpulan Anda adalah "tidak ada asap",
+pada hari ketika kota itu nyaris tidak terlihat dari udara.
+
+**ΔNDVI menangkap perubahan neto, bukan riwayatnya.** Ini yang paling halus dari
+ketiganya. Hutan yang ditebang habis pada 2018 lalu ditanami sawit, dan pada 2024
+sawitnya sudah rimbun, bisa punya NDVI yang mirip dengan NDVI 2017. Terbaca "tidak
+berubah".
+
+Padahal berubah total — ekologinya, cadangan karbonnya, kepemilikannya, semuanya.
+Yang tidak berubah cuma seberapa hijau ia terlihat dari luar angkasa. Kalau riwayat
+penting bagi analisis Anda, satu pasang periode tidak cukup; perlu deret tahunan.
+
+## Resolusi menentukan makna
+
+Resolusi bukan cuma soal seberapa tajam gambarnya. Ia menentukan **pertanyaan apa
+yang boleh diajukan**.
+
+- **500 m – 1 km** (MODIS, GHSL, PEATGRIDS): satu piksel bisa memuat kampung, kebun,
+  sungai, dan sepetak hutan sekaligus. Bagus untuk pola regional. Jangan sekali-kali
+  menyimpulkan tentang satu bidang lahan tertentu — apalagi bidang milik orang yang
+  bisa dirugikan oleh kesimpulan Anda.
+- **100 m** (LST Landsat): sudah bisa membedakan atap seng dari sawah. Inilah
+  sebabnya angka SUHII dari snapshot Landsat jauh lebih besar daripada tren SUHII
+  dari MODIS — bukan karena salah satunya keliru, tapi karena keduanya mengukur pada
+  skala yang berbeda.
+- **10–30 m** (Sentinel-2, Landsat): sudah tingkat bidang. Tapi tetap bermasalah
+  untuk fitur yang lebih sempit dari satu piksel — jalan setapak, saluran irigasi,
+  sempadan sungai yang tipis.
+
+Satu hal lagi yang harus diketahui: wilayah besar dapat **otomatis dikasarkan**
+kalau melebihi batas unduhan Earth Engine. Kalteng dan Kalbar di Bab
+@sec-karhutla-provinsi turun ke 1 km karena ini. Programnya mencetak pemberitahuan
+di log dan mencatatnya di keluaran — tapi Anda harus benar-benar membacanya. Angka
+yang dihitung pada 1 km dan pada 500 m tidak sepenuhnya sebanding, dan tidak ada
+yang akan mengingatkan Anda saat kedua angka itu sudah pindah ke tabel yang sama.
+
+## Batas administratif
+
+Batas **FAO GAUL 2015** tidak memuat pemekaran setelahnya — dan Indonesia adalah
+negara yang gemar memekarkan wilayah.
+
+Kubu Raya, misalnya, mekar dari Kabupaten Pontianak pada 2007. Di dataset itu, ia
+secara harfiah tidak ada; yang tersedia hanya "Pontianak" dengan batas sebelum
+pemekaran. Kalau Anda memanggil `admin="Kubu Raya"`, hasilnya bukan angka yang
+keliru — hasilnya tidak ada sama sekali, yang sebetulnya lebih baik.
+
+Yang berbahaya adalah kasus sebaliknya: nama yang **masih ada** tetapi batasnya
+sudah berubah. Anda dapat angka, angkanya masuk akal, dan tidak ada tanda apa pun
+bahwa wilayah yang dihitung berbeda dari wilayah yang Anda maksud.
+
+Untuk wilayah hasil pemekaran, pakai `bbox` dan nyatakan terus terang bahwa
+angkanya **mendekati**, bukan persis. Kalau Anda punya akses ke batas resmi yang
+mutakhir, itu jauh lebih baik.
+
+## Rezim yang bergeser
+
+Ini keterbatasan yang paling tidak kelihatan, karena tidak ada dataset yang bisa
+disalahkan. Datanya benar semua. Yang keliru cara membandingkannya.
+
+Rata-rata jangka panjang mengandaikan bahwa keseluruhan periode itu **satu dunia
+yang sama**. Kalau di tengahnya ada perubahan mendasar, andaian itu runtuh, dan
+rata-ratanya jadi campuran dua hal yang tidak seharusnya dicampur.
+
+Karhutla Indonesia punya patahan seperti itu setelah 2015. Provinsi rawan turun
+28–75%. Akibatnya, membandingkan musim berjalan terhadap rata-rata 2001–2024
+**meremehkan** anomalinya — pembandingnya diseret naik oleh tahun-tahun 2000-an yang
+jauh lebih ganas. Terhadap 2016–2025, gambarannya jauh lebih jujur: ×3,0, bukan
+×1,5, untuk Kalteng.
+
+Selisih antara "satu setengah kali normal" dan "tiga kali normal" adalah selisih
+antara berita yang lewat dan berita yang ditindaklanjuti. Dan tidak ada yang salah
+dengan kodenya.
+
+## Ambang batas bukan kebenaran
+
+Semua ambang bawaan — ΔNDVI, dNBR, `forest_thr`, `peat_thr` — adalah nilai yang
+masuk akal berdasarkan literatur dan pengalaman. Bukan konstanta alam. Tidak ada
+yang menurunkannya dari langit, dan tidak ada yang mengukurnya di laboratorium.
+
+Kalau `peat_thr` diubah dari 30 ke 25, angka gambut Anda berubah. Bukan karena
+gambutnya berubah, tapi karena definisinya yang berubah. Idealnya ambang ini
+dikalibrasi dengan data lapangan wilayah Anda sendiri — dan kalau Anda punya data
+itu, tolong pakai, jangan biarkan nilai bawaan saya menentukannya.
+
+Konsekuensi praktisnya: perlakukan persentase yang keluar sebagai **bahan
+perbandingan**, bukan nilai mutlak. Pernyataan seperti
+
+> "Wilayah A dua kali lipat wilayah B, dihitung dengan ambang dan periode yang sama"
+
+jauh lebih kokoh — dan lebih sulit dibantah — daripada
+
+> "Wilayah A mengalami kerusakan 37,2%."
+
+Angka kedua terdengar lebih meyakinkan, dan justru itu masalahnya.
+
+## Daftar periksa sebelum mengutip
+
+Bagian ini yang paling saya harap Anda salin dan tempel di suatu tempat.
+
+1. Apakah saya menyebut **sumber datanya**? (ada di `stats.json`)
+2. Apakah ini **observasi atau model**?
+3. Apakah **resolusinya** cukup untuk klaim yang saya buat?
+4. Apakah **rentang waktunya** sama untuk semua variabel yang saya bandingkan?
+5. Untuk gambut: **lapisan mana** yang saya pakai? (Bab @sec-gambut)
+6. Apakah ada **patahan rezim** yang membuat baseline saya menyesatkan?
+7. Apakah saya sudah **membandingkan dengan data lapangan** bila ada?
+
+Tujuh pertanyaan. Sekitar dua menit, kalau dikerjakan santai.
+
+Bandingkan dengan harga alternatifnya: menarik kembali angka yang sudah dikutip
+orang lain. Yang bukan cuma soal malu — angka yang salah bisa terlanjur dipakai
+menyusun anggaran, menentukan prioritas, atau menyalahkan pihak yang tidak
+bersalah. Dua menit itu murah sekali.
+
+::: {.callout-important}
+Angka tanpa sumber dan tanpa batasan bukan bukti — ia hanya angka yang kebetulan
+terlihat rapi.
+:::

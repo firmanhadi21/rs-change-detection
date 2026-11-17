@@ -1,0 +1,111 @@
+---
+jupyter: python3
+---
+
+# Panas dan iklim {#sec-panas}
+
+```{python}
+#| include: false
+import _siapkan
+```
+
+```{python}
+import earthchange as ec
+from IPython.display import Image
+```
+
+## `urban-heat` — pulau panas perkotaan
+
+Menghitung **SUHII** (*Surface Urban Heat Island Intensity*) = suhu permukaan kota
+dikurangi desa, dengan kota/desa ditentukan dari **GHSL** dan dicocokkan
+ketinggiannya (SRTM) agar tidak membandingkan kota di dataran dengan desa di
+pegunungan.
+
+```{python}
+#| output: false
+panas = ec.run("urban-heat", out_dir="panas-jakarta", lat=-6.20, lon=106.83,
+               radius=18, name="Jakarta")
+```
+
+```{python}
+s = panas.stats
+print(f"Suhu permukaan kota : {s['snapshot_urban_lst_c']:.1f} °C")
+print(f"Suhu permukaan desa : {s['snapshot_rural_lst_c']:.1f} °C")
+print(f"SUHII (snapshot)    : {s['snapshot_suhii_c']:.1f} °C")
+```
+
+```{python}
+#| label: fig-uhi-jakarta
+#| fig-cap: "Suhu permukaan dan titik panas perkotaan Jakarta (Landsat), dengan kota/desa dari GHSL."
+Image(panas.find("*hotspot*.png") or panas.find("*_map.png") or panas.find("*.png"))
+```
+
+::: {.callout-important}
+## Dua angka SUHII, memang begitu
+**Snapshot** (Landsat 100 m) besar karena memisahkan atap dan aspal panas dari sawah
+sejuk. **Tren** (MODIS 1 km, sensor konsisten) lebih kecil karena piksel kasar
+mencampur kota dan desa dalam satu sel.
+
+Baca angka tren (@fig-uhi-tren) untuk **arah**, bukan nilai mutlak. Keduanya adalah suhu
+**permukaan** siang (LST), jauh lebih besar daripada UHI suhu udara yang biasa
+dikutip media.
+:::
+
+```{python}
+#| label: fig-uhi-tren
+#| fig-cap: "Tren SUHII Jakarta dari MODIS 1 km."
+Image(panas.find("uhi_trend.png"))
+```
+
+Batasi ke musim kemarau (`months="6-9"`) untuk sinyal terbersih.
+
+## `island-heat` — pulau kecil
+
+Ancaman iklim pulau kecil bukan hanya naiknya muka laut, melainkan naiknya panas
+**dan** kelembapan. Skenario ini membangun tiga deret **observasi**:
+
+- **SST** laut sekitar (NOAA OISST, sejak 1981)
+- **LST** darat pulau (Landsat 100 m di-mask NDVI, atau MODIS 1 km)
+- **wet-bulb** (ERA5: suhu + titik embun, rumus Stull)
+
+Pilih sensor LST dengan `lst_source`:
+
+| Nilai | Resolusi | Cocok untuk |
+|-------|----------|-------------|
+| `"landsat"` (bawaan) | 100 m, di-mask NDVI | Pulau kecil/tersebar, dekat daratan utama |
+| `"modis"` | 1 km | Pulau besar yang jauh dari pantai |
+
+### Mengapa wet-bulb penting
+
+Suhu wet-bulb menggabungkan panas dan kelembapan. Di atas **28 °C** tubuh manusia
+mulai kesulitan mendinginkan diri; **31 °C** tergolong ekstrem. Di iklim lembap
+seperti Indonesia, wet-bulb lebih relevan daripada suhu udara biasa.
+
+### Poster cerita
+
+`infographic=True` menambah poster satu halaman: tren utama, deret suhu, dan puncak
+wet-bulb terhadap ambang bahaya. `lang` menerima `"id"` (bawaan), `"en"`, atau
+`"both"`.
+
+```{python}
+#| output: false
+pulau = ec.run("island-heat", out_dir="panas-raja-ampat", lat=-0.66, lon=130.23,
+               radius=40, name="Raja Ampat", lst_source="modis",
+               infographic=True, lang="id")
+```
+
+```{python}
+#| label: fig-pulau-story
+#| fig-cap: "Poster cerita panas pulau kecil, Raja Ampat."
+Image(pulau.find("*story_id*.png") or pulau.find("*story*.png"))
+```
+
+::: {.callout-warning}
+## Ini observasi, bukan proyeksi
+Data ini **observasi** (satelit + reanalisis ERA5), **bukan** proyeksi model CMIP6
+hingga 2100. SST dan wet-bulb adalah sinyal andal; tren LST untuk pulau di bawah
+1 km bersifat indikatif saja karena piksel bercampur air. Deret wet-bulb memakai
+ERA5 global dan berakhir sekitar 2020.
+:::
+
+Studi kasus lengkapnya di @sec-pulau.

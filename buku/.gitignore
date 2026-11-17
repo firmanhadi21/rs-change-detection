@@ -1,0 +1,10 @@
+/.quarto/
+**/*.quarto_ipynb
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+# Run folders written while rendering (GeoTIFFs, PNGs: large, regenerable)
+hasil/
+# _freeze/ IS committed: it holds the computed cell outputs, so CI renders
+# the book without running any analysis. Re-render locally and commit it
+# whenever a code cell changes.

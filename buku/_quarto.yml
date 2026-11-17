@@ -1,0 +1,122 @@
+project:
+  type: book
+  # Rendered book goes into docs/buku/, which the Pages workflow publishes, so
+  # it lands at <site>/buku/. Source stays here in buku/.
+  output-dir: ../docs/buku
+  execute-dir: project
+
+book:
+  title: "Deteksi Perubahan dengan Citra Satelit"
+  subtitle: "Panduan praktis `earthchange` dengan Python untuk kasus-kasus Indonesia"
+  author:
+    - name: "Firman Hadi"
+      affiliation: "Universitas Diponegoro"
+    - name: "Yasser Wahyuddin"
+      affiliation: "Universitas Diponegoro"
+    - name: "L. M. Sabri"
+      affiliation: "Universitas Diponegoro"
+  date: today
+  date-format: "D MMMM YYYY"
+  cover-image: gambar/sampul-depan.png
+  cover-image-alt: "Sampul buku Deteksi Perubahan dengan Citra Satelit"
+  language: id
+  search: true
+  reader-mode: true
+  site-url: https://firmanhadi21.github.io/rs-change-detection/buku/
+  repo-url: https://github.com/firmanhadi21/rs-change-detection
+  repo-branch: main
+  repo-subdir: buku
+  repo-actions: [edit, issue]
+  downloads: [pdf]
+  page-footer:
+    background: "#1a5e47"
+    left: "Deteksi Perubahan dengan Citra Satelit · [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.id) · kode: [MIT](https://github.com/firmanhadi21/rs-change-detection/blob/main/LICENSE)"
+    right: "Dibuat dengan [Quarto](https://quarto.org) dan [earthchange](https://pypi.org/project/earthchange/)"
+  chapters:
+    - index.qmd
+    - part: "I · Dasar"
+      chapters:
+        - bab/01-pengantar.qmd
+        - bab/02-instalasi.qmd
+        - bab/03-konsep.qmd
+        - bab/04-perintah-singkat.qmd
+    - part: "II · Skenario"
+      chapters:
+        - bab/10-vegetasi.qmd
+        - bab/11-api.qmd
+        - bab/12-air-pesisir.qmd
+        - bab/13-kota-populasi.qmd
+        - bab/14-iklim-panas.qmd
+    - part: "III · Studi Kasus Indonesia"
+      chapters:
+        - bab/20-karhutla-provinsi.qmd
+        - bab/21-asap-palangkaraya.qmd
+        - bab/22-populasi-jawa.qmd
+        - bab/23-pulau-kecil.qmd
+    - part: "IV · Kejujuran Data"
+      chapters:
+        - bab/30-keterbatasan.qmd
+        - bab/31-gambut.qmd
+        - bab/32-reproduksibilitas.qmd
+    - bab/90-referensi.qmd
+
+bibliography: referensi.bib
+csl: apa.csl
+
+language:
+  crossref-eq-title: "Persamaan"
+  crossref-eq-prefix: "Persamaan"
+
+format:
+  html:
+    theme:
+      light: [litera, theme.scss]
+      dark: [darkly, theme.scss]
+    css: gaya.css
+    toc: true
+    toc-title: "Di halaman ini"
+    number-sections: true
+    number-depth: 3
+    code-copy: true
+    code-link: true
+    code-overflow: wrap
+    callout-appearance: simple
+    fig-align: center
+    fig-cap-location: bottom
+    tbl-cap-location: top
+  pdf:
+    documentclass: scrbook
+    papersize: a4
+    lang: id
+    geometry:
+      - top=25mm
+      - bottom=25mm
+      - inner=28mm
+      - outer=22mm
+    colorlinks: true
+    number-sections: true
+    number-depth: 3
+    toc-depth: 2
+    fig-pos: 'H'
+    fig-align: center
+    code-overflow: wrap
+    include-in-header:
+      text: |
+        \usepackage{float}
+        % Bungkus baris kode yang panjang agar tidak keluar dari kotak/halaman
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
+        % Sampul depan sebagai halaman 1, sampul belakang sebagai halaman terakhir
+        \usepackage{pdfpages}
+        \AtBeginDocument{\includepdf[pages=1,fitpaper=true]{gambar/sampul-depan.pdf}\setcounter{page}{1}}
+        \AtEndDocument{\clearpage\includepdf[pages=1,fitpaper=true]{gambar/sampul-belakang.pdf}}
+        % Pemenggalan kata bahasa Indonesia (dibuat oleh hyphenation/buat.py)
+        \input{hyphenation/pemenggalan.tex}
+
+lang: id
+jupyter: python3
+
+execute:
+  freeze: auto
+  warning: false
+  message: false
