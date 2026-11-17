@@ -11,10 +11,6 @@ book:
   author:
     - name: "Firman Hadi"
       affiliation: "Universitas Diponegoro"
-    - name: "Yasser Wahyuddin"
-      affiliation: "Universitas Diponegoro"
-    - name: "L. M. Sabri"
-      affiliation: "Universitas Diponegoro"
   date: today
   date-format: "D MMMM YYYY"
   cover-image: gambar/sampul-depan.png

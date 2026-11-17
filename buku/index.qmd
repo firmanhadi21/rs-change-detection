@@ -134,6 +134,12 @@ Tersedia dalam format HTML dan PDF. Kode sumbernya terbuka di
 
 ## Sitasi {.unnumbered}
 
+> Hadi, F. (2026). *Deteksi perubahan dengan citra satelit: Panduan praktis
+> earthchange dengan Python untuk kasus-kasus Indonesia*. Universitas Diponegoro.
+> <https://firmanhadi21.github.io/rs-change-detection/buku/>
+
+Perangkat lunaknya disitasi terpisah:
+
 > Hadi, F., Wahyuddin, Y., & Sabri, L. M. (2026). *earthchange: Multipurpose
 > satellite change detection* [Perangkat lunak]. Universitas Diponegoro.
 > <https://doi.org/10.5281/zenodo.21370696>

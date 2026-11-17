@@ -49,7 +49,7 @@ t.text(0.08, 0.80, "Deteksi Perubahan\ndengan Citra Satelit", color="white",
        fontsize=34, fontweight="bold", va="top", linespacing=1.15)
 t.text(0.08, 0.40, "Panduan praktis earthchange dengan Python\nuntuk kasus-kasus Indonesia",
        color="#d6efe4", fontsize=15, va="top", linespacing=1.4)
-t.text(0.08, 0.10, "Firman Hadi · Yasser Wahyuddin · L. M. Sabri", color="white",
+t.text(0.08, 0.10, "Firman Hadi", color="white",
        fontsize=12.5, va="bottom")
 t.text(0.92, 0.10, "Universitas Diponegoro", color="#d6efe4", fontsize=10,
        va="bottom", ha="right")
