@@ -102,6 +102,24 @@ earthchange -s deforestation --lat -3.333 --lon 122.25 --map
 earthmap output/<run-id>             # render ulang peta
 ```
 
+Butuh Python 3.11+. Sebaiknya pasang di environment khusus
+(`conda create -n earthchange python=3.12 && conda activate earthchange`) dan
+aktifkan setiap kali membuka terminal. Backend Earth Engine butuh login sekali:
+`earthengine authenticate` lalu `earthengine set_project ID-PROYEK-ANDA`.
+
+Bila gagal, tiga penyebab paling umum:
+
+| Pesan | Solusi |
+|-------|--------|
+| `command not found: earthchange` | environment lain yang aktif: `conda activate earthchange` |
+| `The GEE backend needs earthengine-api` | `pip install 'earthchange[gee]'`, atau tambah `--backend mpc` |
+| `Earth Engine could not start: …` | `earthengine authenticate` dan `earthengine set_project …` |
+| `zsh: no matches found` | beri tanda kutip: `'earthchange[all]'` |
+
+Daftar lengkapnya: [§10 tutorial](https://firmanhadi21.github.io/rs-change-detection/#trouble)
+dan bab [Pemecahan masalah](https://firmanhadi21.github.io/rs-change-detection/buku/bab/89-masalah.html)
+di buku.
+
 Dari checkout sumber (repo ini) tanpa instalasi, `python3 detect.py …` tetap
 berfungsi (shim ke paket). Untuk kembangkan: `pip install -e '.[all]'`.
 Panduan rilis PyPI ada di [`PUBLISHING.md`](PUBLISHING.md).

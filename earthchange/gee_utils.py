@@ -319,9 +319,13 @@ def initialize_ee(config_key=None, prefer_user=False):
     try:
         ee.Initialize()  # user credentials from `earthengine authenticate`
         print("GEE: user credentials (earthengine authenticate)")
-    except Exception:  # noqa: BLE001 — give an actionable message, not a stack trace
+    except Exception as exc:  # noqa: BLE001 — give an actionable message, not a stack trace
         raise SystemExit(
-            "Earth Engine is not authenticated and no service-account key was found.\n"
+            f"Earth Engine could not start: {exc}\n\n"
+            "If you signed in with `earthengine authenticate`, Earth Engine also needs a\n"
+            "Google Cloud project registered for Earth Engine:\n"
+            "  earthengine set_project YOUR-PROJECT-ID\n\n"
+            "No service-account key was found either.\n"
             "Point earthchange at your key JSON in one of these ways:\n"
             "  earthchange ... --ee-key /path/to/ee-geodetic.json\n"
             "  export EARTHCHANGE_EE_KEY=/path/to/ee-geodetic.json   (any directory)\n"

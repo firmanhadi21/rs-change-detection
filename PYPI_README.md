@@ -21,8 +21,24 @@ Heavy dependencies are optional *extras*, so the install stays lean:
 ```bash
 pip install 'earthchange[gee]'       # Google Earth Engine backend (free account)
 pip install 'earthchange[mpc,maps]'  # Planetary Computer + maps (no account)
-pip install 'earthchange[all]'       # everything
+pip install 'earthchange[all]'       # Earth Engine + Planetary Computer + maps
 ```
+
+Python 3.11+. Install into its own environment
+(`conda create -n earthchange python=3.12 && conda activate earthchange`) and
+activate it in every new terminal. For the Earth Engine backend, sign in once:
+`earthengine authenticate`, then `earthengine set_project YOUR-PROJECT-ID`.
+
+If the first run fails:
+
+| Message | Fix |
+|---------|-----|
+| `command not found: earthchange` | another environment is active: `conda activate earthchange` |
+| `The GEE backend needs earthengine-api` | `pip install 'earthchange[gee]'`, or add `--backend mpc` |
+| `Earth Engine could not start: …` | `earthengine authenticate` and `earthengine set_project …` |
+| `zsh: no matches found` | quote the extras: `'earthchange[all]'` |
+
+Full list: [Troubleshooting](https://firmanhadi21.github.io/rs-change-detection/#trouble).
 
 ## Quick start
 

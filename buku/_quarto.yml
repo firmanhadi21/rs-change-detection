@@ -54,6 +54,7 @@ book:
         - bab/30-keterbatasan.qmd
         - bab/31-gambut.qmd
         - bab/32-reproduksibilitas.qmd
+    - bab/89-masalah.qmd
     - bab/90-referensi.qmd
 
 bibliography: referensi.bib

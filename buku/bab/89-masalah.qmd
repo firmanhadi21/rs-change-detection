@@ -1,0 +1,167 @@
+# Pemecahan masalah {#sec-masalah}
+
+Bab ini disusun menurut **pesan yang Anda lihat**. Cari baris terakhir keluaran
+yang gagal di halaman ini (Ctrl+F atau ⌘F), lalu baca penyebab dan jalan keluarnya.
+Hampir semua kegagalan pertama berasal dari tiga hal: environment yang salah aktif,
+ekstra yang belum terpasang, atau Earth Engine yang belum disiapkan.
+
+Sebelum mencari lebih jauh, jalankan tiga perintah ini. Jawabannya menyelesaikan
+separuh kasus:
+
+```bash
+which earthchange      # dari environment mana perintahnya diambil?
+pip show earthchange   # versi berapa?
+earthchange --list     # paketnya bisa jalan?
+```
+
+## Saat memasang
+
+### `zsh: no matches found: earthchange[all]`
+
+zsh, terminal bawaan macOS, membaca kurung siku sebagai pola nama berkas. Beri
+tanda kutip: `pip install 'earthchange[all]'`.
+
+### `command not found: earthchange`
+
+Di Windows: `'earthchange' is not recognized as an internal or external command`.
+
+Paketnya tidak terpasang di environment yang sedang aktif. Biasanya karena
+terminal baru dibuka dan environment-nya belum diaktifkan. Jalankan
+`conda activate earthchange` (atau aktifkan venv Anda), lalu coba lagi. Bila
+masih gagal, pasang di environment itu: `pip install 'earthchange[all]'`.
+
+Di komputer dengan beberapa environment, perintah `earthchange` bisa saja ada di
+lebih dari satu tempat, dengan versi berbeda. `which earthchange` menunjukkan mana
+yang sedang dipakai.
+
+### `pip install` gagal saat membangun `rasterio` atau `GDAL`
+
+Pip mencoba mengompilasi pustaka geospasial karena tidak menemukan paket jadi
+untuk versi Python Anda. Pakai Python 3.11 atau 3.12, atau pasang pustaka beratnya
+lewat conda-forge dulu, lalu ulangi:
+
+```bash
+conda install -c conda-forge rasterio geopandas
+pip install 'earthchange[all]'
+```
+
+## Saat menjalankan
+
+### `invalid choice: '...'`
+
+Lengkapnya `earthchange: error: argument -s/--scenario: invalid choice: '...'`.
+
+Nama skenarionya salah ketik, atau versi yang terpasang terlalu lama untuk
+mengenal skenario itu. `earthchange --list` menampilkan nama yang dikenal versi
+Anda. Bila skenario yang Anda cari tidak ada di sana, perbarui:
+`pip install -U 'earthchange[all]'`.
+
+### `AttributeError: module 'earthchange' has no attribute 'run'`
+
+`ec.run` hadir mulai versi 0.3.2. Bila `pip show earthchange` masih 0.3.1, pasang
+dari GitHub (lihat @sec-instalasi).
+
+### `The GEE backend needs earthengine-api`
+
+Pesan lengkapnya:
+`The GEE backend needs earthengine-api: pip install 'earthchange[gee]' (or use --backend mpc)`.
+
+`earthchange` terpasang tanpa ekstra Earth Engine. Ada dua jalan:
+
+- pasang ekstranya: `pip install 'earthchange[gee]'` (atau `[all]`), lalu siapkan
+  akun Earth Engine seperti di @sec-instalasi; atau
+- tambahkan `--backend mpc` (Python: `backend="mpc"`) untuk memakai Planetary
+  Computer tanpa akun. Ini hanya berlaku untuk skenario yang tidak memakai dataset
+  khusus Earth Engine.
+
+### `... needs matplotlib: pip install 'earthchange[maps]'`
+
+Pesan serupa juga muncul untuk `scikit-image`, `scipy`, atau `geopandas`. Skenario
+itu menggambar peta atau grafik, dan pustaka gambarnya belum terpasang. Jalankan
+perintah `pip install` yang tercetak di pesan itu.
+
+### Di Jupyter: `ModuleNotFoundError: No module named 'earthchange'`
+
+Terminal Anda bisa menjalankan `earthchange`, tetapi *notebook* tidak menemukannya.
+Kernel Jupyter-nya berasal dari environment lain. Daftarkan environment Anda
+sebagai kernel, lalu pilih kernel itu di *notebook*:
+
+```bash
+conda activate earthchange
+python -m ipykernel install --user --name earthchange
+```
+
+Di dokumen Quarto, tulis `jupyter: earthchange` di *front matter*.
+
+## Earth Engine
+
+### `Earth Engine could not start: ...`
+
+Teks setelah titik dua adalah alasan dari Earth Engine sendiri. Yang paling sering:
+
+- **Belum pernah login.** Jalankan `earthengine authenticate`.
+- **Proyek belum ditetapkan** (pesannya menyebut *project*). Login saja tidak
+  cukup; Earth Engine juga perlu tahu proyek Google Cloud mana yang dipakai:
+  `earthengine set_project ID-PROYEK-ANDA`.
+- **Proyek belum terdaftar untuk Earth Engine.** Daftarkan di
+  <https://code.earthengine.google.com/register>, pilih penggunaan nonkomersial
+  bila memenuhi syarat.
+
+Untuk server atau penjadwal, pakai kunci *service account* dan tunjuk lokasinya
+dengan `--ee-key` atau variabel `EARTHCHANGE_EE_KEY` (@sec-instalasi).
+
+### `Too many concurrent aggregations`
+
+Earth Engine membatasi berapa hitungan berat yang boleh berjalan bersamaan untuk
+satu akun. Ini terjadi bila Anda menjalankan beberapa analisis besar sekaligus,
+misalnya dua *notebook* atau dua terminal. Jalankan satu per satu, tunggu sebentar,
+lalu ulangi.
+
+### `User memory limit exceeded`
+
+Wilayah atau rentang waktunya terlalu besar untuk satu permintaan. Perkecil
+`radius`, persempit `bbox`, atau perpendek periodenya. Di beberapa kota padat
+pesan ini bisa muncul bahkan untuk area kecil; coba titik pusat atau tanggal lain.
+
+### Unduhan GeoTIFF ditolak karena terlalu besar
+
+Pesannya menyebut *request size* yang melewati batas. Unduhan langsung Earth Engine
+punya batas ukuran. Perkecil `radius`, atau tambahkan `--drive` (Python:
+`drive=True`) untuk mengekspor resolusi penuh ke Google Drive. Ekspor Drive
+memakai akun Google pribadi, jadi jalankan `earthengine authenticate` dulu.
+
+## Data dan hasil
+
+### `No Sentinel-2 scenes in pre/post window`
+
+Tidak ada citra yang cukup bersih pada jendela tanggal itu. Perlebar `pre`/`post`
+atau perbesar `radius`. Di daerah tropis yang sangat berawan, jendela beberapa
+bulan sering diperlukan.
+
+### `No orbit covers all periods`
+
+Cakupan Sentinel-1 tidak sama di semua tahun dan tempat. Perbesar radius atau
+geser tanggal periodenya.
+
+### Galat HTTP 504 dari Overpass (`transit-access`)
+
+Server OpenStreetMap sedang penuh. `earthchange` sudah mencoba beberapa server
+cermin sebelum menyerah. Tunggu beberapa jam lalu ulangi.
+
+### Peta tanpa *basemap*, atau `EPSG code unknown`
+
+Ada basis data PROJ lain yang usang (misalnya dari instalasi OTB atau QGIS lama)
+yang menutupi milik environment Anda. `earthchange` sudah mengosongkan `PROJ_LIB`;
+bila masih terjadi, jalankan `unset PROJ_LIB` sebelum `earthchange`.
+
+## Bila tetap buntu
+
+Buka *issue* di <https://github.com/firmanhadi21/rs-change-detection/issues>
+dan sertakan:
+
+- perintah atau kode yang Anda jalankan,
+- 20 baris terakhir keluarannya,
+- hasil `pip show earthchange` dan sistem operasi Anda.
+
+Hapus dulu path pribadi, nama akun, atau isi berkas kunci dari teks yang Anda
+tempel. Kunci *service account* jangan pernah ikut ditempel.

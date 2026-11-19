@@ -11,20 +11,49 @@ import _siapkan
 
 ## Memasang paket
 
-`earthchange` adalah paket Python. Dependensi beratnya bersifat opsional (*extras*),
-jadi pasang sesuai kebutuhan:
+Butuh **Python 3.11 atau lebih baru**. Saya sarankan satu *environment* khusus
+untuk `earthchange`, supaya tidak bertabrakan dengan paket lain dan supaya jelas
+versi mana yang sedang Anda jalankan. Dengan conda/mamba:
+
+```bash
+conda create -n earthchange python=3.12
+conda activate earthchange
+pip install 'earthchange[all]' jupyter
+```
+
+Tanpa conda, `python -m venv earthchange-env` lalu `source earthchange-env/bin/activate`
+(Windows: `earthchange-env\Scripts\activate`) sama baiknya. Yang penting: **aktifkan
+environment-nya setiap kali membuka terminal baru**, sebelum mengetik `earthchange`.
+
+Tanda kutip di sekitar `'earthchange[all]'` wajib di zsh (terminal bawaan macOS).
+Tanpanya zsh membaca kurung siku sebagai pola nama berkas dan menjawab
+`no matches found`.
+
+`[all]` memasang Earth Engine, Planetary Computer, peta, dan pustaka spasial yang
+dipakai hampir semua bab. Kalau ingin lebih ramping, pasang hanya yang perlu:
 
 ```bash
 pip install 'earthchange[gee]'        # backend Earth Engine (butuh akun gratis)
 pip install 'earthchange[mpc,maps]'   # Planetary Computer + peta (tanpa akun)
-pip install 'earthchange[all]'        # semuanya
 ```
 
-Untuk buku ini, `[all]` paling praktis, ditambah `jupyter` agar Anda bisa
-menjalankan kode bab demi bab di *notebook*:
+::: {.callout-important}
+## `ec.run` butuh versi 0.3.2 atau lebih baru
+Fungsi `ec.run` yang dipakai di seluruh buku ini ditambahkan setelah versi 0.3.1.
+Cek versi Anda dengan `pip show earthchange`. Bila masih 0.3.1, pasang langsung
+dari GitHub sampai versi berikutnya terbit di PyPI:
 
 ```bash
-pip install 'earthchange[all]' jupyter
+pip install 'earthchange[all] @ git+https://github.com/firmanhadi21/rs-change-detection'
+```
+:::
+
+Periksa hasilnya dari terminal:
+
+```bash
+which earthchange          # harus menunjuk ke environment yang aktif
+pip show earthchange       # versi yang terpasang
+earthchange --list         # daftar skenario
 ```
 
 Beberapa skenario butuh ekstra khusus:
@@ -90,11 +119,17 @@ terbaru. Ia butuh klien OAuth Copernicus Data Space di `CDSE_CLIENT_ID` dan
 ## Menyiapkan Earth Engine
 
 Daftar gratis di <https://earthengine.google.com/> (akun perorangan untuk riset
-atau nonkomersial tidak dipungut biaya), lalu autentikasi sekali dari terminal:
+atau nonkomersial tidak dipungut biaya). Pendaftaran itu membuat, atau meminta Anda
+memilih, sebuah **proyek Google Cloud** yang terdaftar untuk Earth Engine. Catat
+ID proyeknya, lalu dari terminal, sekali saja:
 
 ```bash
 earthengine authenticate
+earthengine set_project ID-PROYEK-ANDA
 ```
+
+Langkah kedua sering terlewat. Tanpanya, Earth Engine menolak bekerja walaupun
+autentikasinya berhasil.
 
 Untuk pemakaian otomatis (server, penjadwalan), pakai **service account** dan
 tunjuk kuncinya, lewat variabel lingkungan atau per pemanggilan:
@@ -129,6 +164,7 @@ for f in run.files:
 ```
 
 Bila daftar di atas berisi PNG, GeoTIFF, dan `stats.json`, instalasi Anda beres.
+Bila tidak, cari pesan galatnya di @sec-masalah.
 
 ## Struktur keluaran
 
