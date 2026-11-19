@@ -58,8 +58,8 @@ Anda. Bila skenario yang Anda cari tidak ada di sana, perbarui:
 
 ### `AttributeError: module 'earthchange' has no attribute 'run'`
 
-`ec.run` hadir mulai versi 0.3.2. Bila `pip show earthchange` masih 0.3.1, pasang
-dari GitHub (lihat @sec-instalasi).
+`ec.run` hadir mulai versi 0.3.2. Bila `pip show earthchange` masih 0.3.1 atau
+lebih lama, perbarui: `pip install -U 'earthchange[all]'`.
 
 ### `The GEE backend needs earthengine-api`
 

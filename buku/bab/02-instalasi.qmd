@@ -39,12 +39,12 @@ pip install 'earthchange[mpc,maps]'   # Planetary Computer + peta (tanpa akun)
 
 ::: {.callout-important}
 ## `ec.run` butuh versi 0.3.2 atau lebih baru
-Fungsi `ec.run` yang dipakai di seluruh buku ini ditambahkan setelah versi 0.3.1.
-Cek versi Anda dengan `pip show earthchange`. Bila masih 0.3.1, pasang langsung
-dari GitHub sampai versi berikutnya terbit di PyPI:
+Fungsi `ec.run` yang dipakai di seluruh buku ini hadir mulai versi 0.3.2. Cek
+versi Anda dengan `pip show earthchange`. Bila masih 0.3.1 atau lebih lama,
+perbarui:
 
 ```bash
-pip install 'earthchange[all] @ git+https://github.com/firmanhadi21/rs-change-detection'
+pip install -U 'earthchange[all]'
 ```
 :::
 

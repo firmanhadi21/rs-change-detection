@@ -35,8 +35,8 @@ authors:
 repository-code: "https://github.com/firmanhadi21/rs-change-detection"
 url: "https://firmanhadi21.github.io/rs-change-detection/"
 license: MIT
-version: "0.3.1"
-date-released: "2026-11-16"
+version: "0.3.2"
+date-released: "2026-11-20"
 keywords:
   - remote sensing
   - change detection
