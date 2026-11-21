@@ -1,0 +1,86 @@
+{
+ "expected_km2": 2356,
+ "observed_km2": {
+  "2011-2013": 10037,
+  "2014-2016": 8705,
+  "2017-2019": 2600
+ },
+ "near5_pct": 89,
+ "outside_conc_pct": 55,
+ "apl_pct": 54,
+ "hp_km2": 602,
+ "hp_pct": 26,
+ "peat_km2": 186,
+ "intact_km2": 126,
+ "hindcast": {
+  "2014-2016": {
+   "model": 94.5,
+   "distance": 77.8,
+   "km2": 8705
+  },
+  "2017-2019": {
+   "model": 91.3,
+   "distance": 80.6,
+   "km2": 2600
+  }
+ },
+ "pr_auc": 0.5,
+ "base_rate_pct": 1.57,
+ "factors": [
+  {
+   "k": "closeness to existing palm",
+   "v": 0.462
+  },
+  {
+   "k": "forest condition",
+   "v": 0.194
+  },
+  {
+   "k": "access & terrain",
+   "v": 0.087
+  },
+  {
+   "k": "climate (mean Jun-Oct rain)",
+   "v": 0.027
+  },
+  {
+   "k": "concessions",
+   "v": 0.021
+  },
+  {
+   "k": "recent clearing",
+   "v": 0.014
+  },
+  {
+   "k": "forest-area status (APL etc.)",
+   "v": 0.006
+  },
+  {
+   "k": "settlement",
+   "v": 0.004
+  },
+  {
+   "k": "peat",
+   "v": 0.004
+  },
+  {
+   "k": "fire",
+   "v": 0.001
+  }
+ ],
+ "overlap": {
+  "both_km2": 15322,
+  "palm_top10_km2": 48462,
+  "pct_of_palm_top10": 31.6,
+  "apl_pct": 54.0,
+  "hp_pct": 24.7,
+  "peat_pct": 14.9
+ },
+ "forest_loss_in_top10_pct": 25.3,
+ "warna": {
+  "palm": "#6B7480",
+  "risk": "#3FBF7F",
+  "fire": "#9A6530",
+  "both": "#FF5A1F"
+ }
+}

@@ -30,6 +30,7 @@ import { JADWAL_BIAYA } from "./jadwalBiaya";
 import { InfografisUang, UangFilm } from "./Uang";
 import { JADWAL_UANG } from "./jadwalUang";
 import { ApiFilm, InfografisApi } from "./Api";
+import { InfografisSawit } from "./Sawit";
 import { JADWAL_API } from "./jadwalApi";
 
 export const RemotionRoot: React.FC = () => (
@@ -222,6 +223,9 @@ export const RemotionRoot: React.FC = () => (
         width={JADWAL_API[b].LEBAR}
         height={JADWAL_API[b].TINGGI}
       />
+    ))}
+    {(["id", "en"] as const).map((b) => (
+      <Still key={`sawit${b}`} id={`InfografisSawit${b === "en" ? "EN" : ""}`} component={InfografisSawit} defaultProps={{ bahasa: b }} width={1080} height={1350} />
     ))}
     {(["id", "en"] as const).flatMap((b) =>
       ([1, 2] as const).map((h) => (

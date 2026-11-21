@@ -25,7 +25,8 @@
     "build:infografis": "remotion still Infografis1 out/Infografis1.png && remotion still Infografis2 out/Infografis2.png && remotion still InfografisEN1 out/InfografisEN1.png && remotion still InfografisEN2 out/InfografisEN2.png",
     "build:api": "remotion render Api out/api-gambut-sawit.mp4 && remotion still InfografisApi1 out/InfografisApi1.png && remotion still InfografisApi2 out/InfografisApi2.png",
     "build:api-en": "remotion render ApiEN out/api-gambut-sawit-en.mp4 && remotion still InfografisApiEN1 out/InfografisApiEN1.png && remotion still InfografisApiEN2 out/InfografisApiEN2.png",
-    "build:infografis-api": "remotion still InfografisApi1 out/InfografisApi1.png && remotion still InfografisApi2 out/InfografisApi2.png && remotion still InfografisApiEN1 out/InfografisApiEN1.png && remotion still InfografisApiEN2 out/InfografisApiEN2.png"
+    "build:infografis-api": "remotion still InfografisApi1 out/InfografisApi1.png && remotion still InfografisApi2 out/InfografisApi2.png && remotion still InfografisApiEN1 out/InfografisApiEN1.png && remotion still InfografisApiEN2 out/InfografisApiEN2.png",
+    "build:infografis-sawit": "remotion still InfografisSawit out/InfografisSawit.png && remotion still InfografisSawitEN out/InfografisSawitEN.png"
   },
   "dependencies": {
     "@remotion/cli": "4.0.410",
