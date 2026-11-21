@@ -67,7 +67,7 @@ DATA = os.path.join(_DATA_ROOT, "data", "kalimantan_panel")
 OUT = os.path.join(_DATA_ROOT, "output", "fire", "kalimantan_palm_panel")
 ASSET_ROOT = os.environ.get("KALPANEL_ASSETS", "projects/ee-efha94/assets/kalpanel_")
 PARTS = ("burn", "palm", "forest", "env")
-PARTS2 = ("reg", "nineties", "l5burn_1991", "l5burn_1994", "l5burn_1997", "l5burn_2006")
+PARTS2 = ("reg", "nineties") + tuple(f"l5v3_{y}" for y in (1991, 1994, 1997, 2006))
 
 # MODIS sinusoidal grid (MCD64A1's own)
 SIN = "SR-ORG:6974"
@@ -181,15 +181,122 @@ def image(part):
         burned = pre.subtract(post).gte(L5_DNBR).And(post.lt(0.1)).And(ok)
         return ee.Image.cat([share(burned, p60).rename(f"lb_{y}"),
                              share(ok, p60).rename(f"lok_{y}")]).toUint8()
+    if part.startswith("l5v2_"):    # revised rule after the 2006 check of l5burn: the post image is
+        y = int(part[-4:])          # the 20th percentile of NBR over Aug-Jan (scars before regrowth),
+        p60 = ee.Projection("EPSG:4326").atScale(60)    # no post-NBR floor; two dNBR thresholds
+        pre = _l5_nbr(f"{y}-04-01", f"{y}-07-31")
+        post = _l5_nbr(f"{y}-08-01", f"{y + 1}-01-31", reducer="p20")
+        ok = pre.mask().And(post.mask())
+        d = pre.subtract(post)
+        return ee.Image.cat([share(d.gte(0.27).And(ok), p60).rename(f"lbA_{y}"),
+                             share(d.gte(0.20).And(ok), p60).rename(f"lbB_{y}"),
+                             share(ok, p60).rename(f"lok_{y}")]).toUint8()
+    if part == "agb":           # ESA CCI above-ground biomass v6 (Mg/ha, 100 m), cell mean
+        grid = ee.Projection(SIN, [PX, 0, X0, 0, -PX, Y0])
+        ic = ee.ImageCollection("projects/sat-io/open-datasets/ESA/ESA_CCI_AGB")
+        out = []
+        for y in (2007, 2010, 2015, 2020, 2022):
+            im = ee.Image(ic.filter(ee.Filter.eq("system:index", f"CCI_BIOMASS_100m_AGB_{y}_V6")).first())
+            out.append(im.select("AGB").unmask(0).setDefaultProjection(im.projection())
+                       .reduceResolution(ee.Reducer.mean(), maxPixels=1024).reproject(grid).round()
+                       .rename(f"agb_{y}"))
+        return ee.Image.cat(out).toInt16()
+    if part == "y2026":         # 2026 so far (MCD64A1 Jan-Sep) and Jun-Sep rain 2001-2026 (CHIRPS ends
+        grid = ee.Projection(SIN, [PX, 0, X0, 0, -PX, Y0])          # Sep 2026, so Oct is left out everywhere)
+        b = (ee.ImageCollection(BURN_IC).filterDate("2026-01-01", "2027-01-01").select("BurnDate")
+             .map(lambda im: im.gt(0)).max().unmask(0).rename("burn_2026"))
+        ch = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+        rain = [ch.filterDate(f"{y}-06-01", f"{y}-10-01").sum().reproject(grid).round().rename(f"rainjs_{y}")
+                for y in list(YEARS) + [2026]]
+        return ee.Image.cat([b.toInt16()] + rain).toInt16()
+    if part == "access":        # access and terrain, time-invariant: roads (GRIP4, ~2018), rivers
+        grid = ee.Projection(SIN, [PX, 0, X0, 0, -PX, Y0])          # (FFR, RIV_ORD <= 6), SRTM, GHS-POP 2000
+        kal = ee.Geometry.Rectangle(list(KAL))
+        roads = ee.FeatureCollection("projects/sat-io/open-datasets/GRIP4/South-East-Asia").filterBounds(kal)
+        rivers = (ee.FeatureCollection("WWF/HydroSHEDS/v1/FreeFlowingRivers").filterBounds(kal)
+                  .filter(ee.Filter.lte("RIV_ORD", 6)))
+        dem = ee.Image("USGS/SRTMGL1_003")
+        slope = ee.Terrain.slope(dem)
+        pop = ee.Image("JRC/GHSL/P2023A/GHS_POP/2000").select("population_count").unmask(0)
+        mean = ee.Reducer.mean()
+        return ee.Image.cat([
+            ee.Image(0).paint(roads, 1).reproject(grid).rename("road"),
+            ee.Image(0).paint(rivers, 1).reproject(grid).rename("river"),
+            dem.setDefaultProjection(dem.projection()).reduceResolution(mean, maxPixels=1024)
+               .reproject(grid).round().rename("elev"),
+            slope.setDefaultProjection(dem.projection()).reduceResolution(mean, maxPixels=1024)
+                 .reproject(grid).multiply(10).round().rename("slope10"),
+            pop.setDefaultProjection(pop.projection()).reduceResolution(ee.Reducer.sum(), maxPixels=1024)
+               .reproject(grid).round().rename("pop00")]).toInt32()
+    if part.startswith("l5v3_"):    # scene pairs: every post-fire scene (Aug-Jan) against the most recent
+        y = int(part[-4:])          # clear pixels of the same path/row 16-200 days earlier
+        p60 = ee.Projection("EPSG:4326").atScale(60)
+        return _l5_pairs(y, p60)
     raise ValueError(part)
+
+
+def _l5_clean(im):
+    """Landsat 5 C2 L2 NBR with a strict mask: QA clear bit and low cloud confidence, no saturation,
+    bands 4 and 7 not saturated, blue reflectance < 0.12 (haze, smoke; SR_ATMOS_OPACITY and
+    SR_CLOUD_QA removed nearly every Sep-Jan pixel in a 2006 test), then the clear mask shrunk
+    by 150 m so cloud edges and their shadows drop out."""
+    import ee
+    qa = im.select("QA_PIXEL")
+    clear = (qa.bitwiseAnd(1 << 6).neq(0)                                 # clear
+             .And(qa.rightShift(8).bitwiseAnd(3).lte(1))                  # cloud confidence low
+             .And(qa.bitwiseAnd(1 << 7).eq(0))                            # not water
+             .And(im.select("QA_RADSAT").bitwiseAnd(0b1001000).eq(0))             # bands 4, 7 not saturated
+             .And(im.select("SR_B1").multiply(0.0000275).add(-0.2).lt(0.12)))     # haze / smoke: bright blue
+    clear = clear.unmask(0).focalMin(150, "circle", "meters")
+    sr = im.select(["SR_B4", "SR_B7"]).multiply(0.0000275).add(-0.2)
+    return ee.Image(sr.normalizedDifference(["SR_B4", "SR_B7"]).rename("nbr").updateMask(clear)
+            .copyProperties(im, ["system:time_start", "WRS_PATH", "WRS_ROW"]))
+
+
+def _l5_pairs(y, p60):
+    """Per-pixel counts over all scene pairs of the season, then shares of the MODIS cell: burned in any
+    pair (dNBR >= 0.20 / 0.27) or persistently (in >= 2 pairs, or in the only valid pair)."""
+    import ee
+    allc = (ee.ImageCollection("LANDSAT/LT05/C02/T1_L2").merge(ee.ImageCollection("LANDSAT/LT05/C02/T2_L2"))
+            .filterBounds(ee.Geometry.Rectangle(list(KAL))).filter(ee.Filter.lt("CLOUD_COVER", 80)))
+    post = allc.filterDate(f"{y}-08-01", f"{y + 1}-02-01")
+    empty = ee.Image.constant([0, 0, 0]).rename(["ok", "b20", "b27"]).toUint8()
+
+    def pair(p):
+        p = ee.Image(p)
+        t = p.date()
+        pre_ic = (allc.filter(ee.Filter.eq("WRS_PATH", p.get("WRS_PATH")))
+                  .filter(ee.Filter.eq("WRS_ROW", p.get("WRS_ROW")))
+                  .filterDate(t.advance(-200, "day"), t.advance(-16, "day"))
+                  .map(_l5_clean).sort("system:time_start"))
+        pn = _l5_clean(p)
+
+        def ok_pair():
+            pre = pre_ic.mosaic()                                         # latest clear pixel on top
+            d = pre.subtract(pn)
+            ok = pre.mask().And(pn.mask()).And(pre.gte(0.2))              # vegetated before
+            return ee.Image.cat([ok, d.gte(0.20).And(ok), d.gte(0.27).And(ok)]).unmask(0) \
+                .rename(["ok", "b20", "b27"]).toUint8()
+        return ee.Image(ee.Algorithms.If(pre_ic.size().gt(0), ok_pair(), empty))
+    n = ee.ImageCollection(post.toList(500).map(pair)).sum()
+    nok, n20, n27 = n.select("ok"), n.select("b20"), n.select("b27")
+    valid = nok.gte(1)
+    single = nok.eq(1)
+    return ee.Image.cat([
+        share(n20.gte(1).And(valid), p60).rename(f"lbany20_{y}"),
+        share(n27.gte(1).And(valid), p60).rename(f"lbany27_{y}"),
+        share(n20.gte(2).Or(single.And(n20.eq(1))).And(valid), p60).rename(f"lbpers20_{y}"),
+        share(n27.gte(2).Or(single.And(n27.eq(1))).And(valid), p60).rename(f"lbpers27_{y}"),
+        share(valid, p60).rename(f"lok_{y}")]).toUint8()
 
 
 L5_YEARS = (1991, 1994, 1997, 2006)
 L5_DNBR = 0.27
 
 
-def _l5_nbr(lo, hi):
-    """Median Landsat 5 NBR (T1 + T2 surface reflectance), cloud, shadow and dilated cloud masked."""
+def _l5_nbr(lo, hi, reducer="median"):
+    """Median (or 20th-percentile, reducer="p20") Landsat 5 NBR (T1 + T2 surface reflectance),
+    cloud, shadow and dilated cloud masked."""
     import ee
 
     def one(im):
@@ -199,7 +306,10 @@ def _l5_nbr(lo, hi):
         return sr.normalizedDifference(["SR_B4", "SR_B7"]).updateMask(clear)
     ic = (ee.ImageCollection("LANDSAT/LT05/C02/T1_L2").merge(ee.ImageCollection("LANDSAT/LT05/C02/T2_L2"))
           .filterDate(lo, hi).filterBounds(ee.Geometry.Rectangle(list(KAL))))
-    return ic.map(one).median()
+    col = ic.map(one)
+    if reducer == "p20":
+        return col.reduce(ee.Reducer.percentile([20])).rename("nd")
+    return col.median()
 
 
 def stage_export(_a):
@@ -774,33 +884,46 @@ def stage_nineties(a):
             return {d: ds.read(i + 1) for i, d in enumerate(ds.descriptions)}
     L = {}
     for y in L5_YEARS:
-        L |= rd(f"l5burn_{y}")
+        L |= rd(f"{a.l5}_{y}")
+    variants = sorted(k[2:-5] for k in L if k.startswith("lb") and k.endswith("_2006"))
     N, B = rd("nineties"), rd("burn")
     lon, lat = _cell_lonlat(cells)
     emrp = contains_xy(Polygon(EMRP), lon, lat)
     peat = cells.peat.to_numpy()
     res = {}
 
-    # calibration, 2006: Landsat cell burned = >= 50% of its valid 30 m pixels burned
-    ok = L["lok_2006"][rr, cc_] >= 50
-    lb = (L["lb_2006"][rr, cc_] * 2 >= L["lok_2006"][rr, cc_]) & ok
+    def landsat_burned(y, var, t):
+        ok = L[f"lok_{y}"][rr, cc_] >= 50
+        frac = L[f"lb{var}_{y}"][rr, cc_] / np.maximum(L[f"lok_{y}"][rr, cc_], 1)
+        return (frac >= t) & ok, ok
+
+    # calibration, 2006: choose the dNBR variant (A >= 0.27, B >= 0.20) and the share of a cell's
+    # valid pixels that must be burned, by F1 against MCD64A1; the same rule is then used for the 1990s
     mb = B["burn_2006"][rr, cc_] == 1
-    tp = int((lb & mb & ok).sum())
-    res["calibration_2006"] = {
-        "valid_cells_pct": round(100 * float(ok.mean()), 1),
-        "landsat_burned_cells": int(lb.sum()), "mcd64_burned_cells_in_valid": int((mb & ok).sum()),
-        "agree_cells": tp, "precision_vs_mcd64": round(tp / max(int(lb.sum()), 1), 3),
-        "recall_vs_mcd64": round(tp / max(int((mb & ok).sum()), 1), 3),
-        "landsat_burned_pct_peat": round(100 * float(lb[ok & peat].mean()), 2),
-        "mcd64_burned_pct_peat": round(100 * float(mb[ok & peat].mean()), 2),
-        "landsat_burned_pct_mineral": round(100 * float(lb[ok & ~peat].mean()), 2),
-        "mcd64_burned_pct_mineral": round(100 * float(mb[ok & ~peat].mean()), 2)}
-    print("2006 calibration:", res["calibration_2006"])
+    intact06 = N["und_2006"][rr, cc_] >= 90
+    cal = []
+    for var in variants:
+        for t in (0.05, 0.1, 0.2, 0.3, 0.5):
+            lb, ok = landsat_burned(2006, var, t)
+            tp = int((lb & mb).sum())
+            p, r_ = tp / max(int(lb.sum()), 1), tp / max(int((mb & ok).sum()), 1)
+            cal.append({"variant": var, "cell_share": t, "precision": round(p, 3), "recall": round(r_, 3),
+                        "f1": round(2 * p * r_ / max(p + r_, 1e-9), 3),
+                        "landsat_peat_pct": round(100 * float(lb[ok & peat].mean()), 2),
+                        "mcd64_peat_pct": round(100 * float(mb[ok & peat].mean()), 2),
+                        "landsat_mineral_pct": round(100 * float(lb[ok & ~peat].mean()), 2),
+                        "mcd64_mineral_pct": round(100 * float(mb[ok & ~peat].mean()), 2),
+                        "landsat_intact_mineral_pct": round(100 * float(lb[ok & ~peat & intact06].mean()), 2),
+                        "mcd64_intact_mineral_pct": round(100 * float(mb[ok & ~peat & intact06].mean()), 2)})
+    best = max(cal, key=lambda x: x["f1"])
+    res["calibration_2006"] = {"grid": cal, "chosen": best, "valid_cells_pct": round(
+        100 * float((L["lok_2006"][rr, cc_] >= 50).mean()), 1)}
+    print("2006 calibration grid:\n", pd.DataFrame(cal).to_string(index=False))
+    print("chosen:", best)
 
     rows = []
     for y in L5_YEARS:
-        ok = L[f"lok_{y}"][rr, cc_] >= 50
-        lb = (L[f"lb_{y}"][rr, cc_] * 2 >= L[f"lok_{y}"][rr, cc_]) & ok
+        lb, ok = landsat_burned(y, best["variant"], best["cell_share"])
         ip = N[f"ind_{y}"] >= PALM_MIN
         d = (ndimage.distance_transform_edt(~ip) * CELL_KM)[rr, cc_] if ip.any() else np.full(len(cells), 1e9)
         ring = pd.cut(d, [-0.1, 0.01] + RINGS_KM[1:] + [1e9],
@@ -821,8 +944,8 @@ def stage_nineties(a):
         res[f"emrp_burned_pct_{y}"] = round(100 * float(lb[ek].mean()), 2) if ek.any() else None
     out = pd.DataFrame(rows)
     out["peat"] = out.peat.map({True: "peat", False: "mineral"})
-    out.to_csv(os.path.join(OUT, "nineties_burn.csv"), index=False)
-    json.dump(res, open(os.path.join(OUT, "nineties.json"), "w"), indent=1)
+    out.to_csv(os.path.join(OUT, f"nineties_burn_{a.l5}.csv"), index=False)
+    json.dump(res, open(os.path.join(OUT, f"nineties_{a.l5}.json"), "w"), indent=1)
     pd.set_option("display.width", 200)
     for by in ("peat", "peat+ring", "peat+forest"):
         t = out[out.by == by]
@@ -835,6 +958,7 @@ def stage_nineties(a):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--stage", required=True, choices=["export", "download", "panel", "describe", "event", "robust", "viirs", "nineties"])
+    ap.add_argument("--l5", default="l5v3", help="nineties only: Landsat burn product (l5v2, l5v3)")
     ap.add_argument("--parts", default="", help="export/download only: comma list, e.g. reg,nineties,l5burn")
     a = ap.parse_args()
     {"export": stage_export, "download": stage_download, "panel": stage_panel,

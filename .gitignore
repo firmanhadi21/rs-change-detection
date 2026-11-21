@@ -85,3 +85,6 @@ docs/RESEARCH_PLAN.md
 
 # The book site is rendered by CI from buku/ (see .github/workflows/docs.yml)
 docs/buku/
+
+# Earth Engine service-account keys (never commit)
+ee-geodeticengineeringundip-*.json
