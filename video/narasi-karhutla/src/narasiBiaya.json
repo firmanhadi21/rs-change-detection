@@ -1,0 +1,22 @@
+{
+  "_comment": [
+    "Bian's words for 'Harga di Balik Nikel' (part 5 of the North Maluku series), one entry per segment of",
+    "jadwalBiaya.json's urutan. tts_konsesi.py --film biaya generates each clip (mp3s gitignored).",
+    "Figures from src/biayaData.json (scripts/biaya_film_assets.py, from output/malut_forest/economics/econ.json):",
+    "value added mining + manufacturing 7.1 (2019) -> 84.0 Rp tn (2025); night lights x5.4; captive coal 1.87 GW (Jul 2023)",
+    "-> 6.37 GW (Jul 2025); 2025 CO2 30-40 Mt, Rp 127-169 tn at US EPA SCC, Rp 40-54 tn at EU ETS; forest carbon",
+    "0.5-6 and ecosystem services 0.8-1.9 Rp tn/yr; DBH Halmahera Tengah ~Rp 1.1 tn. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Ini bagian kelima. Empat film sebelumnya menunjukkan jejak tambang di hutan dan di perairan. Sekarang kita bertanya: berapa nilai ekonominya, dan berapa biaya lingkungannya?",
+    "02-nilai": "Ekonomi Maluku Utara tumbuh sangat cepat. Nilai tambah dari tambang dan pengolahan nikel naik dari sekitar tujuh triliun rupiah pada dua ribu sembilan belas, menjadi delapan puluh empat triliun rupiah pada dua ribu dua puluh lima.",
+    "03-cahaya": "Dari luar angkasa, pertumbuhan itu terlihat sebagai cahaya. Pada malam hari, kawasan di sekitar Teluk Weda kini lebih dari lima kali lebih terang dibanding dua ribu sembilan belas.",
+    "04-batubara": "Smelter nikel membutuhkan listrik dalam jumlah sangat besar, dan sebagian besar berasal dari pembangkit batu bara milik kawasan industri sendiri. Kapasitasnya di Maluku Utara naik dari satu koma sembilan gigawatt pada pertengahan dua ribu dua puluh tiga, menjadi enam koma empat gigawatt dua tahun kemudian.",
+    "05-co2": "Pada dua ribu dua puluh lima, pembangkit itu melepas sekitar tiga puluh sampai empat puluh juta ton karbon dioksida. Dengan biaya sosial karbon dari Badan Perlindungan Lingkungan Amerika Serikat, kerugian iklimnya sekitar seratus dua puluh tujuh sampai seratus enam puluh sembilan triliun rupiah, lebih besar dari seluruh nilai tambah sektor ini. Dengan harga karbon pasar Eropa, sekitar empat puluh sampai lima puluh empat triliun rupiah.",
+    "06-hutan": "Dibanding itu, biaya hutan yang dibuka tampak kecil dalam rupiah: beberapa triliun per tahun, untuk karbon dan jasa ekosistem. Tetapi angka ini memakai rata-rata global, dan tidak menghitung kehidupan yang bergantung pada hutan itu.",
+    "07-siapa": "Siapa yang menikmati, dan siapa yang menanggung? Kabupaten penghasil menerima dana bagi hasil sekitar satu triliun rupiah per tahun. Kerugian iklim ditanggung dunia, sedangkan polusi udara, hutan yang hilang, dan air yang keruh ditanggung warga di sekitar tambang.",
+    "08-tutup": "Ini bukan neraca laba rugi, dan ketidakpastiannya besar. Tetapi skalanya jelas: biaya terbesar nikel Maluku Utara bukan yang terlihat di hutan, melainkan asap dari pembangkit batu bara."
+  }
+}

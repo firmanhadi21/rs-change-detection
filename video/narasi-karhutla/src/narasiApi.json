@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Bian's words for 'Api, Gambut, dan Sawit: Apa yang Membuat Kalimantan Terbakar?', one entry per",
+    "segment of jadwalApi.json. Every figure is from src/apiData.json (scripts/api_film_assets.py, from",
+    "output/fire/kalimantan_palm_panel/): fire emissions 2001-2025 central 2.63 Gt CO2e (1.53-3.74),",
+    "worst years 2006 350 Mt, 2009 314, 2019 312; peat 9.0% of land, 85.5% of emissions, ~60x per km2;",
+    "factor ranking (permutation loss in PR-AUC, 50 km block CV, 24 training years 2002-2025):",
+    "drought > forest condition > access & terrain > oil palm & concessions > peat > ... status 7th;",
+    "conversion event study, peat dry years: ratio 1.96 at 1-2 yr before planting, 0.07 at 3-5 yr after;",
+    "VIIRS 2012-2025: swidden-like mosaic large events 0.89%, dry/wet x5.7; peat outside permits 5.73%,",
+    "x58.9; 2026 Jun-Sep rain median 0.47 of normal; dry-scenario map catches 51% of MCD64A1 Jan-Sep",
+    "2026 burned cells in the top 5% and 73% in the top 10% (peat-only rule 28.6%); 2027 expected burned",
+    "1,271 km2 (normal) / 5,160 km2 (El Nino), 146 Mt CO2e, USD 0.73-27.1 bn at 5-185 USD/t; top-5% risk",
+    "cells: APL 40%, HP 23%, peat 31%, open land 98%, 85% not burned 2024-26.",
+    "Numbers are spelled out so the voice does not misread them. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Hampir setiap kemarau panjang, Kalimantan terbakar. Dari dua ribu satu sampai dua ribu dua puluh lima, kebakaran yang tercatat satelit melepas sekitar dua koma enam miliar ton setara karbon dioksida. Tahun terburuk adalah dua ribu enam, lalu dua ribu sembilan dan dua ribu sembilan belas. Rentangnya lebar, antara satu setengah dan tiga koma tujuh miliar ton, karena kedalaman gambut yang terbakar sulit diukur.",
+    "02-gambut": "Sebagian besar emisi itu datang dari gambut. Gambut hanya sembilan persen daratan Kalimantan, tetapi menyumbang sekitar delapan puluh enam persen emisi kebakaran. Per kilometer persegi, gambut yang terbakar melepas karbon sekitar enam puluh kali lebih banyak daripada tanah mineral, karena yang terbakar bukan hanya tumbuhan di atasnya, tetapi juga tanahnya.",
+    "03-faktor": "Lalu, apa yang paling menentukan di mana api muncul? Sebuah model dilatih dengan data dua puluh empat tahun, lalu diuji di petak-petak lima puluh kilometer yang belum pernah dilihatnya. Pemicu terkuat adalah kekeringan. Berikutnya kondisi hutan: lahan terbuka dan hutan rusak mudah terbakar, hutan utuh hampir tidak. Lalu akses, yaitu jalan, sungai, dan medan, kemudian sawit dan konsesi, dan gambut. Status kawasan, seperti APL, hampir tidak menambah apa-apa. APL banyak terbakar karena lahannya terbuka dan mudah dijangkau, bukan karena labelnya.",
+    "04-sawit": "Bagaimana dengan sawit? Di gambut yang kemudian ditanami sawit, kebakaran memuncak satu sampai dua tahun sebelum penanaman, hampir dua kali lipat dari lahan pembanding. Tiga tahun setelah tanam, api hampir hilang. Pola serupa terlihat di tanah mineral. Yang terbakar adalah lahan yang sedang dibuka, bukan kebun yang sudah berdiri.",
+    "05-ladang": "Bagaimana dengan ladang berpindah, yang sering disalahkan? Di bentang ladang dan kebun campuran di tanah mineral, api umumnya kecil. Kurang dari satu dari seratus kejadian api menjadi besar, dan pada tahun kering jumlah titik apinya naik sekitar enam kali. Di gambut di luar izin, hampir enam dari seratus kejadian menjadi besar, dan pada tahun kering titik apinya naik hampir enam puluh kali. Api ladang cenderung tetap kecil. Api gambutlah yang lepas kendali.",
+    "06-uji": "Apakah model ini bisa meramal? Tahun dua ribu dua puluh enam menjadi ujiannya. Hujan Juni sampai September hanya sekitar separuh normal, dan Kalimantan kembali terbakar. Model yang hanya belajar sampai dua ribu dua puluh lima, dengan skenario tahun kering, menempatkan separuh area terbakar di lima persen wilayah paling berisiko, dan hampir tiga perempatnya di sepuluh persen teratas. Aturan sederhana, gambut saja, menangkap kurang dari sepertiga.",
+    "07-ramalan": "Untuk dua ribu dua puluh tujuh, ada dua skenario. Jika tahunnya normal, sekitar seribu tiga ratus kilometer persegi diperkirakan terbakar. Jika El Niño datang, sekitar lima ribu dua ratus, dengan emisi hampir seratus lima puluh juta ton setara karbon dioksida. Dengan harga karbon lima sampai seratus delapan puluh lima dolar per ton, kerugiannya antara nol koma tujuh dan dua puluh tujuh miliar dolar. Risiko tertinggi ada di lahan terbuka dan terdegradasi, terutama di APL dan hutan produksi, dan sepertiganya di gambut. Delapan puluh lima persen di antaranya tidak terbakar dalam tiga tahun terakhir.",
+    "08-tutup": "Jadi, apa yang membuat Kalimantan terbakar? Kemarau menyalakan api, tetapi lahan yang rusak dan terbuka, terutama gambut, yang membuatnya menyebar. Peta risiko bisa disiapkan jauh sebelum musim kering, sehingga pencegahan bisa dimulai lebih awal. Angka-angka ini dari satelit, dan kemungkinan masih di bawah kenyataan, karena api gambut yang membara di bawah permukaan sering tidak terlihat."
+  }
+}

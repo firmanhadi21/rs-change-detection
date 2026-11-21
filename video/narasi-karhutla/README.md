@@ -28,6 +28,125 @@ mechanisms as the main film, with the bed reusing the main film's
 normalised score (sped up rather than slowed, since this film is shorter)
 so the two sound like one body of work.
 
+## Api — what makes Kalimantan burn (standalone, Indonesian + English)
+
+`Api` / `ApiEN` ("Api, Gambut, dan Sawit: Apa yang Membuat Kalimantan Terbakar?" / "Fire, Peat and Palm:
+What Makes Kalimantan Burn?", about 4 min 12 s / 4 min 10 s; Indonesian read by Bian, English by Max) and two
+infographic pages per language, `InfografisApi1/2` and `InfografisApiEN1/2` (1080 × 1350): Kalimantan fire
+emissions 2001–2025 (peat 9% of land, ~86% of emissions), which factors predict where fire breaks out
+(drought, forest condition, access, oil palm and concessions, peat; forest-area status such as APL near the
+bottom), fire around the oil-palm planting year, swidden-like mosaic vs peat fires (VIIRS), the 2026 test, and
+the 2027 normal vs El Niño scenarios priced at US$5 / 51 / 185 per tonne CO₂.
+
+```
+conda run -n base python -I ../../scripts/api_film_assets.py      # public/api/, src/apiData.json
+uv run --no-project --with elevenlabs python3 tts_konsesi.py --film api [--bahasa en]   # narration + jadwalApi[EN].json
+python3 bake_musik_bukti.py --jadwal src/jadwalApi.json \
+    --keluar public/audio/api/musik-api.mp3 --sambung 70           # and jadwalApiEN.json -> api-en/musik-api-en.mp3
+npm run build:api && npm run build:api-en                          # or build:infografis-api for the four pages
+```
+
+Figures come from `output/fire/kalimantan_palm_panel/` (scripts/kalimantan_palm_fire_panel.py,
+kalimantan_fire_factors.py, kalimantan_fire_carbon.py): MCD64A1 burned area on the 500 m MODIS grid, IPCC
+2006/2013 emission factors with ESA CCI biomass, a gradient-boosting model checked on 50 km blocks it never saw,
+and 2026 checked against MCD64A1 January–September. Emissions are likely underestimated (MODIS misses small
+and smouldering peat fires); peat burn depth is the main uncertainty; adat territories are not yet included.
+No company is named.
+
+## Periksa — checking the nickel-mining maps (standalone, Indonesian)
+
+`Periksa` ("Memeriksa Peta Tambang Nikel", about 3 min 8 s, read by Bian): the
+Weda Bay / Sagea open-ground maps from AlphaEarth and TESSERA, checked against
+300 hand labels and a blind recheck of 101 points; the label-based 2025 area,
+open ground by first year of change since 2019, and the 1 km ring around Lake Sagea.
+
+```
+conda run -n base python -I ../../scripts/periksa_film_assets.py  # public/periksa/, src/periksaData.json
+python3 tts_konsesi.py --film periksa                              # narration + jadwalPeriksa.json
+python3 bake_musik_bukti.py --jadwal src/jadwalPeriksa.json \
+    --keluar public/audio/periksa/musik-periksa.mp3 --sambung 70
+npm run build:periksa
+```
+
+Figures come from `output/malut_forest/embeddings/labeller/` (label_eval.json,
+recheck_eval.json, map2025/expansion.json). One labeller, no field check. No
+company is named.
+
+## Uang — "Ke Mana Uangnya?", part 6 (standalone, Indonesian)
+
+`Uang` (2 min 50 s, read by Bian) and two infographic pages `InfografisUang1/2` (1080 × 1350): did the value of the
+nickel boom reach the people of North Maluku? The benefits (manufacturing jobs, poverty falling fastest in
+Halmahera Tengah and Timur) are shown next to the gap between production per person and household spending
+(Halmahera Tengah ×19.7 vs ×1.7, 2019–2025), where the rest goes, and a comparison with China's reform era.
+
+```
+python3 -I ../../scripts/uang_film_assets.py   # public/uang/, src/uangData.json, output/.../welfare/welfare.json
+python3 tts_konsesi.py --film uang             # narration + jadwalUang.json
+python3 bake_musik_bukti.py --jadwal src/jadwalUang.json \
+    --keluar public/audio/uang/musik-uang.mp3 --sambung 70
+npm run build:uang
+```
+
+Figures come from `output/malut_forest/welfare/` (SOURCES.md with evidence grades, RESULTS.md). No company is named.
+
+## Biaya — "Harga di Balik Nikel", part 5 (standalone, Indonesian)
+
+`Biaya` (2 min 25 s, read by Bian) and two infographic pages `InfografisBiaya1/2` (1080 × 1350): the value added by
+nickel mining and processing in North Maluku (BPS regional GDP) against its environmental costs in 2025, shown as
+ranges: captive-coal CO₂ at the US EPA social cost of carbon and at the EU ETS price, indicative health costs, forest
+carbon and lost ecosystem services; VIIRS night lights around Weda Bay; who gains and who pays.
+
+```
+conda run -n base python -I ../../scripts/biaya_film_assets.py   # public/biaya/, src/biayaData.json
+python3 tts_konsesi.py --film biaya                               # narration + jadwalBiaya.json
+python3 bake_musik_bukti.py --jadwal src/jadwalBiaya.json \
+    --keluar public/audio/biaya/musik-biaya.mp3 --sambung 70
+npm run build:biaya
+```
+
+Figures come from `output/malut_forest/economics/` (econ.json from tmp/malut/econ_analysis.py; inputs graded in
+SOURCES.md; caveats in RESULTS.md). It is not a profit-and-loss account: value added is not profit and the social
+cost of carbon is a global damage estimate. Royalty and DBH figures are graded (b)/(c) and should be checked
+against the original documents before publication. No company is named.
+
+## Air — "Jejak di Perairan", part 4 (standalone, Indonesian)
+
+`Air` (2 min 27 s, read by Bian) and two infographic pages `InfografisAir1/2` (1080 × 1350): from cleared ground
+(SIRAD radar and Dynamic World in the Weda Bay mining cells) to murkier water next to the mines (Sentinel-2 TSS,
+Nechad 2010; water ≤ 2 km from mining cells vs coast > 15 km away on the same dates), and no visible change in
+Sagea Lake. Wording is "keruh" (turbidity), never "tercemar": satellites do not see metals.
+
+```
+conda run -n base python -I ../../scripts/air_film_assets.py   # public/air/, src/airData.json
+python3 tts_konsesi.py --film air                               # narration + jadwalAir.json
+python3 bake_musik_bukti.py --jadwal src/jadwalAir.json \
+    --keluar public/audio/air/musik-air.mp3 --sambung 70
+npm run build:air
+```
+
+Figures come from `output/malut_forest/water/` (RESULTS.md, analysis.json, pressure.json). The analysis stops at
+June 2026: after that, Sentinel-2 processing baselines 05.12/05.13 double the reflectance of deep open sea
+(deepsea_check.json). Only one sediment map (2024–25) is shown, not a before/after pair: per-pixel two-year medians
+mix different scene sets and would suggest a bay-wide change the same-date comparison does not show.
+
+## Tambang — mining footprint across North Maluku (standalone, Indonesian)
+
+`Tambang` ("Jejak Tambang di Maluku Utara", 2 min 40 s, read by Bian) and two infographic
+pages `InfografisTambang1/2` (1080 × 1350): open and disturbed ground in 2025 inside the
+WRI/Google mining cells, from the Weda-trained AlphaEarth model, label-adjusted with 150
+hand-labelled check points outside Weda/Sagea; per regency, and by first year of change.
+
+```
+conda run -n base python -I ../../scripts/tambang_film_assets.py  # public/tambang/, src/tambangData.json
+python3 tts_konsesi.py --film tambang                              # narration + jadwalTambang.json
+python3 bake_musik_bukti.py --jadwal src/jadwalTambang.json \
+    --keluar public/audio/tambang/musik-tambang.mp3 --sambung 70
+npm run build:tambang
+```
+
+Figures come from `output/malut_forest/mining_malut/` (areas.json, check_eval.json,
+years_adjusted.json). One labeller, no field check. No company is named.
+
 ## Hutan — North Maluku's forests (standalone)
 
 `Hutan` / `HutanEN` ("Apa yang Menggerus Hutan Maluku Utara?" / "What Is

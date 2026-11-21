@@ -1,0 +1,22 @@
+{
+  "_comment": [
+    "Bian's words for 'Jejak di Perairan' (part 4 of the North Maluku series), one entry per segment of",
+    "jadwalAir.json's urutan. tts_konsesi.py --film air generates each clip (mp3s gitignored).",
+    "Figures from src/airData.json (scripts/air_film_assets.py, from output/malut_forest/water/): SIRAD VH drop in",
+    "the Weda Bay mining cells 117 ha (2019) -> 2,019 ha (2026); near/far TSS ratio 1.35 (2019) -> 2.15-2.32",
+    "(2023-2025); trend +9 %/yr (p = 0.025); +18 % per 1,000 ha open ground (p = 0.044), rain p = 0.98; Sagea Lake flat.",
+    "Wording: 'keruh' / 'sedimen', never 'tercemar'. Correlation, not proof of cause. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Ini bagian keempat. Di tiga film sebelumnya, kita melihat hutan Maluku Utara dibuka untuk tambang. Sekarang pertanyaannya: ke mana tanah yang terbuka itu pergi, dan apa yang terjadi pada perairan di sekitarnya?",
+    "02-radar": "Radar satelit Sentinel-1 bisa menembus awan. Dengan metode SIRAD, kami membandingkan pantulan radar dari tahun ke tahun. Di petak tambang sekitar Teluk Weda, lahan yang berubah dari hutan menjadi tanah terbuka naik dari sekitar seratus dua puluh hektare pada dua ribu sembilan belas, menjadi lebih dari dua ribu hektare pada dua ribu dua puluh enam.",
+    "03-sedimen": "Tanah yang terbuka mudah tergerus hujan dan terbawa ke laut. Dari warna air pada citra Sentinel-2, kami memperkirakan kandungan sedimen, atau kekeruhan air, pada setiap tanggal yang cerah sejak dua ribu sembilan belas. Pada peta ini, biru berarti jernih, cokelat berarti keruh.",
+    "04-banding": "Kami membandingkan air dalam dua kilometer dari petak tambang dengan pesisir yang jauh dari tambang, pada hari yang sama. Dengan begitu, pengaruh hujan dan musim saling meniadakan. Pada dua ribu sembilan belas, air di dekat tambang sekitar satu koma empat kali lebih keruh. Pada dua ribu dua puluh tiga sampai dua ribu dua puluh lima, lebih dari dua kali lipat.",
+    "05-tumbuh": "Kekeruhan itu naik seiring luas tanah yang terbuka. Setiap tambahan seribu hektare berkaitan dengan air sekitar delapan belas persen lebih keruh di dekat tambang. Hujan tidak menjelaskan perbedaan ini.",
+    "06-danau": "Di Danau Sagea, satelit tidak melihat perubahan. Kekeruhan danau datar dari tahun ke tahun. Tetapi itu bukan berarti sungainya jernih: sungai terlalu sempit untuk citra ini, dan awan sering menutupi saat air keruh datang.",
+    "07-batas": "Ada yang tidak bisa dilihat satelit. Logam dan zat terlarut hanya bisa diukur dengan sampel air. Air di dekat tambang juga menerima buangan kawasan industri dan pelabuhan. Angka ini menunjukkan keterkaitan, bukan bukti sebab.",
+    "08-tutup": "Jejaknya kini terlihat dari darat sampai ke laut: hutan dibuka, tanah terbuka meluas, dan perairan di sampingnya makin keruh."
+  }
+}

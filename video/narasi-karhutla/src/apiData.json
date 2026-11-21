@@ -1,0 +1,318 @@
+{
+ "tahun": [
+  2001,
+  2002,
+  2003,
+  2004,
+  2005,
+  2006,
+  2007,
+  2008,
+  2009,
+  2010,
+  2011,
+  2012,
+  2013,
+  2014,
+  2015,
+  2016,
+  2017,
+  2018,
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "co2_tahun": [
+  42.5,
+  219.1,
+  74.2,
+  249.2,
+  70.0,
+  350.4,
+  22.5,
+  4.4,
+  314.4,
+  3.0,
+  87.1,
+  127.5,
+  36.4,
+  263.1,
+  214.4,
+  10.7,
+  5.3,
+  73.3,
+  312.3,
+  0.7,
+  2.3,
+  0.9,
+  137.9,
+  8.6,
+  3.6
+ ],
+ "co2_2026_jan_sep": 178.6,
+ "puncak": {
+  "tahun": 2006,
+  "mt": 350.4
+ },
+ "total_gt": {
+  "low": 1.53,
+  "central": 2.63,
+  "high": 3.74
+ },
+ "harga": [
+  5,
+  51,
+  185
+ ],
+ "total_usd_bn": {
+  "5": 13.0,
+  "51": 134.0,
+  "185": 487.0
+ },
+ "gambut": {
+  "land_pct": 9.0,
+  "emis_pct": 85.5,
+  "t_per_km2_peat": 1875,
+  "t_per_km2_mineral": 31.3,
+  "kali": 60
+ },
+ "status_share_pct": {
+  "APL": 29.0,
+  "HP": 26.4,
+  "HL": 17.8,
+  "KSA/KPA": 14.8,
+  "HPK": 8.0,
+  "HPT": 2.1
+ },
+ "outside_concessions_pct": 72.6,
+ "oil_palm_concessions_pct": 24.3,
+ "factors": [
+  {
+   "k": "drought (Jun-Oct rain)",
+   "v": 0.1452
+  },
+  {
+   "k": "forest condition",
+   "v": 0.0778
+  },
+  {
+   "k": "access & terrain",
+   "v": 0.0733
+  },
+  {
+   "k": "oil palm & concessions",
+   "v": 0.0418
+  },
+  {
+   "k": "peat",
+   "v": 0.0282
+  },
+  {
+   "k": "fire history",
+   "v": 0.0169
+  },
+  {
+   "k": "forest-area status (APL etc.)",
+   "v": 0.0085
+  },
+  {
+   "k": "recent clearing",
+   "v": 0.0053
+  },
+  {
+   "k": "settlement",
+   "v": 0.0047
+  }
+ ],
+ "roc_auc": 0.95,
+ "block_km": 50,
+ "sawit": {
+  "peat": [
+   {
+    "bin": "-9..-6",
+    "ratio": 1.497,
+    "lo": 1.122,
+    "hi": 2.262
+   },
+   {
+    "bin": "-5..-3",
+    "ratio": 1.464,
+    "lo": 1.026,
+    "hi": 2.292
+   },
+   {
+    "bin": "-2..-1",
+    "ratio": 1.955,
+    "lo": 1.386,
+    "hi": 2.914
+   },
+   {
+    "bin": "0..2",
+    "ratio": 0.619,
+    "lo": 0.448,
+    "hi": 0.926
+   },
+   {
+    "bin": "3..5",
+    "ratio": 0.066,
+    "lo": 0.038,
+    "hi": 0.103
+   },
+   {
+    "bin": "6..9",
+    "ratio": 0.028,
+    "lo": 0.013,
+    "hi": 0.048
+   },
+   {
+    "bin": "10..21",
+    "ratio": 0.048,
+    "lo": 0.016,
+    "hi": 0.104
+   }
+  ],
+  "mineral": [
+   {
+    "bin": "-9..-6",
+    "ratio": 0.988,
+    "lo": 0.855,
+    "hi": 1.136
+   },
+   {
+    "bin": "-5..-3",
+    "ratio": 0.95,
+    "lo": 0.797,
+    "hi": 1.121
+   },
+   {
+    "bin": "-2..-1",
+    "ratio": 1.358,
+    "lo": 1.104,
+    "hi": 1.636
+   },
+   {
+    "bin": "0..2",
+    "ratio": 0.803,
+    "lo": 0.656,
+    "hi": 1.001
+   },
+   {
+    "bin": "3..5",
+    "ratio": 0.08,
+    "lo": 0.061,
+    "hi": 0.102
+   },
+   {
+    "bin": "6..9",
+    "ratio": 0.019,
+    "lo": 0.013,
+    "hi": 0.027
+   },
+   {
+    "bin": "10..21",
+    "ratio": 0.011,
+    "lo": 0.007,
+    "hi": 0.017
+   }
+  ]
+ },
+ "palm_burned_max": {
+  "tahun": 2015,
+  "km2": 110
+ },
+ "ladang": {
+  "dry_over_wet": 5.7,
+  "large_pct": 0.89,
+  "escaped_pct": 0.73,
+  "share_of_det_in_large_events_pct": 16.3,
+  "det_per_100km2_wet_yr": 6.12,
+  "det_per_100km2_dry_yr": 34.63,
+  "events": 23055.0
+ },
+ "gambut_viirs": {
+  "dry_over_wet": 58.9,
+  "large_pct": 5.73,
+  "escaped_pct": 1.37,
+  "share_of_det_in_large_events_pct": 62.7,
+  "det_per_100km2_wet_yr": 3.9,
+  "det_per_100km2_dry_yr": 229.62,
+  "events": 40205.0
+ },
+ "viirs_detections": 1097503,
+ "uji2026": {
+  "rain_ratio": 0.47,
+  "dry": {
+   "top5": 51.0,
+   "top10": 73.0,
+   "top20": 90.2
+  },
+  "observed": {
+   "top5": 53.6,
+   "top10": 76.2,
+   "top20": 90.6
+  },
+  "peat_only": {
+   "top5": 15.4,
+   "top10": 28.6,
+   "top20": 36.7
+  },
+  "peat_recent": {
+   "top5": 33.5,
+   "top10": 45.0,
+   "top20": 51.1
+  },
+  "burned_cells": 30295
+ },
+ "lead_2023": {
+  "L1": {
+   "top5": 73.4,
+   "top10": 88.3,
+   "top20": 95.2
+  },
+  "L2": {
+   "top5": 74.8,
+   "top10": 89.0,
+   "top20": 95.6
+  }
+ },
+ "p2027": {
+  "km2": {
+   "normal": 1271,
+   "dry": 5160
+  },
+  "mt": {
+   "normal": 31.3,
+   "dry": 146.3
+  },
+  "usd_bn": {
+   "normal": {
+    "5": 0.16,
+    "51": 1.6,
+    "185": 5.8
+   },
+   "dry": {
+    "5": 0.73,
+    "51": 7.46,
+    "185": 27.06
+   }
+  },
+  "overlap_pct": 70.8,
+  "top5_status": {
+   "APL": 40.4,
+   "HP": 23.2,
+   "KSA/KPA": 8.8,
+   "HL": 7.1,
+   "HPK": 4.7
+  },
+  "top5_peat_pct": 30.8,
+  "peat_in_top5_pct": 17.1,
+  "top5_open_pct": 98.3,
+  "top5_intact_pct": 0.1,
+  "top5_not_burned_pct": 85.0,
+  "top5_far_palm_pct": 60.3
+ }
+}

@@ -1,0 +1,19 @@
+{
+  "_comment": [
+    "Max's words for the English edition, 'Fire, Peat and Palm: What Makes Kalimantan Burn?', the same",
+    "scene ids as narasiApi.json and the same figures (see its _comment). tts_konsesi.py --film api",
+    "--bahasa en generates each clip. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "Gfpl8Yo74Is0W6cPUWWT",
+  "teks": {
+    "01-buka": "In almost every long dry season, Kalimantan burns. From two thousand and one to twenty twenty-five, the fires seen by satellites released about two point six billion tonnes of carbon dioxide equivalent. The worst year was two thousand and six, then two thousand and nine and twenty nineteen. The range is wide, from one and a half to three point seven billion tonnes, because the depth of burned peat is hard to measure.",
+    "02-gambut": "Most of those emissions come from peat. Peat is only nine percent of Kalimantan's land, but it gives about eighty-six percent of the fire emissions. Per square kilometre, burning peat releases about sixty times more carbon than mineral soil, because it is not only the plants on top that burn, but the ground itself.",
+    "03-faktor": "So what decides where fire breaks out? A model was trained on twenty-four years of data, then tested on fifty-kilometre blocks it had never seen. The strongest driver is drought. Next is the state of the forest: open land and damaged forest burn easily, intact forest hardly at all. Then access, meaning roads, rivers and terrain, then oil palm and concessions, and peat. Forest-area status, such as APL, adds almost nothing. APL land burns a lot because it is open and easy to reach, not because of its label.",
+    "04-sawit": "What about oil palm? On peat that was later planted with oil palm, fire peaked one to two years before planting, almost twice the rate on comparable land. Three years after planting, fire had almost disappeared. Mineral soil shows a similar pattern. What burns is land being cleared, not plantations that are already standing.",
+    "05-ladang": "What about shifting cultivation, which is often blamed? In the mosaic of fields and mixed gardens on mineral soil, fires are usually small. Fewer than one in a hundred fire events becomes large, and in dry years the number of fire detections rises about six times. On peat outside permits, almost six in a hundred become large, and in dry years detections rise almost sixty times. Swidden fires tend to stay small. It is peat fires that get out of control.",
+    "06-uji": "Can the model predict? Twenty twenty-six was the test. Rain from June to September was only about half of normal, and Kalimantan burned again. A model that learned only up to twenty twenty-five, run with a dry-year scenario, placed half of the burned area in the five percent of land it ranked most at risk, and almost three quarters in the top ten percent. A simple rule, peat alone, catches less than a third.",
+    "07-ramalan": "For twenty twenty-seven there are two scenarios. In a normal year, about thirteen hundred square kilometres are expected to burn. If El Niño comes, about fifty-two hundred, with emissions of almost a hundred and fifty million tonnes of carbon dioxide equivalent. At carbon prices of five to a hundred and eighty-five dollars a tonne, that is a loss of between zero point seven and twenty-seven billion dollars. The highest risk is on open and degraded land, mostly in APL and production forest, and a third of it on peat. Eighty-five percent of it did not burn in the last three years.",
+    "08-tutup": "So what makes Kalimantan burn? Drought lights the fire, but it is damaged and open land, above all peat, that lets it spread. Risk maps can be ready long before the dry season, so prevention can start early. These are satellite figures, and probably still below the real toll, because peat fires smouldering below the surface often go unseen."
+  }
+}

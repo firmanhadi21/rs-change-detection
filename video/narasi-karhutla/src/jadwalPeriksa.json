@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "Schedule for the standalone film 'Memeriksa Peta Tambang Nikel' (checking the Weda Bay map).",
+    "durasi is written by tts_konsesi.py --film periksa from ffprobe of the normalised mp3s;",
+    "bake_musik_bukti.py --jadwal reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 4.0,
+  "tutup_detik": 7.0,
+  "urutan": [
+    "01-buka",
+    "02-lama",
+    "03-label",
+    "04-ulang",
+    "05-baru",
+    "06-tahun",
+    "07-sagea",
+    "08-tutup"
+  ],
+  "durasi": {
+    "01-buka": 21.52,
+    "02-lama": 17.6,
+    "03-label": 25.68,
+    "04-ulang": 25.28,
+    "05-baru": 24.24,
+    "06-tahun": 17.52,
+    "07-sagea": 20.24,
+    "08-tutup": 15.2
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "Bian's words for the standalone film 'Memeriksa Peta Tambang Nikel', one entry per segment of",
+    "jadwalPeriksa.json's urutan. tts_konsesi.py --film periksa generates each clip (mp3s gitignored).",
+    "Every figure is from src/periksaData.json (scripts/periksa_film_assets.py, from",
+    "output/malut_forest/embeddings/labeller/): box-trained maps precision 0.38 (TESSERA) / 0.40 (AEF),",
+    "recall 1.0 on 297 hand labels, box-held-out scores 0.91-0.92, Weda core open ground 10,568-13,862 ha;",
+    "recheck 101 points: 56/81 contested unchanged, 13 shrub->disturbed, controls 16/20 unchanged;",
+    "point-trained CV (1 km blocks) AEF 0.95; label-based 2025 Weda core 4,533 +- 1,247 ha open,",
+    "6,824 +- 1,554 with disturbed; AlphaEarth by first-change year vs 2019: peak 2023 1,558 ha,",
+    "2025 1,073 ha; within 1 km of Lake Sagea 40-58 ha in 2025, most before 2019; Dynamic World 61 ha in 2026.",
+    "One labeller; no field check. Numbers are spelled out. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Seberapa luas sebenarnya lahan yang dibuka tambang nikel di Teluk Weda? Untuk menjawabnya, kami memakai dua model kecerdasan buatan yang membaca citra satelit: AlphaEarth dari Google, dan TESSERA dari Universitas Cambridge. Keduanya merangkum citra satu tahun penuh menjadi semacam sidik jari, untuk setiap petak sepuluh kali sepuluh meter.",
+    "02-lama": "Peta pertama kami dilatih dari kotak-kotak yang kami gambar sendiri di atas citra. Diuji pada kotak lain, ketepatannya tampak sangat baik, lebih dari sembilan puluh persen. Peta itu menghitung lahan terbuka di Teluk Weda antara sepuluh ribu dan hampir empat belas ribu hektare.",
+    "03-label": "Lalu kami memeriksanya dengan cara lain. Tiga ratus titik acak dilabeli secara visual dari citra Sentinel-2, tanpa melihat tebakan model. Hasilnya, semua lahan terbuka yang dilabeli memang tertangkap peta. Tetapi dari setiap sepuluh piksel yang disebut terbuka, hanya sekitar empat yang benar-benar tanah gundul atau bangunan. Sisanya semak, rumput, dan belukar yang tumbuh kembali.",
+    "04-ulang": "Apakah labelnya yang keliru? Seratus satu titik dilabeli ulang dalam urutan baru, termasuk delapan puluh satu titik yang diperdebatkan. Lima puluh enam tetap sama. Tiga belas ternyata bekas bukaan yang mulai menghijau, kelas baru yang kami sebut lahan terganggu. Pada titik kontrol, enam belas dari dua puluh tetap sama, dan tidak ada yang berpindah dari terbuka ke bervegetasi, atau sebaliknya.",
+    "05-baru": "Dengan label itu, model dilatih ulang. Pada titik yang tidak dipakai untuk melatih, ketepatannya sekitar sembilan puluh lima persen. Perkiraan baru untuk Teluk Weda pada dua ribu dua puluh lima: sekitar empat ribu lima ratus hektare tanah gundul dan bangunan, kurang dari setengah angka peta pertama. Bila bekas bukaan yang menghijau ikut dihitung, sekitar enam ribu delapan ratus hektare.",
+    "06-tahun": "Kapan lahan itu dibuka? Dibandingkan dengan dua ribu sembilan belas, pembukaan berlangsung setiap tahun. Menurut AlphaEarth, puncaknya pada dua ribu dua puluh tiga, hampir seribu enam ratus hektare dalam setahun. Pada dua ribu dua puluh lima, lebih dari seribu hektare lagi.",
+    "07-sagea": "Di sekitar Danau Sagea, angkanya jauh lebih kecil. Dalam satu kilometer dari tepi danau, ada empat puluh sampai enam puluh hektare lahan terbuka pada dua ribu dua puluh lima, dan sebagian besar sudah ada sebelum dua ribu sembilan belas. Lonjakan yang tampak pada citra dua ribu dua puluh enam belum tercakup oleh model ini.",
+    "08-tutup": "Pelajarannya: skor tinggi pada data latih sendiri bisa menyesatkan. Tiga ratus titik yang diperiksa dengan teliti memangkas perkiraan lahan terbuka lebih dari separuh. Label ini masih dibuat oleh satu orang dan belum dicek di lapangan."
+  }
+}

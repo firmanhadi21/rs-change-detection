@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "Bian's words for 'Ke Mana Uangnya?' (part 6 of the North Maluku series), one entry per segment of",
+    "jadwalUang.json's urutan. tts_konsesi.py --film uang generates each clip (mp3s gitignored).",
+    "Figures from src/uangData.json (scripts/uang_film_assets.py, from output/malut_forest/welfare/SOURCES.md):",
+    "manufacturing jobs 28,365 (Aug 2018) -> ~164,000 (Feb 2025); park >81,000 workers (company: 75 % North Maluku);",
+    "poverty Halteng 14.12 -> 9.16 %, Haltim 15.39 -> 10.54, Halsel 5.03 -> 4.81, non-mining mean -0.75 pp;",
+    "Halteng PDRB/capita 44.3 -> 871 million Rp (x19.7), household spending x1.71; 2025 spending = 3-5 per 100 of",
+    "production; regency budget 1.84 tn = 3.3 % of PDRB 55 tn; foreign investment 98 % (Q2 2026). No company named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Ini bagian keenam. Ada yang berkata, kerusakan lingkungan adalah harga yang harus dibayar untuk kesejahteraan. Kalau begitu, pertanyaannya sederhana: ke mana uangnya pergi?",
+    "02-manfaat": "Ada manfaat yang nyata. Pekerja industri pengolahan di Maluku Utara naik dari sekitar dua puluh delapan ribu orang pada dua ribu delapan belas, menjadi sekitar seratus enam puluh empat ribu pada awal dua ribu dua puluh lima. Kawasan industri di Teluk Weda saja mempekerjakan lebih dari delapan puluh satu ribu orang, sebagian besar dari Maluku Utara, menurut perusahaan.",
+    "03-miskin": "Kemiskinan juga turun. Di Halmahera Tengah, dari empat belas persen pada dua ribu sembilan belas menjadi sembilan persen pada dua ribu dua puluh lima. Di Halmahera Timur, dari lima belas menjadi sepuluh setengah persen. Penurunan ini jauh lebih cepat daripada di kabupaten tanpa tambang. Tetapi di Halmahera Selatan, tempat smelter Pulau Obi, angkanya hampir tidak berubah.",
+    "04-jurang": "Sekarang bandingkan dua angka. Nilai produksi per penduduk Halmahera Tengah naik hampir dua puluh kali lipat, dari empat puluh empat juta menjadi delapan ratus tujuh puluh satu juta rupiah per tahun. Belanja rumah tangga per orang hanya naik sekitar satu koma tujuh kali. Dari setiap seratus rupiah yang diproduksi di sana, rumah tangga warganya membelanjakan sekitar tiga sampai lima rupiah.",
+    "05-kemana": "Ke mana sisanya? Sembilan puluh delapan persen investasi di Maluku Utara berasal dari luar negeri, dan sebagian smelter mendapat keringanan pajak penghasilan hingga bertahun-tahun. Laba mengalir ke pemilik modal, sebagian besar di luar provinsi. Anggaran Kabupaten Halmahera Tengah sekitar satu koma delapan triliun rupiah, tiga persen dari nilai produksinya.",
+    "06-china": "Tiongkok juga pernah membayar mahal dengan polusi batu bara. Bedanya, pabrik-pabriknya milik sendiri, labanya ditanam kembali di dalam negeri, dan pekerjanya belajar membuat teknologi sendiri. Kekayaan itu kemudian dipakai untuk membersihkan udaranya.",
+    "07-batas": "Angka ini punya batas. Jumlah penduduk Halmahera Tengah menurut BPS dan catatan sipil berbeda jauh, dan survei rumah tangga tidak mencakup sebagian besar pekerja pendatang. Tetapi dengan angka penduduk mana pun, jaraknya tetap besar.",
+    "08-tutup": "Ini bukan menolak pembangunan. Pertanyaannya adalah siapa yang mendapat manfaat, dan siapa yang menanggung biayanya. Di Maluku Utara, produksinya melonjak, tetapi sebagian besar nilainya tidak tinggal di sana."
+  }
+}

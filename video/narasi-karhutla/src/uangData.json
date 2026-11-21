@@ -1,0 +1,186 @@
+{
+ "poverty_change_2019_2025_pp": {
+  "mining": {
+   "Halmahera Tengah": -4.96,
+   "Halmahera Selatan": -0.22,
+   "Halmahera Timur": -4.85
+  },
+  "nonmining": {
+   "Halmahera Barat": -0.69,
+   "Kepulauan Sula": -1.33,
+   "Halmahera Utara": -0.2,
+   "Pulau Morotai": -2.78,
+   "Pulau Taliabu": -0.9,
+   "Kota Ternate": 0.2,
+   "Kota Tidore Kepulauan": 0.44
+  },
+  "nonmining_mean": -0.75,
+  "province": -0.96
+ },
+ "poverty": {
+  "Halmahera Barat": [
+   8.59,
+   7.9
+  ],
+  "Halmahera Tengah": [
+   14.12,
+   9.16
+  ],
+  "Kepulauan Sula": [
+   8.98,
+   7.65
+  ],
+  "Halmahera Selatan": [
+   5.03,
+   4.81
+  ],
+  "Halmahera Utara": [
+   4.55,
+   4.35
+  ],
+  "Halmahera Timur": [
+   15.39,
+   10.54
+  ],
+  "Pulau Morotai": [
+   7.27,
+   4.49
+  ],
+  "Pulau Taliabu": [
+   7.53,
+   6.63
+  ],
+  "Kota Ternate": [
+   3.14,
+   3.34
+  ],
+  "Kota Tidore Kepulauan": [
+   6.1,
+   6.54
+  ]
+ },
+ "poverty_province": [
+  6.77,
+  5.81
+ ],
+ "poor_halteng_thousand": [
+  7.81,
+  5.61
+ ],
+ "halteng_pdrb_cap": {
+  "2017": 36572,
+  "2018": 40518,
+  "2019": 44283,
+  "2020": 58226,
+  "2021": 166922,
+  "2022": 359993,
+  "2023": 479057,
+  "2024": 532124,
+  "2025": 870960
+ },
+ "halteng_spend_month": {
+  "2018": 1194428,
+  "2019": 1297624,
+  "2020": 1461771,
+  "2021": 1287024,
+  "2022": 1318967,
+  "2023": 2051218,
+  "2024": 2227076,
+  "2025": 2216767
+ },
+ "halteng_growth_2019_2025": {
+  "pdrb_cap_x": 19.7,
+  "spend_x": 1.71
+ },
+ "halteng_spend_year_thousand": {
+  "2018": 14333,
+  "2019": 15571,
+  "2020": 17541,
+  "2021": 15444,
+  "2022": 15828,
+  "2023": 24615,
+  "2024": 26725,
+  "2025": 26601
+ },
+ "production_to_spending_2025": {
+  "Halmahera Barat": 1.6,
+  "Halmahera Selatan": 7.1,
+  "Halmahera Timur": 4.1,
+  "Kota Ternate": 2.7,
+  "Halmahera Tengah": 32.7
+ },
+ "halteng_ratio_registry_pop": 19.4,
+ "halteng_spend_per_100_production": [
+  3.1,
+  5.2
+ ],
+ "halteng_ratio_2019": 2.8,
+ "ipm": {
+  "Halmahera Tengah": [
+   68.38,
+   70.94
+  ],
+  "Halmahera Barat": [
+   67.2,
+   69.2
+  ],
+  "Halmahera Timur": [
+   67.7,
+   70.35
+  ],
+  "Halmahera Selatan": [
+   65.88,
+   68.43
+  ],
+  "Maluku Utara": [
+   69.56,
+   71.84
+  ]
+ },
+ "adj_exp_2024": {
+  "Halmahera Tengah": 9140,
+  "Maluku Utara": 9320,
+  "Halmahera Barat": 8426
+ },
+ "manuf_jobs": {
+  "Agu 2018": 28365,
+  "Agu 2020": 31482,
+  "Agu 2022": 116038,
+  "Feb 2025": 163650
+ },
+ "park": {
+  "workers": 81000,
+  "malut_pct": 40,
+  "around_mine_pct": 35
+ },
+ "expenditure_shares": {
+  "2018": {
+   "rumah_tangga": 54.83,
+   "investasi": 27.41
+  },
+  "2022": {
+   "rumah_tangga": 34.91,
+   "investasi": 65.96
+  }
+ },
+ "fiscal": {
+  "apbd_halteng_2026_rp_bn": 1839.03,
+  "pdrb_halteng_2025_rp_bn": 54961,
+  "apbd_share_pct": 3.3,
+  "dbh_halteng_rp_bn": 1100
+ },
+ "pma_share_pct": 98.14,
+ "grades": {
+  "pdrb": "a",
+  "poverty_2019_2025": "a",
+  "spend_halteng": "b",
+  "spend_others_2025": "c",
+  "ipm": "a",
+  "manuf_jobs": "a",
+  "park": "b (company statement)",
+  "apbd": "b",
+  "dbh": "b",
+  "pma": "a",
+  "tax_holiday": "c"
+ }
+}

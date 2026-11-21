@@ -19,6 +19,18 @@ import { PulauFilm } from "./Pulau";
 import { JADWAL_PULAU } from "./jadwalPulau";
 import { HutanFilm, Infografis } from "./Hutan";
 import { JADWAL_HUTAN } from "./jadwalHutan";
+import { PeriksaFilm } from "./Periksa";
+import { JADWAL_PERIKSA } from "./jadwalPeriksa";
+import { InfografisTambang, TambangFilm } from "./Tambang";
+import { JADWAL_TAMBANG } from "./jadwalTambang";
+import { AirFilm, InfografisAir } from "./Air";
+import { JADWAL_AIR } from "./jadwalAir";
+import { BiayaFilm, InfografisBiaya } from "./Biaya";
+import { JADWAL_BIAYA } from "./jadwalBiaya";
+import { InfografisUang, UangFilm } from "./Uang";
+import { JADWAL_UANG } from "./jadwalUang";
+import { ApiFilm, InfografisApi } from "./Api";
+import { JADWAL_API } from "./jadwalApi";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -140,6 +152,82 @@ export const RemotionRoot: React.FC = () => (
       width={JADWAL_HUTAN.en.LEBAR}
       height={JADWAL_HUTAN.en.TINGGI}
     />
+    {/* Eighth piece: checking the Weda Bay / Sagea mining maps against hand labels (Indonesian). */}
+    <Composition
+      id="Periksa"
+      component={PeriksaFilm}
+      durationInFrames={JADWAL_PERIKSA.TOTAL_FRAME}
+      fps={JADWAL_PERIKSA.FPS}
+      width={JADWAL_PERIKSA.LEBAR}
+      height={JADWAL_PERIKSA.TINGGI}
+    />
+    {/* Ninth piece: mining footprint across North Maluku, label-adjusted (Indonesian), plus two infographic pages. */}
+    <Composition
+      id="Tambang"
+      component={TambangFilm}
+      durationInFrames={JADWAL_TAMBANG.TOTAL_FRAME}
+      fps={JADWAL_TAMBANG.FPS}
+      width={JADWAL_TAMBANG.LEBAR}
+      height={JADWAL_TAMBANG.TINGGI}
+    />
+    {([1, 2] as const).map((h) => (
+      <Still key={`tambang${h}`} id={`InfografisTambang${h}`} component={InfografisTambang} defaultProps={{ halaman: h }} width={1080} height={1350} />
+    ))}
+    {/* Tenth piece: part 4 of the North Maluku series, mining and turbidity in Weda Bay and Sagea Lake (Indonesian). */}
+    <Composition
+      id="Air"
+      component={AirFilm}
+      durationInFrames={JADWAL_AIR.TOTAL_FRAME}
+      fps={JADWAL_AIR.FPS}
+      width={JADWAL_AIR.LEBAR}
+      height={JADWAL_AIR.TINGGI}
+    />
+    {([1, 2] as const).map((h) => (
+      <Still key={`air${h}`} id={`InfografisAir${h}`} component={InfografisAir} defaultProps={{ halaman: h }} width={1080} height={1350} />
+    ))}
+    {/* Eleventh piece: part 5 of the North Maluku series, economic value vs environmental costs (Indonesian). */}
+    <Composition
+      id="Biaya"
+      component={BiayaFilm}
+      durationInFrames={JADWAL_BIAYA.TOTAL_FRAME}
+      fps={JADWAL_BIAYA.FPS}
+      width={JADWAL_BIAYA.LEBAR}
+      height={JADWAL_BIAYA.TINGGI}
+    />
+    {([1, 2] as const).map((h) => (
+      <Still key={`biaya${h}`} id={`InfografisBiaya${h}`} component={InfografisBiaya} defaultProps={{ halaman: h }} width={1080} height={1350} />
+    ))}
+    {/* Twelfth piece: part 6 of the North Maluku series, where the nickel money goes (Indonesian). */}
+    <Composition
+      id="Uang"
+      component={UangFilm}
+      durationInFrames={JADWAL_UANG.TOTAL_FRAME}
+      fps={JADWAL_UANG.FPS}
+      width={JADWAL_UANG.LEBAR}
+      height={JADWAL_UANG.TINGGI}
+    />
+    {([1, 2] as const).map((h) => (
+      <Still key={`uang${h}`} id={`InfografisUang${h}`} component={InfografisUang} defaultProps={{ halaman: h }} width={1080} height={1350} />
+    ))}
+    {/* Thirteenth piece: Kalimantan fire 2001-2027 -- carbon, drivers, oil palm, swidden, the 2027 forecast,
+        in Indonesian (Bian) and English (Max), plus two infographic pages per language. */}
+    {(["id", "en"] as const).map((b) => (
+      <Composition
+        key={`api${b}`}
+        id={b === "en" ? "ApiEN" : "Api"}
+        component={ApiFilm}
+        defaultProps={{ bahasa: b }}
+        durationInFrames={JADWAL_API[b].TOTAL_FRAME}
+        fps={JADWAL_API[b].FPS}
+        width={JADWAL_API[b].LEBAR}
+        height={JADWAL_API[b].TINGGI}
+      />
+    ))}
+    {(["id", "en"] as const).flatMap((b) =>
+      ([1, 2] as const).map((h) => (
+        <Still key={`api${b}${h}`} id={`InfografisApi${b === "en" ? "EN" : ""}${h}`} component={InfografisApi} defaultProps={{ bahasa: b, halaman: h }} width={1080} height={1350} />
+      )),
+    )}
     {(["id", "en"] as const).flatMap((b) =>
       ([1, 2] as const).map((h) => (
         <Still key={`${b}${h}`} id={`Infografis${b === "en" ? "EN" : ""}${h}`} component={Infografis} defaultProps={{ bahasa: b, halaman: h }} width={1080} height={1350} />

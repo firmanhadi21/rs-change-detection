@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "Schedule for 'Harga di Balik Nikel' (part 5: economic value vs environmental costs).",
+    "durasi is written by tts_konsesi.py --film biaya from ffprobe of the normalised mp3s;",
+    "bake_musik_bukti.py --jadwal reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 4.0,
+  "tutup_detik": 7.0,
+  "urutan": [
+    "01-buka",
+    "02-nilai",
+    "03-cahaya",
+    "04-batubara",
+    "05-co2",
+    "06-hutan",
+    "07-siapa",
+    "08-tutup"
+  ],
+  "durasi": {
+    "01-buka": 12.08,
+    "02-nilai": 14.08,
+    "03-cahaya": 11.84,
+    "04-batubara": 18.8,
+    "05-co2": 26.08,
+    "06-hutan": 15.52,
+    "07-siapa": 17.52,
+    "08-tutup": 12.96
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}

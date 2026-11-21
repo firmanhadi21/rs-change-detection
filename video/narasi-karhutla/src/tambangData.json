@@ -1,0 +1,254 @@
+{
+ "sel_ha": 34182,
+ "titik": 150,
+ "cek": {
+  "open": {
+   "terbuka": 60,
+   "terganggu": 0,
+   "vegetasi": 0,
+   "n": 60
+  },
+  "disturbed": {
+   "terbuka": 15,
+   "terganggu": 14,
+   "vegetasi": 11,
+   "n": 40
+  },
+  "other": {
+   "terbuka": 1,
+   "terganggu": 4,
+   "vegetasi": 45,
+   "n": 50
+  }
+ },
+ "total": {
+  "peta_terbuka": 10758,
+  "peta_plus": 12640,
+  "terbuka": [
+   11884,
+   873
+  ],
+  "plus": [
+   14226,
+   1787
+  ]
+ },
+ "kabupaten": [
+  {
+   "nama": "Halmahera Tengah",
+   "sel": 11568,
+   "peta_terbuka": 4666,
+   "peta_plus": 5410,
+   "terbuka": [
+    5068,
+    267
+   ],
+   "plus": [
+    5821,
+    528
+   ],
+   "tahun": [
+    1841,
+    385,
+    457,
+    854,
+    1141,
+    615,
+    527
+   ]
+  },
+  {
+   "nama": "Halmahera Selatan",
+   "sel": 6464,
+   "peta_terbuka": 3736,
+   "peta_plus": 4190,
+   "terbuka": [
+    3951,
+    113
+   ],
+   "plus": [
+    4292,
+    201
+   ],
+   "tahun": [
+    2226,
+    170,
+    153,
+    243,
+    559,
+    432,
+    510
+   ]
+  },
+  {
+   "nama": "Halmahera Timur",
+   "sel": 11126,
+   "peta_terbuka": 1946,
+   "peta_plus": 2456,
+   "terbuka": [
+    2310,
+    349
+   ],
+   "plus": [
+    3183,
+    732
+   ],
+   "tahun": [
+    1720,
+    142,
+    149,
+    154,
+    330,
+    322,
+    366
+   ]
+  },
+  {
+   "nama": "Pulau Taliabu",
+   "sel": 2684,
+   "peta_terbuka": 245,
+   "peta_plus": 359,
+   "terbuka": [
+    334,
+    93
+   ],
+   "plus": [
+    560,
+    196
+   ],
+   "tahun": [
+    321,
+    17,
+    34,
+    70,
+    44,
+    31,
+    42
+   ]
+  },
+  {
+   "nama": "Halmahera Utara",
+   "sel": 1716,
+   "peta_terbuka": 82,
+   "peta_plus": 121,
+   "terbuka": [
+    129,
+    63
+   ],
+   "plus": [
+    270,
+    134
+   ],
+   "tahun": [
+    222,
+    6,
+    7,
+    10,
+    12,
+    6,
+    7
+   ]
+  },
+  {
+   "nama": "Halmahera Barat",
+   "sel": 120,
+   "peta_terbuka": 84,
+   "peta_plus": 104,
+   "terbuka": [
+    91,
+    3
+   ],
+   "plus": [
+    100,
+    3
+   ],
+   "tahun": [
+    90,
+    0,
+    0,
+    1,
+    1,
+    3,
+    4
+   ]
+  }
+ ],
+ "tahun": [
+  "≤ 2019",
+  "2020",
+  "2021",
+  "2022",
+  "2023",
+  "2024",
+  "2025"
+ ],
+ "tahun_peta": [
+  4758,
+  725,
+  801,
+  1340,
+  2099,
+  1419,
+  1499
+ ],
+ "tahun_plus": [
+  6420,
+  721,
+  801,
+  1333,
+  2088,
+  1409,
+  1456
+ ],
+ "tahun_terbuka": [
+  4474,
+  707,
+  782,
+  1299,
+  2012,
+  1359,
+  1252
+ ],
+ "zoom": {
+  "Halmahera Tengah": [
+   129.3321,
+   -0.1137,
+   129.4521,
+   -0.0057
+  ],
+  "Halmahera Selatan": [
+   127.368,
+   -1.6088,
+   127.488,
+   -1.5008
+  ],
+  "Halmahera Timur": [
+   127.9723,
+   0.7269,
+   128.0923,
+   0.8349
+  ]
+ },
+ "chips": [
+  {
+   "id": "m003",
+   "peta": "open",
+   "label": "built"
+  },
+  {
+   "id": "m001",
+   "peta": "disturbed",
+   "label": "bare"
+  },
+  {
+   "id": "m008",
+   "peta": "disturbed",
+   "label": "shrub"
+  },
+  {
+   "id": "m002",
+   "peta": "other",
+   "label": "forest"
+  }
+ ]
+}

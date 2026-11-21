@@ -33,11 +33,11 @@ _ap.add_argument("--bahasa", choices=["id", "en"], default="id")
 # public/audio/radar[-en]/
 # --film pulau: Part 4 ("Benarkah Sawit Membakar Kalimantan?") -- src/narasiPulau.json,
 # src/jadwalPulau.json, public/audio/pulau[-en]/
-_ap.add_argument("--film", choices=["konsesi", "telusur", "radar", "pulau", "hutan"], default="konsesi")  # hutan: North Maluku forests
+_ap.add_argument("--film", choices=["konsesi", "telusur", "radar", "pulau", "hutan", "periksa", "tambang", "air", "biaya", "uang", "api"], default="konsesi")  # hutan: North Maluku forests; periksa: checking the Weda map
 _A = _ap.parse_args()
 _B = _A.bahasa
 _SUF = "" if _B == "id" else "EN"
-_NAMA = {"konsesi": "Konsesi", "telusur": "Telusur", "radar": "Radar", "pulau": "Pulau", "hutan": "Hutan"}[_A.film]
+_NAMA = {"konsesi": "Konsesi", "telusur": "Telusur", "radar": "Radar", "pulau": "Pulau", "hutan": "Hutan", "periksa": "Periksa", "tambang": "Tambang", "air": "Air", "biaya": "Biaya", "uang": "Uang", "api": "Api"}[_A.film]
 N = json.loads((AKAR / f"src/narasi{_NAMA}{_SUF}.json").read_text())
 JP = AKAR / f"src/jadwal{_NAMA}{_SUF}.json"
 J = json.loads(JP.read_text())

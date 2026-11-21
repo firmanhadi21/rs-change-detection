@@ -17,7 +17,15 @@
     "build:pulau-en": "remotion render PulauEN out/pulau-karhutla-en.mp4",
     "build:hutan": "remotion render Hutan out/hutan-malut.mp4",
     "build:hutan-en": "remotion render HutanEN out/hutan-malut-en.mp4",
-    "build:infografis": "remotion still Infografis1 out/Infografis1.png && remotion still Infografis2 out/Infografis2.png && remotion still InfografisEN1 out/InfografisEN1.png && remotion still InfografisEN2 out/InfografisEN2.png"
+    "build:periksa": "remotion render Periksa out/periksa-tambang.mp4",
+    "build:uang": "remotion render Uang out/ke-mana-uangnya.mp4 && remotion still InfografisUang1 out/InfografisUang1.png && remotion still InfografisUang2 out/InfografisUang2.png",
+    "build:biaya": "remotion render Biaya out/harga-nikel.mp4 && remotion still InfografisBiaya1 out/InfografisBiaya1.png && remotion still InfografisBiaya2 out/InfografisBiaya2.png",
+    "build:air": "remotion render Air out/jejak-perairan.mp4 && remotion still InfografisAir1 out/InfografisAir1.png && remotion still InfografisAir2 out/InfografisAir2.png",
+    "build:tambang": "remotion render Tambang out/jejak-tambang.mp4 && remotion still InfografisTambang1 out/InfografisTambang1.png && remotion still InfografisTambang2 out/InfografisTambang2.png",
+    "build:infografis": "remotion still Infografis1 out/Infografis1.png && remotion still Infografis2 out/Infografis2.png && remotion still InfografisEN1 out/InfografisEN1.png && remotion still InfografisEN2 out/InfografisEN2.png",
+    "build:api": "remotion render Api out/api-gambut-sawit.mp4 && remotion still InfografisApi1 out/InfografisApi1.png && remotion still InfografisApi2 out/InfografisApi2.png",
+    "build:api-en": "remotion render ApiEN out/api-gambut-sawit-en.mp4 && remotion still InfografisApiEN1 out/InfografisApiEN1.png && remotion still InfografisApiEN2 out/InfografisApiEN2.png",
+    "build:infografis-api": "remotion still InfografisApi1 out/InfografisApi1.png && remotion still InfografisApi2 out/InfografisApi2.png && remotion still InfografisApiEN1 out/InfografisApiEN1.png && remotion still InfografisApiEN2 out/InfografisApiEN2.png"
   },
   "dependencies": {
     "@remotion/cli": "4.0.410",

@@ -63,6 +63,8 @@ const TEKS_ID = {
   sumberTambang: "Sel 1 km yang pemicu dominannya tambang/energi (WRI/Google v1.2); tahun dari Hansen GFC v1.13",
   alisWeda: "Teluk Weda, Halmahera Tengah",
   lahanTerbuka: "Lahan terbuka (tanah gundul + bangunan)",
+  catatanWeda:
+    "Hitungan mentah Dynamic World untuk seluruh kotak, termasuk kawasan industri. Setelah dicek dengan label, lahan terbuka di inti Teluk Weda (area lebih kecil) sekitar 4.500 ha pada 2025 — lihat film “Memeriksa Peta Tambang Nikel”.",
   sumberWeda: "Citra: Landsat 5/7/8/9 (USGS), komposit median 2 tahun berakhir pada tahun tertera · lahan terbuka: Dynamic World, modus tahunan, 2026 = Jan–Nov · kotak 55 × 50 km",
   alisSagea: "Danau Sagea, Halmahera Tengah",
   danau: "Danau Sagea",
@@ -125,6 +127,8 @@ const TEKS_EN: Teks = {
   sumberTambang: "1 km cells whose dominant driver is mining/energy (WRI/Google v1.2); year of loss from Hansen GFC v1.13",
   alisWeda: "Weda Bay, Central Halmahera",
   lahanTerbuka: "Open ground (bare earth + buildings)",
+  catatanWeda:
+    "Raw Dynamic World count for the whole box, industrial park included. Checked against hand labels, open ground in the Weda Bay core (a smaller area) was about 4,500 ha in 2025 — see the follow-up film “Memeriksa Peta Tambang Nikel”.",
   sumberWeda: "Imagery: Landsat 5/7/8/9 (USGS), 2-year median ending in the year shown · open ground: Dynamic World annual mode, 2026 = Jan–Nov · box 55 × 50 km",
   alisSagea: "Sagea Lake, Central Halmahera",
   danau: "Sagea Lake",
@@ -171,8 +175,8 @@ const Angka: React.FC<{ anak: string; ukuran?: number; warnaA?: string }> = ({ a
   <div style={{ ...angkaGaya, fontSize: ukuran, fontWeight: 600, color: warnaA, lineHeight: 1 }}>{anak}</div>
 );
 
-const Garis: React.FC<{ anak: string; tampil: number; lebar?: number }> = ({ anak, tampil, lebar = 620 }) => (
-  <div style={{ borderLeft: `3px solid ${warna.bara}`, paddingLeft: 18, fontFamily: tubuhFont, fontSize: 26, color: warna.kapur, lineHeight: 1.35, maxWidth: lebar, opacity: tampil }}>
+const Garis: React.FC<{ anak: string; tampil: number; lebar?: number; ukuran?: number }> = ({ anak, tampil, lebar = 620, ukuran = 26 }) => (
+  <div style={{ borderLeft: `3px solid ${warna.bara}`, paddingLeft: 18, fontFamily: tubuhFont, fontSize: ukuran, color: warna.kapur, lineHeight: 1.35, maxWidth: lebar, opacity: tampil }}>
     {anak}
   </div>
 );
@@ -470,6 +474,9 @@ const Weda: React.FC<{ panjang: number }> = ({ panjang }) => {
             label={(i) => (OG_TAHUN[i] === 2019 || OG_TAHUN[i] === 2026 ? `${ribuan(nilai[i])}` : null)}
           />
           <div style={{ fontFamily: tubuhFont, fontSize: 20, color: warna.samar }}>{T.ha}</div>
+          <div style={{ marginTop: 22 }}>
+            <Garis anak={T.catatanWeda} tampil={masuk(f, Math.round(panjang * 0.74), 22)} lebar={620} ukuran={21} />
+          </div>
         </div>
       </Kolom>
     </Lembut>
@@ -721,6 +728,7 @@ export const Infografis: React.FC<{ bahasa?: Bahasa; halaman?: 1 | 2 }> = ({ bah
         <div style={{ ...kecil, color: warna.kapur, fontSize: 22, marginTop: 10 }}>
           {T.lahanTerbuka}: <span style={{ ...angkaGaya }}>{ribuan(og["2019"])} ha</span> (2019) → <span style={{ ...angkaGaya, color: warna.bara, fontWeight: 600 }}>{ribuan(og["2026"])} ha</span> (2026)
         </div>
+        <div style={{ ...kecil, fontSize: 18, marginTop: 6 }}>{T.catatanWeda}</div>
       </Kotak>
       <Kotak judul={T.alisSagea}>
         <Pasang folder="sagea" a={2025} b={2026} tinggi={262} potong={[0.32, 0.3, 0.78, 0.64]} />

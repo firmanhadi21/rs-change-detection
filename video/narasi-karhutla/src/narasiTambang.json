@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Bian's words for the standalone film 'Jejak Tambang di Maluku Utara', one entry per segment of",
+    "jadwalTambang.json's urutan. tts_konsesi.py --film tambang generates each clip (mp3s gitignored).",
+    "Every figure is from src/tambangData.json (scripts/tambang_film_assets.py, from",
+    "output/malut_forest/mining_malut/): WRI/Google mining cells 34,182 ha of land; 150 check points outside",
+    "Weda/Sagea: 60/60 map-open labelled bare or built, 15/40 map-disturbed labelled bare; label-adjusted 2025",
+    "11,884 +- 873 ha open, 14,226 +- 1,787 with disturbed; regencies Tengah 5,821, Selatan 4,292, Timur 3,183;",
+    "by first change year peak 2023 2,088 ha, 2025 1,456 ha; Tengah 1,141 -> 527 (2023 -> 2025),",
+    "Selatan 559 / 432 / 510, Timur 154 -> 366 (2022 -> 2025). One labeller; no field check. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Peta penyebab hilangnya hutan dari World Resources Institute dan Google menandai petak-petak satu kilometer tempat hutan hilang terutama karena tambang. Di Maluku Utara, luas daratan petak-petak itu sekitar tiga puluh empat ribu hektare, hampir semuanya di Halmahera dan pulau-pulau di sekitarnya. Berapa yang kini benar-benar menjadi tanah terbuka?",
+    "02-model": "Untuk menjawabnya, kami memakai model yang dilatih di Teluk Weda dari tiga ratus titik yang dilabeli secara visual. Model ini membaca AlphaEarth, ringkasan citra satelit setahun penuh, lalu memilah setiap petak sepuluh meter: tanah terbuka, lahan terganggu yang mulai menghijau, atau lainnya.",
+    "03-cek": "Tetapi apakah model dari Teluk Weda bekerja di tempat lain? Seratus lima puluh titik acak di luar Weda diperiksa secara visual. Keenam puluh titik yang disebut terbuka memang tanah gundul atau bangunan. Kesalahannya justru ke arah sebaliknya: lima belas dari empat puluh titik yang disebut terganggu ternyata masih gundul.",
+    "04-luas": "Setelah dikoreksi dengan label itu, tanah gundul dan bangunan di dalam petak tambang pada dua ribu dua puluh lima mencapai sekitar sebelas ribu sembilan ratus hektare. Bila bekas bukaan yang mulai menghijau ikut dihitung, sekitar empat belas ribu dua ratus hektare, sedikit lebih besar dari angka peta.",
+    "05-kabupaten": "Hampir semuanya berada di tiga kabupaten. Halmahera Tengah, tempat Teluk Weda, sekitar lima ribu delapan ratus hektare. Halmahera Selatan sekitar empat ribu tiga ratus. Halmahera Timur sekitar tiga ribu dua ratus.",
+    "06-tahun": "Kapan lahan itu dibuka? Dibandingkan dengan dua ribu sembilan belas, pembukaan terjadi setiap tahun. Puncaknya pada dua ribu dua puluh tiga, sekitar dua ribu seratus hektare dalam setahun. Pada dua ribu dua puluh lima, masih hampir seribu lima ratus hektare.",
+    "07-geser": "Dan polanya bergeser. Di Halmahera Tengah, pembukaan memuncak pada dua ribu dua puluh tiga, lalu menurun. Di Halmahera Selatan, angkanya tetap tinggi. Di Halmahera Timur, pembukaan terus naik sampai dua ribu dua puluh lima.",
+    "08-tutup": "Angka ini kemungkinan masih di bawah kenyataan. Petak tambang hanya menandai hutan yang hilang karena tambang sampai dua ribu dua puluh empat, sehingga tambang di lahan yang bukan hutan dan bukaan yang lebih baru belum terhitung. Label dibuat oleh satu orang dan belum dicek di lapangan."
+  }
+}
