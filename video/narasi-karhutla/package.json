@@ -28,7 +28,10 @@
     "build:infografis-api": "remotion still InfografisApi1 out/InfografisApi1.png && remotion still InfografisApi2 out/InfografisApi2.png && remotion still InfografisApiEN1 out/InfografisApiEN1.png && remotion still InfografisApiEN2 out/InfografisApiEN2.png",
     "build:infografis-sawit": "remotion still InfografisSawit out/InfografisSawit.png && remotion still InfografisSawitEN out/InfografisSawitEN.png",
     "build:sawit": "remotion render Sawit out/sawit-berikutnya.mp4",
-    "build:sawit-en": "remotion render SawitEN out/sawit-berikutnya-en.mp4"
+    "build:sawit-en": "remotion render SawitEN out/sawit-berikutnya-en.mp4",
+    "build:sawit2030": "remotion render Sawit2030 out/sawit-2030.mp4",
+    "build:sawit2030-en": "remotion render Sawit2030EN out/sawit-2030-en.mp4",
+    "build:infografis-sawit2030": "remotion still InfografisSawit2030 out/InfografisSawit2030.png && remotion still InfografisSawit2030EN out/InfografisSawit2030EN.png"
   },
   "dependencies": {
     "@remotion/cli": "4.0.410",

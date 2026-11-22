@@ -77,6 +77,32 @@ checked on 50 km blocks and on 2014–2019 conversions it never saw. Palm plante
 the forest-zone map is from 2017 and mapped concessions from about 2012; the map shows likelihood, not plans or
 actors. No company is named.
 
+## Sawit2030 — Kalimantan's oil palm in 2030, three scenarios (standalone, Indonesian + English)
+
+`Sawit2030` / `Sawit2030EN` ("Sawit Kalimantan 2030: Tiga Skenario" / "Kalimantan's Oil Palm in 2030",
+about 2 min 35 s each; Indonesian read by Bian, English by Max) and one infographic page per language,
+`InfografisSawit2030` / `InfografisSawit2030EN` (1080 × 1350): new oil palm 2022–2030 if the 2017–19 pace
+continues (slow), if it returns to the 2011–16 pace (boom), or at the slow pace with the forest estate closed
+(APL, HPK and land outside the forest-area map only); how much of it lands in intact forest, on peat, in
+Production Forest and in the most fire-prone land; and the model test against cellular automata and
+ANN + CA-Markov (figure of merit), including the Markov chain's over-prediction of 2016–19.
+
+```
+~/miniforge3/bin/python -I ../../scripts/sawit2030_assets.py       # public/sawit2030/, src/sawit2030Data.json
+uv run --no-project --with elevenlabs python3 tts_konsesi.py --film sawit2030 [--bahasa en]   # narration + jadwalSawit2030[EN].json
+python3 bake_musik_bukti.py --jadwal src/jadwalSawit2030.json \
+    --keluar public/audio/sawit2030/musik-sawit2030.mp3 --sambung 70   # and jadwalSawit2030EN.json -> sawit2030-en/musik-sawit2030-en.mp3
+npm run build:sawit2030 && npm run build:sawit2030-en              # build:infografis-sawit2030 for the two pages
+```
+
+Figures come from `output/fire/kalimantan_palm_panel/palm_dynamic_forecast.json`, `palm_dynamic_2030.tif`
+(scripts/kalimantan_palm_expansion.py --stage dynamic: the version-1 model stepped forward in 3-year periods
+from the end of 2021, closeness to palm recomputed at each step) and `palm_ca*_calibration.json`
+(scripts/kalimantan_palm_ca.py). Map layers are drawn as the share of each display pixel that is palm, with the
+same opacity gain for old and new palm, so areas read true. Forest and fire are held at their 2021 state; maps
+beyond 2025 show direction, not parcels; palm planted in 2020–2021 is under-detected; the forest-zone map is
+from 2017. No company is named.
+
 ## Periksa — checking the nickel-mining maps (standalone, Indonesian)
 
 `Periksa` ("Memeriksa Peta Tambang Nikel", about 3 min 8 s, read by Bian): the

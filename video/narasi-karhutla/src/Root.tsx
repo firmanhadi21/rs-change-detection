@@ -33,6 +33,8 @@ import { ApiFilm, InfografisApi } from "./Api";
 import { InfografisSawit, SawitFilm } from "./Sawit";
 import { JADWAL_API } from "./jadwalApi";
 import { JADWAL_SAWIT } from "./jadwalSawit";
+import { InfografisSawit2030, Sawit2030Film } from "./Sawit2030";
+import { JADWAL_SAWIT2030 } from "./jadwalSawit2030";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -241,6 +243,23 @@ export const RemotionRoot: React.FC = () => (
     ))}
     {(["id", "en"] as const).map((b) => (
       <Still key={`sawit${b}`} id={`InfografisSawit${b === "en" ? "EN" : ""}`} component={InfografisSawit} defaultProps={{ bahasa: b }} width={1080} height={1350} />
+    ))}
+    {/* Fifteenth piece: Kalimantan's oil palm in 2030 -- three scenarios (slow, boom, APL/HPK only) from the
+        version-1 model stepped forward in 3-year periods, plus the model test; ID (Bian) and EN (Max). */}
+    {(["id", "en"] as const).map((b) => (
+      <Composition
+        key={`sawit2030film${b}`}
+        id={b === "en" ? "Sawit2030EN" : "Sawit2030"}
+        component={Sawit2030Film}
+        defaultProps={{ bahasa: b }}
+        durationInFrames={JADWAL_SAWIT2030[b].TOTAL_FRAME}
+        fps={JADWAL_SAWIT2030[b].FPS}
+        width={JADWAL_SAWIT2030[b].LEBAR}
+        height={JADWAL_SAWIT2030[b].TINGGI}
+      />
+    ))}
+    {(["id", "en"] as const).map((b) => (
+      <Still key={`sawit2030${b}`} id={`InfografisSawit2030${b === "en" ? "EN" : ""}`} component={InfografisSawit2030} defaultProps={{ bahasa: b }} width={1080} height={1350} />
     ))}
     {(["id", "en"] as const).flatMap((b) =>
       ([1, 2] as const).map((h) => (

@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Max's words for 'Kalimantan's Oil Palm in 2030: Three Scenarios', one entry per segment of jadwalSawit2030EN.json.",
+    "Same figures as narasiSawit2030.json, all from src/sawit2030Data.json. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "Gfpl8Yo74Is0W6cPUWWT",
+  "teks": {
+    "01-buka": "By twenty thirty, how much new oil palm will Kalimantan have, and where? The same model behind our earlier map now runs forward, three years at a time. At each step, new palm goes onto the land most at risk, and the map is updated.",
+    "02-skenario": "How much depends on the pace. If the slow pace of twenty seventeen to nineteen continues, about eight hundred and seventy square kilometres a year, Kalimantan gains around seven thousand eight hundred square kilometres of new palm. If it returns to the boom of twenty eleven to sixteen, about three thousand one hundred a year, the total reaches twenty-eight thousand.",
+    "03-lambat": "In the slow scenario, new palm grows at the edges of existing plantations. More than half is on APL land, but twenty-seven percent is in Production Forest. Less than five percent goes into intact forest, and almost nine percent onto peat.",
+    "04-ledakan": "In the boom scenario, the open land near plantations runs out, and palm starts moving into forest. Almost fifteen percent of new palm lands in forest that was still intact, about four thousand two hundred square kilometres, and nearly twelve percent on peat. A third sits on the land with the highest fire risk in an El Niño year.",
+    "05-legal": "The third scenario allows new palm only on APL land and convertible production forest. No new palm reaches Production Forest. But with less room, the share that goes into intact forest rises to eight percent. In the model, limiting the zones alone does not protect the forest.",
+    "06-uji": "Can it be trusted? On past data, this model placed new palm more accurately than cellular automata, including the widely used neural-network and Markov-chain version. A Markov chain trained on twenty thirteen to sixteen even predicted three and a half times too much new palm, because the pace suddenly slowed.",
+    "07-tutup": "The maps to twenty thirty show direction, not parcels. Forest and fire are held as they were in twenty twenty-one. But the message is clear: the pace of clearing decides whether intact forest and peat are opened too, and zoning limits alone do not protect them."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "Bian's words for 'Sawit Kalimantan 2030: Tiga Skenario', one entry per segment of jadwalSawit2030.json.",
+    "Every figure is from src/sawit2030Data.json (scripts/sawit2030_assets.py, from",
+    "output/fire/kalimantan_palm_panel/palm_dynamic_forecast.json and palm_ca*_calibration.json):",
+    "slow 867 km2/yr -> 7,802 km2 by 2030 (APL 53.9%, HP 27.2%, intact forest 4.6%, peat 8.7%);",
+    "boom 3,124 km2/yr -> 28,115 km2 (intact 14.9% = 4,189 km2, peat 11.9%, top-10% fire risk 34.4%);",
+    "legal (APL, HPK, outside the forest-area map) 7,802 km2: HP 0%, APL 86.1%, intact 8.3% (648 vs 359 km2 slow);",
+    "figure of merit 2016-2019: static 0.193, CA 0.083, ANN + CA-Markov 0.082; Markov 2013-16 matrix predicted",
+    "3.5x the 2016-19 conversions. Numbers are spelled out so the voice does not misread them. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Sampai dua ribu tiga puluh, berapa banyak kebun sawit baru di Kalimantan, dan di mana? Model yang sama dengan peta sebelumnya kini dijalankan maju, tiga tahun sekali. Setiap langkah, sawit baru ditempatkan di lahan yang paling berisiko, lalu petanya diperbarui.",
+    "02-skenario": "Luasnya bergantung pada laju. Jika laju lambat seperti tahun dua ribu tujuh belas sampai sembilan belas berlanjut, sekitar delapan ratus tujuh puluh kilometer persegi per tahun, akan ada sekitar tujuh ribu delapan ratus kilometer persegi sawit baru. Jika laju kembali seperti masa ledakan dua ribu sebelas sampai enam belas, sekitar tiga ribu seratus per tahun, totalnya dua puluh delapan ribu.",
+    "03-lambat": "Dalam skenario lambat, sawit baru tumbuh di tepi kebun yang sudah ada. Separuh lebih di APL, tetapi dua puluh tujuh persen di Hutan Produksi. Kurang dari lima persen masuk hutan yang masih utuh, dan hampir sembilan persen di gambut.",
+    "04-ledakan": "Dalam skenario ledakan, lahan terbuka di dekat kebun habis, dan sawit mulai masuk ke hutan. Hampir lima belas persen sawit baru berada di hutan yang masih utuh, sekitar empat ribu dua ratus kilometer persegi, dan hampir dua belas persen di gambut. Sepertiganya berada di lahan dengan risiko kebakaran tertinggi saat El Niño.",
+    "05-legal": "Skenario ketiga: sawit baru hanya boleh di APL dan Hutan Produksi Konversi. Tidak ada lagi sawit baru di Hutan Produksi. Tetapi karena ruangnya lebih sempit, bagian yang masuk hutan utuh justru naik menjadi delapan persen. Menurut model, membatasi status kawasan saja tidak cukup untuk melindungi hutan.",
+    "06-uji": "Seberapa bisa dipercaya? Pada data lama, model ini menempatkan sawit baru lebih tepat daripada otomata seluler, termasuk versi jaringan saraf dengan rantai Markov yang umum dipakai. Rantai Markov yang dilatih pada dua ribu tiga belas sampai enam belas bahkan memperkirakan sawit baru tiga setengah kali terlalu banyak, karena lajunya tiba-tiba melambat.",
+    "07-tutup": "Peta sampai dua ribu tiga puluh menunjukkan arah, bukan petak. Hutan dan api dianggap tetap seperti tahun dua ribu dua puluh satu. Tetapi pesannya jelas: laju pembukaan menentukan apakah hutan utuh dan gambut ikut terbuka, dan batas status kawasan saja tidak menjaganya."
+  }
+}

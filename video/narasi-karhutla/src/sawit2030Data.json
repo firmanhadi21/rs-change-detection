@@ -1,0 +1,85 @@
+{
+ "years": [
+  2022,
+  2030
+ ],
+ "scenarios": {
+  "slow": {
+   "per_yr_km2": 867,
+   "total_km2": 7802,
+   "by_period_km2": [
+    2601,
+    2601,
+    2601
+   ],
+   "peat_pct": 8.7,
+   "intact_pct": 4.6,
+   "outside_conc_pct": 64.3,
+   "fire_top10_pct": 30.8,
+   "apl_pct": 53.9,
+   "hp_pct": 27.2,
+   "kawasan_pct": 37.6,
+   "same_cells_as_ca_pct": 39.5,
+   "intact_km2": 359,
+   "peat_km2": 679
+  },
+  "boom": {
+   "per_yr_km2": 3124,
+   "total_km2": 28115,
+   "by_period_km2": [
+    9372,
+    9372,
+    9372
+   ],
+   "peat_pct": 11.9,
+   "intact_pct": 14.9,
+   "outside_conc_pct": 66.6,
+   "fire_top10_pct": 34.4,
+   "apl_pct": 53.5,
+   "hp_pct": 25.3,
+   "kawasan_pct": 36.0,
+   "same_cells_as_ca_pct": 56.4,
+   "intact_km2": 4189,
+   "peat_km2": 3346
+  },
+  "legal": {
+   "per_yr_km2": 867,
+   "total_km2": 7802,
+   "by_period_km2": [
+    2601,
+    2601,
+    2601
+   ],
+   "peat_pct": 8.2,
+   "intact_pct": 8.3,
+   "outside_conc_pct": 58.1,
+   "fire_top10_pct": 31.2,
+   "apl_pct": 86.1,
+   "hp_pct": 0.0,
+   "kawasan_pct": 0.0,
+   "same_cells_as_ca_pct": 46.5,
+   "intact_km2": 648,
+   "peat_km2": 640
+  }
+ },
+ "test_2010_2016": {
+  "one_shot": 0.3846,
+  "stepped": 0.3627,
+  "ca": 0.3052,
+  "stepped_second_period": 0.0909
+ },
+ "test_2016_2019": {
+  "static": 0.1927,
+  "ca": 0.0829,
+  "ann_ca_markov": 0.0816,
+  "random": 0.0027
+ },
+ "markov_error_pct": 247.9,
+ "markov_ratio": 3.5,
+ "warna": {
+  "palm": "#6B7480",
+  "p1": "#2E9E63",
+  "p2": "#3FBF7F",
+  "p3": "#A6E8C3"
+ }
+}
