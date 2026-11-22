@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Max's words for 'Where Will Oil Palm Go Next?', one entry per segment of jadwalSawitEN.json.",
+    "Same figures as narasiSawit.json, all from src/sawitData.json. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "Gfpl8Yo74Is0W6cPUWWT",
+  "teks": {
+    "01-buka": "Oil palm in Kalimantan keeps spreading. So where will the next plantations be opened? A model trained on twenty years of satellite data maps the land most likely to become oil palm within three years.",
+    "02-laju": "The pace has slowed. Between twenty eleven and twenty thirteen, about ten thousand square kilometres became oil palm. Between twenty seventeen and twenty nineteen, only two thousand six hundred. For twenty twenty-two to twenty twenty-four, the model expects just under two thousand four hundred.",
+    "03-faktor": "What decides where it goes? Far ahead of everything else: closeness to existing plantations. Next comes the state of the forest, because most of what gets converted is open land or damaged forest, then access and terrain. Forest-zone status, such as APL, adds almost nothing. Neither does fire history: fires burn when land is cleared, but they give no warning years in advance.",
+    "04-uji": "Can the model be trusted? It was trained only on data up to twenty ten, then tested on the years after. The ten percent of land it ranked riskiest held ninety-five percent of new oil palm in twenty fourteen to sixteen, and ninety-one percent in twenty seventeen to nineteen. Distance to plantations alone caught only about eighty percent.",
+    "05-peta": "Here is the map. Green marks the riskiest ten percent of land. Eighty-nine percent of it lies within five kilometres of existing plantations. More than half of the expected new oil palm falls outside mapped concessions, and about six hundred square kilometres lies in Production Forest, where permits need checking.",
+    "06-api": "Now add the fire risk for an El Niño year in twenty twenty-seven. Mostly, the two do not overlap. But about fifteen thousand square kilometres fall in both: a third of the high palm-risk land, half of it APL. That is where fire prevention and permit checks matter most.",
+    "07-tutup": "This map shows likelihood, not plans, and not who is responsible. Oil palm planted in twenty twenty and twenty twenty-one is not yet fully detected, and the forest-zone map dates from twenty seventeen. But the pattern is clear: the next oil palm is most likely to grow right next to the oil palm already there."
+  }
+}

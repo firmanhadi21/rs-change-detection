@@ -5,7 +5,10 @@ scripts/kalimantan_fire_factors.py (forecast stage) and writes:
 
   public/sawit/peta_sawit_ig.jpg   palm by 2021, top 10% palm-conversion risk, top 10% El Nino 2027 fire
                                    risk, and their overlap, Kalimantan, dark style of the fire films
-  src/sawitData.json               every figure the infographic shows
+  public/sawit/film_dasar.jpg      1920x1080 base map for the film (land, Malaysia), map in the right ~60%
+  public/sawit/film_<layer>.png    transparent layers on the same frame: sawit (palm by 2021), risiko (top 10%
+                                   palm-conversion risk), api (top 10% fire risk only), keduanya (overlap)
+  src/sawitData.json               every figure the infographic and the film show
 
     ~/miniforge3/bin/python -I scripts/sawit_infografis_assets.py
 """
@@ -126,6 +129,37 @@ def peta():
     fig.savefig(os.path.join(PUB, "peta_sawit_ig.jpg"), facecolor=JELAGA, pil_kwargs={"quality": 92})
     plt.close(fig)
     print(f"  peta_sawit_ig.jpg ({W}x{H} cells -> {int(9.72 * 100)}x{int(9.72 * 100 * H / W)} px)")
+
+    # film: one base and four transparent layers on an identical 1920x1080 frame
+    def kanvas(transparan):
+        f = plt.figure(figsize=(19.2, 10.8), dpi=100, facecolor="none" if transparan else JELAGA)
+        a = f.add_axes([0.42, 0.095, 0.56, 0.79])     # clear of the header rule and the source line
+        a.set_facecolor("none" if transparan else JELAGA)
+        return f, a
+
+    def batas(a):
+        a.set_xlim(EXTENT[0], EXTENT[1]); a.set_ylim(EXTENT[2], EXTENT[3]); a.set_aspect("equal"); a.axis("off")
+
+    fig, ax = kanvas(False)
+    nbr.plot(ax=ax, color=TETANGGA, edgecolor="#2A313B", linewidth=0.8, zorder=0)
+    idn.plot(ax=ax, color=DARAT, edgecolor="none", zorder=0)
+    batas(ax)
+    ax.annotate("MALAYSIA", (114.6, 3.6), ha="center", va="center", fontsize=18, fontweight="bold", color=ABU,
+                path_effects=[pe.withStroke(linewidth=5, foreground=JELAGA)])
+    x0, y0, dx = 117.0, -4.1, 200 / 111.0
+    ax.plot([x0, x0 + dx], [y0, y0], color=KAPUR, lw=3)
+    ax.annotate("200 km", (x0 + dx / 2, y0 + 0.18), ha="center", fontsize=13, color=KAPUR)
+    fig.savefig(os.path.join(PUB, "film_dasar.jpg"), facecolor=JELAGA, pil_kwargs={"quality": 92})
+    plt.close(fig)
+    for nama, sel, w in (("sawit", dst == 2, KELAS["palm"]), ("risiko", (dst == 3) | (dst == 5), KELAS["risk"]),
+                         ("api", dst == 4, KELAS["fire"]), ("keduanya", dst == 5, KELAS["both"])):
+        fig, ax = kanvas(True)
+        ax.imshow(np.ma.masked_where(~sel, np.ones(dst.shape)), extent=(EXTENT[0], EXTENT[1], EXTENT[2], EXTENT[3]),
+                  cmap=mc.ListedColormap([w]), vmin=0, vmax=1, interpolation="nearest")
+        batas(ax)
+        fig.savefig(os.path.join(PUB, f"film_{nama}.png"), transparent=True)
+        plt.close(fig)
+    print("  film_dasar.jpg, film_{sawit,risiko,api,keduanya}.png (1920x1080)")
 
 
 if __name__ == "__main__":

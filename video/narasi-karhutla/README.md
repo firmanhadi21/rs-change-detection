@@ -53,6 +53,30 @@ and 2026 checked against MCD64A1 January–September. Emissions are likely under
 and smouldering peat fires); peat burn depth is the main uncertainty; adat territories are not yet included.
 No company is named.
 
+## Sawit — where oil palm goes next (standalone, Indonesian + English)
+
+`Sawit` / `SawitEN` ("Di Mana Akan Ada Kebun Sawit Baru?" / "Where Will Oil Palm Go Next?", about 2 min 39 s
+each; Indonesian read by Bian, English by Max) and one infographic page per language, `InfografisSawit` /
+`InfografisSawitEN` (1080 × 1350): new oil palm per three years (2011–13 to 2017–19) against the model's
+2022–24 expectation, which factors predict conversion (closeness to existing palm far ahead; forest-zone status
+and fire history near zero), the hindcast check against distance to palm alone, the top 10% conversion-risk map,
+and its overlap with the top 10% El Niño 2027 fire risk.
+
+```
+~/miniforge3/bin/python -I ../../scripts/sawit_infografis_assets.py    # public/sawit/, src/sawitData.json
+uv run --no-project --with elevenlabs python3 tts_konsesi.py --film sawit [--bahasa en]   # narration + jadwalSawit[EN].json
+python3 bake_musik_bukti.py --jadwal src/jadwalSawit.json \
+    --keluar public/audio/sawit/musik-sawit.mp3 --sambung 70       # and jadwalSawitEN.json -> sawit-en/musik-sawit-en.mp3
+npm run build:sawit && npm run build:sawit-en                      # build:infografis-sawit for the two pages
+```
+
+Figures come from `output/fire/kalimantan_palm_panel/palm_expansion_*.json` and `palm_fire_overlap.json`
+(scripts/kalimantan_palm_expansion.py): a cell "becomes palm" when it passes 50% oil palm (Descals et al. 2024
+planting years), predicted three years ahead from the land at the end of the year before, gradient boosting
+checked on 50 km blocks and on 2014–2019 conversions it never saw. Palm planted in 2020–2021 is under-detected,
+the forest-zone map is from 2017 and mapped concessions from about 2012; the map shows likelihood, not plans or
+actors. No company is named.
+
 ## Periksa — checking the nickel-mining maps (standalone, Indonesian)
 
 `Periksa` ("Memeriksa Peta Tambang Nikel", about 3 min 8 s, read by Bian): the

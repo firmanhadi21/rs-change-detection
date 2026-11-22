@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "Bian's words for 'Di Mana Akan Ada Kebun Sawit Baru?', one entry per segment of jadwalSawit.json.",
+    "Every figure is from src/sawitData.json (scripts/sawit_infografis_assets.py, from",
+    "output/fire/kalimantan_palm_panel/palm_expansion_*.json and palm_fire_overlap.json): new palm",
+    "(cells crossing 50% palm) 2011-13 10,037 km2, 2014-16 8,705, 2017-19 2,600; expected 2022-24 2,356 km2;",
+    "factor ranking (permutation loss in PR-AUC, 50 km block CV): closeness 0.462 >> forest condition 0.194 >",
+    "access & terrain 0.087 > ... status 0.006, fire 0.001; hindcast trained to 2010: top 10% of land caught",
+    "94.5% (2014-16) and 91.3% (2017-19), distance alone 77.8% / 80.6%; top 10% risk land: 89% within 5 km of",
+    "palm; 55% of expected new palm outside mapped concessions; 602 km2 (26%) in Production Forest (HP);",
+    "overlap with top 10% El Nino 2027 fire risk 15,322 km2 = 31.6% of top-10% palm-risk land, 54% APL.",
+    "Numbers are spelled out so the voice does not misread them. No company is named."
+  ],
+  "model": "eleven_v4",
+  "suara": "1k39YpzqXZn52BgyLyGO",
+  "teks": {
+    "01-buka": "Kebun sawit di Kalimantan terus bertambah. Di mana kebun berikutnya akan dibuka? Sebuah model yang dilatih dengan data satelit dua puluh tahun memetakan lahan yang paling mungkin menjadi sawit dalam tiga tahun.",
+    "02-laju": "Lajunya sudah melambat. Pada dua ribu sebelas sampai tiga belas, sekitar sepuluh ribu kilometer persegi lahan menjadi sawit. Pada dua ribu tujuh belas sampai sembilan belas, hanya dua ribu enam ratus. Untuk dua ribu dua puluh dua sampai dua puluh empat, model memperkirakan hampir dua ribu empat ratus kilometer persegi.",
+    "03-faktor": "Apa yang paling menentukan lokasinya? Jauh di atas yang lain: kedekatan dengan kebun yang sudah ada. Lalu kondisi hutan, karena yang dibuka kebanyakan lahan terbuka atau hutan rusak, kemudian akses dan medan. Status kawasan, seperti APL, hampir tidak berpengaruh. Begitu pula riwayat kebakaran: api muncul saat lahan dibuka, tetapi tidak memberi tanda bertahun-tahun sebelumnya.",
+    "04-uji": "Apakah model ini bisa dipercaya? Model dilatih hanya dengan data sampai dua ribu sepuluh, lalu diuji pada tahun-tahun sesudahnya. Sepuluh persen lahan yang dinilai paling berisiko memuat sembilan puluh lima persen sawit baru tahun dua ribu empat belas sampai enam belas, dan sembilan puluh satu persen tahun dua ribu tujuh belas sampai sembilan belas. Jarak ke kebun saja hanya menangkap sekitar delapan puluh persen.",
+    "05-peta": "Inilah petanya. Hijau adalah sepuluh persen lahan yang paling berisiko. Delapan puluh sembilan persennya berada dalam lima kilometer dari kebun yang sudah ada. Lebih dari separuh sawit baru diperkirakan berada di luar konsesi yang terpetakan, dan sekitar enam ratus kilometer persegi di Hutan Produksi, yang izinnya perlu diperiksa.",
+    "06-api": "Kini tumpangkan risiko kebakaran untuk tahun El Niño dua ribu dua puluh tujuh. Sebagian besar tidak bertumpuk. Tetapi sekitar lima belas ribu kilometer persegi masuk keduanya: sepertiga lahan berisiko sawit, separuhnya APL. Di sanalah pencegahan api dan pemeriksaan izin paling diperlukan.",
+    "07-tutup": "Peta ini menunjukkan peluang, bukan rencana atau pelaku. Sawit yang ditanam pada dua ribu dua puluh dan dua puluh satu belum terdeteksi penuh, dan peta kawasan hutan berasal dari dua ribu tujuh belas. Tetapi polanya jelas: sawit berikutnya kemungkinan besar tumbuh di samping sawit yang sudah ada."
+  }
+}

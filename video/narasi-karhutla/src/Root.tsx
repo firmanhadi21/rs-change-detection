@@ -30,8 +30,9 @@ import { JADWAL_BIAYA } from "./jadwalBiaya";
 import { InfografisUang, UangFilm } from "./Uang";
 import { JADWAL_UANG } from "./jadwalUang";
 import { ApiFilm, InfografisApi } from "./Api";
-import { InfografisSawit } from "./Sawit";
+import { InfografisSawit, SawitFilm } from "./Sawit";
 import { JADWAL_API } from "./jadwalApi";
+import { JADWAL_SAWIT } from "./jadwalSawit";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -222,6 +223,20 @@ export const RemotionRoot: React.FC = () => (
         fps={JADWAL_API[b].FPS}
         width={JADWAL_API[b].LEBAR}
         height={JADWAL_API[b].TINGGI}
+      />
+    ))}
+    {/* Fourteenth piece: where oil palm goes next in Kalimantan (conversion risk 2022-2024 and its overlap
+        with El Nino 2027 fire risk), Indonesian (Bian) and English (Max), plus one infographic page each. */}
+    {(["id", "en"] as const).map((b) => (
+      <Composition
+        key={`sawitfilm${b}`}
+        id={b === "en" ? "SawitEN" : "Sawit"}
+        component={SawitFilm}
+        defaultProps={{ bahasa: b }}
+        durationInFrames={JADWAL_SAWIT[b].TOTAL_FRAME}
+        fps={JADWAL_SAWIT[b].FPS}
+        width={JADWAL_SAWIT[b].LEBAR}
+        height={JADWAL_SAWIT[b].TINGGI}
       />
     ))}
     {(["id", "en"] as const).map((b) => (

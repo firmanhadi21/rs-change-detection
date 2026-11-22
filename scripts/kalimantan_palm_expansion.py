@@ -232,6 +232,159 @@ def stage_forecast(a):
     print(json.dumps(res, indent=1, default=float))
 
 
+def _sim_features(X, base, share, share_prev, ind):
+    """Version-1 predictors with the closeness-to-palm group recomputed from a simulated palm map.
+    base: features of every cell at the start year (land state, fire, access ... held fixed)."""
+    import numpy as np
+    from scipy import ndimage
+    F = base.copy()
+
+    def grid(v):
+        g = np.zeros(X.shp, np.float32)
+        g[X.rr, X.cc] = v
+        return g
+    g, gp = grid(share), grid(share_prev)
+    F["d_palm"] = np.minimum(ndimage.distance_transform_edt(g < 50) * CELL_KM, 60)[X.rr, X.cc].astype("float32")
+    F["d_ind"] = np.minimum(ndimage.distance_transform_edt(grid(ind) == 0) * CELL_KM, 60)[X.rr, X.cc].astype("float32")
+    nb = ndimage.uniform_filter(g, NB_CELLS, mode="constant")[X.rr, X.cc]
+    F["nb_palm"] = nb.astype("float32")
+    F["nb_growth"] = (nb - ndimage.uniform_filter(gp, NB_CELLS, mode="constant")[X.rr, X.cc]).astype("float32")
+    F["own_palm"] = share.astype(F["own_palm"].dtype)
+    return F
+
+
+def _run_dynamic(X, m, y0, demands, allowed=None):
+    """Step the version-1 model forward in H-year periods from the end of y0. demands: cells per period.
+    Returns the period (1..) each cell converts in, 0 if it does not."""
+    import numpy as np
+    t = y0 - YEARS[0]
+    n = len(X.cells)
+    base = X.features(np.arange(n), t)
+    share = X.tot[t].astype(np.int16)
+    prev = X.tot[max(t - H, 0)].astype(np.int16)
+    ind = X.A["ind"][t] >= 50
+    free = X.risk_set(t) & (np.ones(n, bool) if allowed is None else allowed)
+    when = np.zeros(n, np.int8)
+    for k, D in enumerate(demands, start=1):
+        F = _sim_features(X, base, share, prev, ind)
+        p = m.predict_proba(F[FEATS])[:, 1]
+        p[~free] = -1
+        D = int(min(D, free.sum()))
+        pick = np.argpartition(-p, D)[:D]
+        prev = share.copy()
+        share[pick] = 100
+        ind[pick] = True
+        free[pick] = False
+        when[pick] = k
+    return when
+
+
+def stage_dynamic(a):
+    """Version 1 run forward: rank with the 3-year model, plant the period's demand in the top cells,
+    recompute closeness to palm from the simulated map, repeat. Tested 2010 -> 2016 (two steps), then
+    scenarios 2022-2030 (three steps)."""
+    import numpy as np
+    import rasterio
+    from kalimantan_palm_ca import simulate, _fom, LEGAL
+    X = Ctx()
+    km2 = CELL_KM ** 2
+    n = len(X.cells)
+    res = {}
+    # --- test: model trained on state years <= 2007 (outcomes <= 2010), start at the end of 2010
+    d = X.design(a.sample, last=2007)
+    m = _fit(d, d.conv.to_numpy(), FEATS)
+    t0 = 2010 - YEARS[0]
+    cand = X.risk_set(t0)
+    conv_by = lambda y: cand & (X.tot[y - YEARS[0]] >= 50)  # noqa: E731
+    ref1, ref2 = conv_by(2013), conv_by(2016)
+    dem = [int(ref1.sum()), int((ref2 & ~ref1).sum())]
+    w = _run_dynamic(X, m, 2010, dem)
+    v = {"demand_cells_per_period": dem, "dynamic": {"2010_2016": _fom(w > 0, ref2),
+                                                     "period_2014_2016": _fom(w == 2, ref2 & ~ref1)}}
+    p0 = m.predict_proba(X.features(np.arange(n), t0)[FEATS])[:, 1]
+    p0[~cand] = -1
+    st = np.zeros(n, bool)
+    st[np.argpartition(-p0, sum(dem))[:sum(dem)]] = True
+    v["static_one_shot"] = {"2010_2016": _fom(st, ref2)}
+    cal = json.load(open(os.path.join(OUT, "palm_ca_calibration.json")))["tuning_2010_2016"]["best"]
+    yearly = [int(((X.tot[y - YEARS[0]] >= 50) & (X.tot[y - 1 - YEARS[0]] < 50) & cand).sum()) for y in range(2011, 2017)]
+    from kalimantan_palm_ca import suitability
+    S, _ = suitability(X, 2008, 2010)
+    wc = simulate(X, S, X.tot[t0] >= 50, cand, yearly, cal["k"], cal["eps"], cal["alpha"], 0)
+    v["ca_version2"] = {"2010_2016": _fom(wc > 0, ref2), "note": "CA parameters were tuned on this period"}
+    res["test_2010_2016"] = v
+    print(json.dumps(v, indent=1), flush=True)
+    # --- scenarios from the end of 2021
+    d = X.design(a.sample)
+    m = _fit(d, d.conv.to_numpy(), FEATS)
+    t = 2021 - YEARS[0]
+    new = lambda y0, y1: np.mean([((X.tot[y - YEARS[0]] >= 50) & (X.tot[y - 1 - YEARS[0]] < 50)).sum()  # noqa: E731
+                                  for y in range(y0, y1 + 1)])
+    stt = X.cells.status.to_numpy()
+    legal = np.isin(stt, list(LEGAL))
+    scen = {"slow": (new(2017, 2019), None), "boom": (new(2011, 2016), None), "legal": (new(2017, 2019), legal)}
+    with rasterio.open(os.path.join(OUT, "fire_risk_2027.tif")) as ds:
+        bi = [i + 1 for i, s in enumerate(ds.descriptions) if s and "dry" in s][0]
+        pf = ds.read(bi)[X.rr, X.cc]
+    fire_top = pf >= np.quantile(pf[pf >= 0], 0.9)
+    with rasterio.open(os.path.join(OUT, "palm_ca_2030.tif")) as ds:
+        ca = {s: ds.read(i + 1)[X.rr, X.cc] for i, s in enumerate(
+            x.replace("share_of_runs_palm_by_2030_", "") for x in ds.descriptions)}
+    base = X.features(np.arange(n), t)
+    peat, conc, intact = base.peat.to_numpy() == 1, base.conc.to_numpy() == 1, base.und.to_numpy() >= 90
+    _, tr, crs, shp = _read("env")
+    res["scenarios"] = {}
+    bands = {}
+    for name, (yr, allowed) in scen.items():
+        w = _run_dynamic(X, m, 2021, [int(round(yr * H))] * 3, allowed)
+        bands[name] = w
+        c = w > 0
+        tot = float(c.sum())
+        pct = lambda mask: round(100 * float((c & mask).sum()) / tot, 1)  # noqa: E731
+        res["scenarios"][name] = {
+            "demand_km2_per_yr": round(yr * km2), "new_palm_2022_2030_km2": round(tot * km2),
+            "by_period_km2": {f"{2019 + 3 * k}-{2021 + 3 * k}": round(float((w == k).sum() * km2)) for k in (1, 2, 3)},
+            "pct_on_peat": pct(peat), "pct_in_intact_forest_2021": pct(intact),
+            "pct_outside_oil_palm_concessions": pct(~conc), "pct_in_2027_fire_top10": pct(fire_top),
+            "pct_by_status": {s: pct(stt == s) for s in ("APL", "HPK", "HP", "HPT", "HL", "KSA/KPA", "none", "other")},
+            "pct_also_new_in_ca_version2": pct(ca[name] >= 0.5) if name in ca else None,
+        }
+        print(name, json.dumps(res["scenarios"][name]), flush=True)
+    with rasterio.open(os.path.join(OUT, "palm_dynamic_2030.tif"), "w", driver="GTiff", height=shp[0],
+                       width=shp[1], count=len(bands), dtype="int8", crs=crs, transform=tr, compress="deflate",
+                       nodata=-1) as ds:
+        for i, (name, w) in enumerate(bands.items(), start=1):
+            g = np.full(shp, -1, np.int8)
+            g[X.rr, X.cc] = w
+            ds.write(g, i)
+            ds.set_band_description(i, f"period_converted_{name} (1=2022-24, 2=2025-27, 3=2028-30)")
+    json.dump(res, open(os.path.join(OUT, "palm_dynamic_forecast.json"), "w"), indent=1)
+    # map: three scenarios, colour by period
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import ListedColormap
+    from matplotlib.patches import Patch
+    r0, r1, c0, c1 = X.rr.min(), X.rr.max() + 1, X.cc.min(), X.cc.max() + 1
+    cols = ["#ffffff", "#e9e6df", "#8c8c8c", "#1d5c34", "#3f8f5a", "#9fd4ae"]
+    fig, axs = plt.subplots(1, 3, figsize=(18, 7), dpi=150)
+    for ax, (name, w) in zip(axs, bands.items()):
+        cls = np.zeros(shp, np.uint8)
+        cls[X.rr, X.cc] = 1
+        cls[X.rr[X.tot[t] >= 50], X.cc[X.tot[t] >= 50]] = 2
+        for k in (1, 2, 3):
+            cls[X.rr[w == k], X.cc[w == k]] = 2 + k
+        ax.imshow(cls[r0:r1, c0:c1], cmap=ListedColormap(cols), vmin=0, vmax=5, interpolation="nearest")
+        ax.set_axis_off()
+        ax.set_title(f"{name}: {res['scenarios'][name]['new_palm_2022_2030_km2']:,} km² new palm 2022-2030", fontsize=11)
+    fig.legend(handles=[Patch(color=cols[2], label="Oil palm by 2021"), Patch(color=cols[3], label="New 2022-24"),
+                        Patch(color=cols[4], label="New 2025-27"), Patch(color=cols[5], label="New 2028-30")],
+               loc="lower center", ncol=4, frameon=False)
+    fig.suptitle("Kalimantan oil palm 2022-2030, version-1 model stepped forward in 3-year periods", fontsize=13)
+    fig.savefig(os.path.join(OUT, "palm_dynamic_2030_map.png"), bbox_inches="tight")
+    print("Saved:", os.path.join(OUT, "palm_dynamic_2030_map.png"))
+
+
 def stage_map(_a):
     """Overlay the top 10% palm-conversion risk on the top 10% 2027 fire risk (El Nino scenario)."""
     import matplotlib
@@ -301,11 +454,11 @@ def stage_map(_a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--stage", required=True, choices=["model", "forecast", "map"])
+    ap.add_argument("--stage", required=True, choices=["model", "forecast", "map", "dynamic"])
     ap.add_argument("--sample", type=int, default=200_000, help="number of cells sampled for training")
     ap.add_argument("--folds", type=int, default=4)
     a = ap.parse_args()
-    {"model": stage_model, "forecast": stage_forecast, "map": stage_map}[a.stage](a)
+    {"model": stage_model, "forecast": stage_forecast, "map": stage_map, "dynamic": stage_dynamic}[a.stage](a)
 
 
 if __name__ == "__main__":

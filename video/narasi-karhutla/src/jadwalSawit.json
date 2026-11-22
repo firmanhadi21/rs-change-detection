@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "Schedule for the standalone film 'Di Mana Akan Ada Kebun Sawit Baru?'.",
+    "durasi is written by tts_konsesi.py --film sawit from ffprobe of the normalised mp3s;",
+    "bake_musik_bukti.py --jadwal reads it too."
+  ],
+  "fps": 30,
+  "lebar": 1920,
+  "tinggi": 1080,
+  "jeda_detik": 0.6,
+  "judul_detik": 4.0,
+  "tutup_detik": 7.0,
+  "urutan": [
+    "01-buka",
+    "02-laju",
+    "03-faktor",
+    "04-uji",
+    "05-peta",
+    "06-api",
+    "07-tutup"
+  ],
+  "durasi": {
+    "01-buka": 13.04,
+    "02-laju": 19.36,
+    "03-faktor": 26.16,
+    "04-uji": 25.68,
+    "05-peta": 21.2,
+    "06-api": 19.04,
+    "07-tutup": 19.44
+  },
+  "musik": {
+    "panjang_detik": 135.0,
+    "isi_berakhir_detik": 127.5,
+    "gain_kartu": 2.5,
+    "gain_narasi": 1.0
+  }
+}
